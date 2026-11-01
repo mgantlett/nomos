@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     key            TEXT NOT NULL UNIQUE,
     plane          TEXT NOT NULL CHECK(plane IN ('intent', 'substrate')),
+    project        TEXT NOT NULL DEFAULT '',
     schema_type    TEXT NOT NULL DEFAULT 'substrate',
     title          TEXT NOT NULL,
     description    TEXT NOT NULL DEFAULT '',
@@ -151,6 +152,7 @@ func InitSchema(db *sql.DB) error {
 
 func migrateLegacyColumns(db *sql.DB) error {
 	migrations := []string{
+		"ALTER TABLE tasks ADD COLUMN project TEXT DEFAULT '';",
 		"ALTER TABLE tasks ADD COLUMN schema_type TEXT NOT NULL DEFAULT 'substrate';",
 		"ALTER TABLE tasks ADD COLUMN tier TEXT NOT NULL DEFAULT 'T1';",
 		"ALTER TABLE tasks ADD COLUMN priority INTEGER NOT NULL DEFAULT 50;",
@@ -162,6 +164,7 @@ func migrateLegacyColumns(db *sql.DB) error {
 		"ALTER TABLE tasks ADD COLUMN burden INTEGER NOT NULL DEFAULT 0;",
 		"ALTER TABLE tasks ADD COLUMN context_burden INTEGER NOT NULL DEFAULT 0;",
 		"ALTER TABLE tasks ADD COLUMN arch_layer INTEGER NOT NULL DEFAULT 0;",
+		"CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project);",
 	}
 	for _, m := range migrations {
 		if _, err := db.Exec(m); err != nil {

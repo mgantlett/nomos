@@ -15,6 +15,7 @@ import (
 type taskCardFlags struct {
 	file      string
 	desc      string
+	project   string
 	scope     string
 	intScope  string
 	subScope  string
@@ -27,6 +28,7 @@ type taskCardFlags struct {
 func bindTaskCardFlags(cmd *cobra.Command, f *taskCardFlags, includePairScopes bool) {
 	cmd.Flags().StringVarP(&f.file, "file", "F", "", "Path to 3-section Markdown card file (use '-' for stdin)")
 	cmd.Flags().StringVarP(&f.desc, "desc", "d", "", "3-section Markdown task description")
+	cmd.Flags().StringVar(&f.project, "project", "", "Repository project identifier (defaults to active repository)")
 	cmd.Flags().StringVar(&f.scope, "scope", "", "Target files/specs and problem context ('## Scope & Context')")
 	cmd.Flags().StringArrayVar(&f.ac, "ac", nil, "Deliverable checklist item for '## Acceptance Criteria' (repeatable)")
 	cmd.Flags().StringVar(&f.verify, "verify", "", "Test command or proof for '## Verification'")

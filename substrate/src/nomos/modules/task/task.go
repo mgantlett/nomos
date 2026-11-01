@@ -63,6 +63,7 @@ type TaskRecord struct {
 	ID            int        `json:"id,omitempty"`
 	Key           string     `json:"key"`
 	Plane         string     `json:"plane"`
+	Project       string     `json:"project,omitempty"`
 	SchemaType    SchemaType `json:"schema_type"`
 	Title         string     `json:"title"`
 	Description   string     `json:"description,omitempty"`
@@ -115,6 +116,7 @@ type WavefrontCandidate struct {
 	Key         string     `json:"key"`
 	Title       string     `json:"title"`
 	Plane       string     `json:"plane"`
+	Project     string     `json:"project,omitempty"`
 	SchemaType  SchemaType `json:"schema_type"`
 	Status      Status     `json:"status"`
 	Tier        Tier       `json:"tier"`

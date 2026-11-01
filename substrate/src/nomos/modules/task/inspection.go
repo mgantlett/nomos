@@ -13,6 +13,7 @@ type TaskInspectionRecord struct {
 	Title        string   `json:"title"`
 	Status       Status   `json:"status"`
 	Plane        string   `json:"plane"`
+	Project      string   `json:"project,omitempty"`
 	Tier         Tier     `json:"tier"`
 	Priority     int      `json:"priority"`
 	TwinKey      string   `json:"twin_key,omitempty"`
@@ -30,6 +31,7 @@ func BuildInspectionRecord(task TaskRecord, blockedBy, blocks []string, worktree
 		Title:        task.Title,
 		Status:       task.Status,
 		Plane:        task.Plane,
+		Project:      task.Project,
 		Tier:         task.Tier,
 		Priority:     task.Priority,
 		TwinKey:      task.TwinKey,
@@ -46,6 +48,9 @@ func FormatInspectionCard(rec TaskInspectionRecord) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("# Task: %s\n\n", rec.Key))
 	sb.WriteString(fmt.Sprintf("- **Title**: %s\n", rec.Title))
+	if rec.Project != "" {
+		sb.WriteString(fmt.Sprintf("- **Project**: %s\n", rec.Project))
+	}
 	sb.WriteString(fmt.Sprintf("- **Plane**: %s | **Tier**: %s | **Status**: %s\n", rec.Plane, rec.Tier, rec.Status))
 	if rec.TwinKey != "" {
 		sb.WriteString(fmt.Sprintf("- **Twin Key**: %s\n", rec.TwinKey))

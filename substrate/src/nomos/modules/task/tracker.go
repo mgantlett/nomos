@@ -151,6 +151,7 @@ func (s *MemoryTaskStore) GetWavefront() ([]WavefrontCandidate, error) {
 				Key:         t.Key,
 				Title:       t.Title,
 				Plane:       t.Plane,
+				Project:     t.Project,
 				SchemaType:  t.SchemaType,
 				Status:      t.Status,
 				Tier:        t.Tier,

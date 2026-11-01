@@ -189,4 +189,60 @@ func TestSQLiteTaskStore_LegacyNullScan(t *testing.T) {
 	if len(list) != 1 || list[0].Key != "SUB-888" {
 		t.Fatalf("unexpected task list: %+v", list)
 	}
+	if list[0].Project != "" {
+		t.Errorf("expected NULL legacy project to scan as empty string, got %q", list[0].Project)
+	}
+}
+
+func TestSQLiteTaskStore_ProjectRoundTripAndInspection(t *testing.T) {
+	store, cleanup := setupTestStore(t)
+	defer cleanup()
+
+	rec := TaskRecord{
+		Key:        "SUB-401",
+		Plane:      "substrate",
+		Project:    "gsi-sov",
+		SchemaType: SchemaSubstrate,
+		Title:      "Sovereign Cockpit Feature",
+		Status:     StatusTodo,
+		Tier:       Tier1,
+		Priority:   75,
+	}
+	if err := store.CreateTask(rec); err != nil {
+		t.Fatalf("CreateTask failed: %v", err)
+	}
+
+	got, err := store.GetTask("SUB-401")
+	if err != nil {
+		t.Fatalf("GetTask failed: %v", err)
+	}
+	if got.Project != "gsi-sov" {
+		t.Fatalf("expected project 'gsi-sov', got %q", got.Project)
+	}
+
+	wf, err := store.GetWavefront()
+	if err != nil {
+		t.Fatalf("GetWavefront failed: %v", err)
+	}
+	if len(wf) != 1 || wf[0].Project != "gsi-sov" {
+		t.Fatalf("expected wavefront candidate project 'gsi-sov', got %+v", wf)
+	}
+
+	got.Project = "nomos"
+	if err := store.UpdateTask(*got); err != nil {
+		t.Fatalf("UpdateTask failed: %v", err)
+	}
+	reloaded, err := store.GetTask("SUB-401")
+	if err != nil {
+		t.Fatalf("GetTask after update failed: %v", err)
+	}
+	if reloaded.Project != "nomos" {
+		t.Fatalf("expected updated project 'nomos', got %q", reloaded.Project)
+	}
+
+	insp := BuildInspectionRecord(*reloaded, nil, nil, "", "")
+	card := FormatInspectionCard(insp)
+	if insp.Project != "nomos" || len(card) == 0 {
+		t.Fatalf("expected inspection card to carry project 'nomos', got %+v", insp)
+	}
 }

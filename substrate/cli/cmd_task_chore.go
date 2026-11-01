@@ -19,7 +19,7 @@ import (
 )
 
 func newTaskChoreCmd() *cobra.Command {
-	var plane string
+	var plane, project string
 	cmd := &cobra.Command{
 		Use:   "chore [title]",
 		Short: "Atomically provision a transient task worktree in EDIT phase (1-turn inception)",
@@ -29,18 +29,23 @@ func newTaskChoreCmd() *cobra.Command {
 			if len(args) > 0 && strings.TrimSpace(args[0]) != "" {
 				title = strings.TrimSpace(args[0])
 			}
-			return runTaskChoreWithPlane(title, plane)
+			return runTaskChoreWithOpts(title, plane, project)
 		},
 	}
 	cmd.Flags().StringVarP(&plane, "plane", "p", "substrate", "Target plane (intent|substrate)")
+	cmd.Flags().StringVar(&project, "project", "", "Repository project identifier (defaults to active repository)")
 	return cmd
 }
 
 func runTaskChore(title string) error {
-	return runTaskChoreWithPlane(title, "substrate")
+	return runTaskChoreWithOpts(title, "substrate", "")
 }
 
 func runTaskChoreWithPlane(title, rawPlane string) error {
+	return runTaskChoreWithOpts(title, rawPlane, "")
+}
+
+func runTaskChoreWithOpts(title, rawPlane, rawProject string) error {
 	plane := normalizePlaneInput(rawPlane, "")
 	if plane != "intent" && plane != "substrate" {
 		return types.NewNomosError(types.ErrCodeValidationFailed, "invalid plane %q: must be intent or substrate", rawPlane)
@@ -63,6 +68,7 @@ func runTaskChoreWithPlane(title, rawPlane string) error {
 	t := task.TaskRecord{
 		Key:         key,
 		Plane:       plane,
+		Project:     resolveActiveTaskProject(rawProject),
 		SchemaType:  task.SchemaType(plane),
 		Title:       title,
 		Description: "Atomic 1-turn chore worktree",

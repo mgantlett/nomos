@@ -60,13 +60,13 @@ func (s *SQLiteTaskStore) CreateTask(t TaskRecord) error {
 	}
 
 	query := `INSERT INTO tasks (
-		key, plane, schema_type, title, description, status, tier, priority,
+		key, plane, project, schema_type, title, description, status, tier, priority,
 		created_at, updated_at, completed_at, dependencies, twin_key, arc_id,
 		intent_delta, burden, context_burden, arch_layer
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err = s.db.Exec(query,
-		t.Key, t.Plane, string(t.SchemaType), t.Title, t.Description,
+		t.Key, t.Plane, t.Project, string(t.SchemaType), t.Title, t.Description,
 		string(t.Status), string(t.Tier), t.Priority, t.CreatedAt, t.UpdatedAt,
 		t.CompletedAt, string(depJSON), t.TwinKey, t.ArcID,
 		t.IntentDelta, t.Burden, t.ContextBurden, t.ArchLayer,
@@ -85,7 +85,7 @@ func (s *SQLiteTaskStore) GetTask(key string) (*TaskRecord, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	query := `SELECT id, key, plane, schema_type, title, description, status, tier, priority,
+	query := `SELECT id, key, plane, project, schema_type, title, description, status, tier, priority,
 		created_at, updated_at, completed_at, dependencies, twin_key, arc_id,
 		intent_delta, burden, context_burden, arch_layer FROM tasks WHERE key = ?`
 
@@ -115,14 +115,14 @@ func (s *SQLiteTaskStore) UpdateTask(t TaskRecord) error {
 	t.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 
 	query := `UPDATE tasks SET
-		schema_type = ?, title = ?, description = ?, status = ?, tier = ?,
+		project = ?, schema_type = ?, title = ?, description = ?, status = ?, tier = ?,
 		priority = ?, updated_at = ?, completed_at = ?, dependencies = ?,
 		twin_key = ?, arc_id = ?, intent_delta = ?, burden = ?,
 		context_burden = ?, arch_layer = ?
 		WHERE key = ?`
 
 	res, err := s.db.Exec(query,
-		string(t.SchemaType), t.Title, t.Description, string(t.Status), string(t.Tier),
+		t.Project, string(t.SchemaType), t.Title, t.Description, string(t.Status), string(t.Tier),
 		t.Priority, t.UpdatedAt, t.CompletedAt, string(depJSON),
 		t.TwinKey, t.ArcID, t.IntentDelta, t.Burden,
 		t.ContextBurden, t.ArchLayer, t.Key,
@@ -145,7 +145,7 @@ func (s *SQLiteTaskStore) ListTasks() []TaskRecord {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	query := `SELECT id, key, plane, schema_type, title, description, status, tier, priority,
+	query := `SELECT id, key, plane, project, schema_type, title, description, status, tier, priority,
 		created_at, updated_at, completed_at, dependencies, twin_key, arc_id,
 		intent_delta, burden, context_burden, arch_layer FROM tasks ORDER BY id ASC`
 
@@ -206,6 +206,7 @@ func (s *SQLiteTaskStore) GetWavefront() ([]WavefrontCandidate, error) {
 				Key:         t.Key,
 				Title:       t.Title,
 				Plane:       t.Plane,
+				Project:     t.Project,
 				SchemaType:  t.SchemaType,
 				Status:      t.Status,
 				Tier:        t.Tier,
@@ -225,6 +226,7 @@ func scanTaskRow(scanner rowScanner) (*TaskRecord, error) {
 	var (
 		rec         TaskRecord
 		nullID      sql.NullInt64
+		project     sql.NullString
 		schemaType  sql.NullString
 		desc        sql.NullString
 		status      sql.NullString
@@ -240,7 +242,7 @@ func scanTaskRow(scanner rowScanner) (*TaskRecord, error) {
 		archLayer   sql.NullInt64
 	)
 	err := scanner.Scan(
-		&nullID, &rec.Key, &rec.Plane, &schemaType, &rec.Title, &desc,
+		&nullID, &rec.Key, &rec.Plane, &project, &schemaType, &rec.Title, &desc,
 		&status, &tier, &priority, &rec.CreatedAt, &rec.UpdatedAt,
 		&completedAt, &depJSON, &twinKey, &arcID,
 		&intentDelta, &burden, &ctxBurden, &archLayer,
@@ -248,6 +250,7 @@ func scanTaskRow(scanner rowScanner) (*TaskRecord, error) {
 	if err != nil {
 		return nil, err
 	}
+	rec.Project = project.String
 
 	mapScannedFields(&rec, nullID, schemaType, desc, status, tier, twinKey, priority)
 	mapScannedMetadata(&rec, completedAt, depJSON, arcID, intentDelta, burden, ctxBurden, archLayer)

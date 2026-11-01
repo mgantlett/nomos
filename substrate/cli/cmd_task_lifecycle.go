@@ -91,10 +91,10 @@ func executeTaskCreate(title string, opts taskCreateOpts) error {
 	}
 
 	t := task.TaskRecord{
-		Key: key, Plane: opts.plane, SchemaType: task.SchemaType(opts.plane),
-		Title: title, Description: body, Status: task.StatusTodo,
-		Tier: task.Tier(opts.tier), Priority: opts.priority, TwinKey: twinOf,
-		Dependencies: deps, Burden: burden,
+		Key: key, Plane: opts.plane, Project: resolveActiveTaskProject(opts.card.project),
+		SchemaType: task.SchemaType(opts.plane), Title: title, Description: body,
+		Status: task.StatusTodo, Tier: task.Tier(opts.tier), Priority: opts.priority,
+		TwinKey: twinOf, Dependencies: deps, Burden: burden,
 	}
 	if err := store.CreateTask(t); err != nil {
 		return err

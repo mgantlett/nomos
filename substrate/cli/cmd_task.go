@@ -26,6 +26,7 @@ across lifecycle phases: IDLE -> PLAN -> EDIT -> REVIEW -> SYNC -> LEARN.`,
 	cmd.AddCommand(newTaskCreateCmd())
 	cmd.AddCommand(newTaskPairCmd())
 	cmd.AddCommand(newTaskChoreCmd())
+	cmd.AddCommand(newTaskProjectCmd())
 	cmd.AddCommand(newTaskStartCmd())
 	cmd.AddCommand(newTaskEditCmd())
 	cmd.AddCommand(newTaskCommitCmd())
@@ -42,6 +43,7 @@ across lifecycle phases: IDLE -> PLAN -> EDIT -> REVIEW -> SYNC -> LEARN.`,
 
 func newTaskListCmd() *cobra.Command {
 	var jsonOutput bool
+	var projectFilter string
 
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -51,7 +53,7 @@ func newTaskListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			tasks := store.ListTasks()
+			tasks := filterTasksByProject(store.ListTasks(), projectFilter)
 			if jsonOutput {
 				data, err := json.MarshalIndent(tasks, "", "  ")
 				if err != nil {
@@ -64,6 +66,7 @@ func newTaskListCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&projectFilter, "project", "", "Filter tasks by repository project identifier")
 	cmd.Flags().BoolVar(&jsonOutput, "json", false, "Emit task list as structured JSON")
 	return cmd
 }
@@ -240,14 +243,15 @@ func executeTaskPair(store task.TaskStore, title string, opts taskPairOpts) erro
 		return err
 	}
 
+	project := resolveActiveTaskProject(opts.card.project)
 	intTask := task.TaskRecord{
-		Key: intKey, Plane: "intent", SchemaType: task.SchemaIntent,
+		Key: intKey, Plane: "intent", Project: project, SchemaType: task.SchemaIntent,
 		Title: title, Description: intBody, Status: task.StatusTodo,
 		Tier: task.Tier(opts.tier), Priority: opts.priority, TwinKey: subKey,
 		Dependencies: deps, Burden: intBurden,
 	}
 	subTask := task.TaskRecord{
-		Key: subKey, Plane: "substrate", SchemaType: task.SchemaSubstrate,
+		Key: subKey, Plane: "substrate", Project: project, SchemaType: task.SchemaSubstrate,
 		Title: title, Description: subBody, Status: task.StatusTodo,
 		Tier: task.Tier(opts.tier), Priority: opts.priority, TwinKey: intKey,
 		Dependencies: deps, Burden: subBurden,
