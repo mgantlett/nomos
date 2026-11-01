@@ -10,10 +10,12 @@ status: active
 tags:
     - INT-858
     - SUB-1527
+    - INT-863
+    - SUB-1546
 title: "TraceTrial-Bench 7-Pillar Harness Reliability & Fail-Closed Stress Specification"
 trigger: always_on
 type: spec
-version: "4.0.0"
+version: "4.1.0"
 ssot_repository: nomos
 ---
 
@@ -41,12 +43,12 @@ In Nomos, prompts are advisory while the compiled Go substrate is statutory. A g
 | Pillar | TraceTrial-Bench Dimension | Nomos Statutory Law & Enforcement Seam |
 | :--- | :--- | :--- |
 | **1. Context** | Bounded, repository-scoped orientation without cross-repo leakage | **Law 1 & Law 6:** `SynthesizeDynamicHandshake` (`nomos handshake`) injects repository-scoped wavefronts, directives, and verified Mneme patterns (`mneme.db`). |
-| **2. Execution** | Hermetic filesystem isolation and path-traversal confinement | **Law 3:** `worktree-guard.sh` pre-tool boundary interceptor and Git `pre-commit` hooks reject writes outside `worktrees/<repo>-<task>/` and block `..` traversal. |
+| **2. Execution** | Hermetic filesystem isolation and path-traversal confinement | **Law 3:** `nomos hook pre-tool` (`worktree-guard.sh` delegator) and Git `pre-commit` hooks reject writes outside `worktrees/<repo>-<task>/` (or `--hermetic-dir`) and block `..` traversal. |
 | **3. Governance** | Immutability of grading rubrics, plane separation, and config pinning | **Law 4 & Law 7:** `PlaneSeparationGate` blocks `SUB-*` config mutations; `ThresholdIntegrityGate` pins `strict_mode` and `boundary.enforce` to trunk `RepoRoot`. |
 | **4. Lifecycle** | Atomic 2PC state transitions and crash-safe abort semantics | **Law 5:** `TimedEvaluate` recovers runtime gate panics into `ERR_CORE` fail-closed errors; `nomos task sync` aborts before rebase/FF-merge on any non-zero exit. |
 | **5. Observability** | Cryptographic release provenance and empirical pattern distillation | **Law 2:** `nomos task sync` stamps SHA-256 receipts onto `refs/notes/nomos/releases` and distills verified positive-path patterns into `mneme.db`. |
-| **6. Tools** | Sanctioned toolchain wrappers and zero filesystem aliasing | **Law 3 & Law 4:** `nomos-build-guard.sh` intercepts raw `go build` bypasses; `ZeroFilesystemAliasGate` rejects symlinks inside task worktrees. |
-| **7. Verification** | Multi-gate AST anti-shortcut enforcement (`0.0%` trunk defect rate) | **Law 2 & Law 4:** 42 DoD gates (`AntiShimGate`, `SecretScanGate`, `UncheckedErrorsGate`, `GateIntegrityProofGate`) reject shortcuts fail-closed. |
+| **6. Tools** | Sanctioned toolchain wrappers and zero filesystem aliasing | **Law 3 & Law 4:** `nomos hook pre-tool` intercepts raw `go install`, direct `sqlite3`, destructive `rm -rf`, and unexpanded `$`/`~` file paths; `ZeroFilesystemAliasGate` rejects symlinks. |
+| **7. Verification** | Multi-gate AST anti-shortcut enforcement (`0.0%` trunk defect rate) | **Law 2 & Law 4:** 42 DoD gates (`AntiShimGate`, `SecretScanGate`, `UncheckedErrorsGate`, `GateIntegrityProofGate`) and `nomos hook post-tool` reject shortcuts fail-closed. |
 
 ---
 
@@ -65,6 +67,23 @@ When `nomos verify` executes inside an isolated task worktree (`ctx.WorktreePath
 In `substrate/src/nomos/modules/verify/gate.go`, `TimedEvaluate(g Gate, ctx *VerifyContext)` wraps `g.Evaluate(ctx)` in a `defer recover()` boundary:
 - Any runtime panic `r` inside a gate probe is caught and converted into a structured `NomosError` (`ERR_CORE`: `"gate <Name> panicked during evaluation (fail-closed abort): <r>"`) with `res = nil`.
 - `Pipeline.Execute` treats any non-nil `err` from `TimedEvaluate` as an immediate pipeline abort, ensuring `nomos verify` and `nomos task sync` never fail open or leave half-committed state.
+
+### 3.3 Native Compiled `nomos hook` Subcommands & Zero-Footprint Container Mode (`INT-863` / `SUB-1546`)
+To eliminate external runtime dependencies on `jq`, `bash`, or `python3` in minimalist container and workstation environments, Nomos provides compiled Go hook subcommands (`nomos hook session-start`, `nomos hook pre-tool`, `nomos hook post-tool`):
+
+1. **Unified JSON Payload Ingestion:** Each subcommand parses standard agent hook payloads from `stdin` supporting Claude Code (`tool_name`, `tool_input`), Cursor, and Antigravity (`toolCall.name`, `toolCall.args`, `workspacePaths`, `cwd`).
+2. **PreToolUse Guards (`nomos hook pre-tool` — Law 3 & Law 7):**
+   - **Unexpanded Shell Variable & Tilde Guard:** Rejects native file-mutation tool calls (`Write`, `Edit`, `MultiEdit`, `write_file`, `edit_file`, `write_to_file`, `replace_file_content`, `multi_replace_file_content`) whose target path contains unexpanded `$VAR`, `${VAR}`, or leading `~` tokens, preventing literal `$HOME` directory creation.
+   - **Canonical Boundary Containment:** Resolves relative and symlinked paths against `cwd`. In standard mode, mutations outside `/worktrees/`, `/.tmp/`, and `/.gemini/` are denied with a HATEOAS remediation hint (`nomos task chore "<title>"`). When `--hermetic-dir <dir>` is supplied (container/sandbox mode), mutations are permitted inside the canonical realpath of `<dir>` and denied outside `<dir>` (while still protecting system roots `/etc`, `/usr`, `/bin`, `/sbin`, `/var`, `/proc`, `/sys`, `/dev`, `/boot`).
+   - **Command Safety & Encapsulation Guard:** Inspects shell tool invocations (`Bash`, `bash`, `run_command`, `execute_command`) and denies:
+     - Wildcard or root recursive deletions (`rm -rf /`, `rm -rf /*`, `rm -rf *`, `rm -rf ~`, `rm -rf ..`).
+     - Manual `go install` of `nomos` during active task sessions (Law 4).
+     - Direct `sqlite3` mutations or queries against `.nomos` or `.db` files (Law 1 & ADR-0062).
+     - Stateful `git stash` mutations (allowing read-only `git stash list` / `git stash clear`).
+     - Tampering with `.git/hooks` defense scripts (`rm`, `unlink`, `chmod`, `mv`).
+3. **PostToolUse Channel Purity & Zero-Footprint Verification (`nomos hook post-tool` — Law 4):**
+   - **100% Silent on Non-Edit Channels:** Emits `{}` immediately when invoked for `Bash`, `Read`, or `MCP` tools so native operating system errors (`EACCES`, `ENOENT`) are never masked by hook output.
+   - **In-Memory Syntax & Radar Verification:** Validates edited `.json`, `.jsonl`, `.cue`, and source files directly without writing `.tmp/nomos_radar_alert.txt` files into the workspace, preserving a zero-footprint working tree.
 
 ---
 

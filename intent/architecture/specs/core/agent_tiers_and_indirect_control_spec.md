@@ -9,7 +9,7 @@ plane: intent
 status: active
 title: "Agent Tiers & Indirect Control: The Open-Core Charter Architectural Specification"
 type: spec
-version: "4.0.0"
+version: "4.1.0"
 execution_frontier:
   tasks:
     - key: "INT-279"
@@ -21,6 +21,12 @@ execution_frontier:
     - key: "INT-593"
       plane: "intent"
       summary: "Foundational Architecture Adversarial Red-Team Audit"
+    - key: "INT-863"
+      plane: "intent"
+      summary: "Specify Native Compiled nomos hook Subcommands, Zero-Footprint Container Mode, and TraceTrial Guardrail Parity"
+    - key: "SUB-1546"
+      plane: "substrate"
+      summary: "Implement Native Compiled nomos hook CLI Subcommands and Hermetic Container Hook Mode"
 ssot_repository: nomos
 ---
 
@@ -171,12 +177,28 @@ The boundary engine enforces clean-room separation between public open-core and 
 
 ### Open-Core Whitelist (Public Substrate)
 - Phase discipline state machine and session handshake.
-- Hermetic worktree management and Git hygiene interceptors.
+- Native compiled `nomos hook` lifecycle interceptors (`session-start`, `pre-tool`, `post-tool`) with zero external shell/jq/python dependencies.
+- Hermetic worktree management, `--hermetic-dir` container sandbox mode, and Git hygiene interceptors.
 - Definition of Done gatekeeper (`nomos verify`) and cognitive debt profilers.
 - Two-Phase Commit release synchronization (`nomos task sync`) and Git Notes receipts.
 - Living Ledger task engine, causal DAG topology, and scaffold wizards.
 - Intent plane parser, byte parity validator, and NCTE-100 AST linter.
 - Single-session CapBAC token authority and basic vector memory (`nomos mem`).
+
+### Native Compiled Hook Subcommands (`nomos hook`)
+
+Tier 1 coding agents integrate with the Nomos harness through three compiled Go subcommands under `nomos hook`.
+These compiled subcommands replace fragile external shell, `jq`, and Python hook scripts with deterministic binary execution.
+
+| Subcommand | Lifecycle Event | Core Responsibility | Output Contract |
+| :--- | :--- | :--- | :--- |
+| `nomos hook session-start` | `SessionStart` | Executes `nomos handshake` in the target workspace and formats the orientation payload. | JSON `injectSteps` or `hookSpecificOutput` on `stdout` |
+| `nomos hook pre-tool` | `PreToolUse` | Evaluates Law 3 boundary isolation, unexpanded variable guards, and Law 7 command safety. | JSON `{"decision": "allow"}` or `{"decision": "deny", "reason": "..."}` |
+| `nomos hook post-tool` | `PostToolUse` / `PostInvocation` | Runs zero-footprint in-memory AST, JSON, JSONL, and CUE syntax verification on mutated files. | Silent `{}` on valid edits; injects advisory context only on real syntax or radar violations |
+
+Every `nomos hook` subcommand accepts an optional `--hermetic-dir <path>` flag for container and sandbox environments.
+When `--hermetic-dir <path>` is active, `nomos hook pre-tool` confines file mutations and shell paths to the canonical realpath of `<path>` without requiring a transient `worktrees/` subdirectory.
+When `--hermetic-dir` is omitted in a standard Nomos repository, `nomos hook pre-tool` enforces the Law 3 hermetic worktree boundary.
 
 ### Sovereign Deny-List (Prohibited in Open-Core)
 
