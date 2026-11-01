@@ -12,6 +12,8 @@ tags:
     - SUB-1210
     - INT-854
     - SUB-1510
+    - INT-864
+    - SUB-1549
 title: Task Lifecycle CLI and Workspace State Transition Specification
 trigger: always_on
 type: spec
@@ -104,8 +106,8 @@ stateDiagram-v2
 * **Semantics**: Emits formatted Lipgloss dashboard (or JSON payload) showing active phase, task card, worktree, token budget, and database status.
 
 ### 4.2 `nomos task create`
-* **Syntax**: `nomos task create <TITLE> --plane <intent|substrate> [--tier <T1|T2>] [--priority <int>]`
-* **Semantics**: Allocates next sequential key (`INT-<N>` or `SUB-<N>`), persists record in `tasks` table with status `TODO`.
+* **Syntax**: `nomos task create <TITLE> --plane <intent|substrate> (--scope <TEXT> --ac <ITEM>... --verify <TEXT> | -F <PATH|-> | -d <MARKDOWN>) [--burden <1-10>] [--tier <T1|T2>] [--priority <int>] [--twin-of <KEY>]`
+* **Semantics**: Fails closed unless the universal 3-section backlog card (`#TaskCardInput` in `task.cue`: `## Scope & Context`, `## Acceptance Criteria` with >=1 `- [ ]` item, `## Verification`) is supplied via structured synthesis flags or Markdown body; auto-derives `burden` (`2-8`) when `--burden` is omitted; allocates next sequential key (`INT-<N>` or `SUB-<N>`) and persists record in `tasks` table with status `TODO`.
 
 ### 4.3 `nomos task start`
 * **Syntax**: `nomos task start <KEY>`
@@ -140,8 +142,8 @@ stateDiagram-v2
 * **Semantics**: Inspects task causal dependencies; identifies ready unblocked tasks emitting `#WavefrontCandidate` records.
 
 ### 4.11 `nomos task pair` / `chore` / `commit` / `show` / `status`
-* **`nomos task pair <TITLE>`**: Atomically allocates twinned `INT-<N>` and `SUB-<N>` task records bound in `SQLiteTaskStore`.
-* **`nomos task chore <TITLE>`**: Fast-tracks a single-step `SUB-<N>` task directly into an isolated `EDIT` worktree.
+* **`nomos task pair <TITLE>`**: Atomically allocates twinned `INT-<N>` and `SUB-<N>` task records bound in `SQLiteTaskStore`, enforcing the same fail-closed 3-section `#TaskCardInput` contract (`--scope` / `--int-scope` / `--sub-scope`, `--ac`, `--verify`, or `-F <PATH|->` / `-d <MARKDOWN>`, plus optional `--burden`).
+* **`nomos task chore <TITLE>`**: Zero-template fast lane that provisions a single-step `SUB-<N>` (or `--plane intent` `INT-<N>`) task directly into an isolated `EDIT` worktree (`burden: 1`) without requiring the 3-section backlog card.
 * **`nomos task commit [KEY] -m <MSG>`**: Commits staged changes inside the active worktree with Dual-Layer commit schema headers.
 * **`nomos task show <KEY>`**: Displays the detailed Living Ledger task inspection card and twin linkage.
 * **`nomos task status`**: Displays active workspace phase state and CapBAC step budget consumption.
@@ -161,4 +163,7 @@ stateDiagram-v2
 | `TC-TSK-07` | Law 3 (Release Pruning) | Successful `nomos task sync` | Merges to `main`; deletes `worktrees/nomos-SUB-1210` including gitignored subdirectories and `feature/SUB-1210` |
 | `TC-TSK-08` | Law 4 (DAG Wavefront) | `nomos task dag --json` | Emits JSON array of `#WavefrontCandidate` |
 | `TC-TSK-09` | Law 3 (Orphan Worktree GC) | `nomos task prune` | Sweeps orphan `worktrees/*` folders & merged `feature/*` branches; preserves active `IN_PROGRESS` worktrees |
+| `TC-TSK-10` | Law 7 (Fail-Closed Card) | `nomos task create "Title" -d "plain paragraph"` | Rejects unstructured prose (`ERR_VALIDATION_FAILED`) with 3-line HATEOAS remedy; exit 1 |
+| `TC-TSK-11` | Law 4 (Card Synthesis) | `nomos task create "Title" --scope "..." --ac "..." --verify "..."` | Synthesizes canonical 3-section Markdown card and derives non-zero `burden`; exit 0 |
+| `TC-TSK-12` | Law 1 (Fast-Lane Chore) | `nomos task chore "Quick fix"` | Provisions `EDIT` worktree in 1 turn with zero template requirement; exit 0 |
 

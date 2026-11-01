@@ -14,119 +14,112 @@ tags:
     - task
     - living-ledger
     - INT-371
-title: Nomos Task Contract & Plane-Tailored Schemas Specification
+    - INT-864
+    - SUB-1549
+title: Nomos Task Contract & Universal 3-Section Backlog Card Specification
 type: spec
-version: "4.0.0"
+version: "4.1.0"
 ssot_repository: nomos
 ---
 
-# Nomos Task Contract & Plane-Tailored Schemas Specification
+# Nomos Task Contract & Universal 3-Section Backlog Card Specification
 
 ## 1. Purpose
 
-This specification defines the formal contract for Living Ledger tasks. The authoritative Single Source of Truth (SSoT) is the compiled CUE contract [`intent/contracts/cue/task.cue`](../../../contracts/cue/task.cue) (`#TaskRecord`), embedded and enforced deterministically by the Substrate engine (`substrate/src/nomos/modules/task/task.go`) under Law 4 (The Single Source of Truth Law) and Law 1 (Dual-Core Inversion).
+This specification defines the formal contract for Living Ledger tasks. The authoritative Single Source of Truth (SSoT) is the compiled CUE contract [`intent/contracts/cue/task.cue`](../../../contracts/cue/task.cue) (`#TaskRecord` and `#TaskCardInput`), enforced deterministically by the Go substrate (`substrate/src/nomos/modules/task/`) under Law 4 (The Single Source of Truth Law), Law 6 (The Canonical Singularity Law), and Law 7 (The Fail-Closed Pre-Flight Law).
 
-Twin semantics (pure Intent tasks, bilateral pointers, ARC grouping) are codified in
-[`task_lifecycle_cli_spec.md`](task_lifecycle_cli_spec.md) and [`task.cue`](../../../contracts/cue/task.cue).
+Twin semantics and lifecycle state transitions are codified in [`task_lifecycle_cli_spec.md`](task_lifecycle_cli_spec.md) and [`task.cue`](../../../contracts/cue/task.cue).
 
-## 2. Principle: reject, never default
+---
 
-Task inception is fail-closed (Law 7). The substrate never fills in a missing value on the
-caller's behalf. Specifically, it does not:
+## 2. Two-Lane Ceremony Architecture (`INT-864`)
 
-- default the **type** (previously `Task`), or default the **plane** independently of the type;
-- inject a schema **template** as the body when none is supplied;
-- invent **burden** from body length or fall back to `1/1/1`;
-- scaffold a **twin** with a template body.
+Nomos v3 suffered from over-ceremonialized task inception (7 distinct section taxonomies, 35+ memorized H2 headers, brittle regex bans on `TODO`, and 4 manual sizing flags), whereas early Nomos v4 swung to the opposite extreme (unvalidated `-d` prose walls and `burden: 0`).
 
-Each of these defaults produced the weak tasks observed in October 2026 (for example SUB-469:
-type `Intent`, plane `substrate`, template body, fabricated burden 8, twin in the wrong direction).
+Nomos v4.1 resolves this tension by splitting ceremony strictly by **task durability**:
 
-## 3. Field contract
+| Lane | CLI Surface | Ceremony Level | Body & Sizing Rule |
+| :--- | :--- | :--- | :--- |
+| **Fast Lane (Transient)** | `nomos task chore "<title>"` | **Zero template** | Immediate 1-turn worktree inception in `EDIT` phase; auto-populates minimal chore description and `burden: 1`. |
+| **Backlog Lane (Durable)** | `nomos task create`, `nomos task pair` | **Fail-closed 3-section card** | Rejects empty or unstructured `-d` prose (`ERR_VALIDATION_FAILED`) with a 3-line HATEOAS remedy; auto-derives `burden` (`1-8`) when `--burden` is omitted. |
+
+---
+
+## 3. Universal 3-Section Backlog Card Contract (`#TaskCardInput`)
+
+Every durable backlog task across **both** `INT-*` and `SUB-*` planes shares a single canonical 3-section Markdown structure:
+
+```markdown
+## Scope & Context
+<Target files/specs/twin key and concise statement of the problem being solved>
+
+## Acceptance Criteria
+- [ ] <Concrete deliverable 1>
+- [ ] <Concrete deliverable 2>
+
+## Verification
+- <Concrete test command, cleanroom vector, or gate proof>
+```
+
+### 3.1 Turn-1 Authoring Modes (Zero Multi-Turn Friction)
+
+Callers may satisfy `#TaskCardInput` on turn 1 via either structured synthesis flags or Markdown body input:
+
+1. **Structured CLI Synthesis Flags (Recommended for 1-liners & agents):**
+   - `--scope <text>` — populates `## Scope & Context` (>= 10 runes).
+   - `--ac <item>` (repeatable) — populates `- [ ] <item>` checklist bullets under `## Acceptance Criteria` (>= 1 non-empty item).
+   - `--verify <text>` — populates `## Verification` (>= 5 runes).
+   - On `nomos task pair`, optional `--int-scope` / `--sub-scope` overrides allow distinct Intent vs. Substrate scope descriptions when needed while sharing `--scope` as fallback.
+2. **Markdown Body Input (`-F <file>`, `-F -` stdin heredoc, or `-d <markdown>`):**
+   - Validated case-insensitively by fuzzy H2/H3 section matching:
+     - **Scope section** (`Scope`, `Scope & Context`, `Context & Scope`, or `Problem & Scope`): >= 1 non-comment content line (>= 10 runes).
+     - **Acceptance Criteria section** (`Acceptance Criteria`): >= 1 non-empty Markdown task-list item (`- [ ] <text>` or `- [x] <text>`).
+     - **Verification section** (`Verification`): >= 1 non-comment content line (>= 5 runes).
+   - Literal unexpanded `\n` escape sequences outside fenced code blocks are rejected with guidance to use `--scope/--ac/--verify` or `-F -`.
+   - Unlike v3, legitimate domain tokens (`TODO`, `StatusTodo`, `<flag>`) are **never** false-positived.
+
+### 3.2 Fail-Closed HATEOAS Remedy (Law 1 & Law 7)
+
+Invoking `nomos task create` or `nomos task pair` with an empty description or single-paragraph `-d` prose fails closed (exit 1) and emits a copy-pasteable 3-line remedy:
+
+```text
+Hint: Durable backlog tasks require the 3-section card contract (use 'nomos task chore "<title>"' for 1-turn fixes):
+  nomos task create "<title>" --plane substrate --scope "<context & target files>" --ac "<deliverable>" --verify "<test command>"
+  # Or pass structured Markdown via stdin: nomos task create "<title>" -F - <<'EOF' ... EOF
+```
+
+### 3.3 Deterministic Burden Auto-Sizing
+
+- Optional `-b, --burden <1-10>` sets explicit `#TaskRecord.burden`.
+- When `--burden` is omitted (`0`), the substrate deterministically derives `burden` (`2-8`) from checklist item count and scope/body density so Glass Cockpit and Living Ledger cards never display `0 pts` on backlog items.
+
+---
+
+## 4. Field Contract (`#TaskRecord`)
 
 | Field | Rule |
-|---|---|
-| `type` | Required. Strictly one of the 7 canonical schemas: `intent`, `substrate`, `membrane`, `infra`, `cycle`, `debt`, `spike`. Zero aliases tolerated under Law 6 (The Canonical Singularity Law). |
-| `plane` | Deterministically derived from `type` under Law 4: `intent` maps to `plane: intent`; `substrate`, `membrane`, `infra`, `cycle`, `debt` map to `plane: substrate`. `--plane` is accepted and required solely for `spike`. |
-| `key` | `INT-<N>` / `SUB-<N>`, derived from plane (Law 6). |
-| `title` | Required, ≤ 100 chars, no placeholders. |
-| `body` | Required: `-F <file>`, `-F -` (stdin), or `-d <markdown>`. |
-| `context_burden`, `logic_depth` | Required, 1–5 each. |
-| `burden` | Derived: context + logic (2–10). |
-| `tier` | Derived: T1 when burden ≥ 6, else T2. |
-| `arch_layer` | **Removed.** Two conflicting taxonomies existed and the value duplicated plane + type. The column stays read-only for historical rows. |
+| :--- | :--- |
+| `key` | `INT-<N>` / `SUB-<N>`, derived from `plane` unless explicit valid `--key` supplied (Law 6). |
+| `plane` | Strictly `"intent"` or `"substrate"` (`INT-*` -> `intent`, `SUB-*` -> `substrate`). |
+| `schema_type` | One of `"intent"`, `"substrate"`, `"membrane"`, `"infra"`, `"cycle"`, `"debt"`, `"spike"`. |
+| `title` | Required, >= 5 characters. |
+| `description` | Required 3-section Markdown card on `create`/`pair`; historical SQLite rows remain readable without retroactive breakage. |
+| `burden` | Integer `1-10` on newly created tasks (`--burden` override or deterministic density derivation). |
+| `twin_key` | Optional cross-plane `INT-<N>` / `SUB-<N>` pointer (`--twin-of` or atomic `nomos task pair`). |
 
-## 4. Section and content rules
+---
 
-Each schema has required sections (see `sections:` in the contract). A section passes only if,
-after stripping HTML comments, it has at least one real content line, and list sections have at
-least one non-empty item. Bodies are rejected if they contain:
+## 5. Table-Driven Verification Matrix
 
-- angle-bracket placeholders such as `<path-to-spec.md>`;
-- empty checkboxes, `TODO`, `TBD`;
-- the template warning banner;
-- literal `\n` sequences (a sign of an unexpanded shell string; use `-F -` instead).
+Under Law 2 (**The Non-Verbal Proof Law**), the Universal 3-Section Task Card Contract is validated against the following deterministic test vectors:
 
-The Gen 2 four-section fallback is accepted when reading existing rows and rejected for new tasks.
-
-## 5. Twins
-
-- `--twin-of <KEY>` links a new task to an existing task on the other plane. Both tasks must
-  already have real bodies.
-- Template twin scaffolding (`--twin`) is removed.
-- `intent`-type tasks require a twin, or `--no-twin "<reason>"`, which is journaled.
-  This keeps the pure Intent task case from the pairing spec §3.2 explicit rather than silent.
-
-## 6. Enforcement-gap analysis: why the parity engine passed broken task inception
-
-All 23 DoD gates passed on SUB-467 while task inception was producing invalid tasks. The gates
-were not lying, but none of them measured what we assumed:
-
-1. **Intent Substrate Parity Gate** only byte-compares `AGENTS.md` and workflow files against their
-   embedded copies. It checks that assets are in sync. It does not check that the code implements a spec.
-2. **Intent Traceability Gate** checks that each `@intent INT-N` tag (a) exists in the DB on the intent
-   plane and (b) appears somewhere in a vault Markdown file. The task module is tagged `INT-337`, which
-   satisfies both, but:
-   - INT-337 is a stub: status `IN_PROGRESS`, with a one-line body;
-   - its only vault reference is `architecture/engine/missing_traceability.md`, a bare list of 14 IDs
-     with no frontmatter or content, which exists only to satisfy check (b). The list includes
-     `INT-324`, the traceability gate's own tag.
-
-   The 97% "traceability density" is therefore a measure of how many functions carry a tag, not of
-   whether the code conforms to any spec.
-3. **This spec was stale.** It named paths (`src/nomos/modules/schema/`, `src/nomos/cmd/task_create_guided.go`)
-   and a `--schema` flag that do not exist, and it claimed fail-closed behaviour that the code did not have.
-   No gate compares a spec's claims with the code.
-4. **The rules were duplicated.** Required sections existed both in Go (`modules/task/schema.go`) and in
-   prose, so drift between them was invisible.
-
-### Remedies
-
-| Gap | Remedy | Owner |
-|---|---|---|
-| Rules duplicated in Go and prose | `task_contract.yaml` is the single source; the substrate embeds it and loads sections and content rules from it | SUB twin |
-| Spec and code can drift | Add `task_contract.yaml` to the Intent Substrate Parity Gate byte-parity set, so editing the contract without rebuilding the substrate fails verification | SUB twin |
-| Traceability anchors can be faked | A valid anchor must be a vault document with frontmatter that lists the ID in `tags`; bare ID-list files are rejected; anchors whose intent task is a stub (single-line body or contract-invalid) fail | SUB (gate hardening) |
-| `missing_traceability.md` | Delete it, then re-anchor each listed ID to a real spec or mark it as debt | SUB (gate hardening) |
-
-What the gates can prove after these remedies: the contract the CLI enforces is byte-identical to
-the reviewed intent contract, and every `@intent` tag points to a non-stub, frontmatter-anchored spec.
-What they still cannot prove: that a spec's prose is *correct*. That remains a Tier 1 review
-responsibility during the `REVIEW` phase.
-
-## 7. Table-Driven Verification Matrix
-
-Under Law 2 (**The Non-Verbal Proof Law**), the Plane-Tailored Task Schemas are validated against the following deterministic test vectors:
-
-| Test ID | Scenario | Input Conditions | Pre-Conditions | Expected Outcome | Exit Code |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **TV-SCH-01** | Canonical Type Acceptance | `type = "intent"`, valid body | Valid intent sections | Accepted: key `INT-<N>`, plane `intent` | 0 |
-| **TV-SCH-02** | Type Alias Rejection | `type = "spec"` or `type = "refactor"` | Alias attempted | Rejected: `ERR_INVALID_SCHEMA_TYPE` (Law 6) | 1 |
-| **TV-SCH-03** | Deterministic Plane Derivation | `type = "substrate"` without `--plane` | Valid substrate body | Accepted: plane `substrate`, key `SUB-<N>` | 0 |
-| **TV-SCH-04** | Conflicting Plane Mismatch | `type = "intent"`, `--plane substrate` | Intent schema used | Rejected: `ERR_PLANE_TYPE_MISMATCH` (fail-closed) | 1 |
-| **TV-SCH-05** | Spike Missing Plane | `type = "spike"` without `--plane` | Spike schema used | Rejected: `ERR_SPIKE_REQUIRES_PLANE` (Law 7) | 1 |
-| **TV-SCH-06** | Placeholder Content Rejection | Body contains `<path-to-spec.md>` | Placeholder present | Rejected: `ERR_PLACEHOLDER_FORBIDDEN` | 1 |
-| **TV-SCH-07** | Burden Boundary Validation | `context_burden = 6` or `logic_depth = 0` | Out of range 1–5 | Rejected: `ERR_BURDEN_OUT_OF_BOUNDS` | 1 |
-| **TV-SCH-08** | CUE SSoT Unification | Serialized task record | Unification check | Unifies against `#TaskRecord` in `task.cue` | 0 |
-
-All task schema validation executes synchronously in Go substrate and satisfies all Definition of Done (DoD) quality gates via `nomos verify`.
+| Test ID | Scenario | Input Conditions | Expected Outcome | Exit Code |
+| :--- | :--- | :--- | :--- | :---: |
+| **TV-SCH-01** | Structured Flag Synthesis | `--scope`, `--ac` (x2), `--verify` on `task create` | Renders canonical 3-section Markdown + derives non-zero `burden` | 0 |
+| **TV-SCH-02** | Stdin Markdown Card (`-F -`) | Valid 3-section Markdown via stdin | Accepted and persisted verbatim in `SQLiteTaskStore` | 0 |
+| **TV-SCH-03** | Plain-Text `-d` Fail-Closed | `nomos task create "Title" -d "flat paragraph"` | Rejected (`ERR_VALIDATION_FAILED`) with `--scope/--ac/--verify` HATEOAS hint | 1 |
+| **TV-SCH-04** | Empty Checkbox Rejection | `## Acceptance Criteria` contains only `- [ ] ` | Rejected (`ERR_VALIDATION_FAILED`) | 1 |
+| **TV-SCH-05** | Domain Token Tolerance | Card mentions `StatusTodo` and `<task-key>` | Accepted without false-positive regex rejection | 0 |
+| **TV-SCH-06** | Fast-Lane Chore Exemption | `nomos task chore "Quick typo fix"` | Provisions `EDIT` worktree immediately with zero template flags | 0 |
+| **TV-SCH-07** | Explicit Burden Bounds | `--burden 11` or `--burden -1` | Rejected (`ERR_VALIDATION_FAILED`: must be 1-10) | 1 |
+| **TV-SCH-08** | CUE SSoT Unification | Serialized `#TaskRecord` & `#TaskCardInput` | Unifies cleanly against `intent/contracts/cue/task.cue` | 0 |

@@ -37,10 +37,19 @@ import (
 		plane: "substrate"
 	}
 
-	// Relational Invariant (Law 7): When completed, completed_at must not be null
+	// Completion invariant (Law 7): When completed, completed_at must not be null
 	if status == "DONE" {
 		completed_at: !=null
 	}
+})
+
+// TaskCardInput defines the fail-closed 3-section backlog card contract enforced on
+// nomos task create and nomos task pair (INT-864). nomos task chore remains exempt.
+#TaskCardInput: close({
+	scope:               string & strings.MinRunes(10)
+	acceptance_criteria: [string & strings.MinRunes(3), ...(string & strings.MinRunes(3))]
+	verification:        string & strings.MinRunes(5)
+	burden?:             int & >= 1 & <= 10
 })
 
 // WavefrontCandidate defines the structured candidate task emitted by nomos task dag --json.
