@@ -13,14 +13,15 @@ import (
 )
 
 type taskCardFlags struct {
-	file     string
-	desc     string
-	scope    string
-	intScope string
-	subScope string
-	ac       []string
-	verify   string
-	burden   int
+	file      string
+	desc      string
+	scope     string
+	intScope  string
+	subScope  string
+	ac        []string
+	verify    string
+	dependsOn []string
+	burden    int
 }
 
 func bindTaskCardFlags(cmd *cobra.Command, f *taskCardFlags, includePairScopes bool) {
@@ -29,11 +30,44 @@ func bindTaskCardFlags(cmd *cobra.Command, f *taskCardFlags, includePairScopes b
 	cmd.Flags().StringVar(&f.scope, "scope", "", "Target files/specs and problem context ('## Scope & Context')")
 	cmd.Flags().StringArrayVar(&f.ac, "ac", nil, "Deliverable checklist item for '## Acceptance Criteria' (repeatable)")
 	cmd.Flags().StringVar(&f.verify, "verify", "", "Test command or proof for '## Verification'")
+	cmd.Flags().StringSliceVar(&f.dependsOn, "depends-on", nil, "Blocker task key(s) in causal DAG (comma-separated or repeatable)")
 	cmd.Flags().IntVarP(&f.burden, "burden", "b", 0, "Explicit cognitive burden 1-10 (0 = auto-derive from card density)")
 	if includePairScopes {
 		cmd.Flags().StringVar(&f.intScope, "int-scope", "", "Intent-specific override for '## Scope & Context'")
 		cmd.Flags().StringVar(&f.subScope, "sub-scope", "", "Substrate-specific override for '## Scope & Context'")
 	}
+}
+
+func resolveValidatedDependencies(store task.TaskStore, raw []string, selfKeys ...string) ([]string, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	selfSet := make(map[string]bool, len(selfKeys))
+	for _, sk := range selfKeys {
+		selfSet[strings.ToUpper(strings.TrimSpace(sk))] = true
+	}
+	seen := make(map[string]bool, len(raw))
+	var out []string
+	for _, item := range raw {
+		for _, part := range strings.Split(item, ",") {
+			dep := strings.ToUpper(strings.TrimSpace(part))
+			if dep == "" || seen[dep] {
+				continue
+			}
+			if err := task.ValidateTaskKey(dep); err != nil {
+				return nil, err
+			}
+			if selfSet[dep] {
+				return nil, types.NewNomosError(types.ErrCodeValidationFailed, "task cannot depend on itself (%s)", dep)
+			}
+			if _, err := store.GetTask(dep); err != nil {
+				return nil, types.NewNomosError(types.ErrCodeValidationFailed, "dependency task %s does not exist", dep)
+			}
+			seen[dep] = true
+			out = append(out, dep)
+		}
+	}
+	return out, nil
 }
 
 func materializeCardStdin(stdin io.Reader, f *taskCardFlags) error {

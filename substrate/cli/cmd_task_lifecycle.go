@@ -79,6 +79,10 @@ func executeTaskCreate(title string, opts taskCreateOpts) error {
 	if err != nil {
 		return err
 	}
+	deps, err := resolveValidatedDependencies(store, opts.card.dependsOn, key)
+	if err != nil {
+		return err
+	}
 	twinOf := strings.ToUpper(strings.TrimSpace(opts.twinOf))
 	if twinOf != "" {
 		if err := task.ValidateTaskKey(twinOf); err != nil {
@@ -89,7 +93,8 @@ func executeTaskCreate(title string, opts taskCreateOpts) error {
 	t := task.TaskRecord{
 		Key: key, Plane: opts.plane, SchemaType: task.SchemaType(opts.plane),
 		Title: title, Description: body, Status: task.StatusTodo,
-		Tier: task.Tier(opts.tier), Priority: opts.priority, TwinKey: twinOf, Burden: burden,
+		Tier: task.Tier(opts.tier), Priority: opts.priority, TwinKey: twinOf,
+		Dependencies: deps, Burden: burden,
 	}
 	if err := store.CreateTask(t); err != nil {
 		return err
@@ -102,7 +107,11 @@ func executeTaskCreate(title string, opts taskCreateOpts) error {
 	} else {
 		fmt.Printf("✨ Created task: %s (%s) - %s\n", key, opts.plane, title)
 	}
-	fmt.Printf("  Next: nomos task start %s --edit\n", key)
+	if len(deps) > 0 {
+		fmt.Printf("  Blocked By: %s (auto-promotes to wavefront once DONE)\n", strings.Join(deps, ", "))
+	} else {
+		fmt.Printf("  Next: nomos task start %s --edit\n", key)
+	}
 	return nil
 }
 

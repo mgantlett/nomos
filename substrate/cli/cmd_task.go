@@ -235,16 +235,22 @@ func executeTaskPair(store task.TaskStore, title string, opts taskPairOpts) erro
 	if err != nil {
 		return err
 	}
+	deps, err := resolveValidatedDependencies(store, opts.card.dependsOn, intKey, subKey)
+	if err != nil {
+		return err
+	}
 
 	intTask := task.TaskRecord{
 		Key: intKey, Plane: "intent", SchemaType: task.SchemaIntent,
 		Title: title, Description: intBody, Status: task.StatusTodo,
-		Tier: task.Tier(opts.tier), Priority: opts.priority, TwinKey: subKey, Burden: intBurden,
+		Tier: task.Tier(opts.tier), Priority: opts.priority, TwinKey: subKey,
+		Dependencies: deps, Burden: intBurden,
 	}
 	subTask := task.TaskRecord{
 		Key: subKey, Plane: "substrate", SchemaType: task.SchemaSubstrate,
 		Title: title, Description: subBody, Status: task.StatusTodo,
-		Tier: task.Tier(opts.tier), Priority: opts.priority, TwinKey: intKey, Burden: subBurden,
+		Tier: task.Tier(opts.tier), Priority: opts.priority, TwinKey: intKey,
+		Dependencies: deps, Burden: subBurden,
 	}
 
 	if err := store.CreateTask(intTask); err != nil {

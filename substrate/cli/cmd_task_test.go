@@ -220,6 +220,60 @@ func TestTaskCmd_StdinMarkdownAndFailClosedRemedy(t *testing.T) {
 	}
 }
 
+func TestTaskCmd_DependsOnBlocksWavefront(t *testing.T) {
+	_ = setupTaskTestDB(t)
+
+	c1 := newTaskCreateCmd()
+	c1.SetArgs(validCardArgs("Blocker Task One", "substrate"))
+	if err := c1.Execute(); err != nil {
+		t.Fatalf("create SUB-1: %v", err)
+	}
+
+	// Non-existent dependency fails closed
+	badDep := newTaskCreateCmd()
+	badDep.SilenceErrors = true
+	badDep.SilenceUsage = true
+	badDep.SetArgs(append(validCardArgs("Bad Dep Task", "substrate"), "--depends-on", "SUB-999"))
+	if err := badDep.Execute(); err == nil {
+		t.Fatal("expected non-existent --depends-on SUB-999 to fail closed")
+	}
+
+	// Valid --depends-on blocks task from wavefront until blocker completes
+	relCmd := newTaskCreateCmd()
+	relCmd.SetArgs(append(validCardArgs("RELEASE: v4.1.0 - Cut Release", "substrate"), "--depends-on", "SUB-1"))
+	if err := relCmd.Execute(); err != nil {
+		t.Fatalf("create SUB-2 with --depends-on SUB-1: %v", err)
+	}
+
+	store, err := task.NewDefaultSQLiteTaskStore()
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	wf, err := store.GetWavefront()
+	if err != nil {
+		t.Fatalf("get wavefront: %v", err)
+	}
+	if len(wf) != 1 || wf[0].Key != "SUB-1" {
+		t.Fatalf("expected only SUB-1 on ready wavefront while SUB-2 is blocked, got %+v", wf)
+	}
+
+	doneTS := "2026-11-01T21:00:00Z"
+	b1, _ := store.GetTask("SUB-1")
+	b1.Status = task.StatusDone
+	b1.CompletedAt = &doneTS
+	if err := store.UpdateTask(*b1); err != nil {
+		t.Fatalf("complete SUB-1: %v", err)
+	}
+
+	wfAfter, err := store.GetWavefront()
+	if err != nil {
+		t.Fatalf("get wavefront after completion: %v", err)
+	}
+	if len(wfAfter) != 1 || wfAfter[0].Key != "SUB-2" {
+		t.Fatalf("expected SUB-2 promoted to wavefront after SUB-1 DONE, got %+v", wfAfter)
+	}
+}
+
 func TestTaskCmd_Prune(t *testing.T) {
 	_ = setupTaskTestDB(t)
 
