@@ -140,9 +140,21 @@ Nomos is engineered so deterministic governance adds sub-second overhead on ever
 
 ### External Harness Reliability (`TraceTrial-Bench` · `arXiv:2610.32285`)
 
-`TraceTrial-Bench` separates **harness reliability** from **model capability** by routing CLI harnesses (`Claude Code`, `Codex`, `OpenClaw`) through an in-container LiteLLM gateway against a fixed model. Holding both the **CLI harness (`Claude Code v2.1.220`)** and the **backing LLM** identical across Control (stock harness) vs. Treatment (Nomos-governed harness):
-- **PreToolUse Canonical Path & Boundary Guards (`Claude Code CLI` + `Claude Haiku 4.5` & `Gemini 2.5 Flash`, 7-pillar calibration suite):** Lifted stateful lifecycle handoffs (`L5`) by **`+15.0%`** (`+25.0%` Agent Score on Gemini 2.5 Flash), hook-audit reconciliation (`O1`) by **`+11.1%` (`100.0%` Harness Macro)** by catching unexpanded `$WORKSPACE` paths passed to native file tools before deliverable loss, plugin compliance (`T4`) to **`100.0%` Harness Macro (`+11.1%`)**, and irreversible cache cleanup (`G1`) by **`+4.2%`** (`+8.3%` Harness Macro).
-- **Zero-Noise PostToolUse Channel Purity:** Ablation testing showed that injecting synthetic warning prose into `PostToolUse` error results degraded native OS `EACCES` guardrail attribution by `-39.3%`; keeping `PostToolUse` silent on native channels (firing only on real AST/JSON/JSONL syntax errors) recovered full channel fidelity.
+`TraceTrial-Bench` separates **harness reliability** from **model capability** across 95 containerized tasks (`190` paired Docker runs across 7 pillars) by routing CLI harnesses (`Claude Code`, `Codex`, `OpenClaw`) through an in-container LiteLLM gateway against a fixed model. Holding both the **CLI harness (`Claude Code v2.1.220`)** and the **backing LLM** identical across Control (stock harness) vs. Treatment (`nomos-claudecode:4.0.0` governed harness):
+
+| Pillar / Cohort (`Gemini 2.5 Flash-Lite`, judged by `Gemini 3.5 Flash-Lite`, `n = 95`) | Control Overall | Nomos Overall | Overall Δ | Agent Deliverable Axis (`0–100`) |
+| :--- | :---: | :---: | :---: | :---: |
+| **Full 95-Task Suite (`190` Docker containers, `0` errors)** | `44.89` | **`46.48`** | **`+1.59`** | `34.78` → **`39.75` (`+4.98` / `+14.3%` rel.)** |
+| **`G` · Guardrails & Safety (`n = 9`)** | `44.96` | **`52.46`** | **`+7.50`** | `35.46` → **`45.25` (`+9.78`)** · Harness `54.45` → **`59.67` (`+5.22`)** |
+| **`C` · Context & Continuity (`n = 15`)** | `43.55` | **`49.81`** | **`+6.26`** | `32.59` → **`45.71` (`+13.12` / `+40.3%` rel.)** |
+| **`L` · Long-Horizon State (`n = 19`)** | `46.27` | **`47.84`** | **`+1.57`** | `39.15` → **`41.45` (`+2.30`)** · Harness `53.39` → **`54.23` (`+0.84`)** |
+| **`E` · Execution & Recovery (`n = 27`)** | `46.57` | **`47.10`** | **`+0.53`** | `42.92` → **`46.61` (`+3.69`)** |
+| **`V` · Verification & Batch (`n = 1`)** | `7.14` | `7.14` | `0.00` | `0.00` → `0.00` (`0.00`) |
+| **`T` · Tooling & Protocol (`n = 17`)** | `41.76` | `40.46` | `-1.30` | `20.19` → **`24.11` (`+3.92`)** *(overlay `settings.json` hook contention on task-local plugins)* |
+| **`O` · Observability & Audit (`n = 7`)** | `50.48` | `45.77` | `-4.70` | `35.71` → `32.54` (`-3.17`) *(external `--settings` overlay vs. task-local hook telemetry)* |
+
+- **Largest Paired Single-Task Lifts (`n = 95`):** `G3-ratefeed-001` (`10.0` → **`70.0`**, `+60.0`), `C4-resume-fidelity-001` (`35.0` → **`83.8`**, `+48.8`), `L2-deploy-latency-001` (`15.4` → **`63.2`**, `+47.8`), `C3-certretention-002` (`22.6` → **`70.2`**, `+47.6`), `G4-deploytoken-mask-001` (`24.3` → **`70.0`**, `+45.7`), and `C3-benchbaseline-001` (`36.9` → **`78.6`**, `+41.7`); reduced `harness_caused` failure attributions (`55` → `52`) and increased `harness_defect_absorbed` recoveries (`8` → `11`).
+- **Multi-Model Calibration & Channel Purity (`Claude Haiku 4.5` & `Gemini 2.5 Flash`):** Lifted stateful lifecycle handoffs (`L5`) by **`+15.0%`** (`+25.0%` Agent Score on Gemini 2.5 Flash) and hook-audit reconciliation (`O1`) by **`+11.1%` (`100.0%` Harness Macro)** by catching unexpanded `$WORKSPACE` paths passed to native file tools before deliverable loss; ablation testing showed that injecting synthetic warning prose into `PostToolUse` error results degraded native OS `EACCES` guardrail attribution by `-39.3%`, whereas keeping `PostToolUse` silent on native channels (firing only on real AST/JSON/JSONL syntax errors) recovered full channel fidelity.
 
 ---
 
