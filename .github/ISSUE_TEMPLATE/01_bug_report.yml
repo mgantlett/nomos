@@ -1,0 +1,74 @@
+name: "🐛 Bug Report"
+description: "Report an unexpected error, DoD gate failure, or runtime defect"
+title: "[BUG]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 🛡️ Nomos Deterministic Bug Report
+        Nomos is governed by **Law 2 (The Non-Verbal Proof Law)**: zero trust in conversational claims; defects require deterministic reproduction steps, exit codes, and terminal proof.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Subsystem / Component
+      description: Which part of the Nomos substrate is affected?
+      options:
+        - "Substrate CLI (cmd/nomos)"
+        - "DoD Quality Gates (nomos verify)"
+        - "Bilateral Parity Engine (nomos parity)"
+        - "Gate Integrity Proofs (nomos verify proof)"
+        - "CapBAC Leases & Worktrees (nomos task)"
+        - "Memory & Reflection Engine (nomos mem)"
+        - "Agent Handshake & Directives (nomos handshake)"
+        - "Installation & Toolchain (install.sh / go build)"
+    validations:
+      required: true
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Tier 1 Coding Agent
+      description: Which coding agent was active during the issue (if applicable)?
+      options:
+        - "Claude Code"
+        - "Cursor"
+        - "Google Antigravity (AGY)"
+        - "OpenCode"
+        - "Aider"
+        - "None / Manual Human Developer"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment & Version
+      description: Operating system, architecture, and output of `nomos version`.
+      placeholder: "e.g., Linux amd64, Go 1.26, Nomos v4.0.0"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Deterministic Reproduction Sequence
+      description: The exact sequence of CLI commands executed.
+      placeholder: |
+        1. nomos init
+        2. nomos task chore "Fix bug"
+        3. nomos verify
+    validations:
+      required: true
+  - type: textarea
+    id: terminal_output
+    attributes:
+      label: Terminal Output & Exit Code
+      description: Paste the exact terminal output including any `[ERR_*]` codes.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Substrate Behavior
+      description: What was the expected exit code, gate verdict, or substrate state?
+    validations:
+      required: true

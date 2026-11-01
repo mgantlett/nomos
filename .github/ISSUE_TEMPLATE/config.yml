@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Nomos Community Discussions
+    url: https://github.com/mgantlett/nomos/discussions
+    about: Ask questions, discuss workflows, or share show-and-tell implementations.

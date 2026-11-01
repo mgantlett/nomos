@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Deterministic Quality Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - name: Build Substrate CLI
+        run: |
+          go -C substrate build -o ../bin/nomos ./cmd/nomos
+          echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
+
+      - name: Run Substrate Test Suite
+        run: |
+          cd substrate && go test -v ./...
+
+      - name: Verify 42 Definition of Done Quality Gates
+        run: |
+          nomos verify
+
+      - name: Attest Gate Integrity & Sensitivity Proof
+        run: |
+          nomos verify proof
+
+      - name: Audit Bilateral Capabilities & Architectural Engines
+        run: |
+          nomos capabilities

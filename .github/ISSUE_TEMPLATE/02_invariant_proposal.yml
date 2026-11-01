@@ -1,0 +1,69 @@
+name: "📐 Invariant / Feature Proposal"
+description: "Propose a new statutory invariant, DoD sensor probe, or agent adapter"
+title: "[PROPOSAL]: "
+labels: ["enhancement", "proposal", "intent"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 🏛️ Nomos Invariant & Capability Proposal
+        Nomos adheres to **The 7 Laws of Deterministic Engineering**. Every capability must map to a governing statutory law, possess a declarative Intent contract, and be machine-enforced by Go-native sensors.
+  - type: dropdown
+    id: governing_law
+    attributes:
+      label: Governing Statutory Law
+      description: Which of the 7 Laws of Nomos does this proposal advance or enforce?
+      options:
+        - "Law 1: The Dual-Core Inversion Law (Governance & Indirect Control)"
+        - "Law 2: The Non-Verbal Proof Law (AST Proof & Zero Trust)"
+        - "Law 3: The Hermetic Worktree Law (Isolated Worktrees & Trunk Protection)"
+        - "Law 4: The Single Source of Truth Law (Compiled Byte Parity)"
+        - "Law 5: The Zero-Hardcoded-Path Law (Dynamic Environment Resolution)"
+        - "Law 6: The Canonical Singularity Law (Zero Aliases & Single Action Space)"
+        - "Law 7: The Fail-Closed Pre-Flight Law (CapBAC Leases & Pre-Flight Gating)"
+    validations:
+      required: true
+  - type: dropdown
+    id: target_plane
+    attributes:
+      label: Target Plane
+      description: Is this an Intent contract change or Substrate runtime implementation?
+      options:
+        - "Intent Plane (INT: Declarative schemas, specifications, directives)"
+        - "Substrate Plane (SUB: Go engine, CLI commands, verification sensors)"
+        - "Composite Twinned (Twinned INT-* and SUB-* tasks)"
+    validations:
+      required: true
+  - type: dropdown
+    id: defense_ring
+    attributes:
+      label: Target Defense Ring
+      description: Which orthogonal defense ring evaluates this invariant?
+      options:
+        - "Ring 1: Syntactic AST (Static code analysis, Tree-sitter, CUE schemas)"
+        - "Ring 2: Dynamic Execution (Subprocess exit codes, state transitions, toolchains)"
+        - "Ring 3: Cryptographic Provenance (CapBAC tokens, Git Notes, release receipts)"
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Problem Statement & Motivation
+      description: What non-deterministic agent failure, cognitive trap, or drift does this address?
+    validations:
+      required: true
+  - type: textarea
+    id: specification
+    attributes:
+      label: Proposed Contract / Interface
+      description: Provide the proposed CUE schema, Go struct/interface, or CLI command signature.
+      render: cue
+    validations:
+      required: true
+  - type: textarea
+    id: proof_strategy
+    attributes:
+      label: Deterministic Proof Strategy
+      description: How will the substrate verify this invariant mechanically with exit code 0 rather than conversational claims?
+    validations:
+      required: true

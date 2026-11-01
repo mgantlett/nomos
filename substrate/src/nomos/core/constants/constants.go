@@ -1,0 +1,31 @@
+package constants
+
+const (
+	AppName           = "nomos"
+	DirNomosHome      = ".nomos"
+	DirAgents         = ".agents"
+	DirData           = "data"
+	DirDB             = "db"
+	DirCache          = "cache"
+	DirVerifyReceipts = "verify_receipts"
+	DirIntent         = "intent"
+	DirRuntime        = "runtime"
+	DirConfig         = "config"
+	FileNomosYAML     = "nomos.yaml"
+	FileNomosGlobalDB = "nomos_global.db"
+	FileMnemeDB       = "mneme.db"
+	EnvNomosHome      = "NOMOS_HOME"
+	EnvNomosDB        = "NOMOS_DB"
+	EnvNomosBrainDB   = "NOMOS_MNEME_DB"
+	EnvNomosConfig    = "NOMOS_CONFIG"
+	DirWorktrees      = "worktrees"
+	ValMain           = "main"
+	ValMaster         = "master"
+	ValHead           = "HEAD"
+	ValWorktree       = "worktree"
+	CmdRevParse       = "rev-parse"
+	DirSubstrate      = "substrate"
+	DirGit            = ".git"
+	DirTmp            = ".tmp"
+)
+

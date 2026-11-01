@@ -1,0 +1,52 @@
+project: nomos
+default_branch: main
+governance:
+    boundary:
+        enforce: true
+        prohibited_packages:
+            - "pkg/sovereign"
+            - "substrate/membrane"
+        prohibited_commands:
+            - "code"
+            - "cockpit"
+            - "ship"
+            - "broadcast"
+            - "vector"
+            - "swarm"
+            - "portal"
+            - "cyber"
+            - "daemon"
+            - "pm2"
+    quality_gates:
+        forbidden_literals:
+            - '".nomos/'
+            - '".agent/'
+            - '".agents/'
+            - '".gemini/'
+            - '"/home/'
+            - '"/Users/'
+            - '"/var/home/'
+            - '"/workstations/'
+        strict_mode: true
+        exclude: []
+        intent_source_roots:
+            - "intent"
+        substrate_source_roots:
+            - "substrate"
+        contracts:
+            contracts:
+                enabled: true
+                cue_roots:
+                    - "intent/contracts/cue"
+                backend_roots:
+                    - "substrate"
+        thresholds:
+            max_cognitive_debt_score: 45
+            max_cyclomatic_complexity: 15
+            max_file_loc: 400
+            max_func_loc: 60
+            min_comment_density_pct: 10
+            min_test_coverage_pct: 55
+            min_clone_lines: 18
+            max_func_params: 8
+            max_magic_string_duplication: 10
