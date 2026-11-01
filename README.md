@@ -125,6 +125,27 @@ Every check in `nomos verify` maps to one of seven compiled architectural laws (
 
 ---
 
+## 📊 Verified Benchmarks & Runtime Footprint
+
+Nomos is engineered so deterministic governance adds sub-second overhead on every agent turn while failing closed under adversarial stress (see [`tracetrial_harness_reliability_spec.md`](intent/architecture/specs/core/tracetrial_harness_reliability_spec.md)):
+
+| Engineering Metric | Verified Result | Reproducible Proof / Implementation |
+| :--- | :--- | :--- |
+| **42-Gate Full Verification Latency** | **`~460 ms` cold run** | `nomos verify` (`go/ast`, pure-Go polyglot scanners across Go/TS/Svelte/Py/Rust/C, plus `tsc`, `pytest`, `cargo check`) |
+| **Static Binary Footprint** | **`28 MB` (`CGO_ENABLED=0`)** | Single Go binary with embedded `modernc.org/sqlite` WAL + `wazero` WASM sandbox; zero host runtime deps |
+| **Adversarial Fail-Closed Suite (`VEC-TTB-01..07`)** | **`7/7` vectors blocked in `1.98s`** | [`cleanroom_tracetrial_bench_test.go`](substrate/cli/cleanroom_tracetrial_bench_test.go) (`go test ./cli -run TestTraceTrialBench`) |
+| **Config & Boundary Tamper Resistance** | **`0` trunk leaks** | Worktree edits to `nomos.yaml` fail closed against pinned `main`; mid-2PC gate panics abort before `main` fast-forwards |
+| **Nomos Mneme Hybrid Memory Recall** | **`< 50 ms` local query** | 64-dim vector + lexical SQLite recall (`mneme.db`); promotes `pattern` blueprints only after verified 2PC `Git Notes` release |
+| **Open-Core Automated Test Suite** | **`266` tests + `6` cleanroom suites** | Pure Apache 2.0 local test execution with zero cloud or telemetry dependencies |
+
+### External Harness Reliability (`TraceTrial-Bench` · `arXiv:2610.32285`)
+
+`TraceTrial-Bench` separates **harness reliability** from **model capability** by routing CLI harnesses (`Claude Code`, `Codex`, `OpenClaw`) through an in-container LiteLLM gateway against a fixed model. Holding both the **CLI harness (`Claude Code v2.1.220`)** and the **backing LLM** identical across Control (stock harness) vs. Treatment (Nomos-governed harness):
+- **PreToolUse Canonical Path & Boundary Guards (`Claude Code CLI` + `Claude Haiku 4.5` & `Gemini 2.5 Flash`, 7-pillar calibration suite):** Lifted stateful lifecycle handoffs (`L5`) by **`+15.0%`** (`+25.0%` Agent Score on Gemini 2.5 Flash), hook-audit reconciliation (`O1`) by **`+11.1%` (`100.0%` Harness Macro)** by catching unexpanded `$WORKSPACE` paths passed to native file tools before deliverable loss, plugin compliance (`T4`) to **`100.0%` Harness Macro (`+11.1%`)**, and irreversible cache cleanup (`G1`) by **`+4.2%`** (`+8.3%` Harness Macro).
+- **Zero-Noise PostToolUse Channel Purity:** Ablation testing showed that injecting synthetic warning prose into `PostToolUse` error results degraded native OS `EACCES` guardrail attribution by `-39.3%`; keeping `PostToolUse` silent on native channels (firing only on real AST/JSON/JSONL syntax errors) recovered full channel fidelity.
+
+---
+
 ## 🧭 Open-Core Boundary
 
 Nomos Community Edition is **100% open-source under Apache 2.0** with zero telemetry, zero cloud account requirements, and zero crippled CLI commands. Every single-developer and single-repository governance capability runs locally out of the box (see [`open_core_license_spec.md`](intent/architecture/specs/core/open_core_license_spec.md)):
