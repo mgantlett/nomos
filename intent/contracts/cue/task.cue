@@ -12,6 +12,7 @@ import (
 	id?:           int & >= 1
 	key:           #TaskKey
 	plane:         "intent" | "substrate"
+	project?:      string
 	schema_type:   "intent" | "substrate" | "membrane" | "infra" | "cycle" | "debt" | "spike"
 	title:         string & strings.MinRunes(5)
 	description?:  string & strings.MinRunes(1)
@@ -57,6 +58,7 @@ import (
 	key:          #TaskKey
 	title:        string & strings.MinRunes(5)
 	plane:        "intent" | "substrate"
+	project?:     string
 	schema_type:  "intent" | "substrate" | "membrane" | "infra" | "cycle" | "debt" | "spike"
 	status:       "BACKLOG" | "TODO" | "PLAN" | "EDIT" | "REVIEW" | "SYNC" | "DONE" | "BLOCKED" | "ABORTED"
 	tier:         "T1" | "T2"

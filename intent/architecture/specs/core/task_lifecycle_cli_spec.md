@@ -14,10 +14,12 @@ tags:
     - SUB-1510
     - INT-864
     - SUB-1549
+    - INT-867
+    - SUB-1558
 title: Task Lifecycle CLI and Workspace State Transition Specification
 trigger: always_on
 type: spec
-version: "4.0.0"
+version: "4.1.0"
 ssot_repository: nomos
 ---
 
@@ -106,8 +108,8 @@ stateDiagram-v2
 * **Semantics**: Emits formatted Lipgloss dashboard (or JSON payload) showing active phase, task card, worktree, token budget, and database status.
 
 ### 4.2 `nomos task create`
-* **Syntax**: `nomos task create <TITLE> --plane <intent|substrate> (--scope <TEXT> --ac <ITEM>... --verify <TEXT> | -F <PATH|-> | -d <MARKDOWN>) [--burden <1-10>] [--tier <T1|T2>] [--priority <int>] [--twin-of <KEY>]`
-* **Semantics**: Fails closed unless the universal 3-section backlog card (`#TaskCardInput` in `task.cue`: `## Scope & Context`, `## Acceptance Criteria` with >=1 `- [ ]` item, `## Verification`) is supplied via structured synthesis flags or Markdown body; auto-derives `burden` (`2-8`) when `--burden` is omitted; allocates next sequential key (`INT-<N>` or `SUB-<N>`) and persists record in `tasks` table with status `TODO`.
+* **Syntax**: `nomos task create <TITLE> --plane <intent|substrate> (--scope <TEXT> --ac <ITEM>... --verify <TEXT> | -F <PATH|-> | -d <MARKDOWN>) [--project <PROJECT>] [--depends-on <KEY>...] [--burden <1-10>] [--tier <T1|T2>] [--priority <int>] [--twin-of <KEY>]`
+* **Semantics**: Fails closed unless the universal 3-section backlog card (`#TaskCardInput` in `task.cue`: `## Scope & Context`, `## Acceptance Criteria` with >=1 `- [ ]` item, `## Verification`) is supplied via structured synthesis flags or Markdown body; auto-derives `burden` (`2-8`) when `--burden` is omitted; auto-stamps `project` from active repository `nomos.yaml` or Git common-dir root basename (unless `--project` is supplied); allocates next sequential key (`INT-<N>` or `SUB-<N>`) and persists record in `tasks` table with status `TODO`.
 
 ### 4.3 `nomos task start`
 * **Syntax**: `nomos task start <KEY>`
@@ -134,16 +136,17 @@ stateDiagram-v2
 * **Semantics**: Sweeps orphaned `worktrees/*` directories that are no longer registered in `git worktree list` and have no active `IN_PROGRESS` CapBAC lease or uncommitted source files, runs `git worktree prune --expire now`, deletes merged `feature/*` branches, and cleans stale `.tmp/walkthrough-*` artifacts. Automatically invoked in non-dry-run mode during `nomos task sync` and periodic `nomos handshake` maintenance.
 
 ### 4.9 `nomos task list`
-* **Syntax**: `nomos task list [--json]`
-* **Semantics**: Queries SQLite `tasks` table; renders Lipgloss table (or structured JSON) sorted by priority and creation date.
+* **Syntax**: `nomos task list [--project <PROJECT>] [--json]`
+* **Semantics**: Queries SQLite `tasks` table (optionally filtered to a repository `project` identifier); renders table (or structured JSON).
 
 ### 4.10 `nomos task dag`
 * **Syntax**: `nomos task dag [--json]`
 * **Semantics**: Inspects task causal dependencies; identifies ready unblocked tasks emitting `#WavefrontCandidate` records.
 
-### 4.11 `nomos task pair` / `chore` / `commit` / `show` / `status`
-* **`nomos task pair <TITLE>`**: Atomically allocates twinned `INT-<N>` and `SUB-<N>` task records bound in `SQLiteTaskStore`, enforcing the same fail-closed 3-section `#TaskCardInput` contract (`--scope` / `--int-scope` / `--sub-scope`, `--ac`, `--verify`, or `-F <PATH|->` / `-d <MARKDOWN>`, plus optional `--burden`).
-* **`nomos task chore <TITLE>`**: Zero-template fast lane that provisions a single-step `SUB-<N>` (or `--plane intent` `INT-<N>`) task directly into an isolated `EDIT` worktree (`burden: 1`) without requiring the 3-section backlog card.
+### 4.11 `nomos task pair` / `chore` / `project` / `commit` / `show` / `status`
+* **`nomos task pair <TITLE>`**: Atomically allocates twinned `INT-<N>` and `SUB-<N>` task records bound in `SQLiteTaskStore`, enforcing the same fail-closed 3-section `#TaskCardInput` contract (`--scope` / `--int-scope` / `--sub-scope`, `--ac`, `--verify`, or `-F <PATH|->` / `-d <MARKDOWN>`, plus optional `--project`, `--depends-on`, and `--burden`).
+* **`nomos task chore <TITLE>`**: Zero-template fast lane that provisions a single-step `SUB-<N>` (or `--plane intent` `INT-<N>`) task directly into an isolated `EDIT` worktree (`burden: 1`, auto-stamped `project` or `--project`) without requiring the 3-section backlog card.
+* **`nomos task project <PROJECT> <KEY> [KEY...]`**: Updates `project` on one or more existing Living Ledger tasks through `SQLiteTaskStore` without direct database file mutation (ADR-0062).
 * **`nomos task commit [KEY] -m <MSG>`**: Commits staged changes inside the active worktree with Dual-Layer commit schema headers.
 * **`nomos task show <KEY>`**: Displays the detailed Living Ledger task inspection card and twin linkage.
 * **`nomos task status`**: Displays active workspace phase state and CapBAC step budget consumption.

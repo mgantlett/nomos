@@ -16,9 +16,11 @@ tags:
     - INT-371
     - INT-864
     - SUB-1549
+    - INT-867
+    - SUB-1558
 title: Nomos Task Contract & Universal 3-Section Backlog Card Specification
 type: spec
-version: "4.1.0"
+version: "4.1.1"
 ssot_repository: nomos
 ---
 
@@ -101,6 +103,7 @@ Hint: Durable backlog tasks require the 3-section card contract (use 'nomos task
 | :--- | :--- |
 | `key` | `INT-<N>` / `SUB-<N>`, derived from `plane` unless explicit valid `--key` supplied (Law 6). |
 | `plane` | Strictly `"intent"` or `"substrate"` (`INT-*` -> `intent`, `SUB-*` -> `substrate`). |
+| `project` | Repository identifier partitioned in the shared Living Ledger (`nomos_global.db`). Auto-resolved on `create` / `pair` / `chore` from active repository `nomos.yaml` (`project`) or Git common-dir root basename (worktree-safe), overridable via `--project` and reassignable via `nomos task project <project> <key>...`. |
 | `schema_type` | One of `"intent"`, `"substrate"`, `"membrane"`, `"infra"`, `"cycle"`, `"debt"`, `"spike"`. |
 | `title` | Required, >= 5 characters. |
 | `description` | Required 3-section Markdown card on `create`/`pair`; historical SQLite rows remain readable without retroactive breakage. |
