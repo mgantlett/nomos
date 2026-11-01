@@ -427,7 +427,12 @@ func seedCleanroomDualPlaneRepo(t *testing.T, repoDir string) {
 
 func startCleanroomTaskInEdit(t *testing.T, repoDir, plane, title string) string {
 	t.Helper()
-	if err := executeTaskCreate(title, taskCreateOpts{plane: plane, tier: "T1", priority: 50}); err != nil {
+	card := taskCardFlags{
+		scope:  "Cleanroom stress target for " + title + " in " + plane + " plane.",
+		ac:     []string{"Complete cleanroom mutation and pass DoD gates"},
+		verify: "nomos verify",
+	}
+	if err := executeTaskCreate(title, taskCreateOpts{plane: plane, tier: "T1", priority: 50, card: card}); err != nil {
 		t.Fatalf("executeTaskCreate(%s) failed: %v", title, err)
 	}
 	store, err := task.NewDefaultSQLiteTaskStore()

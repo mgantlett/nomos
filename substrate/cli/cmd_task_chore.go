@@ -69,6 +69,7 @@ func runTaskChoreWithPlane(title, rawPlane string) error {
 		Status:      task.StatusTodo,
 		Tier:        task.Tier("T1"),
 		Priority:    50,
+		Burden:      1,
 	}
 	if cErr := store.CreateTask(t); cErr != nil {
 		return cErr

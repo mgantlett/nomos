@@ -87,8 +87,13 @@ func verifyTaskLifecycleAndSubdirResolution(t *testing.T, repoDir string) string
 		t.Fatalf("failed chdir to repoDir: %v", err)
 	}
 
-	// Test shorthand plane normalization (--plane SUB)
-	if err := executeTaskCreate("Add refund handler", taskCreateOpts{plane: "SUB", tier: "T1", priority: 50}); err != nil {
+	// Test shorthand plane normalization (--plane SUB) with 3-section card synthesis
+	card := taskCardFlags{
+		scope:  "Implement refund handler in substrate/src/refund.go.",
+		ac:     []string{"Handle idempotent refund requests"},
+		verify: "go test ./...",
+	}
+	if err := executeTaskCreate("Add refund handler", taskCreateOpts{plane: "SUB", tier: "T1", priority: 50, card: card}); err != nil {
 		t.Fatalf("Vector 3 failed: executeTaskCreate with shorthand plane 'SUB' failed: %v", err)
 	}
 

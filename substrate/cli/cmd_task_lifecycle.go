@@ -4,6 +4,7 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -22,10 +23,11 @@ import (
 type taskCreateOpts struct {
 	plane     string
 	tier      string
-	desc      string
 	customKey string
 	twinOf    string
 	priority  int
+	card      taskCardFlags
+	stdin     io.Reader
 }
 
 func newTaskCreateCmd() *cobra.Command {
@@ -36,15 +38,16 @@ func newTaskCreateCmd() *cobra.Command {
 		Short: "Allocate and persist a new Living Ledger task record",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			opts.stdin = cmd.InOrStdin()
 			return executeTaskCreate(args[0], opts)
 		},
 	}
 	cmd.Flags().StringVarP(&opts.plane, "plane", "p", "substrate", "Target plane (intent|substrate)")
 	cmd.Flags().StringVarP(&opts.tier, "tier", "t", "T1", "Cognitive tier (T1|T2)")
 	cmd.Flags().IntVarP(&opts.priority, "priority", "r", 50, "Priority (0-100)")
-	cmd.Flags().StringVarP(&opts.desc, "desc", "d", "", "Detailed task description")
 	cmd.Flags().StringVarP(&opts.customKey, "key", "k", "", "Explicit task key (e.g. SUB-1212)")
 	cmd.Flags().StringVar(&opts.twinOf, "twin-of", "", "Twin task key in opposite plane to link with")
+	bindTaskCardFlags(cmd, &opts.card, false)
 	return cmd
 }
 
@@ -64,23 +67,18 @@ func normalizePlaneInput(plane, customKey string) string {
 
 func executeTaskCreate(title string, opts taskCreateOpts) error {
 	opts.plane = normalizePlaneInput(opts.plane, opts.customKey)
+	body, burden, err := resolveCardBodyAndBurden(opts.stdin, "create", title, opts.plane, opts.card, "")
+	if err != nil {
+		return err
+	}
 	store, err := task.NewDefaultSQLiteTaskStore()
 	if err != nil {
 		return err
 	}
-	key := opts.customKey
-	if key == "" {
-		key, err = allocateNextKey(store, opts.plane)
-		if err != nil {
-			return err
-		}
-	} else {
-		key = strings.ToUpper(strings.TrimSpace(key))
-		if err := task.ValidateTaskKey(key); err != nil {
-			return err
-		}
+	key, err := resolveOrAllocateCreateKey(store, opts.plane, opts.customKey)
+	if err != nil {
+		return err
 	}
-
 	twinOf := strings.ToUpper(strings.TrimSpace(opts.twinOf))
 	if twinOf != "" {
 		if err := task.ValidateTaskKey(twinOf); err != nil {
@@ -89,15 +87,9 @@ func executeTaskCreate(title string, opts taskCreateOpts) error {
 	}
 
 	t := task.TaskRecord{
-		Key:         key,
-		Plane:       opts.plane,
-		SchemaType:  task.SchemaType(opts.plane),
-		Title:       title,
-		Description: opts.desc,
-		Status:      task.StatusTodo,
-		Tier:        task.Tier(opts.tier),
-		Priority:    opts.priority,
-		TwinKey:     twinOf,
+		Key: key, Plane: opts.plane, SchemaType: task.SchemaType(opts.plane),
+		Title: title, Description: body, Status: task.StatusTodo,
+		Tier: task.Tier(opts.tier), Priority: opts.priority, TwinKey: twinOf, Burden: burden,
 	}
 	if err := store.CreateTask(t); err != nil {
 		return err
@@ -112,6 +104,17 @@ func executeTaskCreate(title string, opts taskCreateOpts) error {
 	}
 	fmt.Printf("  Next: nomos task start %s --edit\n", key)
 	return nil
+}
+
+func resolveOrAllocateCreateKey(store task.TaskStore, plane, customKey string) (string, error) {
+	if customKey == "" {
+		return allocateNextKey(store, plane)
+	}
+	key := strings.ToUpper(strings.TrimSpace(customKey))
+	if err := task.ValidateTaskKey(key); err != nil {
+		return "", err
+	}
+	return key, nil
 }
 
 func newTaskStartCmd() *cobra.Command {

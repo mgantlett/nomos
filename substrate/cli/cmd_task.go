@@ -5,6 +5,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
@@ -185,29 +186,47 @@ func newTaskShowCmd() *cobra.Command {
 	}
 }
 
+type taskPairOpts struct {
+	tier     string
+	priority int
+	card     taskCardFlags
+	stdin    io.Reader
+}
+
 func newTaskPairCmd() *cobra.Command {
-	var tier, desc string
-	var priority int
+	var opts taskPairOpts
 
 	cmd := &cobra.Command{
 		Use:   "pair <title>",
 		Short: "Atomically allocate twinned INT (Intent) and SUB (Substrate) tasks",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			opts.stdin = cmd.InOrStdin()
 			store, err := task.NewDefaultSQLiteTaskStore()
 			if err != nil {
 				return err
 			}
-			return executeTaskPair(store, args[0], desc, tier, priority)
+			return executeTaskPair(store, args[0], opts)
 		},
 	}
-	cmd.Flags().StringVarP(&tier, "tier", "t", "T1", "Cognitive tier (T1|T2)")
-	cmd.Flags().IntVarP(&priority, "priority", "r", 50, "Priority (0-100)")
-	cmd.Flags().StringVarP(&desc, "desc", "d", "", "Detailed task description")
+	cmd.Flags().StringVarP(&opts.tier, "tier", "t", "T1", "Cognitive tier (T1|T2)")
+	cmd.Flags().IntVarP(&opts.priority, "priority", "r", 50, "Priority (0-100)")
+	bindTaskCardFlags(cmd, &opts.card, true)
 	return cmd
 }
 
-func executeTaskPair(store task.TaskStore, title, desc, tier string, priority int) error {
+func executeTaskPair(store task.TaskStore, title string, opts taskPairOpts) error {
+	if err := materializeCardStdin(opts.stdin, &opts.card); err != nil {
+		return attachCardRemedy(err, "pair", title, "substrate")
+	}
+	intBody, intBurden, err := resolveCardBodyAndBurden(nil, "pair", title, "intent", opts.card, opts.card.intScope)
+	if err != nil {
+		return err
+	}
+	subBody, subBurden, err := resolveCardBodyAndBurden(nil, "pair", title, "substrate", opts.card, opts.card.subScope)
+	if err != nil {
+		return err
+	}
 	intKey, err := allocateNextKey(store, "intent")
 	if err != nil {
 		return err
@@ -219,13 +238,13 @@ func executeTaskPair(store task.TaskStore, title, desc, tier string, priority in
 
 	intTask := task.TaskRecord{
 		Key: intKey, Plane: "intent", SchemaType: task.SchemaIntent,
-		Title: title, Description: desc, Status: task.StatusTodo,
-		Tier: task.Tier(tier), Priority: priority, TwinKey: subKey,
+		Title: title, Description: intBody, Status: task.StatusTodo,
+		Tier: task.Tier(opts.tier), Priority: opts.priority, TwinKey: subKey, Burden: intBurden,
 	}
 	subTask := task.TaskRecord{
 		Key: subKey, Plane: "substrate", SchemaType: task.SchemaSubstrate,
-		Title: title, Description: desc, Status: task.StatusTodo,
-		Tier: task.Tier(tier), Priority: priority, TwinKey: intKey,
+		Title: title, Description: subBody, Status: task.StatusTodo,
+		Tier: task.Tier(opts.tier), Priority: opts.priority, TwinKey: intKey, Burden: subBurden,
 	}
 
 	if err := store.CreateTask(intTask); err != nil {
