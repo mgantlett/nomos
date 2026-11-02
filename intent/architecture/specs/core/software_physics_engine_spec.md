@@ -170,15 +170,17 @@ Trunk branch `main` represents the pristine surface of production reality. Mergi
 
 ---
 
-## 4. Cross-Plane Transduction Matrix
+## 4. Cross-Plane Transduction Matrix & CLI Surface (`nomos physics`)
 
-| Intent Physical Vector | Substrate Engine Package | Telemetry Protocol & Radar Projection |
+The Open-Core Software Physics Engine exposes real-time worktree AST mass, inertia, and continuous collision detection through `nomos physics [--json]` (registered under the `quality` CLI group).
+
+| Intent Physical Vector | Substrate Engine Package | CLI & Telemetry Projection |
 |---|---|---|
-| **AST Mass & Inertia** | `substrate/src/nomos/modules/telemetry/ast_mass.go` | Mass gauge & inertia vector in `nomos telemetry` |
-| **Shannon Entropy Drag** | `substrate/src/nomos/modules/audit/entropy.go` | Atmospheric density & drag HUD indicator |
-| **Continuous Collision (CCD)** | `substrate/src/nomos/modules/workspace/collision.go` | Real-time TCAS radar blips & airway vector conflicts |
-| **High-Frequency Phase Loop** | `substrate/src/nomos/modules/sys/watcher.go` | 60Hz WebSocket JSON telemetry frame |
-| **2PC Re-entry Touchdown** | `substrate/src/nomos/modules/task/lifecycle_release.go` | Runway landing receipt in Git Notes |
+| **AST Mass & Inertia (`#FileMass`)** | `substrate/cli/physics.go`, `substrate/cli/cmd_physics.go` | `nomos physics [--json]` worktree mass & file breakdown |
+| **Worktree Mutation Hull (`#WorktreeHull`)** | `substrate/cli/physics.go`, `substrate/cli/cmd_physics.go` | Active `worktrees/*` AST export/import & touched-file hulls |
+| **Continuous Collision (`#CollisionVector`)** | `substrate/cli/physics.go` (`DetectCollision`) | `GREEN` / `YELLOW` / `RED` pairwise collision alerts in `nomos physics` |
+| **High-Frequency Phase Loop** | `substrate/src/nomos/modules/telemetry` | Structured JSON telemetry snapshots |
+| **2PC Re-entry Touchdown** | `substrate/src/nomos/modules/task/git_notes.go` | Cryptographic release receipt in Git Notes (`refs/notes/nomos/releases`) |
 
 ---
 

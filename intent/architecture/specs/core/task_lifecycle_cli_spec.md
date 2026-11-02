@@ -4,7 +4,7 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-23"
-last_updated: "2026-11-01"
+last_updated: "2026-11-02"
 plane: intent
 status: active
 tags:
@@ -16,6 +16,8 @@ tags:
     - SUB-1549
     - INT-867
     - SUB-1558
+    - INT-890
+    - SUB-1623
 title: Task Lifecycle CLI and Workspace State Transition Specification
 trigger: always_on
 type: spec
@@ -136,20 +138,20 @@ stateDiagram-v2
 * **Semantics**: Sweeps orphaned `worktrees/*` directories that are no longer registered in `git worktree list` and have no active `IN_PROGRESS` CapBAC lease or uncommitted source files, runs `git worktree prune --expire now`, deletes merged `feature/*` branches, and cleans stale `.tmp/walkthrough-*` artifacts. Automatically invoked in non-dry-run mode during `nomos task sync` and periodic `nomos handshake` maintenance.
 
 ### 4.9 `nomos task list`
-* **Syntax**: `nomos task list [--project <PROJECT>] [--json]`
-* **Semantics**: Queries SQLite `tasks` table (optionally filtered to a repository `project` identifier); renders table (or structured JSON).
+* **Syntax**: `nomos task list [--status <STATUS>] [--pending] [--plane <intent|substrate>] [--tier <T1|T2>] [--project <PROJECT>] [--limit <N>] [--json]`
+* **Semantics**: Queries SQLite `tasks` table with optional multi-dimensional filtering (`--status`, `--pending` excluding `DONE`/`ABORTED`, `--plane`, `--tier`, `--project`, `--limit`); renders an adaptive Lipgloss table with HATEOAS `Next Actions` (or structured JSON). Invalid filter values fail closed with a remedial command hint.
 
 ### 4.10 `nomos task dag`
-* **Syntax**: `nomos task dag [--json]`
-* **Semantics**: Inspects task causal dependencies; identifies ready unblocked tasks emitting `#WavefrontCandidate` records.
+* **Syntax**: `nomos task dag [--plane <intent|substrate>] [--tier <T1|T2>] [--project <PROJECT>] [--limit <N>] [--json]`
+* **Semantics**: Inspects task causal dependencies; identifies ready unblocked tasks emitting `#WavefrontCandidate` records with optional plane, tier, project, and row-limit filters plus HATEOAS `Next Actions`.
 
 ### 4.11 `nomos task pair` / `chore` / `project` / `commit` / `show` / `status`
 * **`nomos task pair <TITLE>`**: Atomically allocates twinned `INT-<N>` and `SUB-<N>` task records bound in `SQLiteTaskStore`, enforcing the same fail-closed 3-section `#TaskCardInput` contract (`--scope` / `--int-scope` / `--sub-scope`, `--ac`, `--verify`, or `-F <PATH|->` / `-d <MARKDOWN>`, plus optional `--project`, `--depends-on`, and `--burden`).
 * **`nomos task chore <TITLE>`**: Zero-template fast lane that provisions a single-step `SUB-<N>` (or `--plane intent` `INT-<N>`) task directly into an isolated `EDIT` worktree (`burden: 1`, auto-stamped `project` or `--project`) without requiring the 3-section backlog card.
 * **`nomos task project <PROJECT> <KEY> [KEY...]`**: Updates `project` on one or more existing Living Ledger tasks through `SQLiteTaskStore` without direct database file mutation (ADR-0062).
 * **`nomos task commit [KEY] -m <MSG>`**: Commits staged changes inside the active worktree with Dual-Layer commit schema headers.
-* **`nomos task show <KEY>`**: Displays the detailed Living Ledger task inspection card and twin linkage.
-* **`nomos task status`**: Displays active workspace phase state and CapBAC step budget consumption.
+* **`nomos task show <KEY> [--json]`**: Displays the detailed Living Ledger task inspection card, twin linkage, HATEOAS `Next Actions`, or structured JSON.
+* **`nomos task status [--json]`**: Displays active workspace phase state, CapBAC step budget consumption, and HATEOAS `Next Actions` (or structured `#PhaseState` JSON).
 
 ---
 
@@ -169,4 +171,6 @@ stateDiagram-v2
 | `TC-TSK-10` | Law 7 (Fail-Closed Card) | `nomos task create "Title" -d "plain paragraph"` | Rejects unstructured prose (`ERR_VALIDATION_FAILED`) with 3-line HATEOAS remedy; exit 1 |
 | `TC-TSK-11` | Law 4 (Card Synthesis) | `nomos task create "Title" --scope "..." --ac "..." --verify "..."` | Synthesizes canonical 3-section Markdown card and derives non-zero `burden`; exit 0 |
 | `TC-TSK-12` | Law 1 (Fast-Lane Chore) | `nomos task chore "Quick fix"` | Provisions `EDIT` worktree in 1 turn with zero template requirement; exit 0 |
+| `TC-TSK-13` | Law 4 (Filtered Ledger Query) | `nomos task list --pending --plane substrate --limit 10 --json` | Emits active/pending substrate tasks capped to 10 records; exit 0 |
+| `TC-TSK-14` | Law 7 (Fail-Closed Filter) | `nomos task list --status BOGUS` | Rejects unknown status (`ERR_VALIDATION_FAILED`) with remedial command; exit 1 |
 

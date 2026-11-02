@@ -27,6 +27,7 @@ ssot_repository: nomos
 | **`INV-PARITY-008`** | **Command Surface Invariance** | $\forall c \in \text{IntentCommands}, c \in \text{SubstrateCLI}$ | AST Regex Extractor $\leftrightarrow$ Cobra Command Registry |
 | **`INV-PARITY-009`** | **Flag Surface Invariance** | $\forall (c, f) \in \text{IntentCommandFlags}, f \in \text{MergedFlags}(c)$ | Cobra Merged FlagSet (`Flags` + `PersistentFlags`) |
 | **`INV-PARITY-010`** | **Hermetic Plane Boundary Invariance** | $\text{Scope}(c) \subseteq \text{RepoProfile}(\text{doc})$ | Open-Core / Sovereign Boundary Filter |
+| **`INV-PARITY-011`** | **Cobra Help & Example Completeness** | $\forall c \in \text{StaticCLI}, \{Use, Short, Long, Example\} \ne \emptyset$ | `ScanCobraSurfaceCompletenessInDir` (`Cell 6.2` `ZeroAliasGate`) |
 
 ---
 
@@ -186,3 +187,4 @@ func AuditCommandSurface(rootDir string, table *IntentSymbolTable, cliCmds map[s
 | **`VEC-CLI-04`** | Sovereign command `nomos code watch` in open-core directive | **DRIFT**: Flagged under `contracts.cli` (Law 0.2 / `INV-PARITY-010`). |
 | **`VEC-CLI-05`** | Negated command line `"never run nomos worktree directly"` | **PASS**: Filtered by negative assertion parser. |
 | **`VEC-CLI-06`** | Global persistent flag invocation `nomos status --json` | **PASS**: Verified against `MergedFlags(c)`. |
+| **`VEC-CLI-07`** | Static `&cobra.Command{}` missing `Long` or `Example` in `substrate/cli` | **FAIL CLOSED**: Rejected by `ScanCobraSurfaceCompletenessInDir` (`Cell 6.2` `ZeroAliasGate`, `INV-PARITY-011`). |
