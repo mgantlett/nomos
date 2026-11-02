@@ -105,8 +105,8 @@ func buildEditAffordances(key, wt string) []ActionAffordance {
 	wtWalkthrough := walkthroughHintPath(key, wt)
 	actions = append(actions,
 		ActionAffordance{
-			Command: fmt.Sprintf(`nomos task commit %s -m "<summary>"`, key),
-			Summary: "Stage and commit worktree changes using Dual-Layer commit schema",
+			Command: fmt.Sprintf(`nomos task commit %s -m "<type(scope): summary>"`, key),
+			Summary: "Stage and commit worktree changes (auto-hydrates Dual-Layer card/diff sections, or pass --rationale/--blast-radius/--mechanics)",
 			Phase:   PhaseEdit,
 		},
 		ActionAffordance{

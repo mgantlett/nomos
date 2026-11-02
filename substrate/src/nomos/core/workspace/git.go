@@ -20,7 +20,8 @@ func SanitizedGitEnv() []string {
 			strings.HasPrefix(e, "GIT_WORK_TREE=") ||
 			strings.HasPrefix(e, "GIT_INDEX_FILE=") ||
 			strings.HasPrefix(e, "GIT_OBJECT_DIRECTORY=") ||
-			strings.HasPrefix(e, "GIT_PREFIX=") {
+			strings.HasPrefix(e, "GIT_PREFIX=") ||
+			strings.HasPrefix(e, "NOMOS_COMMIT_IN_PROGRESS=") {
 			continue
 		}
 		env = append(env, e)

@@ -62,7 +62,7 @@ func finalizeSync(key, walkthroughPath string, report *verify.PipelineReport) er
 		return err
 	}
 	wtPath := mgr.WorktreePath(key)
-	if cErr := autoCommitDirtyWorktree(wtPath, key, t.Title); cErr != nil {
+	if cErr := autoCommitDirtyWorktree(wtPath, key, t, walkthroughPath); cErr != nil {
 		return cErr
 	}
 	touchedFiles := verify.ListModifiedWorktreeFiles(wtPath, key)
@@ -115,6 +115,7 @@ func rebaseOntoTrunkIfDiverged(repoRoot, wtPath, branch string) (bool, error) {
 		return false, nil
 	}
 	rebCmd := workspace.SafeGitCommand(wtPath, "rebase", trunk)
+	rebCmd.Env = append(rebCmd.Env, "NOMOS_COMMIT_IN_PROGRESS=1")
 	if out, rebErr := rebCmd.CombinedOutput(); rebErr != nil {
 		if abErr := workspace.SafeGitCommand(wtPath, "rebase", "--abort").Run(); abErr != nil {
 			// best-effort clean abort
@@ -209,7 +210,7 @@ func lockTrunk(root string) {
 	}
 }
 
-func autoCommitDirtyWorktree(wtPath, key, title string) error {
+func autoCommitDirtyWorktree(wtPath, key string, rec *task.TaskRecord, walkthroughPath string) error {
 	fi, err := os.Stat(wtPath)
 	if err != nil || !fi.IsDir() {
 		return nil
@@ -219,10 +220,16 @@ func autoCommitDirtyWorktree(wtPath, key, title string) error {
 	if err != nil || strings.TrimSpace(string(out)) == "" {
 		return nil
 	}
+	var title string
+	if rec != nil {
+		title = rec.Title
+	}
 	opts := &commitCmdOptions{
-		dir:       wtPath,
-		summary:   title,
-		autoStage: true,
+		dir:             wtPath,
+		summary:         title,
+		walkthroughFile: walkthroughPath,
+		taskRecord:      rec,
+		autoStage:       true,
 	}
 	return runTaskCommitCmd([]string{key}, opts)
 }

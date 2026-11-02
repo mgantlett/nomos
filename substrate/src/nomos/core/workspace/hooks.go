@@ -38,7 +38,14 @@ export NOMOS_IN_GIT_HOOK=1
         exit 1
     fi
 
-    # 3. Check staged files to ensure no staged paths target root workspace files outside worktree
+    # 3. Enforce canonical CLI commit entry point (Law 1 & Law 6)
+    if [[ "${NOMOS_COMMIT_IN_PROGRESS:-0}" != "1" ]]; then
+        echo -e "\n\e[31m🚨 Commit Blocked: Direct 'git commit' is forbidden by Law 1 & Law 6.\e[0m"
+        echo -e "Please commit via \e[33mnomos task commit <KEY> -m \"<summary>\"\e[0m or \e[33mnomos task sync <KEY> -F <walkthrough>\e[0m.\n"
+        exit 1
+    fi
+
+    # 4. Check staged files to ensure no staged paths target root workspace files outside worktree
     STAGED_FILES=$(git diff --cached --name-only 2>/dev/null)
     for file in $STAGED_FILES; do
         if [[ "$file" =~ ^\.\./ || "$file" == /* ]]; then
@@ -78,17 +85,36 @@ const CommitMsgHookScript = `#!/usr/bin/env bash
         exit 0
     fi
 
-    # Ensure the commit message starts with a Task ID (supports optional 'Task' prefix and descriptive slugs)
-    if ! head -n 1 "$1" | grep -qE '^\[(Task\s+)?(INT|SUB|ARC)-[1-9][0-9]*[A-Z]?(-[a-z0-9\-]+)?\]'; then
-        echo -e "\n\e[31m❌ Commit Blocked: Commit message must start with a Task ID (e.g., '[SUB-22-2pc-release]' or '[Task SUB-8]').\e[0m"
-        echo "Please use 'nomos task commit' or 'nomos task sync' to automatically generate valid commits."
+    FIRST_LINE=$(head -n 1 "$1")
+
+    # Allow standard Git merge commits
+    if printf '%s\n' "$FIRST_LINE" | grep -qE '^Merge (branch|pull request|remote-tracking branch) '; then
+        exit 0
+    fi
+
+    # 1. Enforce canonical [INT-N] or [SUB-N] prefix + Conventional Commit type
+    if ! printf '%s\n' "$FIRST_LINE" | grep -qE '^\[(INT|SUB)-[1-9][0-9]*(-[a-z0-9-]+)?\][[:space:]]+(feat|fix|docs|chore|refactor|test)(\([a-z0-9_,/-]+\))?:[[:space:]]+[^[:space:]]'; then
+        echo -e "\n\e[31m❌ Commit Blocked: Subject must match '[<INT|SUB-N>] <feat|fix|docs|chore|refactor|test>(<scope>): <summary>'.\e[0m"
+        echo "Please use 'nomos task commit' or 'nomos task sync -F <walkthrough>' to generate compliant commits."
         exit 1
     fi
 
-    # Ensure the commit message contains the required bolded headings (Dual-Layer Schema)
-    if ! grep -qiE '\*\*blast radius & contracts:\*\*|\*\*resolution mechanics:\*\*' "$1"; then
-        echo -e "\n\e[31m❌ Commit Blocked: Commit message must follow the Dual-Layer Hybrid AI-to-AI schema (missing headings '**Blast Radius & Contracts:**' or '**Resolution Mechanics:**').\e[0m"
-        echo "Please ensure your commit message contains: **Architectural Rationale:**, **Blast Radius & Contracts:**, and **Resolution Mechanics:**"
+    # 2. Reject duplicate trailing task key tokens on subject line
+    if printf '%s\n' "$FIRST_LINE" | grep -qiE '(\[(task[[:space:]]+)?(int|sub|arc)-[0-9]+[a-z]?\]|\((int|sub|arc)-[0-9]+[a-z]?\))[[:space:]]*$'; then
+        echo -e "\n\e[31m❌ Commit Blocked: Subject contains a duplicate trailing task key token.\e[0m"
+        exit 1
+    fi
+
+    # 3. Ensure the commit message contains required bolded Dual-Layer headings
+    if ! grep -qiE '\*\*(architectural rationale|blast radius & contracts|resolution mechanics):\*\*' "$1"; then
+        echo -e "\n\e[31m❌ Commit Blocked: Commit message must follow the Dual-Layer Hybrid AI-to-AI schema (missing '**Architectural Rationale:**', '**Blast Radius & Contracts:**', or '**Resolution Mechanics:**').\e[0m"
+        exit 1
+    fi
+
+    # 4. Reject canned boilerplate commit body shims (Law 2 Non-Verbal Proof)
+    if grep -qiE 'satisfy (int|sub)-[0-9]+ deterministic execution requirements|scoped strictly to (int|sub)-[0-9]+ implementation files|implemented and verified via deterministic quality gates for (int|sub)-[0-9]+' "$1"; then
+        echo -e "\n\e[31m❌ Commit Blocked: Canned boilerplate commit body shims are prohibited (Law 2).\e[0m"
+        echo "Provide real rationale/mechanics or let 'nomos task commit' hydrate from your Living Ledger card and walkthrough."
         exit 1
     fi
 }
