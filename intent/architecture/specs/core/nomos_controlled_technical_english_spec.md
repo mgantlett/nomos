@@ -4,20 +4,20 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-01"
-last_updated: "2026-11-01"
+last_updated: "2026-11-02"
 plane: intent
 status: active
 title: "Nomos Controlled Technical English (NCTE-100) Architectural Specification"
 type: spec
-version: "4.0.0"
+version: "4.1.0"
 ssot_repository: nomos
 ---
 
 # Nomos Controlled Technical English (NCTE-100) Architectural Specification
 
-**Specification Key:** `SPEC-NCTE-100`  
-**Classification:** Public Open-Core Specification  
-**Governing Laws:** Law 1 (Dual-Core Inversion), Law 2 (Non-Verbal Proof), Law 4 (SSoT), Law 5 (Zero-Hardcoded-Path), Law 6 (Canonical Singularity), Law 7 (Fail-Closed Pre-Flight)  
+- **Specification Key:** `SPEC-NCTE-100`.
+- **Classification:** Public Open-Core Specification.
+- **Governing Laws:** Laws 1, 2, 4, 5, 6, and 7.
 
 ---
 
@@ -54,7 +54,7 @@ The substrate enforces NCTE-100 rules deterministically using an AST markdown an
 
 ### Rule 5: Non-Verbal Proof Assertions (Law 2 & Law 7)
 - Acceptance criteria must declare measurable bounds, exit codes, or AST properties.
-- Specifications must fail closed on qualitative adjectives lacking measurable bounds.
+- Specifications must reject qualitative adjectives lacking measurable bounds.
 
 ---
 
@@ -219,7 +219,7 @@ Token counting executes under deterministic isolation rules:
 - The parser evaluates standard prose table cells as independent statements.
 - Standard prose table cells must not exceed 12 words.
 - The parser exempts table cells from word bounds when the column header matches any entry in `exempt_table_headers`.
-- The parser exempts code-wrapped or quoted table cells representing test literals.
+- The parser exempts code-wrapped or quoted table cells representing input literals.
 
 ### 4.4 Sentence Delimitation Algorithm
 - The parser splits prose on periods, question marks, and exclamation points followed by whitespace.
@@ -235,12 +235,18 @@ Token counting executes under deterministic isolation rules:
 
 ## 5. Controlled Vocabulary Registry (SSoT)
 
-The substrate maintains the canonical vocabulary registry dynamically. 
+The substrate compiles a 36-term Succinct Action Lexicon across five domains (`lifecycle`, `verification`, `isolation`, `memory`, `steering`) in `substrate/src/nomos/modules/ncte/lexicon.go` bound to `intent/contracts/cue/ncte.cue`.
+Operators query the compiled registry via `nomos directive --lexicon`, `nomos directive --term <word>`, and `nomos directive --lint <file>`.
 The system rejects unregistered synonyms.
 
 | Canonical Term | Part of Speech | Approved Semantic Meaning | Banned Synonyms |
 | :--- | :--- | :--- | :--- |
+| **Pair** | Verb | Allocate linked INT and SUB twin task records atomically. | bundle, couple |
+| **Chore** | Noun | A single-step burden-1 task provisioned directly into EDIT. | quickfix, hotfix |
+| **Start** | Verb | Provision an isolated task worktree and mint a CapBAC lease. | spin up, kick off |
+| **Sync** | Verb | Execute atomic 2PC fast-forward merge to trunk with walkthrough receipt. | ship, land, push to prod |
 | **Verify** | Verb | Execute automated validation checks and assert exit code 0. | check, test, inspect |
+| **Attest** | Verb | Prove gate mutation sensitivity, specificity, and anti-vacuity. | certify, vouch |
 | **Reject** | Verb | Abort execution and return a structured non-zero exit code. | drop, ignore, fail |
 | **Trunk** | Noun | The primary protected git branch (`main`). | master, root, upstream |
 | **Worktree** | Noun | An isolated transient git worktree directory. | sandbox, folder, temp branch |
@@ -248,12 +254,15 @@ The system rejects unregistered synonyms.
 | **Prune** | Verb | Remove transient worktrees or merged branches safely. | delete, clean up, wipe |
 | **Receipt** | Noun | A cryptographic review or release proof stored in the database. | note, log, certificate |
 | **Seal** | Verb | Commit an immutable cryptographic Git Note onto release refs. | stamp, finalize, tag |
+| **Handshake** | Verb | Initialize session state, verify CapBAC leases, and emit JIT directives. | boot, connect, login |
+| **Affordance** | Noun | A deterministic HATEOAS Next Actions CLI command emitted on stdout. | suggestion, next tip |
+| **Remedy** | Noun | An exact self-healing command attached to a fail-closed NomosError. | workaround, hint |
 
 ---
 
 ## 6. Table-Driven Test Matrix (TV-01 through TV-07)
 
-The table below defines the deterministic test vectors for the NCTE AST engine.
+The table below defines deterministic verification vectors for the NCTE AST engine.
 
 | Vector ID | Input Sentence | Target Classification | Expected Word Count | Expected Violation Code | Expected Pass |
 | :--- | :--- | :--- | :---: | :--- | :---: |
