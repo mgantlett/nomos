@@ -9,9 +9,11 @@ plane: intent
 status: active
 title: Commit Schema Invariant Gate Specification
 type: spec
-version: "4.0.0"
+version: "4.1.0"
 tags:
     - INT-380
+    - INT-874
+    - SUB-1582
 ssot_repository: nomos
 ---
 
@@ -121,11 +123,17 @@ package schemas
 
 import "strings"
 
+#CommitHydrationSource: "explicit_flag" | "walkthrough" | "task_card" | "git_diff"
+
 #CommitMessage: close({
-	raw:      string & strings.MinRunes(15) & =~"^(\\[(INT|SUB)-[0-9]+(-[a-z0-9-]+)?\\]\\s+)?[a-z]+(\\([a-z0-9_-]+\\))?:\\s+.*$"
-	task_key: =~"^\\[(INT|SUB)-[0-9]+(-[a-z0-9-]+)?\\]$"
-	type:     "feat" | "fix" | "docs" | "chore" | "refactor" | "test"
-	summary:  string & strings.MinRunes(10) & strings.MaxRunes(100) & =~"^[^\\r\\n]+$"
+	raw:                  string & strings.MinRunes(15) & =~"^\\[(INT|SUB)-[1-9][0-9]*(-[a-z0-9-]+)?\\]\\s+(feat|fix|docs|chore|refactor|test)(\\([a-z0-9_,/-]+\\))?:\\s+.*$"
+	task_key:             =~"^\\[(INT|SUB)-[1-9][0-9]*(-[a-z0-9-]+)?\\]$"
+	type:                 "feat" | "fix" | "docs" | "chore" | "refactor" | "test"
+	scope?:               string & =~"^[a-z0-9_,/-]+$"
+	summary:              string & strings.MinRunes(5) & strings.MaxRunes(120) & =~"^[^\\r\\n]+$"
+	rationale:            string & strings.MinRunes(10)
+	blast_radius:         string & strings.MinRunes(5)
+	resolution_mechanics: string & strings.MinRunes(10)
 })
 
 // CommitValidationReport captures gate evaluation across branch commits.
@@ -144,21 +152,21 @@ Every non-merge commit must satisfy the Dual-Layer specification:
 ```text
 [<TASK_KEY>] <type>(<scope>): <concise human-readable imperative summary>
 
-## Architectural Context & Intent
-<Detailed description of the modification, rationale, and intent links>
+**Architectural Rationale:**
+<Detailed description of the problem context, rationale, and intent links>
 
 **Blast Radius & Contracts:**
-- List of modified interfaces, schemas, or exported Go types.
-- Verification gates affected.
+- List of modified files, interfaces, schemas, or exported Go types.
 
 **Resolution Mechanics:**
-- Algorithmic implementation steps taken to satisfy the contract.
+- Concrete algorithmic implementation steps or verified walkthrough summary.
 ```
 
 ### 5.1 Verification Protocol
-1. **First-Line Structure**: Starts with `[INT-<N>]` or `[SUB-<N>]` (or slugged `[INT-<N>-slug]`), followed by a space and conventional commit type (`feat`, `fix`, `docs`, `chore`, `refactor`, `test`).
-2. **Body Requirement**: Contains at least one of the Markdown bold headers `**Blast Radius & Contracts:**` or `**Resolution Mechanics:**` with non-empty content beneath the header.
-3. **Empty Body Rejection**: A commit containing only the subject line or empty header blocks fails closed.
+1. **First-Line Structure**: Starts with `[INT-<N>]` or `[SUB-<N>]` (or slugged `[INT-<N>-slug]`), followed by a space and conventional commit type (`feat`, `fix`, `docs`, `chore`, `refactor`, `test`) with optional `(<scope>):`, and contains no duplicate trailing `[<TASK_KEY>]` or `(<TASK_KEY>)` suffix.
+2. **Body Requirement**: Contains Dual-Layer bold headers (`**Architectural Rationale:**`, `**Blast Radius & Contracts:**`, `**Resolution Mechanics:**`) with non-empty substantive content beneath each present header.
+3. **Anti-Shim Rejection (`INT-874`)**: Any commit body containing generic placeholder strings (such as `"satisfy <KEY> deterministic execution requirements"`, `"scoped strictly to <KEY> implementation files"`, or `"implemented and verified via deterministic quality gates for <KEY>"`) fails closed.
+4. **Branch Revision Range Audit**: Across active task branches (`trunk..HEAD`), every unmerged commit is validated; an intermediate `--no-verify` bypass commit cannot be masked by a compliant `HEAD` commit.
 
 ## 6. Table-Driven Verification Vectors (Law 2)
 

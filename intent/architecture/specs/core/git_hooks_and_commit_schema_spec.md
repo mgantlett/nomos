@@ -9,10 +9,12 @@ plane: intent
 status: active
 title: "Hermetic Git Hooks, Task Commit, and Staged Boundary Enforcement Specification"
 type: spec
-version: "4.0.0"
+version: "4.1.0"
 tags:
     - INT-734
     - SUB-1212
+    - INT-874
+    - SUB-1582
 ssot_repository: nomos
 ---
 
@@ -58,12 +60,9 @@ Nomos installs and maintains three hermetic client-side hooks within `.git/hooks
 - **Pre-Flight DoD Verification**: Executes `nomos verify` across active gates.
 
 ### 3.2 `commit-msg`
-- **First-Line Format**: Validates that line 1 matches `^\[(INT|SUB)-[1-9][0-9]*(-[a-z0-9\-]+)?\]\s+[a-z]+(\([a-z0-9_-]+\))?:`.
-- **Dual-Layer Sections**: Requires at least one of the markdown section headers:
-  - `**Architectural Rationale:**`
-  - `**Blast Radius & Contracts:**`
-  - `**Resolution Mechanics:**`
-- **Rejection**: Fails with clear remediation instructions directing the agent to `nomos task commit`.
+- **First-Line Format**: Validates that line 1 matches `^\[(INT|SUB)-[1-9][0-9]*(-[a-z0-9\-]+)?\]\s+(feat|fix|docs|chore|refactor|test)(\([a-z0-9_,/-]+\))?:\s+\S+` and rejects duplicate trailing `[KEY]` or `(KEY)` tokens.
+- **Dual-Layer Sections & Anti-Shim Guard**: Requires the markdown section headers `**Architectural Rationale:**`, `**Blast Radius & Contracts:**`, and `**Resolution Mechanics:**` with substantive content, explicitly rejecting canned boilerplate placeholder lines.
+- **Rejection**: Fails with clear remediation instructions directing the agent to `nomos task commit` or `nomos task sync -F <walkthrough>`.
 
 ### 3.3 `pre-push`
 - **Trunk Push Defense**: Prevents pushing incomplete task branches directly to remote trunk without prior 2PC atomic release (`nomos task sync`).
@@ -77,31 +76,28 @@ Usage:
   nomos task commit [TASK_KEY] [flags]
 
 Flags:
-  -m, --message string        Commit summary line
-      --rationale string      Architectural rationale
-      --blast-radius string   Blast radius & affected contracts
-      --mechanics string      Resolution mechanics and algorithmic steps
+  -m, --message string        Commit summary line (normalized to Conventional Commit format)
+      --rationale string      Architectural rationale (overrides Living Ledger Scope & Context)
+      --blast-radius string   Blast radius & affected contracts (overrides staged file manifest)
+      --mechanics string      Resolution mechanics (overrides walkthrough / Acceptance Criteria)
+  -F, --file string           Optional walkthrough markdown file to hydrate commit sections
   -a, --all                   Automatically stage modified tracked files (default: true)
   -d, --dir string            Worktree working directory (default: current directory)
 ```
 
-### 4.1 Resolution Flow
-1. **Task Key Resolution**: If `TASK_KEY` is omitted, the command extracts the key from the current working directory name (`worktrees/nomos-<KEY>`).
-2. **Metadata Lookup**: Queries `SQLiteTaskStore` to retrieve task title, plane, and twin key.
-3. **Dual-Layer Formatting**: Assembles the standardized commit message:
-   ```text
-   [<KEY>] <summary>
+### 4.1 Deterministic Commit Context Hydration & Subject Normalization (`INT-874`)
+Static canned placeholder bodies (such as `"satisfy <KEY> deterministic execution requirements"` or `"scoped strictly to <KEY> implementation files"`) are strictly prohibited under **Law 2 (The Non-Verbal Proof Law)**.
 
-   **Architectural Rationale:**
-   <rationale>
-
-   **Blast Radius & Contracts:**
-   <blastRadius>
-
-   **Resolution Mechanics:**
-   <mechanics>
-   ```
-4. **Hermetic Execution**: Sets `NOMOS_COMMIT_IN_PROGRESS=1`, stages modified files if `--all` is set, and commits via `workspace.SafeGitCommand`.
+1. **Task Key Resolution**: If `TASK_KEY` is omitted, the command extracts the canonical `INT-<N>` or `SUB-<N>` key from the active worktree directory or `feature/<KEY>` branch.
+2. **Subject Normalization**:
+   - Strips redundant leading `[<KEY>]` or trailing `(<KEY>)` / `[<KEY>]` tokens from `--message` (or falls back to the Living Ledger task `Title`).
+   - Preserves explicit `feat|fix|docs|chore|refactor|test` prefixes, or deterministically synthesizes `<type>(<scope>): <summary>` from plane/verb/staged package paths when a plain imperative title is provided.
+3. **Three-Section Priority Cascade (Zero Shims)**:
+   - **`**Architectural Rationale:**`**: Explicit `--rationale` $\rightarrow$ Living Ledger 3-section card `## Scope & Context` $\rightarrow$ walkthrough summary $\rightarrow$ concrete chore title and package context.
+   - **`**Blast Radius & Contracts:**`**: Explicit `--blast-radius` $\rightarrow$ staged Git path manifest (`git diff --cached --name-status`) highlighting touched CUE contracts, specs, and packages.
+   - **`**Resolution Mechanics:**`**: Explicit `--mechanics` $\rightarrow$ walkthrough release notes (`-F` or `.tmp/walkthrough-<KEY>.md`) $\rightarrow$ Living Ledger card `## Acceptance Criteria` deliverables $\rightarrow$ staged per-file diffstat (`git diff --cached --numstat`).
+4. **Dirty Worktree Sync Parity**: When `nomos task sync <KEY> -F <walkthrough>` auto-commits uncommitted worktree edits, `autoCommitDirtyWorktree` forwards both the `TaskRecord` and `walkthroughPath` into the hydration pipeline so trunk commits always carry real rationale, file blast radius, and walkthrough mechanics.
+5. **Hermetic Execution**: Sets `NOMOS_COMMIT_IN_PROGRESS=1`, stages modified files if `--all` is set, and commits via `workspace.SafeGitCommand`.
 
 ---
 
@@ -136,3 +132,7 @@ Flags:
 | `TC-GATE-03` | `git_hygiene` | AST uses `workspace.SafeGitCommand(dir, "status")` | Passes with clean certification. |
 | `TC-GATE-04` | `commit_schema` | Commit subject missing `[TASK_KEY]` | Fails closed: missing canonical prefix. |
 | `TC-GATE-05` | `commit_schema` | Commit message with valid prefix and headers | Passes with clean certification. |
+| `TC-HYD-01` | `nomos task commit` without body flags | Backlog task has 3-section card + staged diff | Hydrates Rationale from `Scope & Context`, Blast Radius from staged paths, and Mechanics from `Acceptance Criteria` / walkthrough (zero canned shims). |
+| `TC-HYD-02` | `nomos task sync -F walkthrough.md` | Dirty worktree auto-commit | Hydrates Mechanics from `walkthrough.md`, Rationale from task card, and Blast Radius from staged files. |
+| `TC-HYD-03` | Subject normalization | `-m "[SUB-9] docs(readme): update [SUB-9]"` | Deduplicates key tokens to `[SUB-9] docs(readme): update`. |
+| `TC-HYD-04` | `commit_schema` & `commit-msg` | Commit contains canned boilerplate shim text | Fails closed (`Anti-Shim Commit Guard`). |
