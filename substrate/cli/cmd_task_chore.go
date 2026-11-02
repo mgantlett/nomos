@@ -91,7 +91,7 @@ func runTaskChoreWithOpts(title, rawPlane, rawProject string) error {
 		return uErr
 	}
 
-	fmt.Printf("🚀 Started task: %s\n  Worktree: %s\n  Phase: EDIT\n", key, wtPath)
+	renderTaskStartedBanner(key, wtPath, "EDIT")
 	renderLearnedPitfallsBriefing(repoRoot)
 	renderPhaseTransitionNextActions(os.Stdout, types.PhaseEdit, key, wtPath, repoRoot)
 	return nil
@@ -124,16 +124,16 @@ func renderLearnedPitfallsBriefing(repoRoot string) {
 	pitfalls := mem.RecallRepoPitfalls(repoRoot, nil, 3)
 	for i, p := range pitfalls {
 		if i == 0 {
-			fmt.Printf("  Learned Pitfalls (%d active):\n", len(pitfalls))
+			fmt.Printf("  %s\n", uiWarnStyle.Render(fmt.Sprintf("Learned Pitfalls (%d active):", len(pitfalls))))
 		}
-		fmt.Printf("    ⚡ %s\n", p)
+		fmt.Printf("    ⚡ %s\n", uiValueStyle.Render(p))
 	}
 	patterns := mem.RecallRepoPatterns(repoRoot, "", nil, 2)
 	for i, pat := range patterns {
 		if i == 0 {
-			fmt.Printf("  Verified Patterns (%d active):\n", len(patterns))
+			fmt.Printf("  %s\n", uiHeaderStyle.Render(fmt.Sprintf("Verified Patterns (%d active):", len(patterns))))
 		}
-		fmt.Printf("    🧩 %s\n", pat)
+		fmt.Printf("    🧩 %s\n", uiMutedStyle.Render(pat))
 	}
 }
 

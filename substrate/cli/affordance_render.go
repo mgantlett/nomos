@@ -16,9 +16,13 @@ func renderNextActions(out io.Writer, actions []types.ActionAffordance) {
 	if out == nil || len(actions) == 0 {
 		return
 	}
-	fmt.Fprintln(out, "  Next Actions:")
+	fmt.Fprintf(out, "  %s\n", uiHeaderStyle.Render("Next Actions:"))
+	arrow := uiSubstrateStyle.Render("→")
 	for _, act := range actions {
-		fmt.Fprintf(out, "    → %s  (%s)\n", act.Command, act.Summary)
+		fmt.Fprintf(out, "    %s %s  %s\n",
+			arrow,
+			uiCommandStyle.Render(act.Command),
+			uiMutedStyle.Render("("+act.Summary+")"))
 	}
 }
 

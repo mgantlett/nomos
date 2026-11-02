@@ -72,18 +72,29 @@ func newTaskListCmd() *cobra.Command {
 }
 
 func renderTaskList(tasks []task.TaskRecord) {
-	fmt.Println("📋 Nomos Living Ledger Tasks")
-	fmt.Println("────────────────────────────────────────────────────────────────────────────")
-	fmt.Printf("  %-10s %-10s %-10s %-5s %-5s %s\n", "KEY", "PLANE", "STATUS", "TIER", "PRIO", "TITLE")
-	fmt.Println("────────────────────────────────────────────────────────────────────────────")
+	fmt.Println(uiTitleStyle.Render("📋 Nomos Living Ledger Tasks"))
+	fmt.Println(uiRule(ruleStandard))
+	fmt.Printf("  %s %s %s %s %s %s\n",
+		padStyled("KEY", 10, uiHeaderStyle),
+		padStyled("PLANE", 10, uiHeaderStyle),
+		padStyled("STATUS", 10, uiHeaderStyle),
+		padStyled("TIER", 5, uiHeaderStyle),
+		padStyled("PRIO", 5, uiHeaderStyle),
+		uiHeaderStyle.Render("TITLE"))
+	fmt.Println(uiRule(ruleStandard))
 	if len(tasks) == 0 {
-		fmt.Println("  (No tasks registered in Living Ledger)")
+		fmt.Printf("  %s\n", uiMutedStyle.Render("(No tasks registered in Living Ledger)"))
 	}
 	for _, t := range tasks {
-		fmt.Printf("  %-10s %-10s %-10s %-5s %-5d %s\n",
-			t.Key, t.Plane, t.Status, t.Tier, t.Priority, t.Title)
+		fmt.Printf("  %s %s %s %s %s %s\n",
+			styleTaskKeyWidth(t.Key, 10),
+			stylePlaneWidth(t.Plane, 10),
+			styleSemanticBadgeWidth(string(t.Status), 10),
+			padStyled(string(t.Tier), 5, uiMutedStyle),
+			padStyled(fmt.Sprintf("%d", t.Priority), 5, uiLabelStyle),
+			uiValueStyle.Render(t.Title))
 	}
-	fmt.Println("────────────────────────────────────────────────────────────────────────────")
+	fmt.Println(uiRule(ruleStandard))
 }
 
 func newTaskDAGCmd() *cobra.Command {
@@ -118,15 +129,19 @@ func newTaskDAGCmd() *cobra.Command {
 }
 
 func renderWavefront(wf []task.WavefrontCandidate) {
-	fmt.Println("🌊 Nomos Causal DAG Wavefront (Unblocked Ready Tasks)")
-	fmt.Println("────────────────────────────────────────────────────────────────────────────")
+	fmt.Println(uiTitleStyle.Render("🌊 Nomos Causal DAG Wavefront (Unblocked Ready Tasks)"))
+	fmt.Println(uiRule(ruleStandard))
 	if len(wf) == 0 {
-		fmt.Println("  (No pending unblocked tasks in current wavefront)")
+		fmt.Printf("  %s\n", uiMutedStyle.Render("(No pending unblocked tasks in current wavefront)"))
 	}
 	for _, cand := range wf {
-		fmt.Printf("  • [%s] %s (%s, %s)\n", cand.Key, cand.Title, cand.Plane, cand.Tier)
+		fmt.Printf("  %s [%s] %s %s\n",
+			uiSubstrateStyle.Render("•"),
+			styleTaskKey(cand.Key),
+			uiBoldValueStyle.Render(cand.Title),
+			uiMutedStyle.Render(fmt.Sprintf("(%s, %s)", cand.Plane, cand.Tier)))
 	}
-	fmt.Println("────────────────────────────────────────────────────────────────────────────")
+	fmt.Println(uiRule(ruleStandard))
 }
 
 func newTaskStatusCmd() *cobra.Command {
@@ -154,14 +169,17 @@ func newTaskStatusCmd() *cobra.Command {
 			if err := ps.Validate(); err != nil {
 				return err
 			}
-			fmt.Println("📋 Nomos Workspace Phase State")
-			fmt.Println("────────────────────────────────────────────────────────────")
-			fmt.Printf("  Active Phase    : %s\n", ps.Phase)
-			fmt.Printf("  Assignee        : %s\n", ps.Assignee)
-			fmt.Printf("  Step Budget     : %d\n", ps.StepBudget)
-			fmt.Printf("  Tokens Consumed : %d\n", ps.TokensUsed)
+			fmt.Println(uiTitleStyle.Render("📋 Nomos Workspace Phase State"))
+			fmt.Println(uiRule(ruleNarrow))
+			fmt.Println(kvLine("Active Phase", 15, styleSemanticBadge(string(ps.Phase))))
+			if ps.TaskID != "" {
+				fmt.Println(kvLine("Active Task", 15, styleTaskKey(ps.TaskID)))
+			}
+			fmt.Println(kvLine("Assignee", 15, uiValueStyle.Render(ps.Assignee)))
+			fmt.Println(kvLine("Step Budget", 15, uiBoldValueStyle.Render(fmt.Sprintf("%d", ps.StepBudget))))
+			fmt.Println(kvLine("Tokens Consumed", 15, uiValueStyle.Render(fmt.Sprintf("%d", ps.TokensUsed))))
 			renderNextActions(cmd.OutOrStdout(), ps.NextActions)
-			fmt.Println("────────────────────────────────────────────────────────────")
+			fmt.Println(uiRule(ruleNarrow))
 			return nil
 		},
 	}
@@ -183,7 +201,7 @@ func newTaskShowCmd() *cobra.Command {
 				return err
 			}
 			rec := task.BuildInspectionRecord(*t, t.Dependencies, nil, "", "")
-			fmt.Print(task.FormatInspectionCard(rec))
+			renderTaskShowCard(cmd.OutOrStdout(), rec)
 			return nil
 		},
 	}
@@ -267,11 +285,63 @@ func executeTaskPair(store task.TaskStore, title string, opts taskPairOpts) erro
 		return fmt.Errorf("failed binding twins %s <-> %s: %w", intKey, subKey, err)
 	}
 
-	fmt.Println("🔗 Nomos Atomic Twin Provisioning Complete")
-	fmt.Println("────────────────────────────────────────────────────────────")
-	fmt.Printf("  Intent Task    : %s (%s)\n", intKey, title)
-	fmt.Printf("  Substrate Task : %s (%s)\n", subKey, title)
-	fmt.Printf("  Bilateral Link : %s <─── twin ───> %s\n", intKey, subKey)
-	fmt.Println("────────────────────────────────────────────────────────────")
+	fmt.Println(uiTitleStyle.Render("🔗 Nomos Atomic Twin Provisioning Complete"))
+	fmt.Println(uiRule(ruleNarrow))
+	fmt.Println(kvLine("Intent Task", 14, fmt.Sprintf("%s (%s)", styleTaskKey(intKey), uiValueStyle.Render(title))))
+	fmt.Println(kvLine("Substrate Task", 14, fmt.Sprintf("%s (%s)", styleTaskKey(subKey), uiValueStyle.Render(title))))
+	fmt.Println(kvLine("Bilateral Link", 14, fmt.Sprintf("%s %s %s",
+		styleTaskKey(intKey), uiMutedStyle.Render("<─── twin ───>"), styleTaskKey(subKey))))
+	fmt.Println(uiRule(ruleNarrow))
 	return nil
+}
+
+func renderTaskShowCard(out io.Writer, rec task.TaskInspectionRecord) {
+	fmt.Fprintf(out, "%s %s\n", uiTitleStyle.Render("🔎 Living Ledger Task Card ·"), styleTaskKey(rec.Key))
+	fmt.Fprintln(out, uiRule(ruleStandard))
+	fmt.Fprintln(out, kvLine("Title", 12, uiBoldValueStyle.Render(rec.Title)))
+	if rec.Project != "" {
+		fmt.Fprintln(out, kvLine("Project", 12, uiValueStyle.Render(rec.Project)))
+	}
+	meta := fmt.Sprintf("%s %s %s %s %s %s %s",
+		stylePlane(rec.Plane), uiMutedStyle.Render("|"),
+		uiBoldValueStyle.Render(string(rec.Tier)), uiMutedStyle.Render("|"),
+		styleSemanticBadge(string(rec.Status)), uiMutedStyle.Render("|"),
+		uiLabelStyle.Render(fmt.Sprintf("Prio %d", rec.Priority)))
+	fmt.Fprintln(out, kvLine("Metadata", 12, meta))
+	if rec.TwinKey != "" {
+		fmt.Fprintln(out, kvLine("Twin Key", 12, styleTaskKey(rec.TwinKey)))
+	}
+	if len(rec.BlockedBy) > 0 {
+		fmt.Fprintln(out, kvLine("Blocked By", 12, uiWarnStyle.Render("["+strings.Join(rec.BlockedBy, ", ")+"]")))
+	}
+	if len(rec.Blocks) > 0 {
+		fmt.Fprintln(out, kvLine("Blocks", 12, uiSubstrateStyle.Render("["+strings.Join(rec.Blocks, ", ")+"]")))
+	}
+	if rec.WorktreePath != "" {
+		fmt.Fprintln(out, kvLine("Worktree", 12, fmt.Sprintf("%s %s",
+			uiCommandStyle.Render(rec.WorktreePath), uiMutedStyle.Render("(branch: "+rec.BranchName+")"))))
+	}
+	fmt.Fprintln(out, uiRule(ruleStandard))
+	renderStyledCardBody(out, rec.Description)
+	fmt.Fprintln(out, uiRule(ruleStandard))
+}
+
+func renderStyledCardBody(out io.Writer, body string) {
+	trimmed := strings.TrimSpace(body)
+	if trimmed == "" {
+		fmt.Fprintf(out, "  %s\n", uiMutedStyle.Render("(No description)"))
+		return
+	}
+	for _, line := range strings.Split(trimmed, "\n") {
+		switch {
+		case strings.HasPrefix(line, "## "):
+			fmt.Fprintf(out, "  %s\n", uiHeaderStyle.Render(line))
+		case strings.HasPrefix(strings.TrimSpace(line), "- [x] "), strings.HasPrefix(strings.TrimSpace(line), "- [X] "):
+			fmt.Fprintf(out, "    %s\n", uiSuccessStyle.Render(strings.TrimSpace(line)))
+		case strings.HasPrefix(strings.TrimSpace(line), "- [ ] "):
+			fmt.Fprintf(out, "    %s\n", uiValueStyle.Render(strings.TrimSpace(line)))
+		default:
+			fmt.Fprintf(out, "    %s\n", uiValueStyle.Render(line))
+		}
+	}
 }

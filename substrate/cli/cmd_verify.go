@@ -124,30 +124,43 @@ func runVerification(targetDir, commitRange string, baseline, allFiles, strict b
 }
 
 func renderVerificationSummary(report *verify.PipelineReport) {
-	fmt.Println("🛡️  Nomos Deterministic Engineering Substrate · Definition of Done")
-	fmt.Println("────────────────────────────────────────────────────────────────────────────")
+	fmt.Println(uiTitleStyle.Render("🛡️  Nomos Deterministic Engineering Substrate · Definition of Done"))
+	fmt.Println(uiRule(ruleStandard))
 	for _, law := range report.LawReports {
 		status := "PASS"
 		if !law.Passed {
 			status = "FAIL"
 		}
-		fmt.Printf("  Law %d: %-30s [%d/%d Cells]     %s   (%s)\n",
-			law.Law, law.Name, law.PassedCells, law.TotalCells, status, law.Domain)
+		cells := fmt.Sprintf("[%d/%d Cells]", law.PassedCells, law.TotalCells)
+		fmt.Printf("  %s %s %s     %s   %s\n",
+			uiLabelStyle.Render(fmt.Sprintf("Law %d:", law.Law)),
+			padStyled(law.Name, 30, uiBoldValueStyle),
+			padStyled(cells, 11, uiMutedStyle),
+			styleSemanticBadge(status),
+			uiMutedStyle.Render("("+law.Domain+")"))
 	}
-	fmt.Println("────────────────────────────────────────────────────────────────────────────")
+	fmt.Println(uiRule(ruleStandard))
 	if report.Passed {
-		fmt.Printf("  ✅ All Laws Enforced · %d/%d Gates Satisfied\n", report.GatesPassed, report.GatesTotal)
+		fmt.Printf("  %s\n", uiSuccessStyle.Render(
+			fmt.Sprintf("✅ All Laws Enforced · %d/%d Gates Satisfied", report.GatesPassed, report.GatesTotal)))
 	} else {
-		fmt.Printf("  ❌ Verification Failed · %d/%d Gates Passed\n", report.GatesPassed, report.GatesTotal)
-		for _, res := range report.GateResults {
-			if !res.Passed {
-				fmt.Printf("    ⚠️  [%s] %s\n", res.GateName, res.Message)
-				if res.Remedy != "" {
-					fmt.Printf("       Remedy: %s\n", res.Remedy)
-				}
-				if res.ProbeID != "" {
-					fmt.Printf("       Inspect: nomos capabilities %s\n", res.ProbeID)
-				}
+		renderFailedGatesBlock(report)
+	}
+}
+
+func renderFailedGatesBlock(report *verify.PipelineReport) {
+	fmt.Printf("  %s\n", uiDangerStyle.Render(
+		fmt.Sprintf("❌ Verification Failed · %d/%d Gates Passed", report.GatesPassed, report.GatesTotal)))
+	for _, res := range report.GateResults {
+		if !res.Passed {
+			fmt.Printf("    ⚠️  %s %s\n",
+				uiDangerStyle.Render("["+res.GateName+"]"),
+				uiValueStyle.Render(res.Message))
+			if res.Remedy != "" {
+				fmt.Printf("       %s %s\n", uiWarnStyle.Render("Remedy:"), uiValueStyle.Render(res.Remedy))
+			}
+			if res.ProbeID != "" {
+				fmt.Printf("       %s %s\n", uiLabelStyle.Render("Inspect:"), uiCommandStyle.Render("nomos capabilities "+res.ProbeID))
 			}
 		}
 	}
@@ -186,37 +199,56 @@ func newVerifyProofCmd() *cobra.Command {
 }
 
 func renderGateIntegrityAttestationSummary(report *verify.ProofReport) {
-	fmt.Println("🛡️  Nomos Gate Integrity & Invariant Attestation (Cell 2.3)")
+	fmt.Println(uiTitleStyle.Render("🛡️  Nomos Gate Integrity & Invariant Attestation (Cell 2.3)"))
 	if report.IsCodebaseTargeted {
-		fmt.Printf("  Target Codebase: %s (%d Go files analyzed)\n", report.TargetDir, report.CodebaseFilesScanned)
+		fmt.Printf("  %s %s %s\n",
+			uiLabelStyle.Render("Target Codebase:"),
+			uiBoldValueStyle.Render(report.TargetDir),
+			uiMutedStyle.Render(fmt.Sprintf("(%d Go files analyzed)", report.CodebaseFilesScanned)))
 	}
-	fmt.Println("────────────────────────────────────────────────────────────────────────────")
+	fmt.Println(uiRule(ruleStandard))
 	p1Status := "PASS"
 	if report.MutationScore < 100.0 {
 		p1Status = "FAIL"
 	}
-	fmt.Printf("  Vector 1: Mutation Testing Sensitivity (MS)       [%.1f%% · %d/%d Killed]   %s   (%.2f ms)\n",
-		report.MutationScore, report.MutationKilled, report.MutationTotal, p1Status, float64(report.DurationVector1Micros)/1000.0)
+	renderProofVectorRow("Vector 1: Mutation Testing Sensitivity (MS)",
+		fmt.Sprintf("[%.1f%% · %d/%d Killed]", report.MutationScore, report.MutationKilled, report.MutationTotal),
+		p1Status, report.DurationVector1Micros)
 
 	p2Status := "PASS"
 	if report.FalsePositiveRate > 0.0 {
 		p2Status = "FAIL"
 	}
-	fmt.Printf("  Vector 2: Metamorphic Reference Invariance (FPR)  [%.1f%% · %d/%d Passed]   %s   (%.2f ms)\n",
-		report.FalsePositiveRate, report.ReferenceGatesPass, report.ReferenceGatesTotal, p2Status, float64(report.DurationVector2Micros)/1000.0)
+	renderProofVectorRow("Vector 2: Metamorphic Reference Invariance (FPR)",
+		fmt.Sprintf("[%.1f%% · %d/%d Passed]", report.FalsePositiveRate, report.ReferenceGatesPass, report.ReferenceGatesTotal),
+		p2Status, report.DurationVector2Micros)
 
 	p3Status := "PASS"
 	if report.NonVacuousGates < report.TotalGatesEvaluated || report.TotalGatesEvaluated == 0 {
 		p3Status = "FAIL"
 	}
-	fmt.Printf("  Vector 3: AST Structural Anti-Vacuity Audit        [%d/%d Non-Trivial]     %s   (%.2f ms)\n",
-		report.NonVacuousGates, report.TotalGatesEvaluated, p3Status, float64(report.DurationVector3Micros)/1000.0)
-	fmt.Println("────────────────────────────────────────────────────────────────────────────")
+	renderProofVectorRow("Vector 3: AST Structural Anti-Vacuity Audit",
+		fmt.Sprintf("[%d/%d Non-Trivial]", report.NonVacuousGates, report.TotalGatesEvaluated),
+		p3Status, report.DurationVector3Micros)
+	fmt.Println(uiRule(ruleStandard))
+	totalMs := float64(report.DurationTotalMicros) / 1000.0
 	if report.Passed {
-		fmt.Printf("  ✅ Deterministic Gate Integrity Invariants Satisfied · Exit Code 0 (Total: %.2f ms)\n", float64(report.DurationTotalMicros)/1000.0)
+		fmt.Printf("  %s %s\n",
+			uiSuccessStyle.Render("✅ Deterministic Gate Integrity Invariants Satisfied · Exit Code 0"),
+			uiMutedStyle.Render(fmt.Sprintf("(Total: %.2f ms)", totalMs)))
 	} else {
-		fmt.Printf("  ❌ Gate Integrity Invariant Attestation Failed (Total: %.2f ms)\n", float64(report.DurationTotalMicros)/1000.0)
+		fmt.Printf("  %s %s\n",
+			uiDangerStyle.Render("❌ Gate Integrity Invariant Attestation Failed"),
+			uiMutedStyle.Render(fmt.Sprintf("(Total: %.2f ms)", totalMs)))
 	}
+}
+
+func renderProofVectorRow(label, metric, status string, durationMicros int64) {
+	fmt.Printf("  %s %s %s   %s\n",
+		padStyled(label, 50, uiBoldValueStyle),
+		padStyled(metric, 22, uiMutedStyle),
+		styleSemanticBadge(status),
+		uiMutedStyle.Render(fmt.Sprintf("(%.2f ms)", float64(durationMicros)/1000.0)))
 }
 
 func resolveWorktreeTaskKey(worktreeDir string) string {
@@ -241,10 +273,16 @@ func runFastFileRadar(targetDir, fastFile string, strict bool) error {
 		return err
 	}
 	for _, b := range res.Breaches {
-		fmt.Printf("🚨 [Nomos Radar Breach] %s: %s\n", res.File, b)
+		fmt.Printf("🚨 %s %s: %s\n",
+			uiDangerStyle.Render("[Nomos Radar Breach]"),
+			uiBoldValueStyle.Render(res.File),
+			uiValueStyle.Render(b))
 	}
 	for _, w := range res.Warnings {
-		fmt.Printf("⚠️  [Nomos Radar >=80%% Budget] %s: %s\n", res.File, w)
+		fmt.Printf("⚠️  %s %s: %s\n",
+			uiWarnStyle.Render("[Nomos Radar >=80% Budget]"),
+			uiBoldValueStyle.Render(res.File),
+			uiValueStyle.Render(w))
 	}
 	if strict && len(res.Breaches) > 0 {
 		return types.NewNomosError(types.ErrCodeInvariant, "fast-file radar detected %d breach(es) in %s", len(res.Breaches), res.File)
@@ -254,14 +292,14 @@ func runFastFileRadar(targetDir, fastFile string, strict bool) error {
 
 func runImpactMap(targetDir string) error {
 	items := verify.ComputeWorkspaceImpact(targetDir, nil)
-	fmt.Println("🧭 Nomos 1-Hop AST Blast-Radius & Impact Map")
-	fmt.Println("────────────────────────────────────────────────────────────────────────────")
+	fmt.Println(uiTitleStyle.Render("🧭 Nomos 1-Hop AST Blast-Radius & Impact Map"))
+	fmt.Println(uiRule(ruleStandard))
 	if len(items) == 0 {
-		fmt.Println("  No modified source files detected in workspace.")
+		fmt.Printf("  %s\n", uiMutedStyle.Render("No modified source files detected in workspace."))
 		return nil
 	}
 	for _, item := range items {
-		fmt.Printf("  • %s\n", item)
+		fmt.Printf("  %s %s\n", uiSubstrateStyle.Render("•"), uiValueStyle.Render(item))
 	}
 	return nil
 }

@@ -146,27 +146,30 @@ func detectDefaultBranch(dir string) string {
 }
 
 func printInitializationSummary(absDir string, isGitRepo, createdBaselineCommit bool, defaultBranch string) {
-	fmt.Printf("🚀 Initialized Nomos workspace in %s\n", absDir)
-	fmt.Println("  ✅ Scaffolded operational boundaries (worktrees/, .tmp/)")
-	fmt.Println("  ✅ Scaffolded downstream configuration (nomos.yaml)")
-	fmt.Println("  ✅ Scaffolded universal agent protocol (AGENTS.md)")
-	fmt.Println("  ✅ Scaffolded Tier 1 agent protocol (CLAUDE.md)")
-	fmt.Println("  ✅ Scaffolded ambient session & defense hooks")
+	fmt.Printf("%s %s\n", uiTitleStyle.Render("🚀 Initialized Nomos workspace in"), uiBoldValueStyle.Render(absDir))
+	fmt.Println(uiRule(ruleNarrow))
+	check := uiSuccessStyle.Render("✅")
+	fmt.Printf("  %s Scaffolded operational boundaries %s\n", check, uiMutedStyle.Render("(worktrees/, .tmp/)"))
+	fmt.Printf("  %s Scaffolded downstream configuration %s\n", check, uiCommandStyle.Render("(nomos.yaml)"))
+	fmt.Printf("  %s Scaffolded universal agent protocol %s\n", check, uiCommandStyle.Render("(AGENTS.md)"))
+	fmt.Printf("  %s Scaffolded Tier 1 agent protocol %s\n", check, uiCommandStyle.Render("(CLAUDE.md)"))
+	fmt.Printf("  %s Scaffolded ambient session & defense hooks\n", check)
 	if createdBaselineCommit {
-		fmt.Printf("  ✅ Created initial baseline commit on %s\n", defaultBranch)
+		fmt.Printf("  %s Created initial baseline commit on %s\n", check, uiBoldValueStyle.Render(defaultBranch))
 	}
 	if isGitRepo {
-		fmt.Println("  ✅ Installed git defense hooks (pre-commit, commit-msg, pre-push)")
+		fmt.Printf("  %s Installed git defense hooks %s\n", check, uiMutedStyle.Render("(pre-commit, commit-msg, pre-push)"))
 	} else {
-		fmt.Println("  ⚠️ Git defense hooks not installed (run 'git init' to enable)")
+		fmt.Printf("  %s\n", uiWarnStyle.Render("⚠️ Git defense hooks not installed (run 'git init' to enable)"))
 	}
-	fmt.Println("  ✅ Living Ledger storage connected")
+	fmt.Printf("  %s Living Ledger storage connected\n", check)
+	fmt.Println(uiRule(ruleNarrow))
 	if createdBaselineCommit {
-		fmt.Println("✨ Workspace ready for Tier 1 agent indirect control.")
+		fmt.Println(uiSuccessStyle.Render("✨ Workspace ready for Tier 1 agent indirect control."))
 	} else if isGitRepo {
-		fmt.Println("✨ Workspace ready. Run 'git add . && git commit -m \"chore: initialize Nomos governance\"' to establish your baseline.")
+		fmt.Println(uiSuccessStyle.Render("✨ Workspace ready. Run 'git add . && git commit -m \"chore: initialize Nomos governance\"' to establish your baseline."))
 	} else {
-		fmt.Println("✨ Workspace ready. Run 'git init' followed by initial commit to enable full governance.")
+		fmt.Println(uiWarnStyle.Render("✨ Workspace ready. Run 'git init' followed by initial commit to enable full governance."))
 	}
 }
 

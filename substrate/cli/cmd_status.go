@@ -169,20 +169,36 @@ func queryTaskMetrics(dbPath string) (int, int, int) {
 }
 
 func renderStatusReport(out io.Writer, r *StatusReport) {
-	fmt.Fprintln(out, "📋 Nomos Operational Status")
-	fmt.Fprintln(out, "────────────────────────────────────────────────────────────")
-	fmt.Fprintf(out, "  Active Phase    : %s\n", r.Phase)
-	fmt.Fprintf(out, "  Active Branch   : %s\n", r.ActiveBranch)
-	fmt.Fprintf(out, "  Is Worktree     : %t\n", r.IsWorktree)
-	fmt.Fprintf(out, "  Database Status : %s (%s)\n", r.DatabaseStatus, r.DatabasePath)
-	fmt.Fprintf(out, "  Living Ledger   : %d Total | %d In Progress | %d Wavefront Ready\n",
-		r.TotalTasks, r.ActiveTasks, r.WavefrontCount)
+	fmt.Fprintln(out, uiTitleStyle.Render("📋 Nomos Operational Status"))
+	fmt.Fprintln(out, uiRule(ruleNarrow))
+	fmt.Fprintln(out, kvLine("Active Phase", 15, styleSemanticBadge(r.Phase)))
+	fmt.Fprintln(out, kvLine("Active Branch", 15, uiBoldValueStyle.Render(r.ActiveBranch)))
+	fmt.Fprintln(out, kvLine("Is Worktree", 15, formatWorktreeFlag(r.IsWorktree)))
+	fmt.Fprintln(out, kvLine("Database Status", 15, fmt.Sprintf("%s %s",
+		styleSemanticBadge(r.DatabaseStatus),
+		uiMutedStyle.Render("("+r.DatabasePath+")"))))
+	ledgerVal := fmt.Sprintf("%s Total %s %s In Progress %s %s Wavefront Ready",
+		uiBoldValueStyle.Render(strconv.Itoa(r.TotalTasks)),
+		uiMutedStyle.Render("|"),
+		uiSubstrateStyle.Render(strconv.Itoa(r.ActiveTasks)),
+		uiMutedStyle.Render("|"),
+		uiSuccessStyle.Render(strconv.Itoa(r.WavefrontCount)))
+	fmt.Fprintln(out, kvLine("Living Ledger", 15, ledgerVal))
 	if r.RemoteAheadCount > 0 {
-		fmt.Fprintf(out, "  Remote Sync     : ⚠️  %d unpushed commit(s) ahead of origin (run 'git push origin main refs/notes/nomos/releases')\n",
-			r.RemoteAheadCount)
+		syncWarn := fmt.Sprintf("%s  %s",
+			uiWarnStyle.Render(fmt.Sprintf("⚠️  %d unpushed commit(s) ahead of origin", r.RemoteAheadCount)),
+			uiMutedStyle.Render("(run 'git push origin main refs/notes/nomos/releases')"))
+		fmt.Fprintln(out, kvLine("Remote Sync", 15, syncWarn))
 	} else {
-		fmt.Fprintln(out, "  Remote Sync     : ✅ Synced with origin")
+		fmt.Fprintln(out, kvLine("Remote Sync", 15, uiSuccessStyle.Render("✅ Synced with origin")))
 	}
 	renderNextActions(out, r.NextActions)
-	fmt.Fprintln(out, "────────────────────────────────────────────────────────────")
+	fmt.Fprintln(out, uiRule(ruleNarrow))
+}
+
+func formatWorktreeFlag(isWT bool) string {
+	if isWT {
+		return uiSubstrateStyle.Render("true")
+	}
+	return uiMutedStyle.Render("false")
 }

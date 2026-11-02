@@ -116,23 +116,26 @@ func revokeActiveLease(taskKey string) {
 
 func renderTaskPruneReport(cmd *cobra.Command, rep *workspace.PruneReport) {
 	out := cmd.OutOrStdout()
-	mode := "Executed"
+	mode := uiSuccessStyle.Render("Executed")
 	if rep.DryRun {
-		mode = "Dry-Run Preview"
+		mode = uiWarnStyle.Render("Dry-Run Preview")
 	}
-	fmt.Fprintf(out, "🧹 Nomos Worktree Garbage Collector (%s)\n", mode)
-	fmt.Fprintln(out, "────────────────────────────────────────────────────────────────────────────")
-	fmt.Fprintf(out, "  Orphan Worktrees Swept   : %d\n", len(rep.RemovedDirs))
+	fmt.Fprintf(out, "%s (%s)\n", uiTitleStyle.Render("🧹 Nomos Worktree Garbage Collector"), mode)
+	fmt.Fprintln(out, uiRule(ruleStandard))
+	fmt.Fprintln(out, kvLine("Orphan Worktrees Swept", 24, uiBoldValueStyle.Render(fmt.Sprintf("%d", len(rep.RemovedDirs)))))
 	for _, d := range rep.RemovedDirs {
-		fmt.Fprintf(out, "    - worktrees/%s\n", d)
+		fmt.Fprintf(out, "    - %s\n", uiMutedStyle.Render("worktrees/"+d))
 	}
-	fmt.Fprintf(out, "  Merged Branches Pruned   : %d\n", len(rep.RemovedBranches))
+	fmt.Fprintln(out, kvLine("Merged Branches Pruned", 24, uiBoldValueStyle.Render(fmt.Sprintf("%d", len(rep.RemovedBranches)))))
 	for _, b := range rep.RemovedBranches {
-		fmt.Fprintf(out, "    - %s\n", b)
+		fmt.Fprintf(out, "    - %s\n", uiMutedStyle.Render(b))
 	}
-	fmt.Fprintf(out, "  Stale Walkthroughs Swept : %d\n", len(rep.RemovedTempFiles))
+	fmt.Fprintln(out, kvLine("Stale Walkthroughs Swept", 24, uiBoldValueStyle.Render(fmt.Sprintf("%d", len(rep.RemovedTempFiles)))))
 	if len(rep.SkippedActive) > 0 {
-		fmt.Fprintf(out, "  Active Worktrees Kept    : %d (%s)\n", len(rep.SkippedActive), strings.Join(rep.SkippedActive, ", "))
+		active := fmt.Sprintf("%s %s",
+			uiBoldValueStyle.Render(fmt.Sprintf("%d", len(rep.SkippedActive))),
+			uiMutedStyle.Render("("+strings.Join(rep.SkippedActive, ", ")+")"))
+		fmt.Fprintln(out, kvLine("Active Worktrees Kept", 24, active))
 	}
-	fmt.Fprintln(out, "────────────────────────────────────────────────────────────────────────────")
+	fmt.Fprintln(out, uiRule(ruleStandard))
 }

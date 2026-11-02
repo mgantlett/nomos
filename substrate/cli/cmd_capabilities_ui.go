@@ -5,31 +5,26 @@ package cli
 import (
 	"fmt"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
-)
-
-var (
-	capTitleStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#38bdf8"))
-	capLineStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#64748b"))
-	capHeaderStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#f1f5f9"))
-	capNameStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#e2e8f0"))
-	capSubStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#94a3b8"))
-	capGreenStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#10b981"))
-	capYellowStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#eab308"))
 )
 
 func renderCapabilitiesUI(cmd *cobra.Command, catalog CapabilitiesCatalog, items []CapabilityItem, filter string) {
 	out := cmd.OutOrStdout()
-	fmt.Fprintln(out, capTitleStyle.Render("⚡ Nomos Substrate & Intent Capabilities Catalog"))
-	fmt.Fprintln(out, capLineStyle.Render("────────────────────────────────────────────────────────────"))
+	fmt.Fprintln(out, uiTitleStyle.Render("⚡ Nomos Substrate & Intent Capabilities Catalog"))
+	fmt.Fprintln(out, uiRule(ruleNarrow))
 
 	if filter != "" && filter != "all" {
-		fmt.Fprintf(out, "  Filtered by type: %q (%d matched of %d total)\n", filter, len(items), catalog.TotalCount)
+		fmt.Fprintf(out, "  Filtered by type: %s %s\n",
+			uiBoldValueStyle.Render(fmt.Sprintf("%q", filter)),
+			uiMutedStyle.Render(fmt.Sprintf("(%d matched of %d total)", len(items), catalog.TotalCount)))
 	} else {
-		fmt.Fprintf(out, "  Total: %d | Hooks: %d | Directives: %d | Engines: %d | Gates: %d | CLI: %d\n",
-			catalog.TotalCount, catalog.HooksCount, catalog.DirectivesCount,
-			catalog.EnginesCount, catalog.GatesCount, catalog.CLICount)
+		fmt.Fprintf(out, "  %s %d %s %s %d %s %s %d %s %s %d %s %s %d %s %s %d\n",
+			uiLabelStyle.Render("Total:"), catalog.TotalCount, uiMutedStyle.Render("|"),
+			uiLabelStyle.Render("Hooks:"), catalog.HooksCount, uiMutedStyle.Render("|"),
+			uiLabelStyle.Render("Directives:"), catalog.DirectivesCount, uiMutedStyle.Render("|"),
+			uiLabelStyle.Render("Engines:"), catalog.EnginesCount, uiMutedStyle.Render("|"),
+			uiLabelStyle.Render("Gates:"), catalog.GatesCount, uiMutedStyle.Render("|"),
+			uiLabelStyle.Render("CLI:"), catalog.CLICount)
 	}
 
 	grouped := make(map[string][]CapabilityItem)
@@ -44,8 +39,8 @@ func renderCapabilitiesUI(cmd *cobra.Command, catalog CapabilitiesCatalog, items
 	renderSection(cmd, "⌨️ Core CLI Commands", grouped["cli"])
 
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, capLineStyle.Render("────────────────────────────────────────────────────────────"))
-	fmt.Fprintln(out, capSubStyle.Render("  Tip: Run 'nomos capabilities <id>' for gate/probe remediation, or use --json / --type=<hook|directive|engine|gate|cli>."))
+	fmt.Fprintln(out, uiRule(ruleNarrow))
+	fmt.Fprintln(out, uiFooterStyle.Render("  Tip: Run 'nomos capabilities <id>' for gate/probe remediation, or use --json / --type=<hook|directive|engine|gate|cli>."))
 }
 
 func renderSection(cmd *cobra.Command, title string, items []CapabilityItem) {
@@ -53,11 +48,11 @@ func renderSection(cmd *cobra.Command, title string, items []CapabilityItem) {
 		return
 	}
 	out := cmd.OutOrStdout()
-	fmt.Fprintf(out, "\n  %s (%d):\n", capHeaderStyle.Render(title), len(items))
+	fmt.Fprintf(out, "\n  %s %s:\n", uiHeaderStyle.Render(title), uiMutedStyle.Render(fmt.Sprintf("(%d)", len(items))))
 	for _, it := range items {
-		statusStr := capGreenStyle.Render("[" + it.Status + "]")
+		statusStr := uiSuccessStyle.Render("[" + it.Status + "]")
 		if it.Status == "DISABLED" || it.Status == "UNGROUNDED" {
-			statusStr = capYellowStyle.Render("[" + it.Status + "]")
+			statusStr = uiWarnStyle.Render("[" + it.Status + "]")
 		}
 		inv := it.Invocation
 		if inv == "" {
@@ -65,11 +60,16 @@ func renderSection(cmd *cobra.Command, title string, items []CapabilityItem) {
 		}
 		runsStr := ""
 		if it.InvocationCount > 0 {
-			runsStr = " " + capSubStyle.Render(fmt.Sprintf("(%d runs)", it.InvocationCount))
+			runsStr = " " + uiMutedStyle.Render(fmt.Sprintf("(%d runs)", it.InvocationCount))
 		}
-		fmt.Fprintf(out, "    • %-32s %-26s %s%s\n", capNameStyle.Render(it.Name), capSubStyle.Render(inv), statusStr, runsStr)
+		fmt.Fprintf(out, "    %s %s %s %s%s\n",
+			uiSubstrateStyle.Render("•"),
+			padStyled(it.Name, 32, uiBoldValueStyle),
+			padStyled(inv, 26, uiCommandStyle),
+			statusStr,
+			runsStr)
 		if it.Description != "" {
-			fmt.Fprintf(out, "      %s\n", capSubStyle.Render(it.Description))
+			fmt.Fprintf(out, "      %s\n", uiMutedStyle.Render(it.Description))
 		}
 	}
 }

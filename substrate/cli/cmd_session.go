@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/session"
 	"github.com/spf13/cobra"
@@ -218,76 +217,73 @@ func newSessionShowCmd() *cobra.Command {
 }
 
 func renderSessionNamedCard(meta *session.SessionMetadata) {
-	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
-	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	valStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("255"))
-	idStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("75"))
-
-	fmt.Println(titleStyle.Render("🏷️  Nomos Session Renamed"))
-	fmt.Println(dimStyle.Render("────────────────────────────────────────────────────────────"))
-	fmt.Printf("  Session ID : %s\n", idStyle.Render(meta.ID))
-	fmt.Printf("  Title      : %s\n", valStyle.Render(meta.Name))
-	fmt.Printf("  Updated At : %s\n", meta.UpdatedAt.Format(time.RFC3339))
-	fmt.Println(dimStyle.Render("────────────────────────────────────────────────────────────"))
+	fmt.Println(uiTitleStyle.Render("🏷️  Nomos Session Renamed"))
+	fmt.Println(uiRule(ruleNarrow))
+	fmt.Println(kvLine("Session ID", 10, uiCommandStyle.Render(meta.ID)))
+	fmt.Println(kvLine("Title", 10, uiBoldValueStyle.Render(meta.Name)))
+	fmt.Println(kvLine("Updated At", 10, uiMutedStyle.Render(meta.UpdatedAt.Format(time.RFC3339))))
+	fmt.Println(uiRule(ruleNarrow))
 }
 
 func renderSessionListTable(sessions []session.AgentSession) {
-	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
-	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	activeStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("82"))
-	idleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
-	agentStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
-
-	fmt.Println(titleStyle.Render("📋 Nomos Agent Conversation Sessions"))
-	fmt.Println(dimStyle.Render("────────────────────────────────────────────────────────────────────────────────────────────────────────────"))
-	fmt.Printf("  %-38s %-20s %-10s %-22s %s\n", "SESSION ID", "AGENT TYPE", "STATUS", "LAST ACTIVE", "SESSION NAME / TITLE")
-	fmt.Println(dimStyle.Render("────────────────────────────────────────────────────────────────────────────────────────────────────────────"))
+	fmt.Println(uiTitleStyle.Render("📋 Nomos Agent Conversation Sessions"))
+	fmt.Println(uiRule(ruleSession))
+	fmt.Printf("  %s %s %s %s %s\n",
+		padStyled("SESSION ID", 38, uiHeaderStyle),
+		padStyled("AGENT TYPE", 20, uiHeaderStyle),
+		padStyled("STATUS", 10, uiHeaderStyle),
+		padStyled("LAST ACTIVE", 22, uiHeaderStyle),
+		uiHeaderStyle.Render("SESSION NAME / TITLE"))
+	fmt.Println(uiRule(ruleSession))
 
 	for _, s := range sessions {
-		statusStr := idleStyle.Render(s.Status)
-		if s.Status == "ACTIVE" {
-			statusStr = activeStyle.Render(s.Status)
+		nameStr := uiValueStyle.Render(s.Name)
+		if s.Name == "" {
+			nameStr = uiMutedStyle.Render("[unnamed]")
 		}
-		nameStr := s.Name
-		if nameStr == "" {
-			nameStr = dimStyle.Render("[unnamed]")
-		}
-		agStr := agentStyle.Render(s.AgentType)
-		fmt.Printf("  %-38s %-20s %-10s %-22s %s\n", s.ID, agStr, statusStr, s.LastActiveAt.Format("2006-01-02 15:04:05"), nameStr)
+		fmt.Printf("  %s %s %s %s %s\n",
+			padStyled(s.ID, 38, uiCommandStyle),
+			padStyled(s.AgentType, 20, uiWarnStyle),
+			styleSemanticBadgeWidth(s.Status, 10),
+			padStyled(s.LastActiveAt.Format("2006-01-02 15:04:05"), 22, uiMutedStyle),
+			nameStr)
 	}
-	fmt.Println(dimStyle.Render("────────────────────────────────────────────────────────────────────────────────────────────────────────────"))
+	fmt.Println(uiRule(ruleSession))
 }
 
 func renderSessionDetailCard(detail *session.SessionDetail) {
-	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
-	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	valStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("255"))
-	idStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("75"))
-	gatePass := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("82"))
-
-	fmt.Println(titleStyle.Render("🔍 Nomos Agent Session Inspection"))
-	fmt.Println(dimStyle.Render("────────────────────────────────────────────────────────────"))
-	fmt.Printf("  Session ID   : %s\n", idStyle.Render(detail.ID))
-	fmt.Printf("  Agent Type   : %s\n", valStyle.Render(detail.AgentType))
+	fmt.Println(uiTitleStyle.Render("🔍 Nomos Agent Session Inspection"))
+	fmt.Println(uiRule(ruleNarrow))
+	fmt.Println(kvLine("Session ID", 12, uiCommandStyle.Render(detail.ID)))
+	fmt.Println(kvLine("Agent Type", 12, uiBoldValueStyle.Render(detail.AgentType)))
 	if detail.Name != "" {
-		fmt.Printf("  Session Name : %s\n", valStyle.Render(detail.Name))
+		fmt.Println(kvLine("Session Name", 12, uiBoldValueStyle.Render(detail.Name)))
 	}
 	if detail.TaskKey != "" {
-		fmt.Printf("  Task Key     : %s (Phase: %s)\n", valStyle.Render(detail.TaskKey), detail.Phase)
+		fmt.Println(kvLine("Task Key", 12, fmt.Sprintf("%s (Phase: %s)",
+			styleTaskKey(detail.TaskKey), styleSemanticBadge(detail.Phase))))
 	}
 	if detail.WorktreePath != "" {
-		fmt.Printf("  Worktree     : %s\n", detail.WorktreePath)
+		fmt.Println(kvLine("Worktree", 12, uiMutedStyle.Render(detail.WorktreePath)))
 	}
-	fmt.Printf("  Turn Count   : %d | Tool Calls: %d\n", detail.TurnCount, detail.ToolCallCount)
-	fmt.Printf("  Last Active  : %s (Status: %s)\n", detail.LastActiveAt.Format(time.RFC3339), detail.Status)
+	fmt.Println(kvLine("Turn Count", 12, fmt.Sprintf("%s %s Tool Calls: %s",
+		uiBoldValueStyle.Render(fmt.Sprintf("%d", detail.TurnCount)),
+		uiMutedStyle.Render("|"),
+		uiBoldValueStyle.Render(fmt.Sprintf("%d", detail.ToolCallCount)))))
+	fmt.Println(kvLine("Last Active", 12, fmt.Sprintf("%s (Status: %s)",
+		uiMutedStyle.Render(detail.LastActiveAt.Format(time.RFC3339)),
+		styleSemanticBadge(detail.Status))))
 
 	if detail.Sentinel != nil {
-		fmt.Println(dimStyle.Render("  ────────────────── Sentinel Evaluation ───────────────────"))
-		fmt.Printf("  Integrity    : %s (Score: %d/100)\n", gatePass.Render(detail.Sentinel.IntegrityStatus), detail.Sentinel.OverallScore)
+		fmt.Println(uiRuleStyle.Render("  ────────────────── Sentinel Evaluation ───────────────────"))
+		fmt.Println(kvLine("Integrity", 12, fmt.Sprintf("%s (Score: %d/100)",
+			styleSemanticBadge(detail.Sentinel.IntegrityStatus), detail.Sentinel.OverallScore)))
 	}
 	if detail.Trajectory != nil {
-		fmt.Println(dimStyle.Render("  ────────────────── Causal Trajectory ─────────────────────"))
-		fmt.Printf("  Stage        : %s (%d/%d completed)\n", valStyle.Render(detail.Trajectory.CurrentStage), detail.Trajectory.CompletedCount, detail.Trajectory.TotalCount)
+		fmt.Println(uiRuleStyle.Render("  ────────────────── Causal Trajectory ─────────────────────"))
+		fmt.Println(kvLine("Stage", 12, fmt.Sprintf("%s (%d/%d completed)",
+			uiBoldValueStyle.Render(detail.Trajectory.CurrentStage),
+			detail.Trajectory.CompletedCount, detail.Trajectory.TotalCount)))
 	}
-	fmt.Println(dimStyle.Render("────────────────────────────────────────────────────────────"))
+	fmt.Println(uiRule(ruleNarrow))
 }

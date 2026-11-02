@@ -147,23 +147,28 @@ func executeCapabilityDetail(cmd *cobra.Command, query string, jsonOutput bool) 
 
 func renderCapabilityDetailCard(cmd *cobra.Command, d *CapabilityDetail) {
 	out := cmd.OutOrStdout()
-	fmt.Fprintln(out, capTitleStyle.Render("🔎 Nomos Capability & Invariant Inspector"))
-	fmt.Fprintln(out, capLineStyle.Render("────────────────────────────────────────────────────────────"))
-	fmt.Fprintf(out, "  ID          : %s\n", d.ID)
-	fmt.Fprintf(out, "  Name        : %s\n", d.Name)
-	fmt.Fprintf(out, "  Type        : %s (%s plane) [%s]\n", d.Type, d.Plane, d.Status)
+	fmt.Fprintln(out, uiTitleStyle.Render("🔎 Nomos Capability & Invariant Inspector"))
+	fmt.Fprintln(out, uiRule(ruleNarrow))
+	fmt.Fprintln(out, kvLine("ID", 11, uiCommandStyle.Render(d.ID)))
+	fmt.Fprintln(out, kvLine("Name", 11, uiBoldValueStyle.Render(d.Name)))
+	typeLine := fmt.Sprintf("%s (%s plane) [%s]",
+		uiValueStyle.Render(d.Type),
+		stylePlane(d.Plane),
+		styleSemanticBadge(d.Status))
+	fmt.Fprintln(out, kvLine("Type", 11, typeLine))
 	if d.Law > 0 {
-		fmt.Fprintf(out, "  Law & Ring  : Law %d · %s · %s\n", d.Law, d.Domain, d.Ring)
+		fmt.Fprintln(out, kvLine("Law & Ring", 11, fmt.Sprintf("Law %d · %s · %s",
+			d.Law, uiBoldValueStyle.Render(d.Domain), uiMutedStyle.Render(d.Ring))))
 	}
-	fmt.Fprintf(out, "  Invocation  : %s\n", d.Invocation)
+	fmt.Fprintln(out, kvLine("Invocation", 11, uiCommandStyle.Render(d.Invocation)))
 	if d.Description != "" {
-		fmt.Fprintf(out, "  Invariant   : %s\n", d.Description)
+		fmt.Fprintln(out, kvLine("Invariant", 11, uiValueStyle.Render(d.Description)))
 	}
 	if len(d.ProbeIDs) > 0 {
-		fmt.Fprintf(out, "  Probes      : %s\n", strings.Join(d.ProbeIDs, ", "))
+		fmt.Fprintln(out, kvLine("Probes", 11, uiMutedStyle.Render(strings.Join(d.ProbeIDs, ", "))))
 	}
 	if d.Remedy != "" {
-		fmt.Fprintf(out, "  Remedy      : %s\n", d.Remedy)
+		fmt.Fprintln(out, kvLine("Remedy", 11, uiWarnStyle.Render(d.Remedy)))
 	}
-	fmt.Fprintln(out, capLineStyle.Render("────────────────────────────────────────────────────────────"))
+	fmt.Fprintln(out, uiRule(ruleNarrow))
 }

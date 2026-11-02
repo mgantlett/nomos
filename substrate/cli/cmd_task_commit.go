@@ -81,8 +81,10 @@ func runTaskCommitCmd(args []string, opts *commitCmdOptions) error {
 		return types.NewNomosError(types.ErrCodeBoundary, "commit failed: %s", outStr)
 	}
 
-	fmt.Printf("✅ Dual-Layer Hybrid Commit Successful for %s!\n", taskKey)
-	fmt.Println(string(out))
+	fmt.Printf("✅ %s %s\n",
+		uiSuccessStyle.Render("Dual-Layer Hybrid Commit Successful for"),
+		styleTaskKey(taskKey))
+	fmt.Println(uiMutedStyle.Render(strings.TrimSpace(string(out))))
 	renderPhaseTransitionNextActions(os.Stdout, types.PhaseReview, taskKey, dir, "")
 	return nil
 }

@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/handshake"
@@ -62,21 +61,17 @@ func executeDirectiveList(cmd *cobra.Command, repoRoot string, jsonOutput bool) 
 		return nil
 	}
 
-	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#38bdf8"))
-	lineStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#64748b"))
-	nameStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#f1f5f9"))
-	tagStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#94a3b8"))
-	sourceStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#10b981"))
-	footerStyle := lipgloss.NewStyle().Italic(true).Foreground(lipgloss.Color("#64748b"))
-
-	fmt.Fprintln(cmd.OutOrStdout(), titleStyle.Render("📋 Nomos Just-In-Time (JIT) Directives"))
-	fmt.Fprintln(cmd.OutOrStdout(), lineStyle.Render("────────────────────────────────────────────────────────────"))
-	fmt.Fprintf(cmd.OutOrStdout(), "  Authoritative Directives (%d discovered):\n\n", len(directives))
+	out := cmd.OutOrStdout()
+	fmt.Fprintln(out, uiTitleStyle.Render("📋 Nomos Just-In-Time (JIT) Directives"))
+	fmt.Fprintln(out, uiRule(ruleNarrow))
+	fmt.Fprintf(out, "  %s %s:\n\n",
+		uiHeaderStyle.Render("Authoritative Directives"),
+		uiMutedStyle.Render(fmt.Sprintf("(%d discovered)", len(directives))))
 
 	for _, d := range directives {
-		fmt.Fprintf(cmd.OutOrStdout(), "  • %s\n", nameStyle.Render(d.Name))
+		fmt.Fprintf(out, "  %s %s\n", uiSubstrateStyle.Render("•"), uiBoldValueStyle.Render(d.Name))
 		if d.Title != "" {
-			fmt.Fprintf(cmd.OutOrStdout(), "    Title   : %s\n", d.Title)
+			fmt.Fprintf(out, "    %s : %s\n", padStyled("Title", 7, uiLabelStyle), uiValueStyle.Render(d.Title))
 		}
 		var meta []string
 		if d.Category != "" {
@@ -89,16 +84,16 @@ func executeDirectiveList(cmd *cobra.Command, repoRoot string, jsonOutput bool) 
 			}
 			meta = append(meta, fmt.Sprintf("phases: [%s]", strings.Join(phases, ", ")))
 		}
-		meta = append(meta, fmt.Sprintf("source: %s", sourceStyle.Render(d.Source)))
-		fmt.Fprintf(cmd.OutOrStdout(), "    Details : %s\n", tagStyle.Render(strings.Join(meta, " · ")))
+		meta = append(meta, fmt.Sprintf("source: %s", uiSuccessStyle.Render(d.Source)))
+		fmt.Fprintf(out, "    %s : %s\n", padStyled("Details", 7, uiLabelStyle), uiMutedStyle.Render(strings.Join(meta, " · ")))
 		if d.Summary != "" {
-			fmt.Fprintf(cmd.OutOrStdout(), "    Summary : %s\n", d.Summary)
+			fmt.Fprintf(out, "    %s : %s\n", padStyled("Summary", 7, uiLabelStyle), uiValueStyle.Render(d.Summary))
 		}
-		fmt.Fprintln(cmd.OutOrStdout())
+		fmt.Fprintln(out)
 	}
 
-	fmt.Fprintln(cmd.OutOrStdout(), lineStyle.Render("────────────────────────────────────────────────────────────"))
-	fmt.Fprintln(cmd.OutOrStdout(), footerStyle.Render("  Run 'nomos directive <name>' to inspect full directive content."))
+	fmt.Fprintln(out, uiRule(ruleNarrow))
+	fmt.Fprintln(out, uiFooterStyle.Render("  Run 'nomos directive <name>' to inspect full directive content."))
 	return nil
 }
 

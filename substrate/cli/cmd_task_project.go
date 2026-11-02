@@ -84,8 +84,15 @@ func newTaskProjectCmd() *cobra.Command {
 			if err := assignProjectToTasks(store, project, keys); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "🏷️  Assigned project %q to %d task(s): %s\n",
-				project, len(keys), strings.Join(keys, ", "))
+			styledKeys := make([]string, 0, len(keys))
+			for _, k := range keys {
+				styledKeys = append(styledKeys, styleTaskKey(k))
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "🏷️  %s %s to %d task(s): %s\n",
+				uiSuccessStyle.Render("Assigned project"),
+				uiBoldValueStyle.Render(fmt.Sprintf("%q", project)),
+				len(keys),
+				strings.Join(styledKeys, ", "))
 			return nil
 		},
 	}

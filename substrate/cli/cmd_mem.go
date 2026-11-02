@@ -68,7 +68,12 @@ func newMemSaveCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Printf("🧠 Nomos Mneme memory #%d saved [%s/%s]: %s\n", m.ID, m.RepoID, m.Topic, m.Kind)
+			fmt.Printf("🧠 %s #%d saved [%s/%s]: %s\n",
+				uiSuccessStyle.Render("Nomos Mneme memory"),
+				m.ID,
+				uiSubstrateStyle.Render(m.RepoID),
+				uiValueStyle.Render(m.Topic),
+				uiIntentStyle.Render(string(m.Kind)))
 			return nil
 		},
 	}
@@ -146,19 +151,25 @@ func newMemRecallCmd() *cobra.Command {
 }
 
 func renderRecallResults(query string, results []*mem.SearchResult) {
-	fmt.Printf("🧠 Nomos Mneme Episodic Recall: %q\n", query)
-	fmt.Println("────────────────────────────────────────────────────────────")
+	fmt.Printf("%s %s\n",
+		uiTitleStyle.Render("🧠 Nomos Mneme Episodic Recall:"),
+		uiBoldValueStyle.Render(fmt.Sprintf("%q", query)))
+	fmt.Println(uiRule(ruleNarrow))
 	if len(results) == 0 {
-		fmt.Println("  No matching memories found.")
-		fmt.Println("────────────────────────────────────────────────────────────")
+		fmt.Printf("  %s\n", uiMutedStyle.Render("No matching memories found."))
+		fmt.Println(uiRule(ruleNarrow))
 		return
 	}
 	for i, r := range results {
-		fmt.Printf("  %d. [%.2f] #%d (%s - %s)\n", i+1, r.Score, r.Memory.ID, r.Memory.Kind, r.Memory.Topic)
-		fmt.Printf("     %s\n", r.Snippet)
+		fmt.Printf("  %s %s %s %s\n",
+			uiMutedStyle.Render(fmt.Sprintf("%d.", i+1)),
+			uiSuccessStyle.Render(fmt.Sprintf("[%.2f]", r.Score)),
+			uiCommandStyle.Render(fmt.Sprintf("#%d", r.Memory.ID)),
+			uiLabelStyle.Render(fmt.Sprintf("(%s · %s)", r.Memory.Kind, r.Memory.Topic)))
+		fmt.Printf("     %s\n", uiValueStyle.Render(r.Snippet))
 	}
-	fmt.Println("────────────────────────────────────────────────────────────")
-	fmt.Printf("Found %d relevant memory record(s)\n", len(results))
+	fmt.Println(uiRule(ruleNarrow))
+	fmt.Printf("%s\n", uiFooterStyle.Render(fmt.Sprintf("Found %d relevant memory record(s)", len(results))))
 }
 
 type listArgs struct {
@@ -229,11 +240,13 @@ func newMemListCmd() *cobra.Command {
 }
 
 func renderMemoryList(memories []*mem.Memory) {
-	fmt.Printf("🧠 Nomos Mneme Memory Records (%d found):\n", len(memories))
-	fmt.Println("────────────────────────────────────────────────────────────────────────────────────────")
+	fmt.Printf("%s %s\n",
+		uiTitleStyle.Render("🧠 Nomos Mneme Memory Records"),
+		uiMutedStyle.Render(fmt.Sprintf("(%d found)", len(memories))))
+	fmt.Println(uiRule(ruleWide))
 	if len(memories) == 0 {
-		fmt.Println("  No matching memories found.")
-		fmt.Println("────────────────────────────────────────────────────────────────────────────────────────")
+		fmt.Printf("  %s\n", uiMutedStyle.Render("No matching memories found."))
+		fmt.Println(uiRule(ruleWide))
 		return
 	}
 	for _, m := range memories {
@@ -249,10 +262,15 @@ func renderMemoryList(memories []*mem.Memory) {
 		if len(snippet) > 60 {
 			snippet = snippet[:57] + "..."
 		}
-		fmt.Printf("  #%-5d [%-10s] [%-12s] [%-8s] (%-20s): %s\n",
-			m.ID, m.Kind, repoTag, taskStr, m.Topic, snippet)
+		fmt.Printf("  %s %s %s %s %s: %s\n",
+			padStyled(fmt.Sprintf("#%d", m.ID), 6, uiCommandStyle),
+			padStyled("["+string(m.Kind)+"]", 12, uiIntentStyle),
+			padStyled("["+repoTag+"]", 14, uiSubstrateStyle),
+			padStyled("["+taskStr+"]", 10, taskKeyStyleFor(taskStr)),
+			padStyled("("+m.Topic+")", 22, uiLabelStyle),
+			uiValueStyle.Render(snippet))
 	}
-	fmt.Println("────────────────────────────────────────────────────────────────────────────────────────")
+	fmt.Println(uiRule(ruleWide))
 }
 
 func resolveCurrentRepoID() string {

@@ -91,17 +91,23 @@ func finalizeSync(key, walkthroughPath string, report *verify.PipelineReport) er
 	recordReleaseReceipt(mgr.RepoRoot, key, walkthroughPath, now, report)
 	revokeActiveLease(key)
 	distillAndMaintainOnSync(mgr.RepoRoot, key, walkthroughPath, touchedFiles)
+	cleanupAndAnnounceSyncedTask(mgr, key)
+	return nil
+}
 
+func cleanupAndAnnounceSyncedTask(mgr *workspace.Manager, key string) {
 	if remErr := mgr.RemoveWorktree(key); remErr != nil {
 		// logged or soft failure
 	}
 	if _, pErr := pruneWorkspaceOrphans(mgr.RepoRoot, false); pErr != nil {
 		// best-effort post-sync worktree sweep
 	}
-	fmt.Printf("🎉 Task %s synced and released to trunk\n", key)
+	fmt.Printf("🎉 %s %s %s\n",
+		uiSuccessStyle.Render("Task"),
+		styleTaskKey(key),
+		uiSuccessStyle.Render("synced and released to trunk"))
 	recompileSubstrateBinary(mgr.RepoRoot)
 	renderPhaseTransitionNextActions(os.Stdout, types.PhaseSync, key, "", mgr.RepoRoot)
-	return nil
 }
 
 func rebaseOntoTrunkIfDiverged(repoRoot, wtPath, branch string) (bool, error) {
@@ -169,10 +175,12 @@ func recordReleaseReceipt(repoRoot, key, walkthroughPath, now string, report *ve
 	}
 
 	if noteErr := task.RecordReleaseNote(repoRoot, "", payload); noteErr != nil {
-		fmt.Printf("⚠️  Warning: failed recording git note release receipt: %v\n", noteErr)
+		fmt.Printf("⚠️  %s %v\n", uiWarnStyle.Render("Warning: failed recording git note release receipt:"), noteErr)
 		return
 	}
-	fmt.Printf("📜 Cryptographic release receipt recorded in Git Notes (refs/notes/nomos/releases)\n")
+	fmt.Printf("📜 %s %s\n",
+		uiSuccessStyle.Render("Cryptographic release receipt recorded in Git Notes"),
+		uiMutedStyle.Render("(refs/notes/nomos/releases)"))
 }
 
 func readWalkthroughContent(path string) string {

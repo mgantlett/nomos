@@ -103,14 +103,20 @@ func executeTaskCreate(title string, opts taskCreateOpts) error {
 		if err := store.BindTwin(key, twinOf); err != nil {
 			return fmt.Errorf("failed linking twin %s: %w", twinOf, err)
 		}
-		fmt.Printf("✨ Created task: %s (%s) - %s (twinned with %s)\n", key, opts.plane, title, twinOf)
+		fmt.Printf("✨ %s %s (%s) - %s (twinned with %s)\n",
+			uiSuccessStyle.Render("Created task:"), styleTaskKey(key), stylePlane(opts.plane),
+			uiBoldValueStyle.Render(title), styleTaskKey(twinOf))
 	} else {
-		fmt.Printf("✨ Created task: %s (%s) - %s\n", key, opts.plane, title)
+		fmt.Printf("✨ %s %s (%s) - %s\n",
+			uiSuccessStyle.Render("Created task:"), styleTaskKey(key), stylePlane(opts.plane),
+			uiBoldValueStyle.Render(title))
 	}
 	if len(deps) > 0 {
-		fmt.Printf("  Blocked By: %s (auto-promotes to wavefront once DONE)\n", strings.Join(deps, ", "))
+		fmt.Printf("  %s %s %s\n", uiWarnStyle.Render("Blocked By:"),
+			strings.Join(deps, ", "), uiMutedStyle.Render("(auto-promotes to wavefront once DONE)"))
 	} else {
-		fmt.Printf("  Next: nomos task start %s --edit\n", key)
+		fmt.Printf("  %s %s\n", uiLabelStyle.Render("Next:"),
+			uiCommandStyle.Render(fmt.Sprintf("nomos task start %s --edit", key)))
 	}
 	return nil
 }
@@ -133,57 +139,62 @@ func newTaskStartCmd() *cobra.Command {
 		Short: "Provision transient worktree and CapBAC lease for task",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			key := strings.ToUpper(strings.TrimSpace(args[0]))
-			if err := task.ValidateTaskKey(key); err != nil {
-				return err
-			}
-			store, err := task.NewDefaultSQLiteTaskStore()
-			if err != nil {
-				return err
-			}
-			t, err := store.GetTask(key)
-			if err != nil {
-				return err
-			}
-			mgr, err := workspace.NewManager("")
-			if err != nil {
-				return err
-			}
-			wtPath, err := mgr.CreateWorktree(key)
-			if err != nil {
-				return err
-			}
-			targetPhase := types.PhasePlan
-			targetStatus := task.StatusPlan
-			if autoEdit {
-				targetPhase = types.PhaseEdit
-				targetStatus = task.StatusEdit
-			}
-			tok, err := capbac.MintToken(targetPhase, key, wtPath, 100, 24*time.Hour)
-			if err != nil {
-				return err
-			}
-			db, err := storage.OpenDB("")
-			if err == nil {
-				if saveErr := storage.SaveLease(db, tok.ID, key, string(targetPhase), 100, 0); saveErr != nil {
-					return saveErr
-				}
-				if closeErr := db.Close(); closeErr != nil {
-					// safe to continue
-				}
-			}
-			t.Status = targetStatus
-			if err := store.UpdateTask(*t); err != nil {
-				return err
-			}
-			fmt.Printf("🚀 Started task: %s\n  Worktree: %s\n  Phase: %s\n", key, wtPath, targetPhase)
-			renderLearnedPitfallsBriefing(mgr.RepoRoot)
-			renderPhaseTransitionNextActions(os.Stdout, targetPhase, key, wtPath, mgr.RepoRoot)
-			return nil
+			return runTaskStart(args[0], autoEdit)
 		},
 	}
 	cmd.Flags().BoolVarP(&autoEdit, "edit", "e", false, "Immediately transition worktree into EDIT phase")
 	return cmd
+}
+
+func runTaskStart(rawKey string, autoEdit bool) error {
+	key := strings.ToUpper(strings.TrimSpace(rawKey))
+	if err := task.ValidateTaskKey(key); err != nil {
+		return err
+	}
+	store, err := task.NewDefaultSQLiteTaskStore()
+	if err != nil {
+		return err
+	}
+	t, err := store.GetTask(key)
+	if err != nil {
+		return err
+	}
+	mgr, err := workspace.NewManager("")
+	if err != nil {
+		return err
+	}
+	wtPath, err := mgr.CreateWorktree(key)
+	if err != nil {
+		return err
+	}
+	targetPhase, targetStatus := types.PhasePlan, task.StatusPlan
+	if autoEdit {
+		targetPhase, targetStatus = types.PhaseEdit, task.StatusEdit
+	}
+	if err := persistStartedLease(targetPhase, key, wtPath); err != nil {
+		return err
+	}
+	t.Status = targetStatus
+	if err := store.UpdateTask(*t); err != nil {
+		return err
+	}
+	renderTaskStartedBanner(key, wtPath, string(targetPhase))
+	renderLearnedPitfallsBriefing(mgr.RepoRoot)
+	renderPhaseTransitionNextActions(os.Stdout, targetPhase, key, wtPath, mgr.RepoRoot)
+	return nil
+}
+
+func persistStartedLease(phase types.Phase, key, wtPath string) error {
+	tok, err := capbac.MintToken(phase, key, wtPath, 100, 24*time.Hour)
+	if err != nil {
+		return err
+	}
+	db, err := storage.OpenDB("")
+	if err != nil {
+		return nil
+	}
+	defer func() { _ = db.Close() }()
+	return storage.SaveLease(db, tok.ID, key, string(phase), 100, 0)
 }
 
 func newTaskEditCmd() *cobra.Command {
@@ -206,7 +217,7 @@ func newTaskEditCmd() *cobra.Command {
 				return err
 			}
 			updateActiveLeasePhase(key, "EDIT")
-			fmt.Printf("✏️  Task %s transitioned to EDIT phase\n", key)
+			fmt.Printf("✏️  Task %s transitioned to %s phase\n", styleTaskKey(key), styleSemanticBadge("EDIT"))
 			renderPhaseTransitionNextActions(os.Stdout, types.PhaseEdit, key, "", "")
 			return nil
 		},
@@ -306,7 +317,9 @@ func executeGateCheckForTask(taskKey string) (*verify.PipelineReport, error) {
 		return nil, types.NewNomosError(types.ErrCodeInvariant, "DoD verification failed: %d/%d gates passed\n  - %s",
 			report.GatesPassed, report.GatesTotal, strings.Join(failedMsgs, "\n  - "))
 	}
-	fmt.Printf("🔍 DoD Verification Succeeded: %d/%d gates passed\n", report.GatesPassed, report.GatesTotal)
+	fmt.Printf("🔍 %s %s\n",
+		uiSuccessStyle.Render("DoD Verification Succeeded:"),
+		uiBoldValueStyle.Render(fmt.Sprintf("%d/%d gates passed", report.GatesPassed, report.GatesTotal)))
 	return report, nil
 }
 
@@ -335,7 +348,7 @@ func newTaskAbortCmd() *cobra.Command {
 					}
 				}
 			}
-			fmt.Printf("🛑 Task %s aborted and pruned\n", key)
+			fmt.Printf("🛑 Task %s %s\n", styleTaskKey(key), uiWarnStyle.Render("aborted and pruned"))
 			return nil
 		},
 	}
