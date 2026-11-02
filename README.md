@@ -4,7 +4,7 @@
 
 # Nomos (Νόμος)
 
-**Peace of mind for AI-assisted engineering: the deterministic governance harness between any coding agent and your repository.**
+**Agents guess; Git cannot. The transactional governance harness between any coding agent and your repository.**
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white)](https://go.dev/)
@@ -21,7 +21,13 @@ AI coding agents optimize for making their prompt finish, even when that means t
 - **Hollow Shims & Stubs:** Leaving empty `// TODO` stubs, mock returns, or dead unreferenced code to make a build compile.
 - **Unbounded Workspace Drift:** Mutating `main` directly, polluting unrelated modules, or forgetting architectural context across sessions.
 
-**Nomos** gives you genuine **peace of mind** when delegating to **Claude Code**, **Cursor**, **Antigravity**, **OpenCode**, **Windsurf**, or **Aider**. Sitting between your coding agent and your Git repository, Nomos doesn't rely on prompt instructions that models ignore under context pressure - it physically enforces **hermetic Git worktree sandboxes**, **42 polyglot AST quality gates**, and **atomic Two-Phase Commit (2PC) releases** before a single line can touch `main`.
+Just as **PostgreSQL placed ACID transactions** between concurrent applications and raw disk files, **Nomos** introduces a new infrastructure layer between your coding agent (**Claude Code**, **Cursor**, **Antigravity**, **OpenCode**, **Windsurf**, or **Aider**) and your Git repository - physically enforcing **hermetic Git worktree sandboxes**, **42 polyglot AST quality gates**, and **atomic Two-Phase Commit (2PC) releases** before a single line can touch `main`:
+
+| What Nomos Is *Not* | Why Legacy Layers Fail on Coding Agents | What the Nomos Layer Enforces |
+| :--- | :--- | :--- |
+| **Not Another Coding Agent** | Switching models or IDEs does not stop a stochastic optimizer from taking shortcuts under context pressure. | Keep Claude Code, Cursor, Antigravity, OpenCode, Windsurf, or Aider; Nomos governs state isolation and merge safety underneath them. |
+| **Not a Linter or Post-Hoc CI** | Linters (`golangci-lint`, `eslint`) assume cooperative humans *after* edits already dirtied your active branch. | Isolates tasks in disposable `git worktree` sandboxes, separates `INT-*` specs from `SUB-*` code so agents cannot rewrite specs to excuse broken code, pins `nomos.yaml` to `main`, and blocks deleted assertions or hollow shims *before* merge. |
+| **Not a `.cursorrules` Prompt Pack** | Advisory markdown rules decay once context crosses 60%, and failed runs poison repo notes. | Enforces compiled Go, Git hook, and AST exit codes (`exit 1`) outside the model context window, promoting `mneme.db` lessons strictly after a verified 2PC Git Notes receipt. |
 
 > **⚡ Two commands to install and initialize. Invisible after that.**
 > Run `curl -fsSL https://sophialabs.ca/install | bash` and `nomos init` once. There are zero custom slash commands to memorize, zero prompt templates to maintain, and zero manual handshake steps (`nomos hook session-start` runs `nomos handshake` automatically on session boot). You prompt Claude Code, Cursor, Antigravity, or OpenCode in plain English the exact way you already do, while Nomos governs worktree isolation, `~24ms` single-file AST checks, and two-phase commits silently under the hood.
