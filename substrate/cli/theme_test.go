@@ -21,6 +21,7 @@ func TestThemePadStyled_ANSISafeColumnWidth(t *testing.T) {
 
 	colA := styleTaskKeyWidth("SUB-42", 10)
 	colB := styleTaskKeyWidth("INT-1024", 10)
+	pillCol := styleSemanticBadgeWidth("DONE", 10)
 
 	if w := lipgloss.Width(colA); w != 10 {
 		t.Fatalf("expected visible width 10 for SUB-42, got %d (%q)", w, colA)
@@ -28,21 +29,62 @@ func TestThemePadStyled_ANSISafeColumnWidth(t *testing.T) {
 	if w := lipgloss.Width(colB); w != 10 {
 		t.Fatalf("expected visible width 10 for INT-1024, got %d (%q)", w, colB)
 	}
-	if !strings.Contains(colA, "\x1b[") {
-		t.Fatalf("expected ANSI escape sequence in TrueColor mode, got %q", colA)
+	if w := lipgloss.Width(pillCol); w != 10 {
+		t.Fatalf("expected visible width 10 for DONE pill column, got %d (%q)", w, pillCol)
+	}
+	if !strings.Contains(colA, "\x1b[") || !strings.Contains(pillCol, "\x1b[") {
+		t.Fatalf("expected ANSI escape sequence in TrueColor mode, got %q / %q", colA, pillCol)
+	}
+}
+
+func TestBrandGradientAndDualCoreRule(t *testing.T) {
+	origProfile := lipgloss.ColorProfile()
+	t.Cleanup(func() {
+		lipgloss.SetColorProfile(origProfile)
+	})
+
+	lipgloss.SetColorProfile(termenv.Ascii)
+	asciiTitle := renderBrandTitle("🛡️  Nomos Operational Status")
+	if asciiTitle != "🛡️  Nomos Operational Status" {
+		t.Fatalf("expected plain untouched title in Ascii mode, got %q", asciiTitle)
+	}
+	asciiRule := uiRule(20)
+	if lipgloss.Width(asciiRule) != 20 || strings.Contains(asciiRule, "\x1b[") {
+		t.Fatalf("expected plain 20-char rule in Ascii mode, got %q", asciiRule)
+	}
+
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	tcTitle := renderBrandTitle("🛡️  Nomos Operational Status")
+	if !strings.HasPrefix(tcTitle, "🛡️  ") {
+		t.Fatalf("expected leading emoji prefix preserved intact, got %q", tcTitle)
+	}
+	if !strings.Contains(tcTitle, "\x1b[") {
+		t.Fatalf("expected TrueColor gradient escape codes in title, got %q", tcTitle)
+	}
+	tcRule := uiRule(24)
+	if lipgloss.Width(tcRule) != 24 || !strings.Contains(tcRule, "\x1b[") {
+		t.Fatalf("expected 24-cell TrueColor gradient rule, got width=%d (%q)", lipgloss.Width(tcRule), tcRule)
 	}
 }
 
 func TestThemeSemanticAndPlaneBadges(t *testing.T) {
-	tokens := []string{
-		"PASS", "DONE", "CONNECTED", "HEALTHY", "ACTIVE", "VERIFIED", "SYNC",
-		"EDIT", "PLAN", "LEARN", "REVIEW", "DEGRADED", "WARN",
-		"FAIL", "ABORTED", "UNHEALTHY", "IDLE", "TODO", "CUSTOM",
-	}
-	for _, tok := range tokens {
-		rendered := styleSemanticBadge(tok)
-		if !strings.Contains(rendered, tok) {
-			t.Errorf("expected badge to preserve token %q, got %q", tok, rendered)
+	origProfile := lipgloss.ColorProfile()
+	t.Cleanup(func() {
+		lipgloss.SetColorProfile(origProfile)
+	})
+
+	for _, prof := range []termenv.Profile{termenv.Ascii, termenv.TrueColor} {
+		lipgloss.SetColorProfile(prof)
+		tokens := []string{
+			"PASS", "DONE", "CONNECTED", "HEALTHY", "ACTIVE", "VERIFIED", "SYNC",
+			"EDIT", "PLAN", "LEARN", "REVIEW", "DEGRADED", "WARN",
+			"FAIL", "ABORTED", "UNHEALTHY", "IDLE", "TODO", "CUSTOM",
+		}
+		for _, tok := range tokens {
+			rendered := styleSemanticBadge(tok)
+			if !strings.Contains(rendered, tok) {
+				t.Errorf("profile=%v: expected badge to preserve token %q, got %q", prof, tok, rendered)
+			}
 		}
 	}
 
@@ -66,7 +108,7 @@ func TestFormatCLIError(t *testing.T) {
 	formatted := FormatCLIError(nErr)
 	for _, want := range []string{
 		"Error:",
-		"[ERR_PHASE_VIOLATION]",
+		"ERR_PHASE_VIOLATION",
 		"mutations forbidden on trunk",
 		"Remedy :",
 		"nomos task chore \"Fix bug\"",

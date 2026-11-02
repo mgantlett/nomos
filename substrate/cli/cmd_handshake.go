@@ -71,7 +71,7 @@ func renderHandshakeBanner(event *handshake.HandshakeEvent, installed bool) {
 		hookMsg = "AUTO-INSTALLED (pre-commit, commit-msg, pre-push)"
 	}
 
-	fmt.Println(uiTitleStyle.Render("🤝 Nomos JIT Session Handshake"))
+	fmt.Println(renderBrandTitle("🤝 Nomos JIT Session Handshake"))
 	fmt.Println(uiRule(ruleNarrow))
 	fmt.Println(kvLine("Active Repository", 17, uiBoldValueStyle.Render(event.Repository)))
 	fmt.Println(kvLine("Workstation Seat", 17, uiValueStyle.Render(event.Seat)))
@@ -94,11 +94,15 @@ func renderHandshakeBanner(event *handshake.HandshakeEvent, installed bool) {
 		fmt.Println(kvLine("Workspace Phase", 17, phaseVal))
 	}
 
-	fmt.Println(kvLine("Defense Hooks", 17, uiSuccessStyle.Render(hookMsg)))
-	if event.DatabasesHealthy {
-		fmt.Println(kvLine("Database Health", 17, uiSuccessStyle.Render("HEALTHY")))
+	if installed {
+		fmt.Println(kvLine("Defense Hooks", 17, uiSuccessStyle.Render(hookMsg)))
 	} else {
-		fmt.Println(kvLine("Database Health", 17, uiDangerStyle.Render("UNHEALTHY")))
+		fmt.Println(kvLine("Defense Hooks", 17, styleSemanticBadge(hookMsg)))
+	}
+	if event.DatabasesHealthy {
+		fmt.Println(kvLine("Database Health", 17, styleSemanticBadge("HEALTHY")))
+	} else {
+		fmt.Println(kvLine("Database Health", 17, styleSemanticBadge("UNHEALTHY")))
 	}
 	fmt.Println(kvLine("DoD Quality Gates", 17, fmt.Sprintf("%s deterministic gates active",
 		uiBoldValueStyle.Render(fmt.Sprintf("%d", event.GateCount)))))

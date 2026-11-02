@@ -217,7 +217,7 @@ func newSessionShowCmd() *cobra.Command {
 }
 
 func renderSessionNamedCard(meta *session.SessionMetadata) {
-	fmt.Println(uiTitleStyle.Render("🏷️  Nomos Session Renamed"))
+	fmt.Println(renderBrandTitle("🏷️  Nomos Session Renamed"))
 	fmt.Println(uiRule(ruleNarrow))
 	fmt.Println(kvLine("Session ID", 10, uiCommandStyle.Render(meta.ID)))
 	fmt.Println(kvLine("Title", 10, uiBoldValueStyle.Render(meta.Name)))
@@ -226,7 +226,7 @@ func renderSessionNamedCard(meta *session.SessionMetadata) {
 }
 
 func renderSessionListTable(sessions []session.AgentSession) {
-	fmt.Println(uiTitleStyle.Render("📋 Nomos Agent Conversation Sessions"))
+	fmt.Println(renderBrandTitle("📋 Nomos Agent Conversation Sessions"))
 	fmt.Println(uiRule(ruleSession))
 	fmt.Printf("  %s %s %s %s %s\n",
 		padStyled("SESSION ID", 38, uiHeaderStyle),
@@ -252,7 +252,7 @@ func renderSessionListTable(sessions []session.AgentSession) {
 }
 
 func renderSessionDetailCard(detail *session.SessionDetail) {
-	fmt.Println(uiTitleStyle.Render("🔍 Nomos Agent Session Inspection"))
+	fmt.Println(renderBrandTitle("🔍 Nomos Agent Session Inspection"))
 	fmt.Println(uiRule(ruleNarrow))
 	fmt.Println(kvLine("Session ID", 12, uiCommandStyle.Render(detail.ID)))
 	fmt.Println(kvLine("Agent Type", 12, uiBoldValueStyle.Render(detail.AgentType)))

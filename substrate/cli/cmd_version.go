@@ -22,13 +22,14 @@ func NewVersionCmd() *cobra.Command {
 		Short: "Display Nomos substrate version and build telemetry",
 		Run: func(cmd *cobra.Command, args []string) {
 			out := cmd.OutOrStdout()
-			fmt.Fprintf(out, "%s %s %s\n%s %s %s\n",
-				uiTitleStyle.Render("nomos version"),
-				uiBoldValueStyle.Render(RootCmdVersion),
+			fmt.Fprintf(out, "%s %s %s\n%s %s %s %s\n",
+				renderBrandTitle("nomos version"),
+				uiChipStyle.Render(" "+RootCmdVersion+" "),
 				uiMutedStyle.Render(fmt.Sprintf("(%s/%s)", runtime.GOOS, runtime.GOARCH)),
 				uiLabelStyle.Render("compiler:"),
 				uiValueStyle.Render(runtime.Version()),
-				uiMutedStyle.Render("· open-core substrate"))
+				uiIntentStyle.Render("◈"),
+				uiMutedStyle.Render("open-core substrate · sophialabs.ca"))
 		},
 	}
 }

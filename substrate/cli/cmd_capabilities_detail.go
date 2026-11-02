@@ -147,7 +147,7 @@ func executeCapabilityDetail(cmd *cobra.Command, query string, jsonOutput bool) 
 
 func renderCapabilityDetailCard(cmd *cobra.Command, d *CapabilityDetail) {
 	out := cmd.OutOrStdout()
-	fmt.Fprintln(out, uiTitleStyle.Render("🔎 Nomos Capability & Invariant Inspector"))
+	fmt.Fprintln(out, renderBrandTitle("🔎 Nomos Capability & Invariant Inspector"))
 	fmt.Fprintln(out, uiRule(ruleNarrow))
 	fmt.Fprintln(out, kvLine("ID", 11, uiCommandStyle.Render(d.ID)))
 	fmt.Fprintln(out, kvLine("Name", 11, uiBoldValueStyle.Render(d.Name)))

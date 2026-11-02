@@ -62,7 +62,7 @@ func executeDirectiveList(cmd *cobra.Command, repoRoot string, jsonOutput bool) 
 	}
 
 	out := cmd.OutOrStdout()
-	fmt.Fprintln(out, uiTitleStyle.Render("📋 Nomos Just-In-Time (JIT) Directives"))
+	fmt.Fprintln(out, renderBrandTitle("📋 Nomos Just-In-Time (JIT) Directives"))
 	fmt.Fprintln(out, uiRule(ruleNarrow))
 	fmt.Fprintf(out, "  %s %s:\n\n",
 		uiHeaderStyle.Render("Authoritative Directives"),

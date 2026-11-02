@@ -124,7 +124,7 @@ func runVerification(targetDir, commitRange string, baseline, allFiles, strict b
 }
 
 func renderVerificationSummary(report *verify.PipelineReport) {
-	fmt.Println(uiTitleStyle.Render("🛡️  Nomos Deterministic Engineering Substrate · Definition of Done"))
+	fmt.Println(renderBrandTitle("🛡️  Nomos Deterministic Engineering Substrate · Definition of Done"))
 	fmt.Println(uiRule(ruleStandard))
 	for _, law := range report.LawReports {
 		status := "PASS"
@@ -199,7 +199,7 @@ func newVerifyProofCmd() *cobra.Command {
 }
 
 func renderGateIntegrityAttestationSummary(report *verify.ProofReport) {
-	fmt.Println(uiTitleStyle.Render("🛡️  Nomos Gate Integrity & Invariant Attestation (Cell 2.3)"))
+	fmt.Println(renderBrandTitle("🛡️  Nomos Gate Integrity & Invariant Attestation (Cell 2.3)"))
 	if report.IsCodebaseTargeted {
 		fmt.Printf("  %s %s %s\n",
 			uiLabelStyle.Render("Target Codebase:"),
@@ -292,7 +292,7 @@ func runFastFileRadar(targetDir, fastFile string, strict bool) error {
 
 func runImpactMap(targetDir string) error {
 	items := verify.ComputeWorkspaceImpact(targetDir, nil)
-	fmt.Println(uiTitleStyle.Render("🧭 Nomos 1-Hop AST Blast-Radius & Impact Map"))
+	fmt.Println(renderBrandTitle("🧭 Nomos 1-Hop AST Blast-Radius & Impact Map"))
 	fmt.Println(uiRule(ruleStandard))
 	if len(items) == 0 {
 		fmt.Printf("  %s\n", uiMutedStyle.Render("No modified source files detected in workspace."))

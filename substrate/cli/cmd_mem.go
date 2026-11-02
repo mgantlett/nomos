@@ -152,7 +152,7 @@ func newMemRecallCmd() *cobra.Command {
 
 func renderRecallResults(query string, results []*mem.SearchResult) {
 	fmt.Printf("%s %s\n",
-		uiTitleStyle.Render("🧠 Nomos Mneme Episodic Recall:"),
+		renderBrandTitle("🧠 Nomos Mneme Episodic Recall:"),
 		uiBoldValueStyle.Render(fmt.Sprintf("%q", query)))
 	fmt.Println(uiRule(ruleNarrow))
 	if len(results) == 0 {
@@ -241,7 +241,7 @@ func newMemListCmd() *cobra.Command {
 
 func renderMemoryList(memories []*mem.Memory) {
 	fmt.Printf("%s %s\n",
-		uiTitleStyle.Render("🧠 Nomos Mneme Memory Records"),
+		renderBrandTitle("🧠 Nomos Mneme Memory Records"),
 		uiMutedStyle.Render(fmt.Sprintf("(%d found)", len(memories))))
 	fmt.Println(uiRule(ruleWide))
 	if len(memories) == 0 {

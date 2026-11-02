@@ -72,7 +72,7 @@ func newTaskListCmd() *cobra.Command {
 }
 
 func renderTaskList(tasks []task.TaskRecord) {
-	fmt.Println(uiTitleStyle.Render("📋 Nomos Living Ledger Tasks"))
+	fmt.Println(renderBrandTitle("📋 Nomos Living Ledger Tasks"))
 	fmt.Println(uiRule(ruleStandard))
 	fmt.Printf("  %s %s %s %s %s %s\n",
 		padStyled("KEY", 10, uiHeaderStyle),
@@ -129,14 +129,18 @@ func newTaskDAGCmd() *cobra.Command {
 }
 
 func renderWavefront(wf []task.WavefrontCandidate) {
-	fmt.Println(uiTitleStyle.Render("🌊 Nomos Causal DAG Wavefront (Unblocked Ready Tasks)"))
+	fmt.Println(renderBrandTitle("🌊 Nomos Causal DAG Wavefront (Unblocked Ready Tasks)"))
 	fmt.Println(uiRule(ruleStandard))
 	if len(wf) == 0 {
 		fmt.Printf("  %s\n", uiMutedStyle.Render("(No pending unblocked tasks in current wavefront)"))
 	}
 	for _, cand := range wf {
+		dot := uiElectricCyanStyle.Render("◈")
+		if strings.HasPrefix(strings.ToUpper(cand.Key), "INT-") {
+			dot = uiIntentStyle.Render("◈")
+		}
 		fmt.Printf("  %s [%s] %s %s\n",
-			uiSubstrateStyle.Render("•"),
+			dot,
 			styleTaskKey(cand.Key),
 			uiBoldValueStyle.Render(cand.Title),
 			uiMutedStyle.Render(fmt.Sprintf("(%s, %s)", cand.Plane, cand.Tier)))
@@ -169,7 +173,7 @@ func newTaskStatusCmd() *cobra.Command {
 			if err := ps.Validate(); err != nil {
 				return err
 			}
-			fmt.Println(uiTitleStyle.Render("📋 Nomos Workspace Phase State"))
+			fmt.Println(renderBrandTitle("📋 Nomos Workspace Phase State"))
 			fmt.Println(uiRule(ruleNarrow))
 			fmt.Println(kvLine("Active Phase", 15, styleSemanticBadge(string(ps.Phase))))
 			if ps.TaskID != "" {
@@ -285,7 +289,7 @@ func executeTaskPair(store task.TaskStore, title string, opts taskPairOpts) erro
 		return fmt.Errorf("failed binding twins %s <-> %s: %w", intKey, subKey, err)
 	}
 
-	fmt.Println(uiTitleStyle.Render("🔗 Nomos Atomic Twin Provisioning Complete"))
+	fmt.Println(renderBrandTitle("🔗 Nomos Atomic Twin Provisioning Complete"))
 	fmt.Println(uiRule(ruleNarrow))
 	fmt.Println(kvLine("Intent Task", 14, fmt.Sprintf("%s (%s)", styleTaskKey(intKey), uiValueStyle.Render(title))))
 	fmt.Println(kvLine("Substrate Task", 14, fmt.Sprintf("%s (%s)", styleTaskKey(subKey), uiValueStyle.Render(title))))
@@ -296,7 +300,7 @@ func executeTaskPair(store task.TaskStore, title string, opts taskPairOpts) erro
 }
 
 func renderTaskShowCard(out io.Writer, rec task.TaskInspectionRecord) {
-	fmt.Fprintf(out, "%s %s\n", uiTitleStyle.Render("🔎 Living Ledger Task Card ·"), styleTaskKey(rec.Key))
+	fmt.Fprintf(out, "%s %s\n", renderBrandTitle("🔎 Living Ledger Task Card ·"), styleTaskKey(rec.Key))
 	fmt.Fprintln(out, uiRule(ruleStandard))
 	fmt.Fprintln(out, kvLine("Title", 12, uiBoldValueStyle.Render(rec.Title)))
 	if rec.Project != "" {

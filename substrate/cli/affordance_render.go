@@ -16,8 +16,8 @@ func renderNextActions(out io.Writer, actions []types.ActionAffordance) {
 	if out == nil || len(actions) == 0 {
 		return
 	}
-	fmt.Fprintf(out, "  %s\n", uiHeaderStyle.Render("Next Actions:"))
-	arrow := uiSubstrateStyle.Render("→")
+	fmt.Fprintf(out, "  %s %s\n", uiIntentStyle.Render("◈"), uiHeaderStyle.Render("Next Actions:"))
+	arrow := uiElectricCyanStyle.Render("→")
 	for _, act := range actions {
 		fmt.Fprintf(out, "    %s %s  %s\n",
 			arrow,

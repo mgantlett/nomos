@@ -146,7 +146,7 @@ func detectDefaultBranch(dir string) string {
 }
 
 func printInitializationSummary(absDir string, isGitRepo, createdBaselineCommit bool, defaultBranch string) {
-	fmt.Printf("%s %s\n", uiTitleStyle.Render("🚀 Initialized Nomos workspace in"), uiBoldValueStyle.Render(absDir))
+	fmt.Printf("%s %s\n", renderBrandTitle("🚀 Initialized Nomos workspace in"), uiBoldValueStyle.Render(absDir))
 	fmt.Println(uiRule(ruleNarrow))
 	check := uiSuccessStyle.Render("✅")
 	fmt.Printf("  %s Scaffolded operational boundaries %s\n", check, uiMutedStyle.Render("(worktrees/, .tmp/)"))

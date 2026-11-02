@@ -169,7 +169,7 @@ func queryTaskMetrics(dbPath string) (int, int, int) {
 }
 
 func renderStatusReport(out io.Writer, r *StatusReport) {
-	fmt.Fprintln(out, uiTitleStyle.Render("📋 Nomos Operational Status"))
+	fmt.Fprintln(out, renderBrandTitle("📋 Nomos Operational Status"))
 	fmt.Fprintln(out, uiRule(ruleNarrow))
 	fmt.Fprintln(out, kvLine("Active Phase", 15, styleSemanticBadge(r.Phase)))
 	fmt.Fprintln(out, kvLine("Active Branch", 15, uiBoldValueStyle.Render(r.ActiveBranch)))

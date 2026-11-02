@@ -120,7 +120,7 @@ func renderTaskPruneReport(cmd *cobra.Command, rep *workspace.PruneReport) {
 	if rep.DryRun {
 		mode = uiWarnStyle.Render("Dry-Run Preview")
 	}
-	fmt.Fprintf(out, "%s (%s)\n", uiTitleStyle.Render("🧹 Nomos Worktree Garbage Collector"), mode)
+	fmt.Fprintf(out, "%s (%s)\n", renderBrandTitle("🧹 Nomos Worktree Garbage Collector"), mode)
 	fmt.Fprintln(out, uiRule(ruleStandard))
 	fmt.Fprintln(out, kvLine("Orphan Worktrees Swept", 24, uiBoldValueStyle.Render(fmt.Sprintf("%d", len(rep.RemovedDirs)))))
 	for _, d := range rep.RemovedDirs {

@@ -10,7 +10,7 @@ import (
 
 func renderCapabilitiesUI(cmd *cobra.Command, catalog CapabilitiesCatalog, items []CapabilityItem, filter string) {
 	out := cmd.OutOrStdout()
-	fmt.Fprintln(out, uiTitleStyle.Render("⚡ Nomos Substrate & Intent Capabilities Catalog"))
+	fmt.Fprintln(out, renderBrandTitle("⚡ Nomos Substrate & Intent Capabilities Catalog"))
 	fmt.Fprintln(out, uiRule(ruleNarrow))
 
 	if filter != "" && filter != "all" {
