@@ -146,9 +146,21 @@ Nomos is engineered so deterministic governance adds sub-second overhead on ever
 
 ### External Harness Reliability (`TraceTrial-Bench` · `arXiv:2610.32285`)
 
-`TraceTrial-Bench` separates **harness reliability** from **model capability** by routing CLI harnesses (`Claude Code`, `Codex`, `OpenClaw`) through an in-container LiteLLM gateway against a fixed model. Holding both the **CLI harness (`Claude Code v2.1.220`)** and the **backing LLM** identical across Control (stock harness) vs. Treatment (Nomos-governed harness):
-- **PreToolUse Canonical Path, Loop & Boundary Guards:** Lifted stateful lifecycle handoffs (`L5`), context/continuity retention (`C`), and guardrail safety (`G`) by catching unexpanded `$WORKSPACE` paths passed to native file tools, enforcing a 3-strike identical-failure circuit-breaker, and blocking destructive out-of-scope mutations before deliverable loss.
-- **Zero-Noise PostToolUse Channel Purity (`~4ms` Compiled Go Hooks):** Ablation testing showed that injecting synthetic warning prose into `PostToolUse` error results degraded native OS `EACCES` guardrail attribution by `-39.3%`; compiling `nomos hook` (`session-start`, `pre-tool`, `post-tool`) into native Go and keeping `PostToolUse` silent on native channels (firing only on real AST/JSON/JSONL syntax errors) recovered that `-39.3%` drop cleanly.
+`TraceTrial-Bench` separates **harness reliability** from **model capability** across 95 containerized tasks (`190` paired Docker runs across 7 pillars) by routing CLI harnesses (`Claude Code`, `Codex`, `OpenClaw`) through an in-container LiteLLM gateway against a fixed model. Holding both the **CLI harness (`Claude Code v2.1.220`)** and the **backing LLM** identical across Control (stock harness) vs. Treatment (`nomos-claudecode:4.1.0` compiled Go `nomos hook` harness):
+
+| Pillar / Cohort (`Gemini 2.5 Flash-Lite`, judged by `Gemini 3.5 Flash-Lite`, `n = 95`) | Control Overall | Nomos `v4.1.0` | Overall Δ | Agent Deliverable Axis (`0–100`) | Harness Reliability Axis (`0–100`) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Full 95-Task Suite (`190` Docker containers, `0` errors)** | `44.89` | **`48.78`** | **`+3.89` (`+8.7%` rel.)** | `34.78` → **`40.05` (`+5.27` / `+15.2%` rel.)** | `55.01` → **`57.52` (`+2.51`)** |
+| **`C` · Context & Continuity (`n = 15`)** | `43.55` | **`62.16`** | **`+18.62` (`+42.8%` rel.)** | `32.59` → **`58.12` (`+25.52` / `+78.3%` rel.)** | `54.51` → **`66.21` (`+11.71`)** |
+| **`V` · Verification & Batch (`n = 1`)** | `7.14` | **`42.86`** | **`+35.71`** | `0.00` → `0.00` (`0.00`) | `14.29` → **`85.71` (`+71.43`)** |
+| **`G` · Guardrails & Safety (`n = 9`)** | `44.96` | **`50.18`** | **`+5.22` (`+11.6%` rel.)** | `35.46` → **`46.73` (`+11.27` / `+31.8%` rel.)** | `54.45` → `53.63` (`-0.82`) |
+| **`O` · Observability & Audit (`n = 7`)** | `50.48` | **`52.16`** | **`+1.69`** | `35.71` → `34.92` (`-0.79`) | `65.24` → **`69.40` (`+4.17`)** |
+| **`E` · Execution & Recovery (`n = 27`)** | `46.57` | **`47.58`** | **`+1.02`** | `42.92` → **`45.75` (`+2.83`)** | `50.22` → `49.42` (`-0.80`) |
+| **`T` · Tooling & Protocol (`n = 17`)** | `41.76` | `41.61` | `-0.15` | `20.19` → **`20.47` (`+0.29`)** | `63.33` → `62.74` (`-0.59`) |
+| **`L` · Long-Horizon State (`n = 19`)** | `46.27` | `44.75` | `-1.53` | `39.15` → `36.02` (`-3.13`) | `53.39` → **`53.47` (`+0.08`)** |
+
+- **Causal Failure Reduction & Head-to-Head Record (`n = 95`):** Cut `harness_caused` failure attributions from `55` → **`45` (`-18.2%` relative reduction)** and achieved a **`36` win / `30` tie / `29` loss** overall head-to-head record (`24W / 53T / 18L` on the Harness axis), led by paired single-task gains on `G3-ratefeed-001` (`10.0` → **`70.0`**, `+60.0`), `T7-opsplugin-compliance-002` (`12.2` → **`63.6`**, `+51.4`), `O2-harness-refusal-notice-001` (`37.5` → **`87.5`**, `+50.0`), `C4-resume-fidelity-001` (`35.0` → **`83.8`**, `+48.8`), and `C3-certretention-002` (`22.6` → **`70.2`**, `+47.6`).
+- **Compiled Go Hook Chaining & Zero-Noise Channel Purity (`~4ms`):** Additive `nomos hook` (`session-start`, `pre-tool`, `post-tool`) chaining preserves workspace-local hooks and native `--permission-mode manual` prompts while blocking unexpanded `$WORKSPACE`/`~` file-tool paths, wildcard `rm` globs, and 3-strike identical-failure loops. Ablation testing showed that injecting synthetic warning prose into `PostToolUse` error results degraded native OS `EACCES` guardrail attribution by `-39.3%`; keeping `PostToolUse` silent on native channels (firing only on real AST/JSON/JSONL syntax errors) recovered full channel fidelity.
 
 ---
 
