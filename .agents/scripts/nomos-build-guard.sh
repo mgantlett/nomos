@@ -3,6 +3,22 @@ set -e
 
 PAYLOAD=$(cat || true)
 
+NOMOS_BIN=""
+if command -v nomos >/dev/null 2>&1; then
+    NOMOS_BIN="nomos"
+elif [ -n "${GOBIN:-}" ] && [ -x "${GOBIN}/nomos" ]; then
+    NOMOS_BIN="${GOBIN}/nomos"
+elif [ -x "${HOME}/go/bin/nomos" ]; then
+    NOMOS_BIN="${HOME}/go/bin/nomos"
+elif [ -x "${HOME}/.local/bin/nomos" ]; then
+    NOMOS_BIN="${HOME}/.local/bin/nomos"
+fi
+
+if [ -n "$NOMOS_BIN" ] && "$NOMOS_BIN" hook --help >/dev/null 2>&1; then
+    printf '%s' "$PAYLOAD" | "$NOMOS_BIN" hook pre-tool
+    exit 0
+fi
+
 if ! command -v jq >/dev/null 2>&1; then
     echo '{"decision": "allow"}'
     exit 0
@@ -16,6 +32,10 @@ deny_command() {
 }
 
 if [[ -n "$COMMAND_LINE" && "$COMMAND_LINE" != "null" ]]; then
+    if [[ "$COMMAND_LINE" =~ rm[[:space:]]+(-[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*|-[a-zA-Z]*f[a-zA-Z]*r[a-zA-Z]*|--recursive)[[:space:]]+(/|\*+|~|\.\.)([[:space:]]|$|/) ]]; then
+        deny_command "❌ [NOMOS INTERCEPT] Wildcard or root recursive deletion ('rm -rf /', 'rm -rf *', 'rm -rf ~', 'rm -rf ..') is strictly prohibited (Law 7)."
+    fi
+
     if [[ "$COMMAND_LINE" == *"go install"* && "$COMMAND_LINE" == *"nomos"* ]]; then
         deny_command "❌ [NOMOS INTERCEPT] Manual binary installation ('go install' of nomos) during active task sessions is prohibited by Law 4 (Single Source of Truth). Invoke the installed 'nomos' CLI binary directly."
     fi

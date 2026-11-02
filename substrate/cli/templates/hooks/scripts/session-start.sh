@@ -1,13 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-# Read SessionStart JSON payload from stdin
 PAYLOAD=$(cat || true)
-
-if ! command -v jq >/dev/null 2>&1; then
-    echo "{}"
-    exit 0
-fi
 
 NOMOS_BIN=""
 if command -v nomos >/dev/null 2>&1; then
@@ -19,6 +13,16 @@ elif [ -x "${HOME}/go/bin/nomos" ]; then
 elif [ -x "${HOME}/.local/bin/nomos" ]; then
     NOMOS_BIN="${HOME}/.local/bin/nomos"
 else
+    echo "{}"
+    exit 0
+fi
+
+if "$NOMOS_BIN" hook --help >/dev/null 2>&1; then
+    printf '%s' "$PAYLOAD" | "$NOMOS_BIN" hook session-start
+    exit 0
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
     echo "{}"
     exit 0
 fi
@@ -36,4 +40,3 @@ if [ -z "$HANDSHAKE_OUT" ]; then
 fi
 
 printf '%s\n' "$HANDSHAKE_OUT" | jq -Rs '{injectSteps: [{systemMessage: {systemMessage: .}}]}'
-

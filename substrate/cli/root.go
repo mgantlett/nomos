@@ -53,6 +53,7 @@ func registerSubcommands(root *cobra.Command) {
 	addCommandWithGroup(root, NewVerifyCmd(), "quality")
 
 	addCommandWithGroup(root, NewHandshakeCmd(), "agent")
+	addCommandWithGroup(root, NewHookCmd(), "agent")
 	addCommandWithGroup(root, NewDirectiveCmd(), "agent")
 	addCommandWithGroup(root, NewCapabilitiesCmd(), "agent")
 	addCommandWithGroup(root, NewMemCmd(), "agent")

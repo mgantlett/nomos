@@ -3,6 +3,22 @@ set -e
 
 PAYLOAD=$(cat || true)
 
+NOMOS_BIN=""
+if command -v nomos >/dev/null 2>&1; then
+    NOMOS_BIN="nomos"
+elif [ -n "${GOBIN:-}" ] && [ -x "${GOBIN}/nomos" ]; then
+    NOMOS_BIN="${GOBIN}/nomos"
+elif [ -x "${HOME}/go/bin/nomos" ]; then
+    NOMOS_BIN="${HOME}/go/bin/nomos"
+elif [ -x "${HOME}/.local/bin/nomos" ]; then
+    NOMOS_BIN="${HOME}/.local/bin/nomos"
+fi
+
+if [ -n "$NOMOS_BIN" ] && "$NOMOS_BIN" hook --help >/dev/null 2>&1; then
+    printf '%s' "$PAYLOAD" | "$NOMOS_BIN" hook pre-tool
+    exit 0
+fi
+
 if ! command -v jq >/dev/null 2>&1; then
     echo '{"decision": "allow"}'
     exit 0
@@ -47,6 +63,11 @@ if [[ -z "$BASE_CWD" ]]; then
 fi
 
 if [[ -n "$TARGET_FILE" && "$TARGET_FILE" != "null" ]]; then
+    if [[ "$TARGET_FILE" == "~"* || "$TARGET_FILE" == *"$"* ]]; then
+        REASON="Hermetic Path Violation (Law 3): Unexpanded shell variable or tilde in target path '${TARGET_FILE}'. Pass a canonical resolved path."
+        jq -Rn --arg reason "$REASON" '{decision: "deny", reason: $reason}'
+        exit 0
+    fi
     RESOLVED_FILE="$(normalize_path "$TARGET_FILE" "$BASE_CWD")"
     if [[ "$RESOLVED_FILE" != *"/worktrees/"* && "$RESOLVED_FILE" != *"/.tmp/"* && "$RESOLVED_FILE" != *"/.gemini/"* && "$RESOLVED_FILE" != *"/.gemini" ]]; then
         CHORE_HINT="nomos task chore \"<title>\""
