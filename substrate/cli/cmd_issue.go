@@ -234,6 +234,9 @@ func isInteractive() bool {
 }
 
 func openBrowser(targetURL string) error {
+	if !strings.HasPrefix(targetURL, "https://github.com/") {
+		return fmt.Errorf("refusing to open non-GitHub URL: %s", targetURL)
+	}
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":

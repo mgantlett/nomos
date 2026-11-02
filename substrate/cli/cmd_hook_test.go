@@ -233,6 +233,23 @@ func TestHookPreTool_ThreeStrikeLoopCircuitBreaker(t *testing.T) {
 	if dec := parseDecision(t, outAfterEdit); dec.Decision != "allow" {
 		t.Fatalf("expected circuit-breaker reset after workspace file update, got %+v", dec)
 	}
+
+	// 3 distinct edits on the same file with different Replacement args are allowed
+	for i := 1; i <= 3; i++ {
+		editOut := executeHookCmd(t, []string{"pre-tool", "--hermetic-dir", sandboxDir}, map[string]any{
+			"toolCall": map[string]any{
+				"name": "edit_file",
+				"args": map[string]any{
+					"Path":        targetFile,
+					"Target":      "old",
+					"Replacement": strings.Repeat("x", i),
+				},
+			},
+		})
+		if dec := parseDecision(t, editOut); dec.Decision != "allow" {
+			t.Fatalf("expected distinct edit %d on same file to be allowed, got %+v", i, dec)
+		}
+	}
 }
 
 

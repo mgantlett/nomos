@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 # ==============================================================================
 # Nomos: Zero-Friction Deterministic Engineering Substrate Installer
@@ -8,7 +8,7 @@ set -e
 #
 # Environment Overrides:
 #   NOMOS_INSTALL_DIR : Custom destination directory (defaults to GOBIN / GOPATH/bin)
-#   NOMOS_VERSION     : Explicit release tag (e.g. v4.0.0)
+#   NOMOS_VERSION     : Explicit release tag (e.g. v4.1.0)
 #   NOMOS_LOCAL_TAR   : Local tar.gz archive for offline/testing validation
 #   NOMOS_LOCAL_BIN   : Local binary path for zero-download testing validation
 #   NOMOS_REPO        : GitHub repository (default: mgantlett/nomos)
@@ -77,21 +77,57 @@ else
     SUDO_CMD=""
 fi
 
-# 2. Source resolution
+verify_sha256_checksum() {
+    local dir="$1"
+    local tar_name="$2"
+    local sums_file="$dir/checksums.txt"
+
+    local expected
+    expected="$(grep -E "[[:space:]]${tar_name}\$" "$sums_file" | awk '{print $1}' | head -n 1 || true)"
+    if [ -z "$expected" ]; then
+        echo "❌ Error: Archive '$tar_name' not found in checksums.txt."
+        exit 1
+    fi
+
+    local actual=""
+    if command -v sha256sum >/dev/null 2>&1; then
+        actual="$(sha256sum "$dir/$tar_name" | awk '{print $1}')"
+    elif command -v shasum >/dev/null 2>&1; then
+        actual="$(shasum -a 256 "$dir/$tar_name" | awk '{print $1}')"
+    elif command -v openssl >/dev/null 2>&1; then
+        actual="$(openssl dgst -sha256 "$dir/$tar_name" | awk '{print $NF}')"
+    else
+        echo "❌ Error: No SHA-256 tool (sha256sum, shasum, openssl) available to verify archive."
+        exit 1
+    fi
+
+    if [ "$actual" != "$expected" ]; then
+        echo "❌ Error: SHA-256 checksum mismatch for $tar_name!"
+        echo "   Expected: $expected"
+        echo "   Actual  : $actual"
+        exit 1
+    fi
+    echo "🔒 Verified SHA-256 checksum ($actual)"
+}
+
+# 2. Source resolution inside isolated mktemp directory
 if [ -n "${NOMOS_LOCAL_BIN:-}" ] && [ -f "$NOMOS_LOCAL_BIN" ]; then
     echo "📦 Using local nomos binary: $NOMOS_LOCAL_BIN"
     $SUDO_CMD cp "$NOMOS_LOCAL_BIN" "$INSTALL_DIR/nomos"
     $SUDO_CMD chmod +x "$INSTALL_DIR/nomos"
 else
+    TMP_DIR="$(mktemp -d 2>/dev/null || mktemp -d -t 'nomos-install')"
+    trap 'rm -rf "$TMP_DIR"' EXIT
+
     TAR_FILE="nomos_${OS}_${ARCH}.tar.gz"
     if [ -n "${NOMOS_LOCAL_TAR:-}" ] && [ -f "$NOMOS_LOCAL_TAR" ]; then
         echo "📦 Using local release archive: $NOMOS_LOCAL_TAR"
-        cp "$NOMOS_LOCAL_TAR" "$TAR_FILE"
+        cp "$NOMOS_LOCAL_TAR" "$TMP_DIR/$TAR_FILE"
     else
         REPO="${NOMOS_REPO:-mgantlett/nomos}"
         LATEST_RELEASE="${NOMOS_VERSION:-}"
         if [ -z "$LATEST_RELEASE" ]; then
-            EFFECTIVE_URL=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/${REPO}/releases/latest" 2>/dev/null || true)
+            EFFECTIVE_URL="$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/${REPO}/releases/latest" 2>/dev/null || true)"
             case "$EFFECTIVE_URL" in
                 */releases/tag/*)
                     LATEST_RELEASE="${EFFECTIVE_URL##*/releases/tag/}"
@@ -101,30 +137,36 @@ else
             esac
         fi
         if [ -z "$LATEST_RELEASE" ]; then
-            LATEST_RELEASE=$(curl -s "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null | grep '"tag_name":' | head -n 1 | sed -E 's/.*"([^"]+)".*/\1/')
+            LATEST_RELEASE="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null | grep '"tag_name":' | head -n 1 | sed -E 's/.*"([^"]+)".*/\1/' || true)"
         fi
 
         if [ -z "$LATEST_RELEASE" ]; then
             echo "❌ Error: Could not determine release version (GitHub API rate limit or no network)."
-            echo "   Provide an explicit release version via NOMOS_VERSION=v4.0.0 or local tarball via NOMOS_LOCAL_TAR."
+            echo "   Provide an explicit release version via NOMOS_VERSION=v4.1.0 or local tarball via NOMOS_LOCAL_TAR."
             exit 1
         fi
 
-        DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${LATEST_RELEASE}/${TAR_FILE}"
+        BASE_URL="https://github.com/${REPO}/releases/download/${LATEST_RELEASE}"
+        DOWNLOAD_URL="${BASE_URL}/${TAR_FILE}"
+        CHECKSUMS_URL="${BASE_URL}/checksums.txt"
+
         echo "🌐 Downloading $DOWNLOAD_URL..."
-        if ! curl -fsSL -o "$TAR_FILE" "$DOWNLOAD_URL"; then
+        if ! curl -fsSL -o "$TMP_DIR/$TAR_FILE" "$DOWNLOAD_URL"; then
             echo "❌ Error: Failed to download release archive ($DOWNLOAD_URL)."
-            rm -f "$TAR_FILE"
             exit 1
         fi
+        if ! curl -fsSL -o "$TMP_DIR/checksums.txt" "$CHECKSUMS_URL"; then
+            echo "❌ Error: Failed to download release checksums ($CHECKSUMS_URL)."
+            exit 1
+        fi
+        verify_sha256_checksum "$TMP_DIR" "$TAR_FILE"
     fi
 
     echo "📂 Extracting..."
-    tar -xzf "$TAR_FILE" nomos
+    tar -xzf "$TMP_DIR/$TAR_FILE" -C "$TMP_DIR" nomos
     echo "📦 Installing nomos to $INSTALL_DIR..."
-    $SUDO_CMD mv nomos "$INSTALL_DIR/nomos"
+    $SUDO_CMD mv "$TMP_DIR/nomos" "$INSTALL_DIR/nomos"
     $SUDO_CMD chmod +x "$INSTALL_DIR/nomos"
-    rm -f "$TAR_FILE"
 fi
 
 # 3. Alpine Linux / musl libc fallback check (only if binary is dynamically linked against glibc)
@@ -154,7 +196,7 @@ esac
 
 # 5. Verification
 if "$INSTALL_DIR/nomos" version >/dev/null 2>&1; then
-    VERSION_STR=$("$INSTALL_DIR/nomos" version 2>/dev/null | head -n 1 || echo "nomos")
+    VERSION_STR="$("$INSTALL_DIR/nomos" version 2>/dev/null | head -n 1 || echo "nomos")"
     echo "✨ Installation verified: $VERSION_STR ($INSTALL_DIR/nomos)"
 else
     echo "✨ Installation complete! ($INSTALL_DIR/nomos)"

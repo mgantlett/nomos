@@ -26,7 +26,7 @@ func discoverPlugins(rootCmd *cobra.Command) {
 
 	groupAdded := false
 	for _, entry := range entries {
-		if isValidPlugin(entry) {
+		if isValidPlugin(pluginsRoot, entry) {
 			pluginCmd := buildPluginCmd(pluginsRoot, entry.Name())
 			// Law 6 (Canonical Singularity): Never shadow or duplicate native substrate commands.
 			if existing, _, err := rootCmd.Find([]string{pluginCmd.Use}); err == nil && existing != nil && existing != rootCmd {
@@ -64,8 +64,16 @@ func getPluginsRoot() string {
 	return ""
 }
 
-func isValidPlugin(entry os.DirEntry) bool {
-	return !entry.IsDir() && strings.HasPrefix(entry.Name(), "nomos-plugin-")
+func isValidPlugin(pluginsRoot string, entry os.DirEntry) bool {
+	if entry.IsDir() || !strings.HasPrefix(entry.Name(), "nomos-plugin-") {
+		return false
+	}
+	fullPath := filepath.Join(pluginsRoot, entry.Name())
+	fi, err := os.Lstat(fullPath)
+	if err != nil || !fi.Mode().IsRegular() || fi.Mode()&os.ModeSymlink != 0 {
+		return false
+	}
+	return fi.Mode().Perm()&0002 == 0
 }
 
 func buildPluginCmd(pluginsRoot, filename string) *cobra.Command {

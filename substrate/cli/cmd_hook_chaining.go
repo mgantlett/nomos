@@ -194,14 +194,14 @@ func resolveLoopTrackingDir(p *HookPayload, hermeticDir string) string {
 	if hermeticDir != "" {
 		return hermeticDir
 	}
+	if p.TargetFile != "" && filepath.IsAbs(p.TargetFile) {
+		return filepath.Dir(p.TargetFile)
+	}
 	if len(p.WorkspacePaths) > 0 {
 		return p.WorkspacePaths[0]
 	}
 	if p.Cwd != "" {
 		return p.Cwd
-	}
-	if p.TargetFile != "" && filepath.IsAbs(p.TargetFile) {
-		return filepath.Dir(p.TargetFile)
 	}
 	if wd, err := os.Getwd(); err == nil {
 		return wd
@@ -212,7 +212,8 @@ func resolveLoopTrackingDir(p *HookPayload, hermeticDir string) string {
 func computeInvocationFingerprint(p *HookPayload) string {
 	raw := strings.ToLower(strings.TrimSpace(p.ToolName)) + "|" +
 		strings.TrimSpace(p.TargetFile) + "|" +
-		strings.TrimSpace(p.CommandLine)
+		strings.TrimSpace(p.CommandLine) + "|" +
+		strings.TrimSpace(p.ArgsDigest)
 	sum := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(sum[:16])
 }
@@ -220,11 +221,29 @@ func computeInvocationFingerprint(p *HookPayload) string {
 func resolveLoopStateFilePath(wsDir string) string {
 	sum := sha256.Sum256([]byte(filepath.Clean(wsDir)))
 	name := fmt.Sprintf("nomos-hook-loop-%s.json", hex.EncodeToString(sum[:8]))
-	return filepath.Join(os.TempDir(), name)
+	baseDir, err := os.UserCacheDir()
+	if err != nil || baseDir == "" {
+		baseDir = filepath.Join(os.TempDir(), fmt.Sprintf("nomos-cache-%d", os.Getuid()))
+	}
+	hookDir := filepath.Join(baseDir, "nomos", "hooks")
+	if mkErr := os.MkdirAll(hookDir, 0700); mkErr != nil {
+		return ""
+	}
+	fi, statErr := os.Lstat(hookDir)
+	if statErr != nil || !fi.IsDir() || fi.Mode()&os.ModeSymlink != 0 {
+		return ""
+	}
+	return filepath.Join(hookDir, name)
 }
 
 func loadLoopBreakerState(path string) loopBreakerState {
 	var st loopBreakerState
+	if path == "" {
+		return st
+	}
+	if fi, err := os.Lstat(path); err != nil || !fi.Mode().IsRegular() {
+		return st
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return st
@@ -236,6 +255,12 @@ func loadLoopBreakerState(path string) loopBreakerState {
 }
 
 func saveLoopBreakerState(path string, st loopBreakerState) {
+	if path == "" {
+		return
+	}
+	if fi, err := os.Lstat(path); err == nil && !fi.Mode().IsRegular() {
+		return
+	}
 	data, err := json.Marshal(st)
 	if err != nil {
 		return

@@ -16,6 +16,7 @@ type HookPayload struct {
 	ToolName       string
 	TargetFile     string
 	CommandLine    string
+	ArgsDigest     string
 	Cwd            string
 	WorkspacePaths []string
 	HasToolInput   bool
@@ -52,7 +53,26 @@ func parseHookPayload(raw []byte) *HookPayload {
 	)
 	p.TargetFile = extractTargetFileField(m)
 	p.CommandLine = extractCommandField(m)
+	p.ArgsDigest = extractArgsDigestField(m)
 	return p
+}
+
+func extractArgsDigestField(m map[string]any) string {
+	for _, key := range []string{"tool_input", "args"} {
+		if sub, ok := m[key]; ok {
+			if raw, err := json.Marshal(sub); err == nil {
+				return string(raw)
+			}
+		}
+	}
+	if tc, ok := m["toolCall"].(map[string]any); ok {
+		if sub, ok := tc["args"]; ok {
+			if raw, err := json.Marshal(sub); err == nil {
+				return string(raw)
+			}
+		}
+	}
+	return ""
 }
 
 func extractTargetFileField(m map[string]any) string {
