@@ -4,7 +4,7 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-11-01"
-last_updated: "2026-11-01"
+last_updated: "2026-11-02"
 plane: intent
 status: active
 tags:
@@ -14,6 +14,8 @@ tags:
     - SUB-1546
     - INT-868
     - SUB-1560
+    - SUB-1610
+    - INT-886
 title: "TraceTrial-Bench 7-Pillar Harness Reliability & Fail-Closed Stress Specification"
 trigger: always_on
 type: spec
@@ -105,3 +107,34 @@ The cleanroom harness suite (`substrate/cli/cleanroom_tracetrial_bench_test.go`)
 - **`VEC-TTB-05` (Pillar 5 — Observability / Attestation & Mneme Provenance):** Sync a compliant worktree through 2PC `nomos task sync`; assert a cryptographic SHA-256 receipt is attached to `refs/notes/nomos/releases` and a statutory `pattern` record is distilled into `mneme.db`.
 - **`VEC-TTB-06` (Pillar 6 — Tools / Toolchain & Symlink Confinement):** Invoke `nomos-build-guard.sh` on raw `go build` (asserting fail-closed block) and plant a symlink inside a worktree (asserting `ZeroFilesystemAliasGate` rejection).
 - **`VEC-TTB-07` (Pillar 7 — Verification / Anti-Shortcut Enforcement):** Inject an empty function stub (`func Shortcut() {}`) into a worktree; assert `AntiShimGate` rejects the shortcut (`0.0%` trunk defect leakage).
+
+---
+
+## 5. External Containerized Paired Evaluation (`v4.1.0`, `n = 95`)
+
+`TraceTrial-Bench` (`arXiv:2610.32285`) separates **harness reliability** from **model capability** across 95 containerized tasks (`190` paired Docker runs across 7 pillars). Both arms run identical `Claude Code v2.1.220` against fixed `gemini-2.5-flash-lite` (scored by `gemini-3.5-flash-lite`), comparing stock Control against `nomos-claudecode:4.1.0`:
+
+| Pillar / Cohort (`n = 95`, `0` errors) | Control Overall | Nomos `v4.1.0` | Overall Δ | Agent Deliverable Axis (`0–100`) | Harness Reliability Axis (`0–100`) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Full 95-Task Suite** | `44.89` | **`48.78`** | **`+3.89` (`+8.7%` rel.)** | `34.78` → **`40.05` (`+5.27` / `+15.2%` rel.)** | `55.01` → **`57.52` (`+2.51`)** |
+| **`C` · Context & Continuity (`n = 15`)** | `43.55` | **`62.16`** | **`+18.62` (`+42.8%` rel.)** | `32.59` → **`58.12` (`+25.52` / `+78.3%` rel.)** | `54.51` → **`66.21` (`+11.71`)** |
+| **`V` · Verification & Batch (`n = 1`)** | `7.14` | **`42.86`** | **`+35.71`** | `0.00` → `0.00` (`0.00`) | `14.29` → **`85.71` (`+71.43`)** |
+| **`G` · Guardrails & Safety (`n = 9`)** | `44.96` | **`50.18`** | **`+5.22` (`+11.6%` rel.)** | `35.46` → **`46.73` (`+11.27` / `+31.8%` rel.)** | `54.45` → `53.63` (`-0.82`) |
+| **`O` · Observability & Audit (`n = 7`)** | `50.48` | **`52.16`** | **`+1.69`** | `35.71` → `34.92` (`-0.79`) | `65.24` → **`69.40` (`+4.17`)** |
+| **`E` · Execution & Recovery (`n = 27`)** | `46.57` | **`47.58`** | **`+1.02`** | `42.92` → **`45.75` (`+2.83`)** | `50.22` → `49.42` (`-0.80`) |
+| **`T` · Tooling & Protocol (`n = 17`)** | `41.76` | `41.61` | `-0.15` | `20.19` → **`20.47` (`+0.29`)** | `63.33` → `62.74` (`-0.59`) |
+| **`L` · Long-Horizon State (`n = 19`)** | `46.27` | `44.75` | `-1.53` | `39.15` → `36.02` (`-3.13`) | `53.39` → **`53.47` (`+0.08`)** |
+
+### 5.1 Paired Attribution & Task-Level Highlights (`n = 95`)
+- **Causal Failure Reduction:** Reduced `harness_caused` failure attributions from `55` (Control) to **`45` (`-18.2%` relative reduction)** across 95 tasks.
+- **Head-to-Head Task Record:** Achieved **`36` wins / `30` ties / `29` losses** overall (`24` wins / `53` ties / `18` losses on the Harness axis).
+- **Largest Single-Task Lifts:** `G3-ratefeed-001` (`10.0` → **`70.0`**, `+60.0`), `T7-opsplugin-compliance-002` (`12.2` → **`63.6`**, `+51.4`), `O2-harness-refusal-notice-001` (`37.5` → **`87.5`**, `+50.0`), `C4-resume-fidelity-001` (`35.0` → **`83.8`**, `+48.8`), and `C3-certretention-002` (`22.6` → **`70.2`**, `+47.6`).
+
+---
+
+## 6. Empirical Engineering Takeaways
+
+1. **Majority of Agent Failures Originate in the Harness (`57.9%` Baseline):** In stock `Claude Code`, `55 / 95` failures trace to harness mechanics rather than model intelligence. Deterministic compiled guardrails lift budget-model deliverable output by **`+15.2%`** (`+78.3%` in Context & Continuity) without changing weights.
+2. **Governance Overlays Must Chain Additively, Never Shadow (`O` `+10.39` & `T` `+5.92` Recovery):** Passing CLI `--settings` overrides shadows workspace-local hooks and degrades plugin/audit reliability (`-6.51` in `v4.0.0`). Merging compiled `nomos hook` entries additively into configuration preserves existing hooks and flips Observability positive (`+4.17` over stock).
+3. **Zero-Noise Channel Purity Beats Verbose Prompt Coaching:** Injecting synthetic coaching prose into `PostToolUse` outputs masked native OS `EACCES` errors and degraded guardrail attribution by `-39.3%`. Emitting `{}` on allow and firing only on deterministic syntax or boundary violations preserves native error provenance.
+4. **Input-Channel Hygiene & Stateful Loop Breakers Multiply Continuity (`+42.8%` on `C`):** Budget models routinely pass unexpanded `$WORKSPACE`/`~` literals to `Read`/`Write` tools and repeat identical failing calls (`700+` turns). Blocking unexpanded shell tokens pre-flight and enforcing a 3-strike identical-failure circuit-breaker (with async status-polling exemptions) prevents context collapse.
