@@ -166,3 +166,73 @@ func TestHookPostTool_ChannelPurityAndInMemorySyntax(t *testing.T) {
 	}
 }
 
+func TestHookChaining_AdditivePreservation(t *testing.T) {
+	existingClaude := []byte(`{
+  "permissions": {"allow": ["Bash(npm test)"]},
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [{"type": "command", "command": "./custom-audit.sh", "timeout": 5}]
+      }
+    ]
+  }
+}`)
+	mergedOnce, err := cli.MergeHookManifest(existingClaude, cli.DefaultClaudeSettingsHooksJSON())
+	if err != nil {
+		t.Fatalf("MergeHookManifest failed: %v", err)
+	}
+	mergedTwice, err := cli.MergeHookManifest(mergedOnce, cli.DefaultClaudeSettingsHooksJSON())
+	if err != nil {
+		t.Fatalf("second MergeHookManifest failed: %v", err)
+	}
+	if string(mergedOnce) != string(mergedTwice) {
+		t.Fatalf("expected MergeHookManifest to be idempotent on repeat runs:\nonce:\n%s\ntwice:\n%s", string(mergedOnce), string(mergedTwice))
+	}
+	outStr := string(mergedTwice)
+	for _, token := range []string{"Bash(npm test)", "./custom-audit.sh", "nomos hook pre-tool", "nomos hook post-tool", "nomos hook session-start"} {
+		if !strings.Contains(outStr, token) {
+			t.Fatalf("expected merged manifest to preserve/include %q, got:\n%s", token, outStr)
+		}
+	}
+}
+
+func TestHookPreTool_ThreeStrikeLoopCircuitBreaker(t *testing.T) {
+	sandboxDir := t.TempDir()
+	targetFile := filepath.Join(sandboxDir, "app.go")
+	if err := os.WriteFile(targetFile, []byte("package main\n"), 0644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	payload := map[string]any{
+		"cwd":        sandboxDir,
+		"tool_name":  "Bash",
+		"tool_input": map[string]any{"command": "pytest tests/test_missing.py"},
+	}
+
+	// Strike 1 & Strike 2 allowed
+	for strike := 1; strike <= 2; strike++ {
+		out := executeHookCmd(t, []string{"pre-tool", "--hermetic-dir", sandboxDir}, payload)
+		if dec := parseDecision(t, out); dec.Decision != "allow" {
+			t.Fatalf("expected strike %d to be allowed, got %+v", strike, dec)
+		}
+	}
+
+	// Strike 3 without workspace progress is denied by Loop Circuit-Breaker
+	outStrike3 := executeHookCmd(t, []string{"pre-tool", "--hermetic-dir", sandboxDir}, payload)
+	dec3 := parseDecision(t, outStrike3)
+	if dec3.Decision != "deny" || !strings.Contains(dec3.Reason, "Loop Circuit-Breaker (Law 1)") {
+		t.Fatalf("expected strike 3 to trigger Loop Circuit-Breaker deny, got %+v", dec3)
+	}
+
+	// Workspace state mutation resets the circuit-breaker
+	if err := os.WriteFile(targetFile, []byte("package main\n// updated\n"), 0644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+	outAfterEdit := executeHookCmd(t, []string{"pre-tool", "--hermetic-dir", sandboxDir}, payload)
+	if dec := parseDecision(t, outAfterEdit); dec.Decision != "allow" {
+		t.Fatalf("expected circuit-breaker reset after workspace file update, got %+v", dec)
+	}
+}
+
+

@@ -310,10 +310,14 @@ func pruneLegacyWorkflows(dir string) {
 	wfDir := filepath.Join(dir, ".agents", "workflows")
 	legacy := []string{"nomos-handshake.md", "nomos-idle.md", "nomos-review.md"}
 	for _, name := range legacy {
-		_ = os.Remove(filepath.Join(wfDir, name))
+		if rErr := os.Remove(filepath.Join(wfDir, name)); rErr != nil && !os.IsNotExist(rErr) {
+			// best-effort prune
+		}
 	}
 	if entries, err := os.ReadDir(wfDir); err == nil && len(entries) == 0 {
-		_ = os.Remove(wfDir)
+		if rErr := os.Remove(wfDir); rErr != nil && !os.IsNotExist(rErr) {
+			// best-effort directory prune
+		}
 	}
 }
 
@@ -324,14 +328,17 @@ func scaffoldAmbientHooks(dir string) error {
 		return err
 	}
 
-	manifestTarget := filepath.Join(agentsDir, "hooks.json")
-	if _, err := os.Stat(manifestTarget); os.IsNotExist(err) {
-		manifestBytes, rErr := initTemplates.ReadFile("templates/hooks/hooks.json")
-		if rErr != nil {
-			return rErr
-		}
-		if wErr := os.WriteFile(manifestTarget, manifestBytes, 0644); wErr != nil {
-			return wErr
+	manifestBytes, rErr := initTemplates.ReadFile("templates/hooks/hooks.json")
+	if rErr != nil {
+		return rErr
+	}
+	if mErr := scaffoldOrMergeHookManifestFile(filepath.Join(agentsDir, "hooks.json"), manifestBytes); mErr != nil {
+		return mErr
+	}
+	claudeSettingsPath := filepath.Join(dir, ".claude", "settings.json")
+	if _, statErr := os.Stat(claudeSettingsPath); statErr == nil {
+		if cErr := scaffoldOrMergeHookManifestFile(claudeSettingsPath, DefaultClaudeSettingsHooksJSON()); cErr != nil {
+			return cErr
 		}
 	}
 
@@ -345,9 +352,26 @@ func scaffoldAmbientHooks(dir string) error {
 		if err := os.WriteFile(targetPath, tmplBytes, 0755); err != nil {
 			return err
 		}
-		_ = os.Chmod(targetPath, 0755)
+		if cErr := os.Chmod(targetPath, 0755); cErr != nil {
+			return cErr
+		}
 	}
 	return nil
+}
+
+func scaffoldOrMergeHookManifestFile(targetPath string, templateBytes []byte) error {
+	existingBytes, err := os.ReadFile(targetPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return os.WriteFile(targetPath, templateBytes, 0644)
+		}
+		return err
+	}
+	mergedBytes, mErr := MergeHookManifest(existingBytes, templateBytes)
+	if mErr != nil {
+		return mErr
+	}
+	return os.WriteFile(targetPath, mergedBytes, 0644)
 }
 
 

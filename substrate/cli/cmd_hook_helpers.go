@@ -139,7 +139,8 @@ func resolveHookWorkspaceDir(p *HookPayload, hermeticDir string) string {
 	return "."
 }
 
-// EvaluatePreToolHook enforces Law 3 boundary isolation and Law 7 command safety on PreToolUse events.
+// EvaluatePreToolHook enforces Law 3 boundary isolation, Law 7 command safety,
+// and Law 1 3-strike identical-failure loop circuit-breaking on PreToolUse events.
 func EvaluatePreToolHook(p *HookPayload, hermeticDir string) HookDecision {
 	if p == nil {
 		return HookDecision{Decision: "allow"}
@@ -150,9 +151,11 @@ func EvaluatePreToolHook(p *HookPayload, hermeticDir string) HookDecision {
 		}
 	}
 	if p.TargetFile != "" && !isReadOnlyTool(p.ToolName) {
-		return evaluateFileMutationGuard(p, hermeticDir)
+		if dec := evaluateFileMutationGuard(p, hermeticDir); dec.Decision == "deny" {
+			return dec
+		}
 	}
-	return HookDecision{Decision: "allow"}
+	return EvaluateLoopCircuitBreaker(p, hermeticDir)
 }
 
 func isReadOnlyTool(name string) bool {
