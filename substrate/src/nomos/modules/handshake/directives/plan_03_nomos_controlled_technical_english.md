@@ -1,7 +1,7 @@
 ---
 authors:
     - Mark Gantlett
-    - Sophia
+    - Nomos Open-Core Substrate
 category: planning
 classification: public
 date: "2026-10-14"
@@ -13,15 +13,15 @@ items:
     - "Mood Invariant: Procedural instructions must use imperative mood; reject passive voice constructions"
     - "Modal Prohibition: Specifications must prohibit ambiguous modals (should, would, could, might, ideally, as needed, and/or)"
     - "Singularity Invariant: Every approved term possesses exactly one part of speech and one architectural definition"
-    - "Atomic Actions: Procedural steps must declare exactly one discrete action per sentence"
-last_updated: "2026-10-14"
+    - "Succinct Steering Lexicon: Query all 36 canonical verbs and nouns via nomos directive --lexicon"
+last_updated: "2026-11-02"
 phases:
     - PLAN
     - EDIT
 plane: intent
 priority: high
 status: active
-summary: "Authoritative JIT directive for authoring Intent specifications and task contracts under Nomos Controlled Technical English."
+summary: "Authoritative JIT directive for authoring Intent specifications and agent-steering prompts under NCTE-100."
 title: "Nomos Controlled Technical English (NCTE-100) Authoring Directives"
 type: architecture
 ---
@@ -30,9 +30,9 @@ type: architecture
 
 ## 1. Executive Purpose
 
-NCTE-100 defines a deterministic subset of English for Intent authoring and task contracts.
-Natural language serves as compilation input for AI agents.
-Ambiguous syntax causes cognitive co-processors to hallucinate.
+NCTE-100 defines a deterministic subset of English for Intent authoring and agent steering.
+Natural language serves as compilation input for AI cognitive co-processors.
+Ambiguous syntax causes Tier 1 agents to hallucinate unrequested abstractions.
 NCTE-100 eliminates ambiguity through machine-enforced vocabulary and sentence bounds.
 
 ---
@@ -60,22 +60,37 @@ NCTE-100 eliminates ambiguity through machine-enforced vocabulary and sentence b
 
 ### Invariant 5: Measurable Assertions (Law 2 & Law 7)
 - Express acceptance criteria as measurable bounds, exit codes, or AST properties.
-- Reject subjective qualitative adjectives lacking numerical thresholds.
+- Reject qualitative intensifiers lacking numerical thresholds.
 
 ---
 
-## 3. Approved Vocabulary Reference
+## 3. Succinct Action Lexicon Across the 5 Steering Domains
+
+Run `nomos directive --lexicon` to list all 36 compiled terms or `nomos directive --term <word>` to resolve synonyms.
 
 | Canonical Term | Part of Speech | Approved Semantic Meaning | Banned Synonyms |
 | :--- | :--- | :--- | :--- |
+| **Pair** | Verb | Allocate linked INT and SUB twin task records atomically. | bundle, couple |
+| **Chore** | Noun | A single-step burden-1 task provisioned directly into EDIT. | quickfix, hotfix |
+| **Start** | Verb | Provision an isolated task worktree and mint a CapBAC lease. | spin up, kick off |
+| **Sync** | Verb | Execute atomic 2PC fast-forward merge to trunk with walkthrough receipt. | ship, land, push to prod |
+| **Prune** | Verb | Remove orphaned worktrees and merged feature branches safely. | delete, clean up, wipe |
 | **Verify** | Verb | Execute automated validation checks and assert exit code 0. | check, test, inspect |
+| **Attest** | Verb | Prove gate mutation sensitivity, specificity, and anti-vacuity. | certify, vouch |
 | **Reject** | Verb | Abort execution and return a structured non-zero exit code. | drop, ignore, fail |
-| **Trunk** | Noun | The primary protected git branch (`main`). | master, root, upstream |
-| **Worktree** | Noun | An isolated transient git worktree directory. | sandbox, folder, temp branch |
-| **Mutate** | Verb | Modify or write persistent state or files. | change, edit, tweak |
-| **Prune** | Verb | Remove transient worktrees or merged branches safely. | delete, clean up, wipe |
-| **Receipt** | Noun | A cryptographic review or release proof stored in the database. | note, log, certificate |
 | **Seal** | Verb | Commit an immutable cryptographic Git Note onto release refs. | stamp, finalize, tag |
+| **Receipt** | Noun | A cryptographic review or release proof stored in Git Notes or SQLite. | note, log, certificate |
+| **Trunk** | Noun | The primary protected read-only git branch (`main`). | master, root branch, upstream |
+| **Worktree** | Noun | An isolated transient git worktree directory under `worktrees/`. | sandbox, folder, temp branch |
+| **Mutate** | Verb | Modify or write persistent repository state or source files. | change, tweak, patch |
+| **Wavefront** | Noun | The set of causal DAG tasks with zero unresolved blockers. | queue, ready list |
+| **Save** | Verb | Persist an advisory reflection, decision, or axiom in Nomos Mneme. | stash, jot, remember |
+| **Recall** | Verb | Query repository-scoped or cross-repo Mneme memories by keyword. | fetch memory, lookup |
+| **Distill** | Verb | Extract verified trap-to-fix pitfalls and structural patterns during sync. | summarize, condense |
+| **Handshake** | Verb | Initialize session state, verify CapBAC leases, and emit JIT directives. | boot, connect, login |
+| **Affordance** | Noun | A deterministic HATEOAS Next Actions CLI command emitted on stdout. | suggestion, next tip |
+| **Remedy** | Noun | An exact self-healing command attached to a fail-closed NomosError. | workaround, hint |
+| **Intercept** | Verb | Block an unsafe pre-tool mutation or 3-strike loop via `nomos hook`. | catch, trap |
 
 ---
 
@@ -85,4 +100,4 @@ NCTE-100 eliminates ambiguity through machine-enforced vocabulary and sentence b
 2. "State all axiomatic invariants with exact numeric bounds."
 3. "Define data structures in CUE schemas and Go contracts."
 4. "Declare procedural steps with imperative verbs and 20 words or fewer."
-5. "Declare acceptance criteria as non-verbal proofs with exit codes."
+5. "Audit finished specifications via `nomos directive --lint <file>`."

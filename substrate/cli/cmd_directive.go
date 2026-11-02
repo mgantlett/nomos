@@ -16,17 +16,23 @@ import (
 
 // NewDirectiveCmd constructs the canonical 'nomos directive' command.
 func NewDirectiveCmd() *cobra.Command {
-	var jsonOutput bool
+	var jsonOutput, showLexicon bool
+	var domainFilter, termQuery, lintFile string
 
 	cmd := &cobra.Command{
 		Use:   "directive [name]",
-		Short: "Inspect authoritative Just-In-Time (JIT) phase and orientation directives",
-		Long: `Inspect embedded and local Just-In-Time (JIT) phase directives governing Tier 1 agent operations.
-If no directive name is specified, lists all available directives with metadata.
-If a directive name or prefix is provided, displays its complete text content.`,
+		Short: "Inspect JIT phase directives and the NCTE-100 Succinct Action Lexicon",
+		Long: `Inspect embedded and local Just-In-Time (JIT) phase directives governing Tier 1 agent operations,
+query the 36-term NCTE-100 Succinct Action Lexicon (--lexicon / --term), or audit Markdown specifications (--lint).`,
 		Example: helpDirectiveExample,
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if lintFile != "" {
+				return executeDirectiveLint(cmd, lintFile, jsonOutput)
+			}
+			if showLexicon || termQuery != "" || domainFilter != "" {
+				return executeDirectiveLexicon(cmd, domainFilter, termQuery, jsonOutput)
+			}
 			repoRoot, err := os.Getwd()
 			if err != nil {
 				return types.NewNomosError(types.ErrCodeBoundary, "failed resolving working directory: %v", err)
@@ -34,16 +40,18 @@ If a directive name or prefix is provided, displays its complete text content.`,
 			if rRoot, rErr := workspace.FindRepoRoot(repoRoot); rErr == nil && rRoot != "" {
 				repoRoot = rRoot
 			}
-
 			if len(args) == 0 || args[0] == "list" {
 				return executeDirectiveList(cmd, repoRoot, jsonOutput)
 			}
-
 			return executeDirectiveShow(cmd, repoRoot, args[0], jsonOutput)
 		},
 	}
 
-	cmd.Flags().BoolVar(&jsonOutput, "json", false, "Output directive in machine-readable JSON format")
+	cmd.Flags().BoolVar(&jsonOutput, flagNameJSON, false, "Output directive or lexicon in machine-readable JSON format")
+	cmd.Flags().BoolVar(&showLexicon, "lexicon", false, "Display the 36-term NCTE-100 Succinct Action Lexicon")
+	cmd.Flags().StringVar(&domainFilter, "domain", "", "Filter lexicon by steering domain (lifecycle|verification|isolation|memory|steering)")
+	cmd.Flags().StringVar(&termQuery, "term", "", "Resolve a canonical term or banned synonym in the NCTE-100 lexicon")
+	cmd.Flags().StringVar(&lintFile, "lint", "", "Audit a Markdown file against NCTE-100 sentence, modal, and lexicon rules")
 	return cmd
 }
 

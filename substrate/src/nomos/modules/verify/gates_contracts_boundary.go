@@ -75,6 +75,12 @@ func AuditArchitecturalEngines(root string) []ArchitecturalEngineDescriptor {
 			EnforcedBy:    "substrate/src/nomos/modules/telemetry",
 			IsImplemented: dirExists(filepath.Join(root, "substrate", "src", "nomos", "modules", "telemetry")),
 		},
+		{
+			Name:          "Nomos Controlled Technical English (NCTE-100) Engine",
+			IntentSpec:    "nomos_controlled_technical_english_spec.md",
+			EnforcedBy:    "substrate/src/nomos/modules/ncte",
+			IsImplemented: dirExists(filepath.Join(root, "substrate", "src", "nomos", "modules", "ncte")),
+		},
 	}
 }
 

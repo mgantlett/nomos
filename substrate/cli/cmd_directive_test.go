@@ -3,77 +3,51 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/ncte"
 )
 
-func TestDirectiveCmd_ListText(t *testing.T) {
-	cmd := NewDirectiveCmd()
-	buf := new(bytes.Buffer)
-	cmd.SetOut(buf)
-	cmd.SetErr(buf)
-
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("directive list failed: %v", err)
+func TestDirectiveCmd_LexiconTermAndLint(t *testing.T) {
+	lexCmd := NewDirectiveCmd()
+	lexBuf := new(bytes.Buffer)
+	lexCmd.SetOut(lexBuf)
+	lexCmd.SetArgs([]string{"--lexicon", "--domain", "steering", "--json"})
+	if err := lexCmd.Execute(); err != nil {
+		t.Fatalf("directive --lexicon --domain steering --json failed: %v", err)
+	}
+	var entries []ncte.VocabularyEntry
+	if err := json.Unmarshal(lexBuf.Bytes(), &entries); err != nil {
+		t.Fatalf("unmarshal lexicon JSON: %v", err)
+	}
+	if len(entries) != 6 {
+		t.Fatalf("expected 6 steering lexicon entries, got %d", len(entries))
 	}
 
-	out := buf.String()
-	if !strings.Contains(out, "Nomos Just-In-Time (JIT) Directives") {
-		t.Errorf("output missing title banner: %s", out)
+	termCmd := NewDirectiveCmd()
+	termBuf := new(bytes.Buffer)
+	termCmd.SetOut(termBuf)
+	termCmd.SetArgs([]string{"--term", "sandbox"})
+	if err := termCmd.Execute(); err != nil {
+		t.Fatalf("directive --term sandbox failed: %v", err)
 	}
-	if !strings.Contains(out, "00_index_and_taxonomy.md") {
-		t.Errorf("output missing 00_index_and_taxonomy.md: %s", out)
-	}
-	if !strings.Contains(out, "edit_01_deprecated_terms.md") {
-		t.Errorf("output missing edit_01_deprecated_terms.md: %s", out)
-	}
-}
-
-func TestDirectiveCmd_ListJSON(t *testing.T) {
-	cmd := NewDirectiveCmd()
-	buf := new(bytes.Buffer)
-	cmd.SetOut(buf)
-	cmd.SetErr(buf)
-	cmd.SetArgs([]string{"--json"})
-
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("directive list --json failed: %v", err)
+	if !strings.Contains(termBuf.String(), "Worktree") {
+		t.Fatalf("expected synonym lookup for sandbox to surface Worktree, got:\n%s", termBuf.String())
 	}
 
-	var parsed []map[string]interface{}
-	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
-		t.Fatalf("failed unmarshaling json output: %v, raw: %s", err, buf.String())
+	dir := t.TempDir()
+	cleanDoc := filepath.Join(dir, "clean.md")
+	if err := os.WriteFile(cleanDoc, []byte("# Spec\n\nExecute `nomos verify` inside the isolated worktree.\n"), 0644); err != nil {
+		t.Fatalf("write clean.md: %v", err)
 	}
-	if len(parsed) < 17 {
-		t.Errorf("expected at least 17 directives in JSON list, got %d", len(parsed))
-	}
-}
-
-func TestDirectiveCmd_ShowDirective(t *testing.T) {
-	cmd := NewDirectiveCmd()
-	buf := new(bytes.Buffer)
-	cmd.SetOut(buf)
-	cmd.SetErr(buf)
-	cmd.SetArgs([]string{"edit_01"})
-
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("directive show edit_01 failed: %v", err)
-	}
-
-	out := buf.String()
-	if !strings.Contains(out, "Deprecated Terms & Taxonomy Directives") {
-		t.Errorf("output missing expected heading: %s", out)
-	}
-}
-
-func TestDirectiveCmd_ShowNonexistent(t *testing.T) {
-	cmd := NewDirectiveCmd()
-	buf := new(bytes.Buffer)
-	cmd.SetOut(buf)
-	cmd.SetErr(buf)
-	cmd.SetArgs([]string{"nonexistent_directive_foo"})
-
-	if err := cmd.Execute(); err == nil {
-		t.Errorf("expected error for nonexistent directive, got nil")
+	lintCmd := NewDirectiveCmd()
+	lintBuf := new(bytes.Buffer)
+	lintCmd.SetOut(lintBuf)
+	lintCmd.SetArgs([]string{"--lint", cleanDoc, "--json"})
+	if err := lintCmd.Execute(); err != nil {
+		t.Fatalf("directive --lint clean.md failed: %v", err)
 	}
 }

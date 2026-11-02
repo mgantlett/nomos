@@ -62,8 +62,9 @@ syntax and budget radar checks on modified source files.`
 	helpHookPostToolExample = `  echo '{"tool_name":"Edit","tool_input":{"file_path":"worktrees/repo-SUB-1/app.go"}}' | nomos hook post-tool`
 
 	helpDirectiveExample = `  nomos directive
-  nomos directive 00_index_and_taxonomy.md
-  nomos directive --json`
+  nomos directive plan_03_nomos_controlled_technical_english.md
+  nomos directive --lexicon --domain steering
+  nomos directive --term sandbox`
 
 	helpCapabilitiesExample = `  nomos capabilities
   nomos capabilities --type gate
