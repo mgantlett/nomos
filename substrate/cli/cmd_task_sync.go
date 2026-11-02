@@ -18,9 +18,11 @@ func newTaskSyncCmd() *cobra.Command {
 	var walkthroughPath string
 
 	cmd := &cobra.Command{
-		Use:   "sync <key>",
-		Short: "2PC release: evaluate DoD gates, merge to trunk, and prune worktree",
-		Args:  cobra.ExactArgs(1),
+		Use:     "sync <key>",
+		Short:   "2PC release: evaluate DoD gates, merge to trunk, and prune worktree",
+		Long:    helpTaskSyncLong,
+		Example: helpTaskSyncExample,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := strings.ToUpper(strings.TrimSpace(args[0]))
 			if walkthroughPath == "" {

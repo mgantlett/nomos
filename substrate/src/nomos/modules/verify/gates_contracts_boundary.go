@@ -51,10 +51,11 @@ func AuditArchitecturalEngines(root string) []ArchitecturalEngineDescriptor {
 			IsImplemented: fileExists(filepath.Join(root, "substrate", "src", "nomos", "core", "policy", "engine.go")),
 		},
 		{
-			Name:          "Nomos Software Physics Engine",
-			IntentSpec:    "software_physics_engine_spec.md",
-			EnforcedBy:    "substrate/cli/physics.go",
-			IsImplemented: fileExists(filepath.Join(root, "substrate", "cli", "physics.go")),
+			Name:       "Nomos Software Physics Engine",
+			IntentSpec: "software_physics_engine_spec.md",
+			EnforcedBy: "substrate/cli/physics.go, substrate/cli/cmd_physics.go",
+			IsImplemented: fileExists(filepath.Join(root, "substrate", "cli", "physics.go")) &&
+				fileExists(filepath.Join(root, "substrate", "cli", "cmd_physics.go")),
 		},
 		{
 			Name:          "Polyglot AST Engine via WebAssembly (wazero)",

@@ -176,6 +176,16 @@ func EvaluateMutationSensitivity(root string, files []string) (int, int, error) 
 	}
 	total++
 
+	cobraStub, cErr := parser.ParseExpr(`&cobra.Command{Use: "stub", Short: "missing long and example"}`)
+	if cErr == nil {
+		if unary, ok := cobraStub.(*ast.UnaryExpr); ok {
+			if comp, ok := unary.X.(*ast.CompositeLit); ok && len(ValidateCobraCommandCompositeLit(comp)) > 0 {
+				killed++
+			}
+		}
+	}
+	total++
+
 	if len(samples) == 0 {
 		synKilled, synTotal := evaluateSyntheticMutants()
 		killed += synKilled
@@ -236,6 +246,16 @@ func EvaluateMetamorphicSpecificity(scannedFiles []string) (int, int, error) {
 	gates := DefaultBaselineGates()
 	if len(gates) > 0 {
 		passed++
+	}
+	total++
+
+	cobraRef, cErr := parser.ParseExpr(`&cobra.Command{Use: "ok", Short: "short", Long: "long", Example: "nomos ok"}`)
+	if cErr == nil {
+		if unary, ok := cobraRef.(*ast.UnaryExpr); ok {
+			if comp, ok := unary.X.(*ast.CompositeLit); ok && len(ValidateCobraCommandCompositeLit(comp)) == 0 {
+				passed++
+			}
+		}
 	}
 	total++
 

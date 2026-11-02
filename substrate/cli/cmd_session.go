@@ -21,6 +21,7 @@ func NewSessionCmd() *cobra.Command {
 		Long: `Manage Tier 1 agent conversation sessions, name tags, and metadata contracts.
 Enables operators to tag and rename sessions so fleet and dashboard views
 can distinguish active mission contexts across AGY-IDE, AGY-CLI, Claude Code, and OpenCode.`,
+		Example: helpSessionExample,
 	}
 
 	sessionCmd.AddCommand(newSessionNameCmd())
@@ -40,7 +41,8 @@ func newSessionNameCmd() *cobra.Command {
 		Short: "Assign a human-readable title or alias to an agent conversation session",
 		Long: `Assign a human-readable title or alias to an agent conversation session.
 If no session ID is specified via --id, the currently active session is auto-discovered.`,
-		Args: cobra.ArbitraryArgs,
+		Example: helpSessionNameExample,
+		Args:    cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := extractNameFromArgs(args)
 			if name == "" {
@@ -103,8 +105,10 @@ func newSessionListCmd() *cobra.Command {
 	var jsonOutput bool
 
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List discovered agent conversation sessions and their metadata",
+		Use:     "list",
+		Short:   "List discovered agent conversation sessions and their metadata",
+		Long:    helpSessionListLong,
+		Example: helpSessionListExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			sessions, err := session.DiscoverSessions(brainDir, "")
 			if err != nil {
@@ -136,8 +140,10 @@ func newSessionVisualCmd() *cobra.Command {
 	var jsonOutput bool
 
 	cmd := &cobra.Command{
-		Use:   "visual",
-		Short: "Generate Mermaid visual topology of active agent sessions",
+		Use:     "visual",
+		Short:   "Generate Mermaid visual topology of active agent sessions",
+		Long:    helpSessionVisualLong,
+		Example: helpSessionVisualExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			sessions, err := session.DiscoverSessions(brainDir, repoRoot)
 			if err != nil {
@@ -175,9 +181,11 @@ func newSessionShowCmd() *cobra.Command {
 	var jsonOutput bool
 
 	cmd := &cobra.Command{
-		Use:   "show [SESSION_ID]",
-		Short: "Deeply inspect an agent conversation session, events timeline, and Sentinel scorecard",
-		Args:  cobra.MaximumNArgs(1),
+		Use:     "show [SESSION_ID]",
+		Short:   "Deeply inspect an agent conversation session, events timeline, and Sentinel scorecard",
+		Long:    helpSessionShowLong,
+		Example: helpSessionShowExample,
+		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			sessionID := ""
 			if len(args) > 0 {

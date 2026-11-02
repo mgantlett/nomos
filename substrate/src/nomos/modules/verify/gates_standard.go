@@ -286,8 +286,15 @@ type PhaseDisciplineGate struct{}
 func (g *PhaseDisciplineGate) Name() string { return "Phase Discipline Invariant" }
 
 func (g *PhaseDisciplineGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
-	if ctx.Phase == "" {
+	if ctx == nil || ctx.Phase == "" {
 		return &GateResult{GateName: g.Name(), Passed: true, Message: "no active phase enforced"}, nil
+	}
+	if !types.IsValidPhase(types.Phase(ctx.Phase)) {
+		return &GateResult{
+			GateName: g.Name(), Passed: false,
+			Message: fmt.Sprintf("invalid workspace phase %q: must be IDLE, PLAN, EDIT, REVIEW, SYNC, or LEARN", ctx.Phase),
+			Remedy:  "restore valid phase state via 'nomos handshake' or 'nomos task abort'",
+		}, nil
 	}
 	return &GateResult{GateName: g.Name(), Passed: true, Message: fmt.Sprintf("phase %s valid", ctx.Phase)}, nil
 }

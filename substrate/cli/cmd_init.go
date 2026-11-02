@@ -24,8 +24,10 @@ func NewInitCmd() *cobra.Command {
 	var targetDir string
 
 	cmd := &cobra.Command{
-		Use:   "init",
-		Short: "Initialize a new Nomos workspace with operational boundaries, tracking DB, and git defense hooks",
+		Use:     "init",
+		Short:   "Initialize a new Nomos workspace with operational boundaries, tracking DB, and git defense hooks",
+		Long:    helpInitLong,
+		Example: helpInitExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dir := targetDir
 			if dir == "" {

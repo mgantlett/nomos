@@ -2,6 +2,7 @@
 package verify
 
 import (
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -89,13 +90,18 @@ func (g *ReleaseReceiptGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		repoRoot = ctx.RepoRoot
 	}
 
-	cmd := workspace.SafeGitCommand(repoRoot, "notes", "--ref=refs/notes/nomos/releases", "list")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		// Exit code non-zero is acceptable if ref does not exist yet, but verify command executed
-		msg := string(output)
-		if len(msg) > 120 {
-			msg = msg[:117] + "..."
+	showCmd := workspace.SafeGitCommand(repoRoot, "notes", "--ref=refs/notes/nomos/releases", "show", "HEAD")
+	if rawNote, showErr := showCmd.Output(); showErr == nil && len(strings.TrimSpace(string(rawNote))) > 0 {
+		var receipt struct {
+			TaskKey       string `json:"task_key"`
+			SHA256Receipt string `json:"sha256_receipt"`
+		}
+		if jErr := json.Unmarshal(rawNote, &receipt); jErr != nil || receipt.TaskKey == "" || len(receipt.SHA256Receipt) != 64 {
+			return &GateResult{
+				GateName: g.Name(), Passed: false,
+				Message: "corrupted Git Note receipt on HEAD: missing valid task_key or 64-char sha256_receipt",
+				Remedy:  "re-attest HEAD release provenance via 'nomos task sync'",
+			}, nil
 		}
 	}
 

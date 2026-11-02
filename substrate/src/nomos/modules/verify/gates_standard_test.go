@@ -186,3 +186,15 @@ func TestWalkTargetFiles_BaselineExcludes(t *testing.T) {
 	}
 }
 
+func TestPhaseDisciplineGate_RejectsInvalidPhase(t *testing.T) {
+	g := &PhaseDisciplineGate{}
+	resValid, err := g.Evaluate(&VerifyContext{Phase: "EDIT"})
+	if err != nil || !resValid.Passed {
+		t.Fatalf("expected canonical EDIT phase to pass, got %+v (%v)", resValid, err)
+	}
+	resInvalid, err := g.Evaluate(&VerifyContext{Phase: "MUTATED_BOGUS"})
+	if err != nil || resInvalid.Passed {
+		t.Fatalf("expected invalid phase MUTATED_BOGUS to fail closed, got %+v (%v)", resInvalid, err)
+	}
+}
+

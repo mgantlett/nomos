@@ -34,16 +34,18 @@ func newTaskCreateCmd() *cobra.Command {
 	var opts taskCreateOpts
 
 	cmd := &cobra.Command{
-		Use:   "create <title>",
-		Short: "Allocate and persist a new Living Ledger task record",
-		Args:  cobra.ExactArgs(1),
+		Use:     "create <title>",
+		Short:   "Allocate and persist a new Living Ledger task record",
+		Long:    helpTaskCreateLong,
+		Example: helpTaskCreateExample,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.stdin = cmd.InOrStdin()
 			return executeTaskCreate(args[0], opts)
 		},
 	}
-	cmd.Flags().StringVarP(&opts.plane, "plane", "p", "substrate", "Target plane (intent|substrate)")
-	cmd.Flags().StringVarP(&opts.tier, "tier", "t", "T1", "Cognitive tier (T1|T2)")
+	cmd.Flags().StringVarP(&opts.plane, flagNamePlane, "p", "substrate", "Target plane (intent|substrate)")
+	cmd.Flags().StringVarP(&opts.tier, flagNameTier, "t", "T1", "Cognitive tier (T1|T2)")
 	cmd.Flags().IntVarP(&opts.priority, "priority", "r", 50, "Priority (0-100)")
 	cmd.Flags().StringVarP(&opts.customKey, "key", "k", "", "Explicit task key (e.g. SUB-1212)")
 	cmd.Flags().StringVar(&opts.twinOf, "twin-of", "", "Twin task key in opposite plane to link with")
@@ -135,9 +137,11 @@ func resolveOrAllocateCreateKey(store task.TaskStore, plane, customKey string) (
 func newTaskStartCmd() *cobra.Command {
 	var autoEdit bool
 	cmd := &cobra.Command{
-		Use:   "start <key>",
-		Short: "Provision transient worktree and CapBAC lease for task",
-		Args:  cobra.ExactArgs(1),
+		Use:     "start <key>",
+		Short:   "Provision transient worktree and CapBAC lease for task",
+		Long:    helpTaskStartLong,
+		Example: helpTaskStartExample,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTaskStart(args[0], autoEdit)
 		},
@@ -199,9 +203,11 @@ func persistStartedLease(phase types.Phase, key, wtPath string) error {
 
 func newTaskEditCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "edit <key>",
-		Short: "Transition task to EDIT phase and enable code mutations",
-		Args:  cobra.ExactArgs(1),
+		Use:     "edit <key>",
+		Short:   "Transition task to EDIT phase and enable code mutations",
+		Long:    helpTaskEditLong,
+		Example: helpTaskEditExample,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := strings.ToUpper(strings.TrimSpace(args[0]))
 			store, err := task.NewDefaultSQLiteTaskStore()
@@ -226,9 +232,11 @@ func newTaskEditCmd() *cobra.Command {
 
 func newTaskReviewCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "review <key>",
-		Short: "Transition task to REVIEW phase and evaluate DoD quality gates",
-		Args:  cobra.ExactArgs(1),
+		Use:     "review <key>",
+		Short:   "Transition task to REVIEW phase and evaluate DoD quality gates",
+		Long:    helpTaskReviewLong,
+		Example: helpTaskReviewExample,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := strings.ToUpper(strings.TrimSpace(args[0]))
 			store, err := task.NewDefaultSQLiteTaskStore()
@@ -260,7 +268,7 @@ func updateActiveLeasePhase(taskKey, phase string) {
 	}
 	defer func() {
 		if cErr := db.Close(); cErr != nil {
-			// closed
+			return
 		}
 	}()
 	if leaseID, _, budget, used, lErr := storage.GetActiveLease(db, taskKey); lErr == nil {
@@ -325,9 +333,11 @@ func executeGateCheckForTask(taskKey string) (*verify.PipelineReport, error) {
 
 func newTaskAbortCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "abort <key>",
-		Short: "Abort task execution, revoke capability lease, and remove worktree",
-		Args:  cobra.ExactArgs(1),
+		Use:     "abort <key>",
+		Short:   "Abort task execution, revoke capability lease, and remove worktree",
+		Long:    helpTaskAbortLong,
+		Example: helpTaskAbortExample,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := strings.ToUpper(strings.TrimSpace(args[0]))
 			mgr, err := workspace.NewManager("")
@@ -335,7 +345,7 @@ func newTaskAbortCmd() *cobra.Command {
 				return err
 			}
 			if remErr := mgr.RemoveWorktree(key); remErr != nil {
-				// safe to continue
+				// non-fatal if worktree already removed
 			}
 			revokeActiveLease(key)
 			mem.RemoveTaskTrapBuffer(mgr.RepoRoot, key)
@@ -349,6 +359,7 @@ func newTaskAbortCmd() *cobra.Command {
 				}
 			}
 			fmt.Printf("🛑 Task %s %s\n", styleTaskKey(key), uiWarnStyle.Render("aborted and pruned"))
+			renderPhaseTransitionNextActions(os.Stdout, types.PhaseIdle, "", "", mgr.RepoRoot)
 			return nil
 		},
 	}

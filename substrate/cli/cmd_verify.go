@@ -3,7 +3,9 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,19 +18,15 @@ import (
 
 // NewVerifyCmd constructs the canonical 'nomos verify' command.
 func NewVerifyCmd() *cobra.Command {
-	var baseline bool
-	var allFiles bool
-	var strict bool
-	var impactOnly bool
-	var worktreeDir string
-	var fastFile string
-	var commitRange string
+	var baseline, allFiles, strict, impactOnly, jsonOutput bool
+	var worktreeDir, fastFile, commitRange string
 
 	cmd := &cobra.Command{
 		Use:   "verify [path]",
 		Short: "Execute automated Definition of Done (DoD) quality gates",
 		Long: `Evaluate the 7 statutory Nomos Laws and 21 Invariant Cells across active worktrees.
 Zero trust in conversational claims; non-verbal proof via AST and compilation exit code 0.`,
+		Example: helpVerifyExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			targetDir, err := resolveVerifyTargetDir(worktreeDir, args)
 			if err != nil {
@@ -40,7 +38,7 @@ Zero trust in conversational claims; non-verbal proof via AST and compilation ex
 			if impactOnly {
 				return runImpactMap(targetDir)
 			}
-			return runVerification(targetDir, commitRange, baseline, allFiles, strict)
+			return runVerificationOutput(cmd.OutOrStdout(), targetDir, commitRange, baseline, allFiles, strict, jsonOutput)
 		},
 	}
 
@@ -48,6 +46,7 @@ Zero trust in conversational claims; non-verbal proof via AST and compilation ex
 	cmd.Flags().BoolVarP(&allFiles, "all", "A", false, "Scan full repository instead of git diff only")
 	cmd.Flags().BoolVar(&strict, "strict", false, "Fail closed on cognitive debt or minor warnings")
 	cmd.Flags().BoolVar(&impactOnly, "impact", false, "Display deterministic 1-hop AST blast-radius & impact map")
+	cmd.Flags().BoolVar(&jsonOutput, flagNameJSON, false, "Emit verification report as structured JSON")
 	cmd.Flags().StringVarP(&worktreeDir, "worktree", "w", "", "Target worktree path to evaluate")
 	cmd.Flags().StringVar(&fastFile, "fast-file", "", "Evaluate sub-15ms single-file AST & security early-warning radar")
 	cmd.Flags().StringVar(&commitRange, "range", "", "Evaluate unattested commits in range (e.g. origin/main..HEAD) for pre-push verification")
@@ -76,6 +75,10 @@ func resolveVerifyTargetDir(worktreeDir string, args []string) (string, error) {
 }
 
 func runVerification(targetDir, commitRange string, baseline, allFiles, strict bool) error {
+	return runVerificationOutput(os.Stdout, targetDir, commitRange, baseline, allFiles, strict, false)
+}
+
+func runVerificationOutput(out io.Writer, targetDir, commitRange string, baseline, allFiles, strict, jsonOutput bool) error {
 	repoRoot, err := workspace.FindRepoRoot(targetDir)
 	if err != nil {
 		repoRoot = targetDir
@@ -92,14 +95,9 @@ func runVerification(targetDir, commitRange string, baseline, allFiles, strict b
 		activeTask = resolveWorktreeTaskKey(targetDir)
 	}
 	ctx := &verify.VerifyContext{
-		RepoRoot:     repoRoot,
-		WorktreePath: targetDir,
-		TaskID:       activeTask,
-		CommitRange:  strings.TrimSpace(commitRange),
-		IsBaseline:   baseline,
-		AllFiles:     allFiles,
-		Strict:       strict,
-		Phase:        "REVIEW",
+		RepoRoot: repoRoot, WorktreePath: targetDir, TaskID: activeTask,
+		CommitRange: strings.TrimSpace(commitRange), IsBaseline: baseline,
+		AllFiles: allFiles, Strict: strict, Phase: "REVIEW",
 	}
 
 	pipeline := verify.NewPipeline(verify.DefaultBaselineGates())
@@ -108,7 +106,16 @@ func runVerification(targetDir, commitRange string, baseline, allFiles, strict b
 		return err
 	}
 
-	renderVerificationSummary(report)
+	if jsonOutput {
+		if data, mErr := json.MarshalIndent(report, "", "  "); mErr == nil {
+			fmt.Fprintln(out, string(data))
+		}
+	} else {
+		renderVerificationSummary(report)
+		if report.Passed && activeTask != "" {
+			renderPhaseTransitionNextActions(out, types.PhaseReview, activeTask, targetDir, repoRoot)
+		}
+	}
 	if !report.Passed {
 		recordFailedReportTraps(repoRoot, targetDir, activeTask, report)
 		for _, res := range report.GateResults {
@@ -168,14 +175,16 @@ func renderFailedGatesBlock(report *verify.PipelineReport) {
 
 // newVerifyProofCmd constructs the 'nomos verify proof' command evaluating the Three Invariant Attestation Vectors.
 func newVerifyProofCmd() *cobra.Command {
-	return &cobra.Command{
+	var jsonOutput bool
+	cmd := &cobra.Command{
 		Use:   "proof [path]",
 		Short: "Evaluate the Three Gate Integrity Invariant Vectors across local or external codebases",
 		Long: `Execute deterministic gate integrity and invariant attestation across local or external repositories:
 1. Mutation Testing Sensitivity (MS = 100%): Injects failure mutants directly into codebase ASTs to prove non-vacuity.
 2. Metamorphic Reference Invariance (FPR = 0%): Evaluates clean codebase constructs to prove zero false alarms.
 3. AST Structural Anti-Vacuity Audit: Audits all gate Evaluate implementations to eliminate constant-return shims.`,
-		Args: cobra.MaximumNArgs(1),
+		Example: helpVerifyProofExample,
+		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target := "."
 			if len(args) > 0 {
@@ -189,13 +198,21 @@ func newVerifyProofCmd() *cobra.Command {
 			if pErr != nil {
 				return pErr
 			}
-			renderGateIntegrityAttestationSummary(report)
+			if jsonOutput {
+				if data, mErr := json.MarshalIndent(report, "", "  "); mErr == nil {
+					fmt.Fprintln(cmd.OutOrStdout(), string(data))
+				}
+			} else {
+				renderGateIntegrityAttestationSummary(report)
+			}
 			if !report.Passed {
 				return types.NewNomosError(types.ErrCodeInvariant, "gate integrity invariant attestation failed")
 			}
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&jsonOutput, flagNameJSON, false, "Emit gate integrity proof report as structured JSON")
+	return cmd
 }
 
 func renderGateIntegrityAttestationSummary(report *verify.ProofReport) {

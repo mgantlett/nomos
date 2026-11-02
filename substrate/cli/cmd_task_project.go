@@ -60,9 +60,11 @@ func filterTasksByProject(tasks []task.TaskRecord, project string) []task.TaskRe
 
 func newTaskProjectCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "project <project> <key> [key...]",
-		Short: "Assign or reconcile repository project identifier on Living Ledger tasks",
-		Args:  cobra.MinimumNArgs(2),
+		Use:     "project <project> <key> [key...]",
+		Short:   "Assign or reconcile repository project identifier on Living Ledger tasks",
+		Long:    helpTaskProjectLong,
+		Example: helpTaskProjectExample,
+		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			project := strings.TrimSpace(args[0])
 			if project == "" {

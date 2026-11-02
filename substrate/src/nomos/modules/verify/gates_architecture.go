@@ -3,7 +3,6 @@ package verify
 
 import (
 	"fmt"
-	"go/ast"
 	"go/parser"
 	"go/token"
 	"os"
@@ -176,6 +175,19 @@ func (g *ZeroAliasGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		}, nil
 	}
 
+	surfaceViolations, sErr := ScanCobraSurfaceCompletenessInDir(cliDir)
+	if sErr != nil {
+		return nil, sErr
+	}
+	if len(surfaceViolations) > 0 {
+		return &GateResult{
+			GateName: g.Name(), ProbeID: "zero_alias", Law: 6, Ring: RingDynamic,
+			Passed:  false,
+			Message: fmt.Sprintf("detected %d incomplete CLI command surface contract(s): %s", len(surfaceViolations), strings.Join(surfaceViolations, "; ")),
+			Remedy:  "equip every static cobra.Command with non-empty Use, Short, Long, and Example fields",
+		}, nil
+	}
+
 	if typeAliases := scanGoTypeAliases(root); len(typeAliases) > 0 {
 		return &GateResult{
 			GateName: g.Name(), ProbeID: "zero_alias", Law: 6, Ring: RingDynamic,
@@ -187,41 +199,8 @@ func (g *ZeroAliasGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 
 	return &GateResult{
 		GateName: g.Name(), ProbeID: "zero_alias", Law: 6, Ring: RingDynamic,
-		Passed: true, Message: "zero aliases or convenience wrappers detected across CLI command tree (Law 6 verified)",
+		Passed: true, Message: "zero aliases and 100% Cobra help/example surface completeness verified (Law 6)",
 	}, nil
-}
-
-func scanCobraAliasesInDir(cliDir string) ([]string, error) {
-	fset := token.NewFileSet()
-	var aliases []string
-	err := filepath.Walk(cliDir, func(path string, info os.FileInfo, walkErr error) error {
-		if walkErr != nil || info.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-			return nil
-		}
-		node, pErr := parser.ParseFile(fset, path, nil, 0)
-		if pErr != nil {
-			return nil
-		}
-		aliases = append(aliases, extractAliasesFromNode(node)...)
-		return nil
-	})
-	return aliases, err
-}
-
-func extractAliasesFromNode(node *ast.File) []string {
-	var aliases []string
-	ast.Inspect(node, func(n ast.Node) bool {
-		kv, ok := n.(*ast.KeyValueExpr)
-		if !ok {
-			return true
-		}
-		key, isIdent := kv.Key.(*ast.Ident)
-		if isIdent && key.Name == "Aliases" {
-			aliases = append(aliases, fmt.Sprintf("%v", kv.Value))
-		}
-		return true
-	})
-	return aliases
 }
 
 // MagicStringsGate scans polyglot source code for hardcoded ports and URLs (Cell 5.1, Law 5).

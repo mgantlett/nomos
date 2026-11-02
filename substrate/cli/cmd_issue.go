@@ -52,6 +52,7 @@ func NewIssueCmd() *cobra.Command {
 		Short: "Generate sanitized diagnostic bundle and open a GitHub issue",
 		Long: `Collects system telemetry, environment parameters, and git state, scrubs all
 personal workstation paths and credentials, and formats an authenticated bug report for GitHub.`,
+		Example: helpIssueExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runIssueCommand(opts, args)
 		},

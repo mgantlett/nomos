@@ -3,11 +3,21 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"runtime"
 
 	"github.com/spf13/cobra"
 )
+
+// VersionInfo models structured build provenance for 'nomos version --json'.
+type VersionInfo struct {
+	Version   string `json:"version"`
+	GOOS      string `json:"goos"`
+	GOARCH    string `json:"goarch"`
+	GoVersion string `json:"go_version"`
+	Edition   string `json:"edition"`
+}
 
 // FormatVersionOutput returns the canonical version and build telemetry string.
 func FormatVersionOutput() string {
@@ -17,11 +27,30 @@ func FormatVersionOutput() string {
 
 // NewVersionCmd constructs the canonical 'nomos version' command.
 func NewVersionCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "version",
-		Short: "Display Nomos substrate version and build telemetry",
-		Run: func(cmd *cobra.Command, args []string) {
+	var jsonOutput bool
+
+	cmd := &cobra.Command{
+		Use:     "version",
+		Short:   "Display Nomos substrate version and build telemetry",
+		Long:    helpVersionLong,
+		Example: helpVersionExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
 			out := cmd.OutOrStdout()
+			if jsonOutput {
+				info := VersionInfo{
+					Version:   RootCmdVersion,
+					GOOS:      runtime.GOOS,
+					GOARCH:    runtime.GOARCH,
+					GoVersion: runtime.Version(),
+					Edition:   "open-core",
+				}
+				data, err := json.MarshalIndent(info, "", "  ")
+				if err != nil {
+					return err
+				}
+				fmt.Fprintln(out, string(data))
+				return nil
+			}
 			fmt.Fprintf(out, "%s %s %s\n%s %s %s %s\n",
 				renderBrandTitle("nomos version"),
 				uiChipStyle.Render(" "+RootCmdVersion+" "),
@@ -30,6 +59,9 @@ func NewVersionCmd() *cobra.Command {
 				uiValueStyle.Render(runtime.Version()),
 				uiIntentStyle.Render("◈"),
 				uiMutedStyle.Render("open-core substrate · sophialabs.ca"))
+			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&jsonOutput, flagNameJSON, false, "Emit version metadata as structured JSON")
+	return cmd
 }

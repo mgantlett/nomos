@@ -18,6 +18,7 @@ func NewRootCmd() *cobra.Command {
 		Short:   "Transactional governance harness between coding agents and Git",
 		Long: `Nomos Open-Core Transactional Governance Harness
 The deterministic runtime between any coding agent and Git: causal INT/SUB spec-vs-code DAGs, isolated git worktrees, 42 polyglot anti-reward-hacking AST gates, receipt-gated SQLite memory, and atomic 2PC releases.`,
+		Example:       helpRootExample,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
@@ -51,6 +52,7 @@ func registerSubcommands(root *cobra.Command) {
 	addCommandWithGroup(root, NewTaskCmd(), "lifecycle")
 
 	addCommandWithGroup(root, NewVerifyCmd(), "quality")
+	addCommandWithGroup(root, NewPhysicsCmd(), "quality")
 
 	addCommandWithGroup(root, NewHandshakeCmd(), "agent")
 	addCommandWithGroup(root, NewHookCmd(), "agent")

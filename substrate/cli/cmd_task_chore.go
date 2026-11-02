@@ -21,9 +21,11 @@ import (
 func newTaskChoreCmd() *cobra.Command {
 	var plane, project string
 	cmd := &cobra.Command{
-		Use:   "chore [title]",
-		Short: "Atomically provision a transient task worktree in EDIT phase (1-turn inception)",
-		Args:  cobra.MaximumNArgs(1),
+		Use:     "chore [title]",
+		Short:   "Atomically provision a transient task worktree in EDIT phase (1-turn inception)",
+		Long:    helpTaskChoreLong,
+		Example: helpTaskChoreExample,
+		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			title := "Maintenance chore"
 			if len(args) > 0 && strings.TrimSpace(args[0]) != "" {
@@ -32,8 +34,8 @@ func newTaskChoreCmd() *cobra.Command {
 			return runTaskChoreWithOpts(title, plane, project)
 		},
 	}
-	cmd.Flags().StringVarP(&plane, "plane", "p", "substrate", "Target plane (intent|substrate)")
-	cmd.Flags().StringVar(&project, "project", "", "Repository project identifier (defaults to active repository)")
+	cmd.Flags().StringVarP(&plane, flagNamePlane, "p", "substrate", "Target plane (intent|substrate)")
+	cmd.Flags().StringVar(&project, flagNameProject, "", "Repository project identifier (defaults to active repository)")
 	return cmd
 }
 

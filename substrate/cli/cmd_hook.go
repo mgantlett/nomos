@@ -28,6 +28,7 @@ func NewHookCmd() *cobra.Command {
 		Short: "Execute compiled zero-dependency agent lifecycle hooks (session-start, pre-tool, post-tool)",
 		Long: `Native compiled Go hook interceptors for Tier 1 coding agents (Claude Code, Cursor, Antigravity).
 Reads JSON hook payloads from stdin with zero external jq/bash/python dependencies.`,
+		Example: helpHookExample,
 	}
 
 	cmd.PersistentFlags().StringVar(&hermeticDir, "hermetic-dir", "", "Confine file mutations and shell paths to a container/sandbox root directory")
@@ -42,8 +43,10 @@ Reads JSON hook payloads from stdin with zero external jq/bash/python dependenci
 
 func newHookSessionStartCmd(hermeticDir *string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "session-start",
-		Short: "Execute SessionStart orientation handshake from JSON stdin payload",
+		Use:     "session-start",
+		Short:   "Execute SessionStart orientation handshake from JSON stdin payload",
+		Long:    helpHookSessionStartLong,
+		Example: helpHookSessionStartExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			raw, err := io.ReadAll(cmd.InOrStdin())
 			if err != nil {
@@ -73,8 +76,10 @@ func newHookSessionStartCmd(hermeticDir *string) *cobra.Command {
 
 func newHookPreToolCmd(hermeticDir *string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "pre-tool",
-		Short: "Evaluate Law 3 boundary isolation and Law 7 command safety on PreToolUse payload",
+		Use:     "pre-tool",
+		Short:   "Evaluate Law 3 boundary isolation and Law 7 command safety on PreToolUse payload",
+		Long:    helpHookPreToolLong,
+		Example: helpHookPreToolExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			raw, err := io.ReadAll(cmd.InOrStdin())
 			if err != nil {
@@ -89,8 +94,10 @@ func newHookPreToolCmd(hermeticDir *string) *cobra.Command {
 
 func newHookPostToolCmd(hermeticDir *string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "post-tool",
-		Short: "Evaluate Law 4 zero-footprint in-memory AST and syntax radar on PostToolUse payload",
+		Use:     "post-tool",
+		Short:   "Evaluate Law 4 zero-footprint in-memory AST and syntax radar on PostToolUse payload",
+		Long:    helpHookPostToolLong,
+		Example: helpHookPostToolExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			raw, err := io.ReadAll(cmd.InOrStdin())
 			if err != nil {

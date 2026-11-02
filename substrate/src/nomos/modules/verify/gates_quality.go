@@ -303,8 +303,8 @@ func resolveQualityRoot(ctx *VerifyContext) string {
 
 func findSubstrateSrc(root string) string {
 	for _, c := range []string{
-		filepath.Join(root, "substrate", "src", "nomos"),
 		filepath.Join(root, "substrate"),
+		filepath.Join(root, "substrate", "src", "nomos"),
 		filepath.Join(root, "src", "nomos"),
 	} {
 		if fi, err := os.Stat(c); err == nil && fi.IsDir() {

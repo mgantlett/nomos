@@ -78,3 +78,23 @@ var ts = time.RFC3339
 		t.Fatalf("expected regular string literal to be counted once, got %+v", counts["sample"])
 	}
 }
+
+func TestScanCobraSurfaceCompletenessInDir(t *testing.T) {
+	dir := t.TempDir()
+	stubSrc := `package cli
+import "github.com/spf13/cobra"
+func bad() *cobra.Command {
+	return &cobra.Command{Use: "bad", Short: "missing long and example"}
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "cmd_bad.go"), []byte(stubSrc), 0644); err != nil {
+		t.Fatalf("write stub failed: %v", err)
+	}
+	violations, err := ScanCobraSurfaceCompletenessInDir(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(violations) != 2 {
+		t.Fatalf("expected 2 missing field violations (Long, Example), got %d: %v", len(violations), violations)
+	}
+}

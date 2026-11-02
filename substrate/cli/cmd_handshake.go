@@ -24,6 +24,7 @@ func NewHandshakeCmd() *cobra.Command {
 		Short: "Initialize JIT session orientation telemetry and verify CapBAC tokens",
 		Long: `Run on session boot to initialize state, sync protocols, and receive dynamic
 Just-In-Time (JIT) Phase Invariant Envelopes under indirect control.`,
+		Example: helpHandshakeExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repoRoot, err := os.Getwd()
 			if err != nil {

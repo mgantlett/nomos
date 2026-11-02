@@ -24,7 +24,8 @@ func NewDirectiveCmd() *cobra.Command {
 		Long: `Inspect embedded and local Just-In-Time (JIT) phase directives governing Tier 1 agent operations.
 If no directive name is specified, lists all available directives with metadata.
 If a directive name or prefix is provided, displays its complete text content.`,
-		Args: cobra.MaximumNArgs(1),
+		Example: helpDirectiveExample,
+		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repoRoot, err := os.Getwd()
 			if err != nil {

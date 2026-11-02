@@ -42,6 +42,7 @@ func NewStatusCmd() *cobra.Command {
 		Short: "Display unified operational status, phase state, and task wavefront",
 		Long: `Emit a comprehensive status report covering active workspace lifecycle phase,
 trunk branch, database connectivity, and Living Ledger task wavefront.`,
+		Example: helpStatusExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			report := collectStatusReport()
 			out := cmd.OutOrStdout()

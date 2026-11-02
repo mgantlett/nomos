@@ -5,6 +5,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,6 +24,7 @@ func NewMemCmd() *cobra.Command {
 		Short: "Nomos Mneme episodic and semantic memory",
 		Long: `Nomos Mneme episodic memory subsystem. Records reflections,
 axioms, and architectural decisions with deterministic vector recall.`,
+		Example: helpMemExample,
 	}
 
 	cmd.AddCommand(newMemSaveCmd())
@@ -33,54 +35,62 @@ axioms, and architectural decisions with deterministic vector recall.`,
 
 func newMemSaveCmd() *cobra.Command {
 	var kind, topic, project string
+	var jsonOutput bool
 
 	cmd := &cobra.Command{
-		Use:   "save <content>",
-		Short: "Save knowledge reflection or lesson into Nomos Mneme",
-		Args:  cobra.ExactArgs(1),
+		Use:     "save <content>",
+		Short:   "Save knowledge reflection or lesson into Nomos Mneme",
+		Long:    helpMemSaveLong,
+		Example: helpMemSaveExample,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			content := args[0]
-			if vErr := mem.ValidateAdvisoryWriteKind(mem.MemoryKind(kind)); vErr != nil {
-				return vErr
-			}
-			store, err := mem.NewStore(config.ResolveMnemeDBPath())
-			if err != nil {
-				return err
-			}
-			defer func() {
-				if cErr := store.Close(); cErr != nil {
-					// safe to continue
-				}
-			}()
-
-			repoID := project
-			if repoID == "" {
-				repoID = resolveCurrentRepoID()
-			}
-
-			m := &mem.Memory{
-				RepoID:  repoID,
-				Kind:    mem.MemoryKind(kind),
-				Topic:   topic,
-				Content: content,
-			}
-			if err := store.Save(m); err != nil {
-				return err
-			}
-
-			fmt.Printf("🧠 %s #%d saved [%s/%s]: %s\n",
-				uiSuccessStyle.Render("Nomos Mneme memory"),
-				m.ID,
-				uiSubstrateStyle.Render(m.RepoID),
-				uiValueStyle.Render(m.Topic),
-				uiIntentStyle.Render(string(m.Kind)))
-			return nil
+			return runMemSave(cmd.OutOrStdout(), args[0], kind, topic, project, jsonOutput)
 		},
 	}
 	cmd.Flags().StringVar(&kind, "kind", string(mem.KindReflection), "Advisory kind of memory (reflection, axiom, decision)")
 	cmd.Flags().StringVar(&topic, "topic", "General", "Topic identifier")
-	cmd.Flags().StringVarP(&project, "project", "p", "", "Repository identifier (defaults to active repo)")
+	cmd.Flags().StringVarP(&project, flagNameProject, "p", "", "Repository identifier (defaults to active repo)")
+	cmd.Flags().BoolVar(&jsonOutput, flagNameJSON, false, "Emit saved memory record as structured JSON")
 	return cmd
+}
+
+func runMemSave(out io.Writer, content, kind, topic, project string, jsonOutput bool) error {
+	if vErr := mem.ValidateAdvisoryWriteKind(mem.MemoryKind(kind)); vErr != nil {
+		return vErr
+	}
+	store, err := mem.NewStore(config.ResolveMnemeDBPath())
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if cErr := store.Close(); cErr != nil {
+			// safe to continue
+		}
+	}()
+
+	repoID := project
+	if repoID == "" {
+		repoID = resolveCurrentRepoID()
+	}
+	m := &mem.Memory{RepoID: repoID, Kind: mem.MemoryKind(kind), Topic: topic, Content: content}
+	if err := store.Save(m); err != nil {
+		return err
+	}
+	if jsonOutput {
+		if data, mErr := json.MarshalIndent(m, "", "  "); mErr == nil {
+			fmt.Fprintln(out, string(data))
+			return nil
+		}
+	}
+
+	fmt.Printf("🧠 %s #%d saved [%s/%s]: %s\n",
+		uiSuccessStyle.Render("Nomos Mneme memory"), m.ID,
+		uiSubstrateStyle.Render(m.RepoID), uiValueStyle.Render(m.Topic),
+		uiIntentStyle.Render(string(m.Kind)))
+	renderNextActions(os.Stdout, []types.ActionAffordance{
+		{Command: fmt.Sprintf("nomos mem recall %q", m.Topic), Summary: "Verify indexed recall of saved memory"},
+	})
+	return nil
 }
 
 type recallArgs struct {
@@ -134,19 +144,21 @@ func runMemRecall(query string, r recallArgs) error {
 func newMemRecallCmd() *cobra.Command {
 	var r recallArgs
 	cmd := &cobra.Command{
-		Use:   "recall <query>",
-		Short: "Search Nomos Mneme memory using semantic and lexical relevance",
-		Args:  cobra.ExactArgs(1),
+		Use:     "recall <query>",
+		Short:   "Search Nomos Mneme memory using semantic and lexical relevance",
+		Long:    helpMemRecallLong,
+		Example: helpMemRecallExample,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runMemRecall(args[0], r)
 		},
 	}
 	cmd.Flags().StringVar(&r.topic, "topic", "", "Filter memories by topic")
 	cmd.Flags().StringVar(&r.kind, "kind", "", "Filter memories by kind")
-	cmd.Flags().StringVarP(&r.project, "project", "p", "", "Filter memories by repository ID")
+	cmd.Flags().StringVarP(&r.project, flagNameProject, "p", "", "Filter memories by repository ID")
 	cmd.Flags().BoolVarP(&r.crossRepo, "cross-repo", "A", false, "Search across all repositories")
-	cmd.Flags().IntVarP(&r.limit, "limit", "n", 5, "Maximum matches to return")
-	cmd.Flags().BoolVar(&r.jsonOutput, "json", false, "Output results in JSON format")
+	cmd.Flags().IntVarP(&r.limit, flagNameLimit, "n", 5, "Maximum matches to return")
+	cmd.Flags().BoolVar(&r.jsonOutput, flagNameJSON, false, "Output results in JSON format")
 	return cmd
 }
 
@@ -223,8 +235,10 @@ func runMemList(l listArgs) error {
 func newMemListCmd() *cobra.Command {
 	var l listArgs
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List and inspect stored Nomos Mneme memories",
+		Use:     "list",
+		Short:   "List and inspect stored Nomos Mneme memories",
+		Long:    helpMemListLong,
+		Example: helpMemListExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runMemList(l)
 		},
@@ -232,10 +246,10 @@ func newMemListCmd() *cobra.Command {
 	cmd.Flags().StringVar(&l.taskID, "task", "", "Filter by task ID")
 	cmd.Flags().StringVar(&l.kind, "kind", "", "Filter by kind")
 	cmd.Flags().StringVar(&l.topic, "topic", "", "Filter by topic")
-	cmd.Flags().StringVarP(&l.project, "project", "p", "", "Filter by repository ID")
+	cmd.Flags().StringVarP(&l.project, flagNameProject, "p", "", "Filter by repository ID")
 	cmd.Flags().BoolVarP(&l.listAll, "all", "A", false, "Show memories across all repositories")
-	cmd.Flags().IntVarP(&l.limit, "limit", "n", 20, "Maximum records to return")
-	cmd.Flags().BoolVar(&l.jsonOutput, "json", false, "Output results in JSON format")
+	cmd.Flags().IntVarP(&l.limit, flagNameLimit, "n", 20, "Maximum records to return")
+	cmd.Flags().BoolVar(&l.jsonOutput, flagNameJSON, false, "Output results in JSON format")
 	return cmd
 }
 

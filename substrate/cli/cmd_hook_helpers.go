@@ -60,16 +60,25 @@ func parseHookPayload(raw []byte) *HookPayload {
 	return p
 }
 
+const (
+	hookFieldToolCall  = "toolCall"
+	hookFieldToolInput = "tool_input"
+	hookFieldArgs      = "args"
+	hookFieldCommand   = "command"
+	hookFieldFilePath  = "file_path"
+	hookFieldPath      = "path"
+)
+
 func extractArgsDigestField(m map[string]any) string {
-	for _, key := range []string{"tool_input", "args"} {
+	for _, key := range []string{hookFieldToolInput, hookFieldArgs} {
 		if sub, ok := m[key]; ok {
 			if raw, err := json.Marshal(sub); err == nil {
 				return string(raw)
 			}
 		}
 	}
-	if tc, ok := m["toolCall"].(map[string]any); ok {
-		if sub, ok := tc["args"]; ok {
+	if tc, ok := m[hookFieldToolCall].(map[string]any); ok {
+		if sub, ok := tc[hookFieldArgs]; ok {
 			if raw, err := json.Marshal(sub); err == nil {
 				return string(raw)
 			}
@@ -80,24 +89,24 @@ func extractArgsDigestField(m map[string]any) string {
 
 func extractTargetFileField(m map[string]any) string {
 	return firstNonEmpty(
-		extractDeepString(m, "toolCall", "args", "TargetFile"),
-		extractDeepString(m, "toolCall", "args", "Path"),
-		extractDeepString(m, "toolCall", "args", "file_path"),
-		extractDeepString(m, "toolCall", "args", "path"),
-		extractNestedString(m, "tool_input", "file_path"),
-		extractNestedString(m, "tool_input", "path"),
-		extractNestedString(m, "tool_input", "notebook_path"),
-		extractNestedString(m, "args", "file_path"),
-		extractNestedString(m, "args", "path"),
+		extractDeepString(m, hookFieldToolCall, hookFieldArgs, "TargetFile"),
+		extractDeepString(m, hookFieldToolCall, hookFieldArgs, "Path"),
+		extractDeepString(m, hookFieldToolCall, hookFieldArgs, hookFieldFilePath),
+		extractDeepString(m, hookFieldToolCall, hookFieldArgs, hookFieldPath),
+		extractNestedString(m, hookFieldToolInput, hookFieldFilePath),
+		extractNestedString(m, hookFieldToolInput, hookFieldPath),
+		extractNestedString(m, hookFieldToolInput, "notebook_path"),
+		extractNestedString(m, hookFieldArgs, hookFieldFilePath),
+		extractNestedString(m, hookFieldArgs, hookFieldPath),
 	)
 }
 
 func extractCommandField(m map[string]any) string {
 	return firstNonEmpty(
-		extractDeepString(m, "toolCall", "args", "CommandLine"),
-		extractDeepString(m, "toolCall", "args", "command"),
-		extractNestedString(m, "tool_input", "command"),
-		extractNestedString(m, "args", "command"),
+		extractDeepString(m, hookFieldToolCall, hookFieldArgs, "CommandLine"),
+		extractDeepString(m, hookFieldToolCall, hookFieldArgs, hookFieldCommand),
+		extractNestedString(m, hookFieldToolInput, hookFieldCommand),
+		extractNestedString(m, hookFieldArgs, hookFieldCommand),
 	)
 }
 
@@ -167,21 +176,21 @@ func resolveHookWorkspaceDir(p *HookPayload, hermeticDir string) string {
 // and Law 1 3-strike identical-failure loop circuit-breaking on PreToolUse events.
 func EvaluatePreToolHook(p *HookPayload, hermeticDir string) HookDecision {
 	if p == nil {
-		return HookDecision{Decision: "allow"}
+		return HookDecision{Decision: hookDecisionAllow}
 	}
 	if p.CommandLine != "" {
-		if dec := evaluateCommandGuard(p.CommandLine, hermeticDir); dec.Decision == "deny" {
+		if dec := evaluateCommandGuard(p.CommandLine, hermeticDir); dec.Decision == hookDecisionDeny {
 			return dec
 		}
 	}
 	if p.TargetFile != "" && p.CommandLine == "" && hasUnexpandedShellPathToken(p.TargetFile) {
 		return HookDecision{
-			Decision: "deny",
+			Decision: hookDecisionDeny,
 			Reason:   fmt.Sprintf("Hermetic Path Violation (Law 3): Unexpanded shell variable or tilde in target path '%s'. Native file tools do not expand shell syntax; pass a concrete relative or resolved path.", p.TargetFile),
 		}
 	}
 	if p.TargetFile != "" && !isReadOnlyTool(p.ToolName) {
-		if dec := evaluateFileMutationGuard(p, hermeticDir); dec.Decision == "deny" {
+		if dec := evaluateFileMutationGuard(p, hermeticDir); dec.Decision == hookDecisionDeny {
 			return dec
 		}
 	}
@@ -207,7 +216,7 @@ func hasUnexpandedShellPathToken(raw string) bool {
 func evaluateFileMutationGuard(p *HookPayload, hermeticDir string) HookDecision {
 	if hasUnexpandedShellPathToken(p.TargetFile) {
 		return HookDecision{
-			Decision: "deny",
+			Decision: hookDecisionDeny,
 			Reason:   fmt.Sprintf("Hermetic Path Violation (Law 3): Unexpanded shell variable or tilde in target path '%s'. Pass a canonical resolved path.", p.TargetFile),
 		}
 	}
@@ -215,7 +224,7 @@ func evaluateFileMutationGuard(p *HookPayload, hermeticDir string) HookDecision 
 	resolved := normalizeCanonicalPath(p.TargetFile, baseCwd)
 	if isSystemRootPath(resolved) {
 		return HookDecision{
-			Decision: "deny",
+			Decision: hookDecisionDeny,
 			Reason:   fmt.Sprintf("Hermetic Boundary Violation (Law 3): System path mutation '%s' is strictly prohibited.", resolved),
 		}
 	}
@@ -228,17 +237,17 @@ func evaluateFileMutationGuard(p *HookPayload, hermeticDir string) HookDecision 
 func evaluateHermeticDirBoundary(rawTarget, resolved, hermeticDir string) HookDecision {
 	canonRoot := normalizeCanonicalPath(hermeticDir, "/")
 	if resolved == canonRoot || strings.HasPrefix(resolved, canonRoot+"/") {
-		return HookDecision{Decision: "allow"}
+		return HookDecision{Decision: hookDecisionAllow}
 	}
 	return HookDecision{
-		Decision: "deny",
+		Decision: hookDecisionDeny,
 		Reason:   fmt.Sprintf("Hermetic Container Violation (Law 3): Target '%s' (resolved: '%s') escapes hermetic root '%s'.", rawTarget, resolved, canonRoot),
 	}
 }
 
 func evaluateWorktreeBoundary(rawTarget, resolved, toolName string) HookDecision {
 	if isPermittedWorktreePath(resolved) {
-		return HookDecision{Decision: "allow"}
+		return HookDecision{Decision: hookDecisionAllow}
 	}
 	if toolName == "" {
 		toolName = "file_mutation"
@@ -248,7 +257,7 @@ func evaluateWorktreeBoundary(rawTarget, resolved, toolName string) HookDecision
 		choreHint = `nomos task chore "<title>" --plane intent`
 	}
 	return HookDecision{
-		Decision: "deny",
+		Decision: hookDecisionDeny,
 		Reason: fmt.Sprintf(
 			"Hermetic Worktree Violation (Law 3): Direct trunk mutation of '%s' (resolved: '%s') via '%s' is prohibited. Provision an isolated EDIT worktree in 1 turn via '%s' (or 'nomos task start <KEY> --edit'), then edit strictly inside '/worktrees/'.",
 			rawTarget, resolved, toolName, choreHint,

@@ -29,9 +29,11 @@ func newTaskCommitCmd() *cobra.Command {
 	opts := &commitCmdOptions{}
 
 	cmd := &cobra.Command{
-		Use:   "commit [TASK_KEY]",
-		Short: "Execute context-hydrated Dual-Layer Hybrid AI commit adhering to commit defense hook",
-		Args:  cobra.MaximumNArgs(1),
+		Use:     "commit [TASK_KEY]",
+		Short:   "Execute context-hydrated Dual-Layer Hybrid AI commit adhering to commit defense hook",
+		Long:    helpTaskCommitLong,
+		Example: helpTaskCommitExample,
+		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTaskCommitCmd(args, opts)
 		},

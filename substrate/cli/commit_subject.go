@@ -11,7 +11,15 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/task"
 )
 
-const maxCommitSummaryRunes = 110
+const (
+	maxCommitSummaryRunes = 110
+	commitTypeFeat        = "feat"
+	commitTypeFix         = "fix"
+	commitTypeDocs        = "docs"
+	commitTypeChore       = "chore"
+	commitTypeRefactor    = "refactor"
+	commitTypeTest        = "test"
+)
 
 var (
 	leadingTaskKeyRe      = regexp.MustCompile(`^(?i)\[(?:task\s+)?(?:int|sub|arc)-[0-9]+[a-z]?(?:-[a-z0-9-]+)?\]\s*`)
@@ -20,34 +28,34 @@ var (
 )
 
 var canonicalCommitTypes = map[string]string{
-	"feat":     "feat",
-	"fix":      "fix",
-	"docs":     "docs",
-	"doc":      "docs",
-	"spec":     "docs",
-	"chore":    "chore",
-	"build":    "chore",
-	"ci":       "chore",
-	"release":  "chore",
-	"refactor": "refactor",
-	"perf":     "refactor",
-	"style":    "refactor",
-	"test":     "test",
-	"tests":    "test",
+	commitTypeFeat:     commitTypeFeat,
+	commitTypeFix:      commitTypeFix,
+	commitTypeDocs:     commitTypeDocs,
+	"doc":              commitTypeDocs,
+	"spec":             commitTypeDocs,
+	commitTypeChore:    commitTypeChore,
+	"build":            commitTypeChore,
+	"ci":               commitTypeChore,
+	"release":          commitTypeChore,
+	commitTypeRefactor: commitTypeRefactor,
+	"perf":             commitTypeRefactor,
+	"style":            commitTypeRefactor,
+	commitTypeTest:     commitTypeTest,
+	"tests":            commitTypeTest,
 }
 
 var verbToCommitType = map[string]string{
-	"fix": "fix", "fixes": "fix", "fixed": "fix", "repair": "fix",
-	"resolve": "fix", "bugfix": "fix", "hotfix": "fix", "patch": "fix",
-	"preserve": "fix", "prevent": "fix", "restore": "fix",
-	"refactor": "refactor", "extract": "refactor", "deduplicate": "refactor",
-	"dedup": "refactor", "split": "refactor", "consolidate": "refactor",
-	"unify": "refactor", "simplify": "refactor",
-	"test": "test", "tests": "test",
-	"chore": "chore", "prune": "chore", "remove": "chore",
-	"delete": "chore", "bump": "chore", "clean": "chore", "sweep": "chore",
-	"doc": "docs", "docs": "docs", "document": "docs",
-	"codify": "docs", "specify": "docs", "spec": "docs",
+	commitTypeFix: commitTypeFix, "fixes": commitTypeFix, "fixed": commitTypeFix, "repair": commitTypeFix,
+	"resolve": commitTypeFix, "bugfix": commitTypeFix, "hotfix": commitTypeFix, "patch": commitTypeFix,
+	"preserve": commitTypeFix, "prevent": commitTypeFix, "restore": commitTypeFix,
+	commitTypeRefactor: commitTypeRefactor, "extract": commitTypeRefactor, "deduplicate": commitTypeRefactor,
+	"dedup": commitTypeRefactor, "split": commitTypeRefactor, "consolidate": commitTypeRefactor,
+	"unify": commitTypeRefactor, "simplify": commitTypeRefactor,
+	commitTypeTest: commitTypeTest, "tests": commitTypeTest,
+	commitTypeChore: commitTypeChore, "prune": commitTypeChore, "remove": commitTypeChore,
+	"delete": commitTypeChore, "bump": commitTypeChore, "clean": commitTypeChore, "sweep": commitTypeChore,
+	"doc": commitTypeDocs, commitTypeDocs: commitTypeDocs, "document": commitTypeDocs,
+	"codify": commitTypeDocs, "specify": commitTypeDocs, "spec": commitTypeDocs,
 }
 
 // normalizeCommitSubject strips redundant task key tokens and ensures Conventional Commit alignment.

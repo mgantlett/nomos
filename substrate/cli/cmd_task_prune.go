@@ -18,8 +18,10 @@ func newTaskPruneCmd() *cobra.Command {
 	var dryRun, jsonOutput bool
 
 	cmd := &cobra.Command{
-		Use:   "prune",
-		Short: "Sweep orphaned worktrees, merged feature branches, and stale walkthrough files",
+		Use:     "prune",
+		Short:   "Sweep orphaned worktrees, merged feature branches, and stale walkthrough files",
+		Long:    helpTaskPruneLong,
+		Example: helpTaskPruneExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rep, err := pruneWorkspaceOrphans("", dryRun)
 			if err != nil {
@@ -34,11 +36,14 @@ func newTaskPruneCmd() *cobra.Command {
 				return nil
 			}
 			renderTaskPruneReport(cmd, rep)
+			renderNextActions(cmd.OutOrStdout(), []types.ActionAffordance{
+				{Command: "nomos status", Summary: "Inspect clean workspace state and active wavefront"},
+			})
 			return nil
 		},
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Inspect orphaned worktrees and branches without deleting")
-	cmd.Flags().BoolVar(&jsonOutput, "json", false, "Emit prune report as structured JSON")
+	cmd.Flags().BoolVar(&jsonOutput, flagNameJSON, false, "Emit prune report as structured JSON")
 	return cmd
 }
 

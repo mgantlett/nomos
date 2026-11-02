@@ -18,44 +18,49 @@ import (
 
 var wildRmPattern = regexp.MustCompile(`(?i)(?:^|[;&|]\s*|\bsudo\s+)rm\s+(?:(?:-[a-z]*r[a-z]*|--recursive)\s+(?:/|\*+|~|\.\.?)(?:\s|$|/)|(?:-[a-z]+\s+)*[^\n;|&]*\*)`)
 
+const (
+	hookDecisionDeny  = "deny"
+	hookDecisionAllow = "allow"
+)
+
 func evaluateCommandGuard(cmdLine, hermeticDir string) HookDecision {
 	if wildRmPattern.MatchString(cmdLine) {
 		return HookDecision{
-			Decision: "deny",
+			Decision: hookDecisionDeny,
 			Reason:   "❌ [NOMOS INTERCEPT] Wildcard or root/parent deletion ('rm ... *', 'rm -rf /', 'rm -rf ~', 'rm -rf ..') is strictly prohibited (Law 7). Verify item-level eligibility and remove explicit file paths only.",
 		}
 	}
 	if strings.Contains(cmdLine, "go install") && strings.Contains(cmdLine, "nomos") {
 		return HookDecision{
-			Decision: "deny",
+			Decision: hookDecisionDeny,
 			Reason:   "❌ [NOMOS INTERCEPT] Manual binary installation ('go install' of nomos) during active task sessions is prohibited by Law 4 (Single Source of Truth). Invoke the installed 'nomos' CLI binary directly.",
 		}
 	}
 	if isForbiddenSQLiteCmd(cmdLine) {
 		return HookDecision{
-			Decision: "deny",
+			Decision: hookDecisionDeny,
 			Reason:   "❌ [NOMOS INTERCEPT] Direct SQLite access prohibited (Law 1 & ADR-0062). Use canonical CLI commands: 'nomos mem recall', 'nomos mem list', or 'nomos task show'.",
 		}
 	}
 	if isForbiddenGitStashCmd(cmdLine) {
 		return HookDecision{
-			Decision: "deny",
+			Decision: hookDecisionDeny,
 			Reason:   "❌ [NOMOS INTERCEPT] 'git stash' is prohibited (Law 2 & Law 3). Use 'nomos task chore \"<title>\"' or 'git restore <file>'.",
 		}
 	}
 	if isForbiddenGitHooksCmd(cmdLine) {
 		return HookDecision{
-			Decision: "deny",
+			Decision: hookDecisionDeny,
 			Reason:   "❌ [NOMOS INTERCEPT] Tampering with CapBAC Git defense hooks (.git/hooks) is strictly prohibited (Law 3 & Law 7).",
 		}
 	}
 	if hermeticDir != "" && strings.Contains(cmdLine, "/etc/") {
 		return HookDecision{
-			Decision: "deny",
+			Decision: hookDecisionDeny,
 			Reason:   "❌ [NOMOS INTERCEPT] Hermetic Container Violation (Law 3): System directory access outside hermetic root is prohibited.",
 		}
 	}
-	return HookDecision{Decision: "allow"}
+	return HookDecision{Decision: hookDecisionAllow}
 }
 
 func isForbiddenSQLiteCmd(cmdLine string) bool {

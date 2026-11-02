@@ -57,7 +57,8 @@ func NewCapabilitiesCmd() *cobra.Command {
 Surfaces ambient lifecycle hooks, JIT phase directives, architectural engines,
 the 7x3 Invariant Cells (Definition of Done quality gates), and top-level CLI commands.
 Pass a capability, cell, or gate probe ID (e.g. 'nomos capabilities plane_separation') to inspect full remediation details.`,
-		Args: cobra.MaximumNArgs(1),
+		Example: helpCapabilitiesExample,
+		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 1 {
 				return executeCapabilityDetail(cmd, args[0], jsonOutput)
