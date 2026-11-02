@@ -27,6 +27,12 @@ execution_frontier:
     - key: "SUB-1546"
       plane: "substrate"
       summary: "Implement Native Compiled nomos hook CLI Subcommands and Hermetic Container Hook Mode"
+    - key: "INT-868"
+      plane: "intent"
+      summary: "Specify additive workspace hook chaining and 3-strike identical-failure loop circuit-breaker"
+    - key: "SUB-1560"
+      plane: "substrate"
+      summary: "Implement additive workspace hook chaining and 3-strike identical-failure loop circuit-breaker"
 ssot_repository: nomos
 ---
 
@@ -199,6 +205,7 @@ These compiled subcommands replace fragile external shell, `jq`, and Python hook
 Every `nomos hook` subcommand accepts an optional `--hermetic-dir <path>` flag for container and sandbox environments.
 When `--hermetic-dir <path>` is active, `nomos hook pre-tool` confines file mutations and shell paths to the canonical realpath of `<path>` without requiring a transient `worktrees/` subdirectory.
 When `--hermetic-dir` is omitted in a standard Nomos repository, `nomos hook pre-tool` enforces the Law 3 hermetic worktree boundary.
+In addition, `nomos init` and `nomos hook` preserve and chain pre-existing `.claude/settings.json` hook entries, and `nomos hook pre-tool` enforces a 3-strike identical-call circuit-breaker keyed on `(tool_name, canonical_args_hash, workspace_mtime_digest)` to halt non-progressing tool loops.
 
 ### Sovereign Deny-List (Prohibited in Open-Core)
 

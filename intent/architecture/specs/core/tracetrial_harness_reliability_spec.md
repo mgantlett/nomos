@@ -12,6 +12,8 @@ tags:
     - SUB-1527
     - INT-863
     - SUB-1546
+    - INT-868
+    - SUB-1560
 title: "TraceTrial-Bench 7-Pillar Harness Reliability & Fail-Closed Stress Specification"
 trigger: always_on
 type: spec
@@ -84,6 +86,9 @@ To eliminate external runtime dependencies on `jq`, `bash`, or `python3` in mini
 3. **PostToolUse Channel Purity & Zero-Footprint Verification (`nomos hook post-tool` — Law 4):**
    - **100% Silent on Non-Edit Channels:** Emits `{}` immediately when invoked for `Bash`, `Read`, or `MCP` tools so native operating system errors (`EACCES`, `ENOENT`) are never masked by hook output.
    - **In-Memory Syntax & Radar Verification:** Validates edited `.json`, `.jsonl`, `.cue`, and source files directly without writing `.tmp/nomos_radar_alert.txt` files into the workspace, preserving a zero-footprint working tree.
+4. **Additive Workspace Hook Chaining & 3-Strike Loop Circuit-Breaker (`INT-868` / `SUB-1560`):**
+   - **Additive Settings & Hook Chaining:** When a target workspace contains an existing `.claude/settings.json` with task-local `PreToolUse`, `PostToolUse`, or `SessionStart` hooks or plugins, `nomos init` and `nomos hook` preserve and chain the existing workspace hooks rather than overwriting them, eliminating TraceTrial `O` (Observability) and `T` (Tooling) overlay contention.
+   - **3-Strike Identical-Failure Circuit-Breaker:** `nomos hook pre-tool` computes a deterministic call fingerprint `(tool_name, sha256(canonical_args), workspace_mtime_digest)`. When the same fingerprint fails or repeats `>= 3` consecutive times without a workspace state change (`workspace_mtime_digest` unchanged), `nomos hook pre-tool` denies the 3rd identical invocation with a 1-line state-change remediation directive so the agent alters its parameters or inspects workspace state instead of looping.
 
 ---
 
