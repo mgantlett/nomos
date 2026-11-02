@@ -82,7 +82,7 @@ func newHookPreToolCmd(hermeticDir *string) *cobra.Command {
 			}
 			payload := parseHookPayload(raw)
 			dec := EvaluatePreToolHook(payload, *hermeticDir)
-			return writeHookDecision(cmd.OutOrStdout(), dec)
+			return writePreToolResponse(cmd.OutOrStdout(), payload, dec)
 		},
 	}
 }
@@ -109,6 +109,28 @@ func newHookPostToolCmd(hermeticDir *string) *cobra.Command {
 func writeEmptyJSON(w io.Writer) error {
 	_, err := fmt.Fprintln(w, "{}")
 	return err
+}
+
+func writePreToolResponse(w io.Writer, payload *HookPayload, dec HookDecision) error {
+	if payload != nil && payload.IsClaudeEvent {
+		if dec.Decision != "deny" {
+			return writeEmptyJSON(w)
+		}
+		out := map[string]any{
+			"hookSpecificOutput": map[string]string{
+				"hookEventName":            "PreToolUse",
+				"permissionDecision":       "deny",
+				"permissionDecisionReason": dec.Reason,
+			},
+		}
+		data, err := json.Marshal(out)
+		if err != nil {
+			return writeEmptyJSON(w)
+		}
+		_, wErr := fmt.Fprintln(w, string(data))
+		return wErr
+	}
+	return writeHookDecision(w, dec)
 }
 
 func writeHookDecision(w io.Writer, dec HookDecision) error {

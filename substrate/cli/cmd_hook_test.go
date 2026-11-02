@@ -252,4 +252,76 @@ func TestHookPreTool_ThreeStrikeLoopCircuitBreaker(t *testing.T) {
 	}
 }
 
+func TestHookPreTool_ClaudeV2SchemaReadVarGlobRmAndPollExemption(t *testing.T) {
+	sandboxDir := t.TempDir()
+	insideFile := filepath.Join(sandboxDir, "report.json")
+	if err := os.WriteFile(insideFile, []byte("{}\n"), 0644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	// 1. Claude Code v2 event allow emits '{}' (preserving manual permission mode)
+	allowRaw := executeHookCmd(t, []string{"pre-tool", "--hermetic-dir", sandboxDir}, map[string]any{
+		"session_id":      "sess-123",
+		"hook_event_name": "PreToolUse",
+		"cwd":             sandboxDir,
+		"tool_name":       "Write",
+		"tool_input":      map[string]any{"file_path": insideFile},
+	})
+	if allowRaw != "{}" {
+		t.Fatalf("expected Claude v2 allow to emit '{}', got %s", allowRaw)
+	}
+
+	// 2. Claude Code v2 event deny on Read with unexpanded $WORKSPACE emits hookSpecificOutput.permissionDecision="deny"
+	denyRaw := executeHookCmd(t, []string{"pre-tool", "--hermetic-dir", sandboxDir}, map[string]any{
+		"session_id":      "sess-123",
+		"hook_event_name": "PreToolUse",
+		"cwd":             sandboxDir,
+		"tool_name":       "Read",
+		"tool_input":      map[string]any{"file_path": "$WORKSPACE/report.json"},
+	})
+	if !strings.Contains(denyRaw, `"permissionDecision":"deny"`) || !strings.Contains(denyRaw, `"hookEventName":"PreToolUse"`) {
+		t.Fatalf("expected Claude v2 PreToolUse deny schema on Read $WORKSPACE, got %s", denyRaw)
+	}
+
+	// 3. Wildcard rm glob ('rm -f cache/*') is denied while explicit file rm is allowed
+	globRm := executeHookCmd(t, []string{"pre-tool", "--hermetic-dir", sandboxDir}, map[string]any{
+		"tool_name":  "Bash",
+		"tool_input": map[string]any{"command": "rm -f cache/*"},
+	})
+	if dec := parseDecision(t, globRm); dec.Decision != "deny" {
+		t.Fatalf("expected 'rm -f cache/*' wildcard deletion to be denied, got %+v", dec)
+	}
+	explicitRm := executeHookCmd(t, []string{"pre-tool", "--hermetic-dir", sandboxDir}, map[string]any{
+		"tool_name":  "Bash",
+		"tool_input": map[string]any{"command": "rm -f cache/expired_01.tmp"},
+	})
+	if dec := parseDecision(t, explicitRm); dec.Decision != "allow" {
+		t.Fatalf("expected explicit file rm to be allowed, got %+v", dec)
+	}
+
+	// 4. Non-file tool (TaskGet) trips 3-strike breaker, while background status polls allow >= 6 polls
+	taskGetPayload := map[string]any{
+		"cwd":        sandboxDir,
+		"tool_name":  "TaskGet",
+		"tool_input": map[string]any{"task_id": "M01"},
+	}
+	_ = executeHookCmd(t, []string{"pre-tool", "--hermetic-dir", sandboxDir}, taskGetPayload)
+	_ = executeHookCmd(t, []string{"pre-tool", "--hermetic-dir", sandboxDir}, taskGetPayload)
+	strike3TaskGet := executeHookCmd(t, []string{"pre-tool", "--hermetic-dir", sandboxDir}, taskGetPayload)
+	if dec := parseDecision(t, strike3TaskGet); dec.Decision != "deny" {
+		t.Fatalf("expected 3rd identical TaskGet('M01') to be denied by circuit-breaker, got %+v", dec)
+	}
+
+	for poll := 1; poll <= 6; poll++ {
+		pollOut := executeHookCmd(t, []string{"pre-tool", "--hermetic-dir", sandboxDir}, map[string]any{
+			"cwd":        sandboxDir,
+			"tool_name":  "Bash",
+			"tool_input": map[string]any{"command": "jobctl status J01"},
+		})
+		if dec := parseDecision(t, pollOut); dec.Decision != "allow" {
+			t.Fatalf("expected background job status poll %d to be allowed, got %+v", poll, dec)
+		}
+	}
+}
+
 

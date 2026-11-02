@@ -122,7 +122,7 @@ func DefaultClaudeSettingsHooksJSON() []byte {
     ],
     "PreToolUse": [
       {
-        "matcher": "Write|Edit|MultiEdit|Bash",
+        "matcher": "Bash|Read|Write|Edit|MultiEdit|NotebookEdit|Glob|Grep|Task.*|mcp__.*",
         "hooks": [
           {
             "type": "command",
@@ -134,7 +134,7 @@ func DefaultClaudeSettingsHooksJSON() []byte {
     ],
     "PostToolUse": [
       {
-        "matcher": "Write|Edit|MultiEdit",
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
         "hooks": [
           {
             "type": "command",
@@ -171,7 +171,7 @@ func EvaluateLoopCircuitBreaker(p *HookPayload, hermeticDir string) HookDecision
 	}
 	saveLoopBreakerState(statePath, next)
 
-	if next.ConsecutiveCount >= 3 {
+	if next.ConsecutiveCount >= maxLoopStrikes(p) {
 		return HookDecision{
 			Decision: "deny",
 			Reason:   loopBreakerReason,
@@ -184,10 +184,22 @@ func isLoopTrackedInvocation(p *HookPayload) bool {
 	if strings.TrimSpace(p.CommandLine) != "" {
 		return true
 	}
-	if strings.TrimSpace(p.TargetFile) != "" && !isReadOnlyTool(p.ToolName) {
+	if strings.TrimSpace(p.TargetFile) != "" {
 		return true
 	}
-	return false
+	return strings.TrimSpace(p.ArgsDigest) != ""
+}
+
+func maxLoopStrikes(p *HookPayload) int {
+	cmd := strings.ToLower(strings.TrimSpace(p.CommandLine))
+	if cmd != "" {
+		for _, tok := range []string{"status", "poll", "wait", "ps ", "jobs"} {
+			if strings.Contains(cmd, tok) {
+				return 12
+			}
+		}
+	}
+	return 3
 }
 
 func resolveLoopTrackingDir(p *HookPayload, hermeticDir string) string {

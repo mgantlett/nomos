@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -15,13 +16,13 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify"
 )
 
-var wildRmPattern = regexp.MustCompile(`(?i)\brm\s+(-[a-z]*r[a-z]*f[a-z]*|-[a-z]*f[a-z]*r[a-z]*|--recursive)\s+(/|\*+|~|\.\.)(\s|$|/)`)
+var wildRmPattern = regexp.MustCompile(`(?i)(?:^|[;&|]\s*|\bsudo\s+)rm\s+(?:(?:-[a-z]*r[a-z]*|--recursive)\s+(?:/|\*+|~|\.\.?)(?:\s|$|/)|(?:-[a-z]+\s+)*[^\n;|&]*\*)`)
 
 func evaluateCommandGuard(cmdLine, hermeticDir string) HookDecision {
 	if wildRmPattern.MatchString(cmdLine) {
 		return HookDecision{
 			Decision: "deny",
-			Reason:   "❌ [NOMOS INTERCEPT] Wildcard or root recursive deletion ('rm -rf /', 'rm -rf *', 'rm -rf ~', 'rm -rf ..') is strictly prohibited (Law 7).",
+			Reason:   "❌ [NOMOS INTERCEPT] Wildcard or root/parent deletion ('rm ... *', 'rm -rf /', 'rm -rf ~', 'rm -rf ..') is strictly prohibited (Law 7). Verify item-level eligibility and remove explicit file paths only.",
 		}
 	}
 	if strings.Contains(cmdLine, "go install") && strings.Contains(cmdLine, "nomos") {
@@ -116,6 +117,9 @@ func isPostToolTargetInScope(resolved, hermeticDir string) bool {
 
 func validateStructuredFileInMemory(resolved string) string {
 	ext := strings.ToLower(filepath.Ext(resolved))
+	if ext == ".py" {
+		return validatePythonASTInMemory(resolved)
+	}
 	if ext != ".json" && ext != ".jsonl" {
 		return ""
 	}
@@ -140,6 +144,21 @@ func validateStructuredFileInMemory(resolved string) string {
 		}
 	}
 	return ""
+}
+
+func validatePythonASTInMemory(resolved string) string {
+	pyBin, err := exec.LookPath("python3")
+	if err != nil {
+		return ""
+	}
+	cmd := exec.Command(pyBin, "-B", "-c", "import ast,sys; ast.parse(open(sys.argv[1],encoding='utf-8').read())", resolved)
+	out, runErr := cmd.CombinedOutput()
+	if runErr == nil {
+		return ""
+	}
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	last := lines[len(lines)-1]
+	return fmt.Sprintf("🚨 [Nomos AST Radar] %s: %s", filepath.Base(resolved), last)
 }
 
 func evaluateFastRadarInMemory(resolved, baseCwd string) string {

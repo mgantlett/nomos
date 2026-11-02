@@ -20,6 +20,7 @@ type HookPayload struct {
 	Cwd            string
 	WorkspacePaths []string
 	HasToolInput   bool
+	IsClaudeEvent  bool
 	IsPostInvoke   bool
 }
 
@@ -43,6 +44,8 @@ func parseHookPayload(raw []byte) *HookPayload {
 		return p
 	}
 	_, p.HasToolInput = m["tool_input"]
+	_, hasSessionID := m["session_id"]
+	p.IsClaudeEvent = extractStringField(m, "hook_event_name") != "" || (p.HasToolInput && hasSessionID)
 	_, p.IsPostInvoke = m["invocationNum"]
 	p.Cwd = extractStringField(m, "cwd")
 	p.WorkspacePaths = extractStringSlice(m, "workspacePaths")
@@ -83,6 +86,7 @@ func extractTargetFileField(m map[string]any) string {
 		extractDeepString(m, "toolCall", "args", "path"),
 		extractNestedString(m, "tool_input", "file_path"),
 		extractNestedString(m, "tool_input", "path"),
+		extractNestedString(m, "tool_input", "notebook_path"),
 		extractNestedString(m, "args", "file_path"),
 		extractNestedString(m, "args", "path"),
 	)
@@ -168,6 +172,12 @@ func EvaluatePreToolHook(p *HookPayload, hermeticDir string) HookDecision {
 	if p.CommandLine != "" {
 		if dec := evaluateCommandGuard(p.CommandLine, hermeticDir); dec.Decision == "deny" {
 			return dec
+		}
+	}
+	if p.TargetFile != "" && p.CommandLine == "" && hasUnexpandedShellPathToken(p.TargetFile) {
+		return HookDecision{
+			Decision: "deny",
+			Reason:   fmt.Sprintf("Hermetic Path Violation (Law 3): Unexpanded shell variable or tilde in target path '%s'. Native file tools do not expand shell syntax; pass a concrete relative or resolved path.", p.TargetFile),
 		}
 	}
 	if p.TargetFile != "" && !isReadOnlyTool(p.ToolName) {
