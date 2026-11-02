@@ -10,10 +10,12 @@ status: active
 tags:
     - INT-737
     - SUB-1215
+    - INT-862
+    - SUB-1543
 title: Full 42 DoD Gate Suite and Polyglot Verification Architecture Specification
 trigger: always_on
 type: spec
-version: "4.0.0"
+version: "4.1.0"
 ssot_repository: nomos
 ---
 
@@ -140,9 +142,11 @@ The Nomos DoD verification engine binds 42 statutory sensor probes across 7 Laws
 
 In Nomos v4, polyglot verification executes natively in pure Go without external C toolchains:
 1. **Go Source Analysis**: Standard library `go/parser`, `go/ast`, and `go/token`. Fast, zero dependencies, memory safe.
-2. **Polyglot Tree-sitter WASM Analysis**: Embedded `wazero` WebAssembly runtime executing pre-compiled Tree-sitter grammars for **Go, TypeScript, Python, and Rust** (`substrate/src/nomos/modules/verify/treesitter/`).
-3. **Markdown & CUE Analysis**: Lexical stream scanner for Markdown relative links/frontmatter, paired with the native `cuelang.org/go/cue` schema unification engine.
-4. **Configuration & Script Analysis**: Standard library lexical analyzers for JSON, YAML, and shell scripts.
+2. **Polyglot Tree-sitter WASM Analysis**: Embedded `wazero` WebAssembly runtime backed by `wazero.CompilationCache` and compiled `.scm` S-expression query evaluators for **Go, TypeScript, TSX, JavaScript, Svelte, Python, Rust, C, C++, Java, Kotlin, and C#** (`substrate/src/nomos/modules/verify/treesitter/`).
+3. **Anti-Shim & Test-Skip Reward-Hacking Detection**: Evaluates `.scm` query captures to reject empty/stubbed functions (`todo!()`, `unimplemented!()`, `pass`, `NotImplementedError`, `UnsupportedOperationException`, `NotImplementedException`) and skipped test annotations (`it.skip`, `pytest.mark.skip`, `#[ignore]`, `@Disabled`, `[Fact(Skip=)]`).
+4. **Per-`source_root` Native Toolchains & Coverage Ratchets**: Evaluates declared `source_roots` across `tsc`, `pytest`, `cargo`, `clang`/`cmake`, `gradle`/`maven`, and `dotnet`, and enforces statement coverage ratchets across Go `coverprofile`, `lcov.info`, and `cobertura.xml` reports.
+5. **Markdown & CUE Analysis**: Lexical stream scanner for Markdown relative links/frontmatter, paired with the native `cuelang.org/go/cue` schema unification engine.
+6. **Configuration & Script Analysis**: Standard library lexical analyzers for JSON, YAML, and shell scripts.
 
 This architecture ensures static compilation under `CGO_ENABLED=0`, cross-compilation across all target architectures, and sub-second verification runs.
 

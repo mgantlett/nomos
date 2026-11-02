@@ -1,7 +1,7 @@
 package schemas
 
 // Polyglot AST Validation and Source Root Configuration Schema (Law 2, Law 4, Law 5)
-#SupportedLanguage: "go" | "typescript" | "javascript" | "svelte" | "markdown" | "yaml" | "python" | "rust" | "c" | "cpp" | "html" | "css"
+#SupportedLanguage: "go" | "typescript" | "tsx" | "javascript" | "svelte" | "markdown" | "yaml" | "python" | "rust" | "c" | "cpp" | "java" | "kotlin" | "csharp" | "html" | "css"
 
 #SourceRootConfig: close({
 	path:             string & !~"^/" & !~"\\.\\."
@@ -21,7 +21,7 @@ package schemas
 	capture_symbol?:  string
 })
 
-#FindingRule: "magic_port" | "localhost_url" | "ecosystem_map" | "ip_leak" | "cognitive_complexity" | "docstring_density"
+#FindingRule: "magic_port" | "localhost_url" | "ecosystem_map" | "ip_leak" | "cognitive_complexity" | "docstring_density" | "anti_shim_stub" | "test_skip_reward_hack" | "coverage_ratchet"
 
 #PolyglotASTFinding: close({
 	file:       string
@@ -29,6 +29,14 @@ package schemas
 	func_name?: string
 	rule:       #FindingRule
 	message:    string
+})
+
+#PolyglotCoverageReport: close({
+	format:       "lcov" | "cobertura"
+	source_root:  string
+	line_rate:    number & >= 0 & <= 100
+	min_coverage: number & >= 0 & <= 100
+	passed:       bool
 })
 
 #PolyglotScanReport: close({
@@ -41,8 +49,8 @@ package schemas
 #TreeSitterWasmConfig: close({
 	engine_name:         string & !~"^$"
 	runtime:             "wazero"
+	compilation_cache:   bool | *true
 	pure_go:             bool | *true
 	supported_languages: [...#SupportedLanguage]
 	query_roots:         [...string]
 })
-

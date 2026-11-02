@@ -17,7 +17,7 @@ tags:
     - gates
 title: Polyglot AST Validation & Language-Agnostic Gating Architecture
 type: spec
-version: "4.0.0"
+version: "4.1.0"
 execution_frontier:
   tasks:
     - key: "INT-321"
@@ -26,6 +26,12 @@ execution_frontier:
     - key: "SUB-110"
       plane: "substrate"
       summary: "Implement Polyglot AST Scanner for Svelte/TS and Bind Gates 21 & 22"
+    - key: "INT-862"
+      plane: "intent"
+      summary: "Specify Real Wazero Tree-sitter WASI AST Engine, S-Expression Query Binding, and JVM/C# Polyglot Toolchain Parity"
+    - key: "SUB-1543"
+      plane: "substrate"
+      summary: "Implement Real Wazero Tree-sitter WASI Runtime, .scm AST Evaluators, and Polyglot Toolchain/Coverage Gates"
 ---
 
 # Polyglot AST Validation & Language-Agnostic Gating Architecture
@@ -81,6 +87,10 @@ flowchart TD
 1. **Zero Hardcoded Ports & Endpoints (Law 5):** Rejects raw port literals (e.g., `":8089"`, `port: 5173`) and `localhost` URLs inside Svelte/TS source files. Service ports must derive from `nomos.yaml` topology.
 2. **Zero Hardcoded Repository Maps:** Rejects inline dictionaries mapping bare workspace slugs.
 3. **Zero Sovereign IP Bleed:** Rejects strings containing banned Sovereign prefixes (e.g. `github.com/mgantlett/gsi-sov`) from public open-core code.
+4. **Wazero WASI Compilation Cache & Multi-Export AST Module (`INT-862` / `SUB-1543`):** The pure-Go `wazero` runtime binds a persistent `wazero.CompilationCache` (`NewCompilationCacheWithDir` or in-memory cache fallback) and executes compiled WebAssembly AST scoring exports (`verify_probe`, `compute_cds`, `evaluate_complexity`) with `<50ms` warm latency under `CGO_ENABLED=0`.
+5. **Embedded `.scm` S-Expression Query Binding:** Embedded `.scm` query files (`go.scm`, `typescript.scm`, `svelte.scm`, `python.scm`, `rust.scm`, `c.scm`, `cpp.scm`, `java.scm`, `kotlin.scm`, `csharp.scm`, `html.scm`, `css.scm`) are parsed into structured S-expression AST query rules (`ParseSCMQuery`) driving function extraction, branch counting, anti-shim stub detection (`todo!()`, `unimplemented!()`, `pass`, `raise NotImplementedError`, `throw new UnsupportedOperationException`, `throw new NotImplementedException`), and test-skip reward-hacking detection (`it.skip`, `test.skip`, `describe.skip`, `pytest.mark.skip`, `@unittest.skip`, `#[ignore]`, `@Disabled`, `[Fact(Skip=`).
+6. **Literal & Multiline Template Stripping:** Before evaluating structural braces, branches, or function headers, the polyglot lexer strips multiline backtick template literals (`` `...` ``), raw string literals (`r#"..."#`, `"""..."""`, `'''...'''`, `@"..."`), and comments so keywords inside strings never trigger false positives.
+7. **Per-`source_root` Polyglot Toolchain & Coverage Ratchet Parity:** `gates_polyglot_toolchain.go` iterates across root and configured `source_roots` for TypeScript (`tsc --noEmit`), Python (`python3 -m py_compile` + `pytest`), Rust (`cargo check`), C/C++ (`cmake` / `clang -fsyntax-only`), Java/Kotlin (`gradle check` / `mvn test-compile`), and C# (`dotnet build`), and parses `lcov.info` and `cobertura.xml` coverage reports against `min_coverage`.
 
 ---
 
