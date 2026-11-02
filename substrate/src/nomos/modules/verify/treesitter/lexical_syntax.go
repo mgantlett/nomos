@@ -51,6 +51,10 @@ func stripCLikeLiterals(src string, singleQuoteStrings bool) string {
 			i = next
 			continue
 		}
+		if next, ok := skipMultilineStringSpan(src, i, &out); ok {
+			i = next
+			continue
+		}
 		if next, ok := skipQuotedSpan(src, i, singleQuoteStrings); ok {
 			out.WriteByte(' ')
 			i = next
@@ -59,6 +63,27 @@ func stripCLikeLiterals(src string, singleQuoteStrings bool) string {
 		out.WriteByte(src[i])
 	}
 	return out.String()
+}
+
+func skipMultilineStringSpan(src string, i int, out *strings.Builder) (int, bool) {
+	if i+2 < len(src) && src[i:i+3] == `"""` {
+		end := strings.Index(src[i+3:], `"""`)
+		if end < 0 {
+			return len(src), true
+		}
+		out.WriteString(strings.Repeat("\n", strings.Count(src[i+3:i+3+end], "\n")))
+		return i + 5 + end, true
+	}
+	if src[i] == '`' {
+		end := advanceUntilQuoteClose(src, i, '`')
+		span := src[i+1:]
+		if end < len(src) {
+			span = src[i+1 : end]
+		}
+		out.WriteString(strings.Repeat("\n", strings.Count(span, "\n")))
+		return end, true
+	}
+	return i, false
 }
 
 func skipCLikeComment(src string, i int, out *strings.Builder) (int, bool) {
@@ -78,6 +103,7 @@ func skipCLikeComment(src string, i int, out *strings.Builder) (int, bool) {
 		if end < 0 {
 			return len(src), true
 		}
+		out.WriteString(strings.Repeat("\n", strings.Count(src[i+2:i+2+end], "\n")))
 		return i + 3 + end, true
 	}
 	return i, false

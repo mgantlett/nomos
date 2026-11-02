@@ -9,21 +9,28 @@ import (
 	"strings"
 )
 
+var langScannerMap = map[string]func(string, []byte) ([]FunctionMetric, error){
+	"go":         scanGo,
+	"typescript": func(fp string, c []byte) ([]FunctionMetric, error) { return scanTypeScript(fp, c, 0) },
+	"svelte":     scanSvelte,
+	"python":     scanPython,
+	"rust":       scanRust,
+	"c":          scanC,
+	"cpp":        scanC,
+	"java":       scanJava,
+	"kotlin":     scanKotlin,
+	"csharp":     scanCSharp,
+}
+
 // ExtractFunctions parses source code according to language semantics and extracts function metrics.
 func ExtractFunctions(lang, filePath string, content []byte) ([]FunctionMetric, error) {
+	if _, err := LoadSCMQuery(lang); err != nil && lang != "markdown" && lang != "yaml" {
+		return nil, err
+	}
+	if scanner, ok := langScannerMap[lang]; ok {
+		return scanner(filePath, content)
+	}
 	switch lang {
-	case "go":
-		return scanGo(filePath, content)
-	case "typescript":
-		return scanTypeScript(filePath, content, 0)
-	case "svelte":
-		return scanSvelte(filePath, content)
-	case "python":
-		return scanPython(filePath, content)
-	case "rust":
-		return scanRust(filePath, content)
-	case "c", "cpp":
-		return scanC(filePath, content)
 	case "markdown", "yaml", "html", "css":
 		return []FunctionMetric{}, nil
 	default:
@@ -110,23 +117,24 @@ func scanTypeScript(filePath string, content []byte, lineOffset int) ([]Function
 		return nil, err
 	}
 	lines := strings.Split(string(content), "\n")
+	cleanLines := strings.Split(stripCLikeLiterals(string(content), true), "\n")
 	var metrics []FunctionMetric
 
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "/*") {
+	for i, cleanLine := range cleanLines {
+		if strings.TrimSpace(cleanLine) == "" {
 			continue
 		}
-		if match := tsFuncRegex.FindStringSubmatch(line); len(match) > 0 {
+		if match := tsFuncRegex.FindStringSubmatch(cleanLine); len(match) > 0 {
 			name := resolveTSFuncName(match)
 			if name == "" {
 				continue
 			}
 			startLine := i + 1 + lineOffset
-			bodyLines, endLine, bErr := extractTSBody(lines, i)
+			bodyLines, endLine, bErr := extractTSBody(cleanLines, i)
 			if bErr != nil {
 				return nil, bErr
 			}
+			origBody := lines[i:endLine]
 			hasDoc := checkTSDoc(lines, i)
 			comp := calculateTSComplexity(bodyLines)
 
@@ -137,7 +145,7 @@ func scanTypeScript(filePath string, content []byte, lineOffset int) ([]Function
 				Complexity: comp,
 				LOC:        endLine - i,
 				Documented: hasDoc,
-				EmptyBlock: isTSEmptyBody(bodyLines),
+				EmptyBlock: isTSEmptyBody(origBody),
 			})
 		}
 	}
@@ -342,6 +350,10 @@ func isTSEmptyBody(bodyLines []string) bool {
 	lastBrace := strings.LastIndex(joined, "}")
 	if firstBrace >= 0 && lastBrace > firstBrace {
 		inner := strings.TrimSpace(joined[firstBrace+1 : lastBrace])
+		lowerInner := strings.ToLower(inner)
+		if strings.HasPrefix(lowerInner, "throw new error") && strings.Contains(lowerInner, "not implemented") {
+			return true
+		}
 		return inner == "" || inner == "return;" || inner == "return"
 	}
 	body := strings.TrimSpace(joined)
@@ -357,7 +369,7 @@ func isPyEmptyBody(bodyLines []string) bool {
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
-		if trimmed == "pass" || trimmed == "..." {
+		if trimmed == "pass" || trimmed == "..." || strings.HasPrefix(trimmed, "raise NotImplementedError") {
 			return true
 		}
 		return false

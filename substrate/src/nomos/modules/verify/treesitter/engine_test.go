@@ -163,6 +163,59 @@ func TestTreeSitterEngine_Vectors(t *testing.T) {
 			t.Errorf("wasm verify execution failed: %v", err)
 		}
 	})
+
+	t.Run("VEC-TS-11 Multiline Template Literal Differential Isolation", func(t *testing.T) {
+		src := []byte("/** Render template */\nexport function renderCard(active: boolean): string {\n\tconst tpl = `\n\t\tfunction fakeInner() {\n\t\t\tif (a && b || c && d) { return; }\n\t\t}\n\t`;\n\tif (active) {\n\t\treturn tpl;\n\t}\n\treturn \"\";\n}\n")
+		rep, err := engine.ParseAndEvaluate(ctx, "card.ts", src)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(rep.Functions) != 1 {
+			t.Fatalf("expected exactly 1 function (no false positive from template literal), got %d: %+v", len(rep.Functions), rep.Functions)
+		}
+		if rep.Functions[0].Name != "renderCard" || rep.Functions[0].Complexity != 2 {
+			t.Errorf("expected renderCard with complexity 2, got: %+v", rep.Functions[0])
+		}
+	})
+
+	t.Run("VEC-TS-12 JVM and CSharp AST Evaluation and AntiShim", func(t *testing.T) {
+		javaSrc := []byte("public class Engine {\n\t/** Execute step */\n\tpublic int executeStep(int x) {\n\t\tif (x > 0 && x < 10) {\n\t\t\treturn x;\n\t\t}\n\t\treturn 0;\n\t}\n}\n")
+		repJava, err := engine.ParseAndEvaluate(ctx, "Engine.java", javaSrc)
+		if err != nil || !repJava.Passed || len(repJava.Functions) != 1 || repJava.Functions[0].Complexity != 3 {
+			t.Fatalf("unexpected java report: err=%v rep=%+v", err, repJava)
+		}
+
+		ktShim := []byte("class Worker {\n\tfun runTask() {\n\t\tTODO(\"pending\")\n\t}\n}\n")
+		repKt, err := engine.ParseAndEvaluate(ctx, "Worker.kt", ktShim)
+		if err != nil || repKt.Passed || len(repKt.EmptyBlocks) != 1 {
+			t.Fatalf("expected kotlin TODO() shim to fail closed: err=%v rep=%+v", err, repKt)
+		}
+
+		csShim := []byte("public class Handler {\n\tpublic void Handle() {\n\t\tthrow new NotImplementedException();\n\t}\n}\n")
+		repCS, err := engine.ParseAndEvaluate(ctx, "Handler.cs", csShim)
+		if err != nil || repCS.Passed || len(repCS.EmptyBlocks) != 1 {
+			t.Fatalf("expected csharp NotImplementedException shim to fail closed: err=%v rep=%+v", err, repCS)
+		}
+	})
+
+	t.Run("VEC-TS-13 Test Skip Reward Hack Rejection", func(t *testing.T) {
+		cases := map[string]string{
+			"app.test.ts":  "it.skip('bypassesbroken test', () => {});",
+			"test_app.py":  "@pytest.mark.skip\ndef test_broken():\n    assert True\n",
+			"lib_test.rs":  "#[ignore]\nfn test_broken() {\n    assert!(true);\n}\n",
+			"AppTest.java": "public class AppTest {\n\t@Disabled\n\tpublic void testBroken() {\n\t\tassertTrue(true);\n\t}\n}\n",
+			"AppTests.cs":  "public class AppTests {\n\t[Fact(Skip = \"broken\")]\n\tpublic void TestBroken() {\n\t\tAssert.True(true);\n\t}\n}\n",
+		}
+		for file, code := range cases {
+			rep, err := engine.ParseAndEvaluate(ctx, file, []byte(code))
+			if err != nil {
+				t.Fatalf("unexpected parse err on %s: %v", file, err)
+			}
+			if rep.Passed || len(rep.SkippedTests) == 0 {
+				t.Errorf("expected skipped test in %s to fail closed, got Passed=%v SkippedTests=%v", file, rep.Passed, rep.SkippedTests)
+			}
+		}
+	})
 }
 
 func TestGetDefaultEngine(t *testing.T) {

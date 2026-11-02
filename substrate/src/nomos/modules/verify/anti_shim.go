@@ -72,29 +72,44 @@ func checkTrivialPassShim(fn *ast.FuncDecl) bool {
 }
 
 func isTrivialGateReturn(ret *ast.ReturnStmt) bool {
-	var comp *ast.CompositeLit
-	if unary, ok := ret.Results[0].(*ast.UnaryExpr); ok && unary.Op == token.AND {
-		comp, _ = unary.X.(*ast.CompositeLit)
-	} else if c, ok := ret.Results[0].(*ast.CompositeLit); ok {
-		comp = c
-	}
+	comp := extractGateCompositeLit(ret.Results[0])
 	if comp == nil {
 		return false
 	}
-	ident, ok := comp.Type.(*ast.Ident)
-	if !ok || ident.Name != "GateResult" {
-		return false
-	}
 	for _, elt := range comp.Elts {
-		if kv, ok := elt.(*ast.KeyValueExpr); ok {
-			if k, ok := kv.Key.(*ast.Ident); ok && k.Name == "Passed" {
-				if v, ok := kv.Value.(*ast.Ident); ok && v.Name == "true" {
-					return true
-				}
-			}
+		if isPassedTrueKV(elt) {
+			return true
 		}
 	}
 	return false
+}
+
+func extractGateCompositeLit(expr ast.Expr) *ast.CompositeLit {
+	var comp *ast.CompositeLit
+	if unary, ok := expr.(*ast.UnaryExpr); ok && unary.Op == token.AND {
+		if c, okCast := unary.X.(*ast.CompositeLit); okCast {
+			comp = c
+		}
+	} else if c, okCast := expr.(*ast.CompositeLit); okCast {
+		comp = c
+	}
+	if comp == nil {
+		return nil
+	}
+	if ident, ok := comp.Type.(*ast.Ident); ok && ident.Name == "GateResult" {
+		return comp
+	}
+	return nil
+}
+
+func isPassedTrueKV(elt ast.Expr) bool {
+	kv, ok := elt.(*ast.KeyValueExpr)
+	if !ok {
+		return false
+	}
+	k, kOk := kv.Key.(*ast.Ident)
+	v, vOk := kv.Value.(*ast.Ident)
+	return kOk && vOk && k.Name == "Passed" && v.Name == "true"
 }
 
 func checkSinglePanicShim(stmt ast.Stmt) bool {
@@ -152,18 +167,7 @@ func (g *AntiShimGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 			violations = append(violations, scanPolyglotAntiShim(path, relPath)...)
 			return nil
 		}
-		node, parseErr := parser.ParseFile(fset, path, nil, 0)
-		if parseErr != nil {
-			return nil
-		}
-		for _, decl := range node.Decls {
-			if fn, ok := decl.(*ast.FuncDecl); ok && fn.Body != nil {
-				dto := ScanFunctionAntiShim(fn)
-				if valErr := ValidateAntiShim(dto); valErr != nil {
-					violations = append(violations, fmt.Sprintf("%s:%s", relPath, valErr.Error()))
-				}
-			}
-		}
+		violations = append(violations, scanGoFileAntiShim(fset, path, relPath)...)
 		return nil
 	})
 	if err != nil {
@@ -180,6 +184,23 @@ func (g *AntiShimGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	}
 
 	return &GateResult{GateName: g.Name(), Passed: true, Message: "zero anti-shim violations detected"}, nil
+}
+
+func scanGoFileAntiShim(fset *token.FileSet, path, relPath string) []string {
+	node, parseErr := parser.ParseFile(fset, path, nil, 0)
+	if parseErr != nil {
+		return nil
+	}
+	var violations []string
+	for _, decl := range node.Decls {
+		if fn, ok := decl.(*ast.FuncDecl); ok && fn.Body != nil {
+			dto := ScanFunctionAntiShim(fn)
+			if valErr := ValidateAntiShim(dto); valErr != nil {
+				violations = append(violations, fmt.Sprintf("%s:%s", relPath, valErr.Error()))
+			}
+		}
+	}
+	return violations
 }
 
 func scanCustomForbiddenShims(path, relPath string, markers []string) []string {
@@ -220,6 +241,9 @@ func scanPolyglotAntiShim(path, relPath string) []string {
 		if valErr := ValidateAntiShim(AntiShimDTO{Name: fnName, BodyStatementCount: 0}); valErr != nil {
 			violations = append(violations, fmt.Sprintf("%s:%s", relPath, valErr.Error()))
 		}
+	}
+	for _, skip := range rep.SkippedTests {
+		violations = append(violations, fmt.Sprintf("%s: test_skip_reward_hack (%s)", relPath, skip))
 	}
 	return violations
 }

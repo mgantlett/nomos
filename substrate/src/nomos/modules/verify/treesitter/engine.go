@@ -3,6 +3,7 @@ package treesitter
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -39,7 +40,21 @@ type WazeroTreeSitterEngine struct {
 var (
 	defaultEngine   *WazeroTreeSitterEngine
 	defaultEngineMu sync.Mutex
+	sharedWasmCache wazero.CompilationCache
+	sharedCacheOnce sync.Once
 )
+
+func getSharedCompilationCache() wazero.CompilationCache {
+	sharedCacheOnce.Do(func() {
+		cacheDir := filepath.Join(os.TempDir(), "nomos-wazero-cache")
+		c, err := wazero.NewCompilationCacheWithDir(cacheDir)
+		if err != nil {
+			c = wazero.NewCompilationCache()
+		}
+		sharedWasmCache = c
+	})
+	return sharedWasmCache
+}
 
 // GetDefaultEngine retrieves or initializes the canonical shared WazeroTreeSitterEngine.
 func GetDefaultEngine() (*WazeroTreeSitterEngine, error) {
@@ -56,24 +71,31 @@ func GetDefaultEngine() (*WazeroTreeSitterEngine, error) {
 	return defaultEngine, nil
 }
 
-// NewTreeSitterEngine initializes a pure-Go WebAssembly runtime and verifies query contracts.
+// NewTreeSitterEngine initializes a pure-Go WebAssembly runtime with a persistent CompilationCache and verifies query contracts.
 func NewTreeSitterEngine(ctx context.Context) (*WazeroTreeSitterEngine, error) {
 	if err := ValidateQueryFS(); err != nil {
 		return nil, fmt.Errorf("failed validating query filesystem: %w", err)
 	}
 
 	cfg := wazero.NewRuntimeConfig()
+	if cache := getSharedCompilationCache(); cache != nil {
+		cfg = cfg.WithCompilationCache(cache)
+	}
 	rt := wazero.NewRuntimeWithConfig(ctx, cfg)
 
 	compiled, err := rt.CompileModule(ctx, TreeSitterWasmBytecode)
 	if err != nil {
-		_ = rt.Close(ctx)
+		if cErr := rt.Close(ctx); cErr != nil {
+			return nil, fmt.Errorf("failed compiling treesitter wasm bytecode (%v): %w", cErr, err)
+		}
 		return nil, fmt.Errorf("failed compiling treesitter wasm bytecode: %w", err)
 	}
 
 	mod, err := rt.InstantiateModule(ctx, compiled, wazero.NewModuleConfig().WithName("treesitter_wasm"))
 	if err != nil {
-		_ = rt.Close(ctx)
+		if cErr := rt.Close(ctx); cErr != nil {
+			return nil, fmt.Errorf("failed instantiating treesitter wasm module (%v): %w", cErr, err)
+		}
 		return nil, fmt.Errorf("failed instantiating treesitter wasm module: %w", err)
 	}
 
@@ -141,7 +163,12 @@ func (e *WazeroTreeSitterEngine) ParseAndEvaluate(ctx context.Context, filePath 
 	if err != nil {
 		return nil, err
 	}
-	return BuildEvaluationReport(filePath, totalLines, funcs, e.thresholds), nil
+	rep := BuildEvaluationReport(filePath, totalLines, funcs, e.thresholds)
+	if skipped := DetectSkippedTests(lang, content); len(skipped) > 0 {
+		rep.SkippedTests = skipped
+		rep.Passed = false
+	}
+	return rep, nil
 }
 
 func evaluateNonFunctionLanguage(lang, filePath string, content []byte, totalLines int) (*GateEvaluationReport, bool, error) {
@@ -178,35 +205,36 @@ func emptyFuncReport(filePath string, totalLines int) *GateEvaluationReport {
 	}
 }
 
+var extToLangMap = map[string]string{
+	".go":     "go",
+	".ts":     "typescript",
+	".tsx":    "typescript",
+	".js":     "typescript",
+	".jsx":    "typescript",
+	".svelte": "svelte",
+	".py":     "python",
+	".rs":     "rust",
+	".c":      "c",
+	".h":      "c",
+	".cpp":    "cpp",
+	".cc":     "cpp",
+	".cxx":    "cpp",
+	".hpp":    "cpp",
+	".java":   "java",
+	".kt":     "kotlin",
+	".kts":    "kotlin",
+	".cs":     "csharp",
+	".html":   "html",
+	".htm":    "html",
+	".css":    "css",
+	".md":     "markdown",
+	".yaml":   "yaml",
+	".yml":    "yaml",
+}
+
 // DetectLanguage resolves the canonical language identifier from the file extension.
 func DetectLanguage(filePath string) string {
-	ext := strings.ToLower(filepath.Ext(filePath))
-	switch ext {
-	case ".go":
-		return "go"
-	case ".ts", ".tsx", ".js", ".jsx":
-		return "typescript"
-	case ".svelte":
-		return "svelte"
-	case ".py":
-		return "python"
-	case ".rs":
-		return "rust"
-	case ".c", ".h":
-		return "c"
-	case ".cpp", ".cc", ".cxx", ".hpp":
-		return "cpp"
-	case ".html", ".htm":
-		return "html"
-	case ".css":
-		return "css"
-	case ".md":
-		return "markdown"
-	case ".yaml", ".yml":
-		return "yaml"
-	default:
-		return ""
-	}
+	return extToLangMap[strings.ToLower(filepath.Ext(filePath))]
 }
 
 // BuildEvaluationReport calculates docstring density, CDS, and gate verdicts from extracted functions.

@@ -16,3 +16,7 @@
  (binary_expression operator: "&&")
  (binary_expression operator: "||")
  (binary_expression operator: "??")] @branch
+
+;; Anti-shim stub and test-skip patterns
+[(throw_statement) @shim.stub
+ (call_expression function: (member_expression object: (identifier) property: (property_identifier) @test.skip))]

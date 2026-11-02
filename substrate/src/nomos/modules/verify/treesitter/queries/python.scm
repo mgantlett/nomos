@@ -9,3 +9,8 @@
  (while_statement)
  (except_clause)
  (boolean_operator)] @branch
+
+;; Anti-shim stub and test-skip patterns
+[(pass_statement) @shim.stub
+ (raise_statement) @shim.stub
+ (decorator) @test.skip]

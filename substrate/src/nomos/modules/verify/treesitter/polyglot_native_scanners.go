@@ -6,24 +6,39 @@ import (
 )
 
 var (
-	rustFuncRegex = regexp.MustCompile(`(?m)^\s*(?:pub(?:\([^)]+\))?\s+)?(?:async\s+)?(?:unsafe\s+)?fn\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:<[^>]*>)?\s*\(`)
-	cFuncRegex    = regexp.MustCompile(`(?m)^\s*(?:[a-zA-Z_][a-zA-Z0-9_*\s]+)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\([^)]*\)\s*\{`)
+	rustFuncRegex   = regexp.MustCompile(`(?m)^\s*(?:pub(?:\([^)]+\))?\s+)?(?:async\s+)?(?:unsafe\s+)?fn\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:<[^>]*>)?\s*\(`)
+	cFuncRegex      = regexp.MustCompile(`(?m)^\s*(?:[a-zA-Z_][a-zA-Z0-9_*\s]+)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\([^)]*\)\s*\{`)
+	kotlinFuncRegex = regexp.MustCompile(`(?m)^\s*(?:(?:public|private|protected|internal|override|suspend|inline|open)\s+)*fun\s+(?:<[^>]+>\s*)?([a-zA-Z_][a-zA-Z0-9_]*)\s*\(`)
+	javaMethodRegex = regexp.MustCompile(`(?m)^\s*(?:(?:public|private|protected|static|final|synchronized|abstract|default)\s+)+(?:<[^>]+>\s*)?[a-zA-Z_][a-zA-Z0-9_<>,\[\]\s?]*\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\([^)]*\)\s*(?:throws\s+[a-zA-Z0-9_,\s]+)?\{`)
+	csharpMethodRe  = regexp.MustCompile(`(?m)^\s*(?:(?:public|private|protected|internal|static|virtual|override|async|sealed|new)\s+)+(?:[a-zA-Z_][a-zA-Z0-9_<>,\[\]?]*\s+)+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:<[^>]+>)?\s*\([^)]*\)\s*\{`)
 )
 
-func scanRust(filePath string, content []byte) ([]FunctionMetric, error) {
-	if err := ValidateBraceSyntax("rust", filePath, content); err != nil {
+type braceScanSpec struct {
+	langName    string
+	funcRegex   *regexp.Regexp
+	docPrefixes []string
+	branchToks  []string
+	shimMarkers []string
+}
+
+func scanBraceLanguage(filePath string, content []byte, spec braceScanSpec) ([]FunctionMetric, error) {
+	if err := ValidateBraceSyntax(spec.langName, filePath, content); err != nil {
 		return nil, err
 	}
-	lines := strings.Split(string(content), "\n")
+	origLines := strings.Split(string(content), "\n")
+	cleanLines := strings.Split(stripCLikeLiterals(string(content), spec.langName != "rust"), "\n")
 	var metrics []FunctionMetric
-	for i, line := range lines {
-		if m := rustFuncRegex.FindStringSubmatch(line); len(m) > 1 {
+	for i, cleanLine := range cleanLines {
+		if m := spec.funcRegex.FindStringSubmatch(cleanLine); len(m) > 1 {
 			name := m[1]
-			bodyLines, endIdx := extractBraceBody(lines, i)
-			hasDoc := checkPrecedingDoc(lines, i, "///", "//", "/**")
-			tokens := []string{"if ", "match ", "for ", "while ", "loop ", "?", "&&", "||"}
-			comp := calculateBranchCount(bodyLines, tokens)
-			empty := isBraceEmpty(bodyLines, "todo!()", "unimplemented!()")
+			if tsControlKeywords[name] {
+				continue
+			}
+			cleanBody, endIdx := extractBraceBody(cleanLines, i)
+			origBody := origLines[i : endIdx+1]
+			hasDoc := checkPrecedingDoc(origLines, i, spec.docPrefixes...)
+			comp := calculateBranchCount(cleanBody, spec.branchToks)
+			empty := isBraceEmpty(origBody, spec.shimMarkers...)
 			metrics = append(metrics, FunctionMetric{
 				File:       filePath,
 				Line:       i + 1,
@@ -38,32 +53,53 @@ func scanRust(filePath string, content []byte) ([]FunctionMetric, error) {
 	return metrics, nil
 }
 
+func scanRust(filePath string, content []byte) ([]FunctionMetric, error) {
+	return scanBraceLanguage(filePath, content, braceScanSpec{
+		langName:    "rust",
+		funcRegex:   rustFuncRegex,
+		docPrefixes: []string{"///", "//", "/**"},
+		branchToks:  []string{"if ", "match ", "for ", "while ", "loop ", "?", "&&", "||"},
+		shimMarkers: []string{"todo!()", "unimplemented!()"},
+	})
+}
+
 func scanC(filePath string, content []byte) ([]FunctionMetric, error) {
-	if err := ValidateBraceSyntax("c/c++", filePath, content); err != nil {
-		return nil, err
-	}
-	lines := strings.Split(string(content), "\n")
-	var metrics []FunctionMetric
-	for i, line := range lines {
-		if m := cFuncRegex.FindStringSubmatch(line); len(m) > 1 {
-			name := m[1]
-			bodyLines, endIdx := extractBraceBody(lines, i)
-			hasDoc := checkPrecedingDoc(lines, i, "/**", "/*", "//")
-			tokens := []string{"if (", "if(", "for (", "for(", "while (", "while(", "case ", "switch (", "&&", "||"}
-			comp := calculateBranchCount(bodyLines, tokens)
-			empty := isBraceEmpty(bodyLines)
-			metrics = append(metrics, FunctionMetric{
-				File:       filePath,
-				Line:       i + 1,
-				Name:       name,
-				Complexity: comp,
-				LOC:        endIdx - i + 1,
-				Documented: hasDoc,
-				EmptyBlock: empty,
-			})
-		}
-	}
-	return metrics, nil
+	return scanBraceLanguage(filePath, content, braceScanSpec{
+		langName:    "c/c++",
+		funcRegex:   cFuncRegex,
+		docPrefixes: []string{"/**", "/*", "//"},
+		branchToks:  []string{"if (", "if(", "for (", "for(", "while (", "while(", "case ", "switch (", "&&", "||"},
+	})
+}
+
+func scanJava(filePath string, content []byte) ([]FunctionMetric, error) {
+	return scanBraceLanguage(filePath, content, braceScanSpec{
+		langName:    "java",
+		funcRegex:   javaMethodRegex,
+		docPrefixes: []string{"/**", "/*", "//"},
+		branchToks:  []string{"if (", "if(", "for (", "for(", "while (", "while(", "case ", "catch (", "catch(", "&&", "||", " ? "},
+		shimMarkers: []string{"throw new UnsupportedOperationException"},
+	})
+}
+
+func scanKotlin(filePath string, content []byte) ([]FunctionMetric, error) {
+	return scanBraceLanguage(filePath, content, braceScanSpec{
+		langName:    "kotlin",
+		funcRegex:   kotlinFuncRegex,
+		docPrefixes: []string{"/**", "/*", "//"},
+		branchToks:  []string{"if (", "if(", "when (", "when(", "for (", "for(", "while (", "while(", "catch (", "&&", "||", "?:"},
+		shimMarkers: []string{"TODO(", "TODO()", "throw UnsupportedOperationException"},
+	})
+}
+
+func scanCSharp(filePath string, content []byte) ([]FunctionMetric, error) {
+	return scanBraceLanguage(filePath, content, braceScanSpec{
+		langName:    "csharp",
+		funcRegex:   csharpMethodRe,
+		docPrefixes: []string{"///", "/**", "/*", "//"},
+		branchToks:  []string{"if (", "if(", "for (", "for(", "foreach (", "foreach(", "while (", "while(", "case ", "catch (", "&&", "||", "??"},
+		shimMarkers: []string{"throw new NotImplementedException"},
+	})
 }
 
 func extractBraceBody(lines []string, startLine int) ([]string, int) {
@@ -124,7 +160,8 @@ func isBraceEmpty(bodyLines []string, shims ...string) bool {
 			return true
 		}
 		for _, s := range shims {
-			if strings.TrimSpace(inner) == s {
+			trimmedInner := strings.TrimSpace(inner)
+			if trimmedInner == s || strings.HasPrefix(trimmedInner, s) {
 				return true
 			}
 		}

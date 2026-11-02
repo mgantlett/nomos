@@ -9,3 +9,7 @@
  (loop_expression)
  (for_expression)
  (while_expression)] @branch
+
+;; Anti-shim stub and test-skip patterns
+[(macro_invocation macro: (identifier) @shim.stub)
+ (attribute_item) @test.skip]

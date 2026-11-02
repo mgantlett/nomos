@@ -37,6 +37,7 @@ type GateEvaluationReport struct {
 	Total           int              `json:"total"`
 	Density         int              `json:"density"`
 	EmptyBlocks     []string         `json:"empty_blocks,omitempty"`
+	SkippedTests    []string         `json:"skipped_tests,omitempty"`
 	HeadingLevels   []int            `json:"heading_levels,omitempty"`
 	OutlineVerified bool             `json:"outline_verified,omitempty"`
 	Passed          bool             `json:"pass"`
@@ -80,23 +81,26 @@ func CalculateCDS(functions []FunctionMetric, density int) int {
 	return int(debt)
 }
 
-// ValidateQueryFS verifies that all required language queries are embedded.
+// ValidateQueryFS verifies that all required language queries are embedded and syntactically valid.
 func ValidateQueryFS() error {
-	queries := []string{
-		"queries/go.scm",
-		"queries/typescript.scm",
-		"queries/python.scm",
-		"queries/svelte.scm",
-		"queries/rust.scm",
-		"queries/c.scm",
-		"queries/cpp.scm",
-		"queries/html.scm",
-		"queries/css.scm",
+	langs := []string{
+		"go",
+		"typescript",
+		"python",
+		"svelte",
+		"rust",
+		"c",
+		"cpp",
+		"java",
+		"kotlin",
+		"csharp",
+		"html",
+		"css",
 	}
-	for _, q := range queries {
-		data, err := QueryFS.ReadFile(q)
-		if err != nil || len(strings.TrimSpace(string(data))) == 0 {
-			return fmt.Errorf("missing or empty embedded query %s: %w", q, err)
+	for _, lang := range langs {
+		spec, err := LoadSCMQuery(lang)
+		if err != nil || spec == nil || len(strings.TrimSpace(spec.RawSource)) == 0 {
+			return fmt.Errorf("missing or invalid embedded query for %s: %w", lang, err)
 		}
 	}
 	return nil

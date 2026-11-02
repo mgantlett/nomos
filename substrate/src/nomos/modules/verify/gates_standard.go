@@ -50,7 +50,7 @@ func isPolyglotTargetFile(path string) bool {
 		return true
 	case ".py":
 		return !strings.HasPrefix(filepath.Base(path), "test_") && !strings.HasSuffix(path, "_test.py")
-	case ".rs", ".c", ".h", ".cpp", ".cc", ".cxx", ".hpp":
+	case ".rs", ".c", ".h", ".cpp", ".cc", ".cxx", ".hpp", ".java", ".kt", ".kts", ".cs":
 		return !isNativeTestFile(path)
 	default:
 		return false

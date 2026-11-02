@@ -224,7 +224,7 @@ func evaluateWorktreeBoundary(rawTarget, resolved, toolName string) HookDecision
 }
 
 func isPermittedWorktreePath(resolved string) bool {
-	return strings.Contains(resolved, "/worktrees/") || strings.Contains(resolved, "/.tmp/")
+	return strings.Contains(resolved, "/worktrees/") || strings.Contains(resolved, "/.tmp/") || strings.Contains(resolved, "/brain/")
 }
 
 func isSystemRootPath(resolved string) bool {

@@ -27,6 +27,9 @@ func evaluatePolyglotToolchains(ctx *VerifyContext, root string) ([]string, *Gat
 		{isPythonImpactPath, func() (string, *GateResult) { return verifyPythonToolchain(ctx, root) }},
 		{isTypeScriptImpactPath, func() (string, *GateResult) { return verifyTypeScriptToolchain(root) }},
 		{isRustImpactPath, func() (string, *GateResult) { return verifyRustToolchain(root) }},
+		{isCCppImpactPath, func() (string, *GateResult) { return verifyCCppToolchain(root) }},
+		{isJVMImpactPath, func() (string, *GateResult) { return verifyJVMToolchain(root) }},
+		{isCSharpImpactPath, func() (string, *GateResult) { return verifyCSharpToolchain(root) }},
 	}
 
 	var verified []string
@@ -135,7 +138,7 @@ func collectModifiedPythonFiles(ctx *VerifyContext) []string {
 
 func walkRepoPythonFiles(root string) []string {
 	var files []string
-	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+	if walkErr := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d == nil {
 			return nil
 		}
@@ -149,13 +152,15 @@ func walkRepoPythonFiles(root string) []string {
 			files = append(files, path)
 		}
 		return nil
-	})
+	}); walkErr != nil {
+		return nil
+	}
 	return files
 }
 
 func hasPythonTests(root string) bool {
 	found := false
-	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+	if walkErr := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d == nil || found {
 			return nil
 		}
@@ -170,7 +175,9 @@ func hasPythonTests(root string) bool {
 			found = true
 		}
 		return nil
-	})
+	}); walkErr != nil {
+		return false
+	}
 	return found
 }
 

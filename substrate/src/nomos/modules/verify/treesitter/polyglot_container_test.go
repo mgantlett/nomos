@@ -135,6 +135,36 @@ int handle_task(int code) {
   padding: 0;
 }
 `,
+		"Service.java": `public class Service {
+	/** Process request */
+	public int processRequest(int code) {
+		if (code > 0) {
+			return code;
+		}
+		return 0;
+	}
+}
+`,
+		"Pipeline.kt": `class Pipeline {
+	/** Run pipeline stage */
+	fun runStage(active: Boolean): Int {
+		if (active) {
+			return 1
+		}
+		return 0
+	}
+}
+`,
+		"Controller.cs": `public class Controller {
+	/// Execute controller command
+	public int ExecuteCommand(int input) {
+		if (input > 0) {
+			return input;
+		}
+		return 0;
+	}
+}
+`,
 	}
 
 	for relPath, content := range files {
