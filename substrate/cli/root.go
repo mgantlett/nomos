@@ -17,7 +17,7 @@ func NewRootCmd() *cobra.Command {
 		Version: RootCmdVersion,
 		Short:   "Transactional governance harness between coding agents and Git",
 		Long: `Nomos Open-Core Transactional Governance Harness
-The deterministic runtime between any coding agent and Git: isolated worktrees, 42 anti-reward-hacking AST gates, and atomic 2PC releases.`,
+The deterministic runtime between any coding agent and Git: causal INT/SUB spec-vs-code DAGs, isolated git worktrees, 42 polyglot anti-reward-hacking AST gates, receipt-gated SQLite memory, and atomic 2PC releases.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
