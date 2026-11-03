@@ -41,7 +41,7 @@ This specification unifies the **Hermetic Git Hooks Lifecycle**, the canonical *
 | **1** | **The Dual-Core Inversion Law** | Substrate Go core governs execution; agents commit via canonical CLI rather than unmediated git. | `nomos task commit`, `git_hygiene` AST probe |
 | **2** | **The Non-Verbal Proof Law** | Zero trust in conversational commit messages; Dual-Layer schema is verified before merge. | `commit_schema` gate, table-driven tests |
 | **3** | **The Hermetic Worktree Law** | Mutations occur strictly in transient worktrees; repository root is immutable. | `pre-commit` hook, `staged_boundaries` gate |
-| **4** | **The Single Source of Truth Law** | Commit schema format and hook scripts have one compiled Go SSoT with CUE contract parity. | `commit_rules.cue`, `substrate/src/nomos/core/workspace/hooks.go` |
+| **4** | **The Single Source of Truth Law** | Commit schema format and hook scripts have one compiled Go SSoT. | `substrate/src/nomos/modules/verify/commit_schema_gate.go`, `substrate/src/nomos/core/workspace/hooks.go` |
 | **5** | **The Zero-Hardcoded-Path Law** | Dynamic resolution of worktrees, hooks, and repository roots. | `config.ResolveWorktreeDir()`, `FindRepoRoot()` |
 | **6** | **The Canonical Singularity Law** | Single canonical commit workflow: `nomos task commit`. Raw git commits are intercepted and blocked. | Zero-Alias pre-commit discipline |
 | **7** | **The Fail-Closed Pre-Flight Law** | Boundary escapes, missing commit headers, or un-sanitized git calls fail closed. | Gate pipeline exit code 1 |
@@ -94,7 +94,7 @@ Static canned placeholder bodies (such as `"satisfy <KEY> deterministic executio
    - Preserves explicit `feat|fix|docs|chore|refactor|test` prefixes, or deterministically synthesizes `<type>(<scope>): <summary>` from plane/verb/staged package paths when a plain imperative title is provided.
 3. **Three-Section Priority Cascade (Zero Shims)**:
    - **`**Architectural Rationale:**`**: Explicit `--rationale` $\rightarrow$ Living Ledger 3-section card `## Scope & Context` $\rightarrow$ walkthrough summary $\rightarrow$ concrete chore title and package context.
-   - **`**Blast Radius & Contracts:**`**: Explicit `--blast-radius` $\rightarrow$ staged Git path manifest (`git diff --cached --name-status`) highlighting touched CUE contracts, specs, and packages.
+   - **`**Blast Radius & Contracts:**`**: Explicit `--blast-radius` $\rightarrow$ staged Git path manifest (`git diff --cached --name-status`) highlighting touched schemas, specs, and packages.
    - **`**Resolution Mechanics:**`**: Explicit `--mechanics` $\rightarrow$ walkthrough release notes (`-F` or `.tmp/walkthrough-<KEY>.md`) $\rightarrow$ Living Ledger card `## Acceptance Criteria` deliverables $\rightarrow$ staged per-file diffstat (`git diff --cached --numstat`).
 4. **Dirty Worktree Sync Parity**: When `nomos task sync <KEY> -F <walkthrough>` auto-commits uncommitted worktree edits, `autoCommitDirtyWorktree` forwards both the `TaskRecord` and `walkthroughPath` into the hydration pipeline so trunk commits always carry real rationale, file blast radius, and walkthrough mechanics.
 5. **Hermetic Execution**: Sets `NOMOS_COMMIT_IN_PROGRESS=1`, stages modified files if `--all` is set, and commits via `workspace.SafeGitCommand`.

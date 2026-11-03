@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../nomos.schema.json
 project: nomos
 default_branch: main
 governance:
@@ -36,8 +37,10 @@ governance:
         contracts:
             contracts:
                 enabled: true
-                cue_roots:
-                    - "intent/contracts/cue"
+                spec_roots:
+                    - "intent/architecture/specs"
+                schema_files:
+                    - "nomos.schema.json"
                 backend_roots:
                     - "substrate"
         thresholds:

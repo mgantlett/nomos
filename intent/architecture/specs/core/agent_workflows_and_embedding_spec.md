@@ -66,10 +66,10 @@ nomos/
 │       ├── session-start.sh           # Silent nomos handshake context injector on SessionStart
 │       ├── worktree-guard.sh          # PreToolUse Law 3 hermetic worktree boundary guard
 │       └── nomos-build-guard.sh       # PreToolUse Law 1/Law 4 DB & binary encapsulation guard
+├── nomos.schema.json                  # Go-reflected Draft 2020-12 JSON Schema
 ├── intent/
-│   └── contracts/
-│       └── cue/
-│           └── asset_parity.cue       # Formal #AssetType & parity audit schema
+│   └── config/
+│       └── nomos.yaml                 # Declarative workspace governance manifest
 └── substrate/
     ├── cli/
     │   └── templates/                 # Embedded protocol, config & hook templates (cmd_init.go)
@@ -94,10 +94,10 @@ nomos/
 
 ### 4.1 Formal Go DTO Contracts (`workspace/parity.go`)
 
-All parity structures bind strictly to `#AssetType`, `#EmbeddedAsset`, `#ParityMismatch`, and `#ParityAuditReport` in `intent/contracts/cue/asset_parity.cue`:
+All parity structures bind strictly to compiled Go types (`AssetType`, `EmbeddedAsset`, `ParityMismatch`, and `ParityAuditReport`) in `substrate/src/nomos/core/workspace/parity.go`:
 
 ```go
-// AssetType defines the category of embedded asset bound to CUE #AssetType.
+// AssetType defines the category of embedded governance asset.
 type AssetType string
 
 const (
@@ -162,5 +162,5 @@ stateDiagram-v2
 
 1. **Zero Workflow or Skill Clutter:** Zero files exist under `.agents/workflows/` or `substrate/cli/templates/workflows/`, and zero custom slash-command skills are required to operate Nomos.
 2. **Ambient Session Orientation:** `.agents/hooks.json` registers a `SessionStart` handler invoking `nomos handshake` silently alongside `PreToolUse` boundary guards.
-3. **CUE & Go Schema Parity:** `intent/contracts/cue/asset_parity.cue` and `substrate/src/nomos/core/workspace/parity.go` bind `AssetTypeHook` (`"hook"`) cleanly with zero orphan contracts.
+3. **Go SSoT Parity:** `substrate/src/nomos/core/workspace/parity.go` binds `AssetTypeHook` (`"hook"`) and `nomos.schema.json` cleanly with zero orphan contracts.
 4. **Gate Suite Green:** `nomos verify` passes all 42 statutory Definition of Done gates with exit code 0.

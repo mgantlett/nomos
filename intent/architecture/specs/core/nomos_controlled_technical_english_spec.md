@@ -61,51 +61,32 @@ The substrate enforces NCTE-100 rules deterministically using an AST markdown an
 ## 3. Dual-Core Interface Contracts and SSoT Data Structures
 
 NCTE-100 enforces a strict separation between Intent policy and Substrate execution.
-The Intent plane defines declarative rules in CUE.
-The Substrate plane implements the AST analysis engine in Go.
+The Intent plane defines linguistic bounds in Markdown specifications.
+The Substrate plane compiles the AST analysis engine and policy thresholds in Go.
 
-### 3.1 Declarative CUE Policy Schema
+### 3.1 Compiled Policy Bounds Schema (`ncte/linter.go`)
 
-The Intent schema defines mathematical bounds, banned tokens, and vocabulary contracts.
+The Substrate policy configuration defines numeric bounds, banned tokens, and vocabulary contracts.
 
-```cue
-package schemas
+```go
+package ncte
 
-// #NCTEBounds declares numeric constraints for markdown prose.
-#NCTEBounds: {
-	max_descriptive_words:   int & <= 25 | *25
-	max_procedural_words:    int & <= 20 | *20
-	max_paragraph_sentences: int & <= 6  | *6
-	max_table_cell_words:    int & <= 12 | *12
-	max_passive_adverb_gap:  int & <= 2  | *2
+// NCTEBounds declares numeric constraints for markdown prose.
+type NCTEBounds struct {
+	MaxDescriptiveWords   int `json:"max_descriptive_words"`
+	MaxProceduralWords    int `json:"max_procedural_words"`
+	MaxParagraphSentences int `json:"max_paragraph_sentences"`
+	MaxTableCellWords     int `json:"max_table_cell_words"`
+	MaxPassiveAdverbGap   int `json:"max_passive_adverb_gap"`
 }
 
-// #VocabularyDefinition declares a single approved architectural term.
-#VocabularyDefinition: {
-	canonical_term:   string & != ""
-	part_of_speech:   "verb" | "noun" | "adjective"
-	approved_meaning: string & != ""
-	banned_synonyms:  [...string]
-}
-
-// #NCTEPolicy defines the authoritative validation schema.
-#NCTEPolicy: {
-	bounds: #NCTEBounds
-	banned_modals: [...string] | *[
-		"should",
-		"would",
-		"could",
-		"might",
-		"ideally",
-		"as needed",
-		"and/or",
-	]
-	exempt_table_headers: [...string] | *[
-		"Input Sentence",
-		"Approved Semantic Meaning",
-	]
-	severity: "ERROR"
-	vocabulary: [...#VocabularyDefinition]
+// NCTEPolicy defines the authoritative validation policy in Go SSoT.
+type NCTEPolicy struct {
+	Bounds             NCTEBounds        `json:"bounds"`
+	BannedModals       []string          `json:"banned_modals"`
+	ExemptTableHeaders []string          `json:"exempt_table_headers"`
+	Severity           DiagnosticSeverity `json:"severity"`
+	Vocabulary         []VocabularyEntry `json:"vocabulary"`
 }
 ```
 
@@ -207,7 +188,7 @@ Token counting executes under deterministic isolation rules:
 
 ### 4.1 Frontmatter Isolation
 - The parser extracts YAML frontmatter before AST evaluation.
-- The parser evaluates frontmatter against CUE schemas.
+- `IntentSteelmanGate` validates frontmatter keys against compiled Go rules.
 - Frontmatter words do not contribute to document sentence counts.
 
 ### 4.2 Fenced Code Block and Inline Literal Handling
@@ -235,7 +216,7 @@ Token counting executes under deterministic isolation rules:
 
 ## 5. Controlled Vocabulary Registry (SSoT)
 
-The substrate compiles a 36-term Succinct Action Lexicon across five domains (`lifecycle`, `verification`, `isolation`, `memory`, `steering`) in `substrate/src/nomos/modules/ncte/lexicon.go` bound to `intent/contracts/cue/ncte.cue`.
+The substrate compiles a 36-term Succinct Action Lexicon across five domains (`lifecycle`, `verification`, `isolation`, `memory`, `steering`) in `substrate/src/nomos/modules/ncte/lexicon.go`.
 Operators query the compiled registry via `nomos directive --lexicon`, `nomos directive --term <word>`, and `nomos directive --lint <file>`.
 The system rejects unregistered synonyms.
 

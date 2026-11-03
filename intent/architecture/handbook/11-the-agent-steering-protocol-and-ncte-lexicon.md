@@ -29,7 +29,7 @@ updatedAt: November 2026
 Most engineering teams evaluate AI developer tooling along only one axis: **how code is edited**. Nomos began by locking down two foundational axes:
 
 1. **Transactional Code (`substrate/`):** Protected trunk `main` is physically read-only (`Law 3`). Mutations occur inside isolated transient Git worktrees (`worktrees/<repo>-<KEY>`), pass 42 compiled Go and WebAssembly Tree-sitter AST gates (`Law 2`), and merge via atomic Two-Phase Commit (`2PC`) with cryptographic Git Notes receipts.
-2. **Transactional Intent (`intent/`):** Specifications, CUE contracts, and causal `INT-<N>` / `SUB-<N>` task DAG cards are versioned, schema-validated (`Law 4`), and hemispherically separated from runtime code (`Law 7`).
+2. **Transactional Intent (`intent/`):** Specifications, configuration manifests, and causal `INT-<N>` / `SUB-<N>` task DAG cards are versioned, schema-validated (`Law 4`), and hemispherically separated from runtime code (`Law 7`).
 
 Yet empirical evaluation across 190 paired containerized runs in `TraceTrial-Bench` revealed a third, orthogonal axis that governs whether a **Tier 1 coding agent** (`Claude Code`, `Antigravity`, `OpenCode`, `Cursor`) converges cleanly or spirals into context thrashing:
 
@@ -57,7 +57,7 @@ Nomos steers Tier 1 coding agents across five deterministic, machine-verified fe
 
 In classic web architecture, **HATEOAS** (*Hypermedia as the Engine of Application State*) means a client never hardcodes state transitions; each response embeds the exact valid next links for the current state.
 
-Nomos applies HATEOAS directly to the terminal. Every orientation, inspection, and lifecycle command (`nomos status`, `nomos handshake`, `nomos task list`, `nomos task dag`, `nomos task show`, `nomos task start`, `nomos verify`, `nomos task sync`) computes phase-aware `ActionAffordance` vectors (`#ActionAffordance` in `handshake.cue`) and renders a `Next Actions` block at the bottom of `stdout`:
+Nomos applies HATEOAS directly to the terminal. Every orientation, inspection, and lifecycle command (`nomos status`, `nomos handshake`, `nomos task list`, `nomos task dag`, `nomos task show`, `nomos task start`, `nomos verify`, `nomos task sync`) computes phase-aware `ActionAffordance` vectors (`types.ActionAffordance` in `core/types/affordance.go`) and renders a `Next Actions` block at the bottom of `stdout`:
 
 ```text
   ◈ Next Actions:
@@ -99,7 +99,7 @@ Nomos resolves this tension through **Asymmetric Hook Discipline** (`~4ms` compi
 Static `3,000`-line system prompts suffer from severe middle-context attention decay. Nomos keeps root `AGENTS.md` / `CLAUDE.md` compressed to the One-Page 7-Law Invariant Card and delivers detailed guidance **Just-In-Time (JIT)** per lifecycle phase:
 
 - **Phase-Scoped Directives (`nomos directive`):** Entering `PLAN`, `EDIT`, `REVIEW`, or `SYNC` surfaces only the directives bound to that phase (`plan_03_nomos_controlled_technical_english.md`, `review_01_dod_gates.md`, `sync_01_atomic_2pc_and_receipts.md`).
-- **Closed-Loop `Trap -> Fix` Distillation:** Whenever `nomos verify` records a gate failure inside a worktree and the task subsequently passes `42/42` gates during `nomos task sync`, Nomos automatically distills the verified **Learned Pitfall** (`gate + package -> verified fix`) and **Verified Pattern** (`files + exported symbols + CUE intents + tests`) into repository-scoped SQLite `Nomos Mneme`. On the next `nomos task start`, those exact pitfalls and patterns are injected into the orientation banner so no agent repeats the same mistake twice.
+- **Closed-Loop `Trap -> Fix` Distillation:** Whenever `nomos verify` records a gate failure inside a worktree and the task subsequently passes `42/42` gates during `nomos task sync`, Nomos automatically distills the verified **Learned Pitfall** (`gate + package -> verified fix`) and **Verified Pattern** (`files + exported symbols + AST intents + tests`) into repository-scoped SQLite `Nomos Mneme`. On the next `nomos task start`, those exact pitfalls and patterns are injected into the orientation banner so no agent repeats the same mistake twice.
 
 ### Channel 5: Self-Documenting CLI Surface Completeness (`Cell 6.2`)
 
@@ -174,7 +174,7 @@ Query this compiled registry anytime from the terminal via `nomos directive --le
 | **`Recall`** | Verb | Query local or cross-repo (`-A`) Mneme records by keyword. | fetch memory, lookup | `nomos mem recall` |
 | **`Distill`** | Verb | Extract verified `Trap -> Fix` pitfalls during `task sync`. | summarize, condense | - |
 | **`Pitfall`** | Noun | Machine-recorded gate failure paired with its verified fix. | gotcha, footgun | `nomos handshake` |
-| **`Pattern`** | Noun | Verified tuple of files, symbols, CUE intents, and tests. | recipe, boilerplate | `nomos handshake` |
+| **`Pattern`** | Noun | Verified tuple of files, symbols, AST intents, and tests. | recipe, boilerplate | `nomos handshake` |
 | **`Axiom`** | Noun | Non-negotiable architectural invariant stored in Mneme. | tip, guideline | `nomos mem list` |
 
 #### Domain 5: Cybernetic Steering (`--domain steering`)

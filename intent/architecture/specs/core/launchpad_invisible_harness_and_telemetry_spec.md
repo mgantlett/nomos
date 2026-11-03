@@ -73,23 +73,18 @@ type CapabilityMetrics struct {
 }
 ```
 
-Declarative CUE schema counterpart in `intent/contracts/cue/telemetry.cue`:
+JSON payload serialized by `nomos capabilities --json`:
 
-```cue
-package schemas
-
-import "strings"
-
-// CapabilityMetrics represents the persisted invocation metrics for a capability.
-#CapabilityMetrics: close({
-	id:               string & strings.MinRunes(1)
-	name:             string & strings.MinRunes(1)
-	plane:            "intent" | "substrate"
-	type:             string & strings.MinRunes(1)
-	enabled:          bool
-	invocation_count: int & >= 0
-	last_accessed_at: string
-})
+```json
+{
+  "id": "cmd-verify",
+  "name": "nomos verify",
+  "plane": "substrate",
+  "type": "cli_command",
+  "enabled": true,
+  "invocation_count": 42,
+  "last_accessed_at": "2026-11-03T18:00:00Z"
+}
 ```
 
 ### 3.3 Canonical Recording Entrypoints
@@ -107,7 +102,7 @@ To eliminate cognitive overload, the onboarding path is partitioned into three p
 | :--- | :--- | :--- | :--- |
 | **Pass 1: Solo Quickstart** | Individual developer exploring Nomos | `init`, `task chore`, `verify`, `task sync` | Safe worktree sandboxing, trunk protection, and 42 DoD gates. |
 | **Pass 2: Team Flow & Receipts** | Engineering teams shipping production code | `status`, `capabilities`, `mem recall`, Git Notes | Cryptographic release receipts, semantic memory recall, Intent-to-Substrate parity. |
-| **Pass 3: Deep Customization** | Platform engineers, architects, DevSecOps | CUE schemas, custom gates, `hook`, plugins, CapBAC | Shaping custom enterprise guardrails, AST policies, and lifecycle hooks. |
+| **Pass 3: Deep Customization** | Platform engineers, architects, DevSecOps | `nomos.yaml` (`nomos.schema.json`), `hook`, plugins, CapBAC | Shaping enterprise guardrails, AST thresholds, and lifecycle hooks. |
 
 ---
 
@@ -128,7 +123,7 @@ To eliminate cognitive overload, the onboarding path is partitioned into three p
 | :--- | :--- | :--- | :--- | :--- |
 | `TC-LAUNCH-001` | Pre-Commit Hook | Direct `git commit` mutation on protected `main` branch | Intercepted with exit code 1; output contains remedy `nomos task chore "<title>"` | Law 3 (Hermetic Worktrees) & Law 7 |
 | `TC-LAUNCH-002` | `nomos task chore` | `nomos task chore "Fix parser edge case"` | Task created with `SUB-` key, transient worktree mounted, phase transitioned to `EDIT` | Law 3 & Law 6 (Canonical Singularity) |
-| `TC-LAUNCH-003` | `RecordInvocationWithDetails` | `RecordWorkflowInvocationSafe(dbPath, "wf-handshake", "Nomos Handshake", "human_workflow")` | Row persisted in `telemetry_capabilities`, unifies cleanly with `#CapabilityMetrics` | Law 4 (SSoT CUE Parity) |
+| `TC-LAUNCH-003` | `RecordInvocationWithDetails` | `RecordWorkflowInvocationSafe(dbPath, "wf-handshake", "Nomos Handshake", "human_workflow")` | Row persisted in `telemetry_capabilities` matching `telemetry.CapabilityMetrics` | Law 4 (Compiled Go SSoT) |
 | `TC-LAUNCH-004` | Telemetry Ingestion Failure | Unwritable database path | Function returns gracefully without application panic | Fail-Safe Telemetry |
 
 ---

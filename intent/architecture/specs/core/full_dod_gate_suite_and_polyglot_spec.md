@@ -99,12 +99,12 @@ The Nomos DoD verification engine binds 42 statutory sensor probes across 7 Laws
 #### Law 4: Single Source of Truth (Contracts & Schemas)
 - **Cell 4.1 (Syntactic)**:
   - `broken_wire`: Validates all relative file links and documentation references across Intent markdown specs.
-  - `intent_traceability`: Validates that implementation symbols include bidirectional traceability annotations back to Intent specs ($\ge 50\%$).
-  - `intent_steelman`: Audits intentional architecture docs for counter-argument steelman sections.
+  - `intent_traceability`: Validates that implementation symbols include bidirectional `@intent` traceability annotations resolving to Go AST types and Intent specs ($\ge 50\%$).
+  - `intent_steelman`: Validates Intent Markdown YAML frontmatter (`title`, `plane`, `status`) and balanced fenced code blocks.
 - **Cell 4.2 (Dynamic)**:
-  - `contract_parity`: CUE schema validation across live operational datasets.
+  - `contract_parity`: Enforces byte-for-byte Draft 2020-12 JSON Schema parity (`nomos.schema.json` vs `config.EcosystemConfig`) and architectural engine grounding.
 - **Cell 4.3 (Cryptographic)**:
-  - `intent_parity`: SHA-256 byte parity audit across 45 canonical Intent-Substrate assets.
+  - `intent_parity`: SHA-256 byte parity audit across canonical Intent-Substrate protocol, hook, and directive assets.
 
 #### Law 5: Zero-Hardcoded-Path (Portability & Environment)
 - **Cell 5.1 (Syntactic)**:
@@ -134,7 +134,7 @@ The Nomos DoD verification engine binds 42 statutory sensor probes across 7 Laws
 - **Cell 7.2 (Dynamic)**:
   - `unchecked_errors`: Rejects unchecked error discards via `_ = ...` or `, _ :=`.
 - **Cell 7.3 (Cryptographic)**:
-  - `threshold_integrity`: Cryptographically verifies that DoD metric thresholds in `gates.cue` cannot be loosened without cryptographic authorization.
+  - `threshold_integrity`: Cryptographically verifies that DoD metric thresholds in `nomos.yaml` (`config.ThresholdsConfig`) cannot be loosened without debt-task authorization.
 
 ---
 
@@ -145,8 +145,8 @@ In Nomos v4, polyglot verification executes natively in pure Go without external
 2. **Polyglot Tree-sitter WASM Analysis**: Embedded `wazero` WebAssembly runtime backed by `wazero.CompilationCache` and compiled `.scm` S-expression query evaluators for **Go, TypeScript, TSX, JavaScript, Svelte, Python, Rust, C, C++, Java, Kotlin, and C#** (`substrate/src/nomos/modules/verify/treesitter/`).
 3. **Anti-Shim & Test-Skip Reward-Hacking Detection**: Evaluates `.scm` query captures to reject empty/stubbed functions (`todo!()`, `unimplemented!()`, `pass`, `NotImplementedError`, `UnsupportedOperationException`, `NotImplementedException`) and skipped test annotations (`it.skip`, `pytest.mark.skip`, `#[ignore]`, `@Disabled`, `[Fact(Skip=)]`).
 4. **Per-`source_root` Native Toolchains & Coverage Ratchets**: Evaluates declared `source_roots` across `tsc`, `pytest`, `cargo`, `clang`/`cmake`, `gradle`/`maven`, and `dotnet`, and enforces statement coverage ratchets across Go `coverprofile`, `lcov.info`, and `cobertura.xml` reports.
-5. **Markdown & CUE Analysis**: Lexical stream scanner for Markdown relative links/frontmatter, paired with the native `cuelang.org/go/cue` schema unification engine.
-6. **Configuration & Script Analysis**: Standard library lexical analyzers for JSON, YAML, and shell scripts.
+5. **Markdown & Schema Analysis**: Lexical stream scanner for Markdown relative links, YAML frontmatter, and balanced fences, paired with Go-reflected Draft 2020-12 JSON Schema parity (`nomos.schema.json`).
+6. **Configuration & Script Analysis**: Standard library decoders (`yaml.v3` with `KnownFields(true)`, `encoding/json`) and shell analyzers.
 
 This architecture ensures static compilation under `CGO_ENABLED=0`, cross-compilation across all target architectures, and sub-second verification runs.
 
@@ -154,7 +154,7 @@ This architecture ensures static compilation under `CGO_ENABLED=0`, cross-compil
 
 ## 4. Thresholds and Mathematical Guarantees
 
-All thresholds are unified in `intent/contracts/cue/gates.cue`:
+All thresholds are unified in `config.ThresholdsConfig` (`substrate/src/nomos/core/config/config.go` & `nomos.schema.json`):
 
 | Metric | Threshold | Enforcement Probe |
 | :--- | :--- | :--- |

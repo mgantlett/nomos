@@ -36,7 +36,7 @@ This specification formalizes the **Nomos Absolute Mutability Lock (NAML)**:
    - The execution occurs inside a verified transient task worktree (`worktrees/<repo>-<key>`).
    - Or the operation holds a cryptographically signed CapBAC release lease during atomic Two-Phase Commit (`nomos task sync`).
 2. **Zero-Hardcoded Topology (Law 5):** Worktree base directories and protected branches resolve dynamically via `config.LoadConfig()`.
-3. **Dual Quality Gate Binding:** Enforced by Gate 2 (`hermetic_worktree`) and Gate 3 (`staged_boundaries`) in the compiled 29-gate DoD pipeline (`intent/contracts/cue/pipeline.cue`).
+3. **Dual Quality Gate Binding:** Enforced by `hermetic_worktree` and `staged_boundaries` in the compiled 42-gate DoD pipeline (`substrate/src/nomos/modules/verify/matrix.go`).
 4. **Universal Topology:** References strictly adhere to `nomos` (Open-Core Public Foundation) and `gsi-sov` (Sovereign Proprietary Extensions).
 
 ---
@@ -48,7 +48,7 @@ This specification formalizes the **Nomos Absolute Mutability Lock (NAML)**:
 | **Law 1** | **Dual-Core Inversion** | Substrate Go core enforces physical pre-commit and pre-push hooks; Tier 1 agents cannot disable hook interception. |
 | **Law 2** | **Non-Verbal Proof** | Boundary assertions are proven by process exit code 1 on prohibited paths, validated by test vectors (`TC-TRK-001` through `TC-TRK-006`). |
 | **Law 3** | **Hermetic Worktree** | Protected trunks are physically read-only; all mutations execute strictly inside isolated task worktrees. |
-| **Law 4** | **Single Source of Truth** | Worktree boundaries bind strictly to `intent/contracts/cue/worktree.cue` and compiled Go DTOs. |
+| **Law 4** | **Single Source of Truth** | Worktree boundaries bind strictly to compiled Go structs in `substrate/src/nomos/core/workspace/` and `nomos.schema.json`. |
 | **Law 5** | **Zero-Hardcoded-Path** | Base directories (`worktree_base_dir`) and default branches derive dynamically from `nomos.yaml`. |
 | **Law 6** | **Canonical Singularity** | Single canonical boundary validation engine (`workspace.ValidateWorktreeBoundary`) called across hooks and CLI. |
 | **Law 7** | **Fail-Closed Pre-Flight** | Whitelist evaluation: any unverified worktree context or expired lease rejects mutations immediately with exit code 1. |
@@ -85,7 +85,7 @@ stateDiagram-v2
 
 ## 4. Formal Go Interfaces & DTO Contracts
 
-The contracts reside in `substrate/src/nomos/core/workspace/` and mirror `worktree.cue`:
+The authoritative Go SSoT contracts reside in `substrate/src/nomos/core/workspace/`:
 
 ```go
 package workspace
@@ -152,6 +152,6 @@ The following deterministic test vectors validate boundary enforcement:
 
 1. **Whitelist Enforcement Active:** Direct mutations on root repositories fail closed with exit code 1 and a deterministic NAML error message.
 2. **Dynamic Configuration:** Protected branches and worktree directories resolve through `config.LoadConfig()`.
-3. **CUE Schema Parity:** Validated against `intent/contracts/cue/worktree.cue`.
+3. **Go SSoT & JSON Schema Parity:** Validated against `nomos.schema.json` and `workspace.ValidateWorktreeBoundary`.
 4. **42-Gate DoD Verification:** Verification passes all 42 quality gates (`nomos verify`) with exit code 0.
 5. **No Broken Links:** All markdown documentation links resolve cleanly.

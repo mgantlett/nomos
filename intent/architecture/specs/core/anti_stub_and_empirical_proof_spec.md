@@ -54,13 +54,13 @@ Any bilateral or cross-hemisphere parity check executed via `workspace.CheckAsse
 - If `TotalAssets == 0`, the parity audit fails closed with `ERR_ZERO_ASSETS_DISCOVERED`.
 - Canonical assets dynamically discovered must include:
   1. The canonical root `./AGENTS.md`.
-  2. All CUE contracts under `intent/contracts/cue/*.cue`.
+  2. The Go-reflected configuration JSON Schema (`./nomos.schema.json`).
   3. Ambient lifecycle hook manifests and scripts under `.agents/hooks.json` and `.agents/scripts/`.
   4. Repository configuration manifests (`nomos.yaml`).
 
 ### `INV-CONTRACT-003`: Contract Boundaries Invariant (ADR-0066 & Law 7)
 Contract Boundaries govern the interfaces between Intent, Substrate Core, Membrane, and Infra. Each boundary defined in `nomos.yaml` binds to a registered substrate gate:
-1. `contracts.contracts`: `ContractSchemaGate` (Cell 4_2). Audits CUE schemas vs Go DTOs.
+1. `contracts.contracts`: `ContractParityGate` (Cell 4_2). Audits `nomos.schema.json` byte parity vs `config.EcosystemConfig` and engine grounding.
 2. `contracts.infra`: `InfraPortIngressGate` (Cell 5_2). Audits source `os.Getenv` usages vs environment declarations (`.env.example`) and port configurations.
 3. `contracts.membrane`: `UIAntiMaskSentinelGate` (Cell 7_1). Audits UI component bindings and eliminates defensive fallback masks.
 When a boundary is declared `enabled: false` in `nomos.yaml` (e.g. open-core boundary omitting UI membrane), the corresponding gate must emit an explicit skip result rather than failing or silently returning an unverified pass.

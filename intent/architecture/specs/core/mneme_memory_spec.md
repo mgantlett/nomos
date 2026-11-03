@@ -36,7 +36,7 @@ Nomos Mneme operates with **zero CGO dependencies**, using deterministic local v
 | :---: | :--- | :--- | :--- |
 | **1** | **The Dual-Core Inversion Law** | Memory recall and persistence are governed by the substrate; Tier 1 agents query memories under indirect control. | Canonical CLI commands (`nomos mem`) |
 | **2** | **The Non-Verbal Proof Law** | Memory embeddings and ranking algorithms produce deterministic mathematical scores. | Unit test vectors, cosine bounded in $[-1.0, 1.0]$ |
-| **4** | **The Single Source of Truth Law** | Memory record schema mirrors `mneme_memory.cue` with byte parity. | Relational DDL matching `#MnemeMemory` |
+| **4** | **The Single Source of Truth Law** | Memory record schema binds directly to compiled `mem.Memory` (`substrate/src/nomos/modules/mem/memory.go`). | Relational DDL matching `mem.Memory` |
 | **5** | **The Zero-Hardcoded-Path Law** | Database path dynamically resolves via `config.ResolveMnemeDBPath()`. | Dynamic configuration discovery |
 | **6** | **The Canonical Singularity Law** | Exactly three core memory actions: `save`, `recall`, and `list`. Zero redundant aliases. | CLI surface validation (`cmd/nomos`) |
 | **7** | **The Fail-Closed Pre-Flight Law** | Direct SQLite database queries via raw `sqlite3` CLI are prohibited (Database Encapsulation Invariant). | Static gate and hook rules |
@@ -45,7 +45,7 @@ Nomos Mneme operates with **zero CGO dependencies**, using deterministic local v
 
 ## 3. Relational Database Schema (`mneme.db`)
 
-The SQLite persistence schema matches the canonical contract defined in `intent/contracts/cue/mneme_memory.cue`:
+The SQLite persistence schema matches the canonical Go struct `mem.Memory` defined in `substrate/src/nomos/modules/mem/memory.go`:
 
 ```sql
 CREATE TABLE IF NOT EXISTS memories (

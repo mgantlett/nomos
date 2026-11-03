@@ -54,7 +54,7 @@ Trunk mutations outside an active task with a valid CapBAC lease are physically 
 Calling `nomos task start <KEY>` must provision an isolated git worktree at `worktrees/nomos-<KEY>` branched from clean trunk `main`. All mutations must occur strictly within this directory boundary.
 
 ### `INV-TSK-003`: CapBAC Lease Acquisition (Law 7: Fail-Closed Pre-Flight)
-Transitioning into `PLAN` or `EDIT` requires acquiring a cryptographically unique `#CapBACLease` (`capbac.cue`) with an assigned `step_budget` ($\le 500$). Actions that exhaust tokens fail closed until renewed.
+Transitioning into `PLAN` or `EDIT` requires acquiring a cryptographically unique `capbac.Lease` (`core/capbac/lease.go`) with an assigned `step_budget` ($\le 500$). Actions that exhaust tokens fail closed until renewed.
 
 ### `INV-TSK-004`: Two-Phase Commit Release Verification (Law 2: Non-Verbal Proof)
 `nomos task sync <KEY> -F <walkthrough>` executes an atomic 2PC release:
@@ -111,7 +111,7 @@ stateDiagram-v2
 
 ### 4.2 `nomos task create`
 * **Syntax**: `nomos task create <TITLE> --plane <intent|substrate> (--scope <TEXT> --ac <ITEM>... --verify <TEXT> | -F <PATH|-> | -d <MARKDOWN>) [--project <PROJECT>] [--depends-on <KEY>...] [--burden <1-10>] [--tier <T1|T2>] [--priority <int>] [--twin-of <KEY>]`
-* **Semantics**: Fails closed unless the universal 3-section backlog card (`#TaskCardInput` in `task.cue`: `## Scope & Context`, `## Acceptance Criteria` with >=1 `- [ ]` item, `## Verification`) is supplied via structured synthesis flags or Markdown body; auto-derives `burden` (`2-8`) when `--burden` is omitted; auto-stamps `project` from active repository `nomos.yaml` or Git common-dir root basename (unless `--project` is supplied); allocates next sequential key (`INT-<N>` or `SUB-<N>`) and persists record in `tasks` table with status `TODO`.
+* **Semantics**: Fails closed unless the universal 3-section backlog card (`task.ValidateCardDescription` in `card.go`: `## Scope & Context`, `## Acceptance Criteria` with >=1 `- [ ]` item, `## Verification`) is supplied via structured synthesis flags or Markdown body; auto-derives `burden` (`2-8`) when `--burden` is omitted; auto-stamps `project` from active repository `nomos.yaml` or Git common-dir root basename (unless `--project` is supplied); allocates next sequential key (`INT-<N>` or `SUB-<N>`) and persists record in `tasks` table with status `TODO`.
 
 ### 4.3 `nomos task start`
 * **Syntax**: `nomos task start <KEY> [--edit]`

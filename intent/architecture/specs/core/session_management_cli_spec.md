@@ -97,5 +97,5 @@ Nomos v4 replaces manual journaling with two non-verbal mechanisms:
 | `TC-SES-01` | `DiscoverSessions` | Clean-room mock transcripts for `AGY-IDE`, `AGY-CLI`, `Claude Code`, `OpenCode` | All 4 sessions discovered with accurate `TaskKey`, `TurnCount`, and `Status` | Law 1 & Law 5 |
 | `TC-SES-02` | `nomos session name` | `nomos session name ""` (empty name) | Fails closed with `ERR_VALIDATION_FAILED` | Law 7 (Fail-Closed) |
 | `TC-SES-03` | `InferTrajectory` | Transcript containing `nomos handshake`, `nomos task start`, `nomos verify`, and file edits | Reconstructs 7-stage `#SessionTrajectory` with `ORACLE` and `IMPLEMENTATION` marked `COMPLETED` | Law 2 (Non-Verbal Proof) |
-| `TC-SES-04` | `GenerateMermaidVisual` | `nomos session visual --json` | Emits valid `#SessionVisualGraph` JSON containing Mermaid graph and `#AgentSession` slice | Law 4 (SSoT CUE Parity) |
+| `TC-SES-04` | `GenerateMermaidVisual` | `nomos session visual --json` | Emits valid `SessionVisualGraph` JSON containing Mermaid graph and `AgentSession` slice | Law 4 (Compiled Go SSoT) |
 

@@ -29,7 +29,7 @@ To definitively close this loophole and uphold the **Fail-Closed Pre-Flight Law*
 
 ## 2. Axiomatic Invariants & Laws Codified
 - **Law 2: The Non-Verbal Proof Law**: Commit schema validation is programmatic, deterministic, and machine-verified via Go AST and git revision analysis, eliminating reliance on human memory or client-side hook discipline.
-- **Law 4: The Single Source of Truth Law**: Commit prefix invariants strictly mirror the compiled `task.cue` contract (`key: string & =~"^(INT|SUB)-[0-9]+$"`) and `#CommitMessage` in `intent/contracts/cue/commit_rules.cue`.
+- **Law 4: The Single Source of Truth Law**: Commit prefix invariants strictly mirror compiled `task.ValidateTaskKey` (`^(INT|SUB)-[0-9]+(-[a-z0-9-]+)?$`) and `cli/commit_hydration.go`.
 - **Law 5: The Zero-Hardcoded-Path Law**: Repository roots, git worktree boundaries, and revision logs resolve dynamically via workspace discovery (`workspace.SafeGitCommand`).
 - **Law 6: The Canonical Singularity Law**: Deprecates all non-canonical prefixes (such as `ARC-`, `TASK-`, or alphanumeric variant suffixes). Commit remediation must instruct users to execute canonical CLI workflows (`nomos task commit`), eliminating raw git workarounds.
 - **Law 7: The Fail-Closed Pre-Flight Law**: Multi-commit revision range evaluation: Rather than inspecting only `HEAD`, the gate audits all commits between the task branch and trunk divergence (`origin/main..HEAD`). If any intermediate commit bypassed hooks, the gate fails closed, blocking release.
@@ -115,35 +115,29 @@ func isMergeCommit(firstLine string) bool {
 }
 ```
 
-## 4. Companion CUE Schema Contract
-The declarative companion schema resides in `intent/contracts/cue/commit_rules.cue`.
+## 4. Commit Hydration & Validation DTO Contract
+The commit hydration structures reside in `substrate/cli/commit_hydration.go` and `substrate/src/nomos/modules/verify/commit_schema_gate.go`:
 
-```cue
-package schemas
+```go
+package cli
 
-import "strings"
+// CommitHydrationInput captures structured overrides and task context for Dual-Layer commits.
+type CommitHydrationInput struct {
+	TaskKey         string
+	Subject         string
+	Rationale       string
+	BlastRadius     string
+	Mechanics       string
+	WalkthroughPath string
+}
 
-#CommitHydrationSource: "explicit_flag" | "walkthrough" | "task_card" | "git_diff"
-
-#CommitMessage: close({
-	raw:                  string & strings.MinRunes(15) & =~"^\\[(INT|SUB)-[1-9][0-9]*(-[a-z0-9-]+)?\\]\\s+(feat|fix|docs|chore|refactor|test)(\\([a-z0-9_,/-]+\\))?:\\s+.*$"
-	task_key:             =~"^\\[(INT|SUB)-[1-9][0-9]*(-[a-z0-9-]+)?\\]$"
-	type:                 "feat" | "fix" | "docs" | "chore" | "refactor" | "test"
-	scope?:               string & =~"^[a-z0-9_,/-]+$"
-	summary:              string & strings.MinRunes(5) & strings.MaxRunes(120) & =~"^[^\\r\\n]+$"
-	rationale:            string & strings.MinRunes(10)
-	blast_radius:         string & strings.MinRunes(5)
-	resolution_mechanics: string & strings.MinRunes(10)
-})
-
-// CommitValidationReport captures gate evaluation across branch commits.
-#CommitValidationReport: close({
-	gate_name:         string
-	passed:            bool
-	evaluated_commits: int & >= 0
-	violations:        [...string]
-	remedy?:           string
-})
+// HydratedCommitSections holds the resolved Dual-Layer body sections.
+type HydratedCommitSections struct {
+	Subject     string `json:"subject"`
+	Rationale   string `json:"rationale"`
+	BlastRadius string `json:"blast_radius"`
+	Mechanics   string `json:"mechanics"`
+}
 ```
 
 ## 5. Dual-Layer Hybrid AI Commit Specification
@@ -185,5 +179,5 @@ Every non-merge commit must satisfy the Dual-Layer specification:
 
 ## 8. Rigor & Verification Boundary
 Continuous compliance is audited by:
-1. `nomos verify` evaluating CUE contract schema integrity and AST parity.
+1. `nomos verify` evaluating Go SSoT contract schema parity and AST traceability.
 2. `nomos verify` executing Gate 5 across all automated DoD quality gates.

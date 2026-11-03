@@ -16,11 +16,11 @@ ssot_repository: nomos
 # Strongly-Typed Actionable Error Framework Specification
 
 ## 1. Executive Summary
-The Nomos Substrate execution engine must provide clear, actionable, and deterministically formatted error messages when invariances, execution boundaries, or Definition of Done (DoD) quality gates fail. The historical use of naked `fmt.Errorf` and unstructured strings obscures root causes, prevents reliable programmatic parsing, and violates the rigor mandated by the Canonical Singularity Law. This specification establishes the Strongly-Typed Actionable Error Framework for the `nomos/core/types` package, anchoring `NomosError` as the compiled Go Single Source of Truth (SSoT) and `#NomosError` as the companion CUE contract.
+The Nomos Substrate execution engine must provide clear, actionable, and deterministically formatted error messages when invariances, execution boundaries, or Definition of Done (DoD) quality gates fail. The historical use of naked `fmt.Errorf` and unstructured strings obscures root causes, prevents reliable programmatic parsing, and violates the rigor mandated by the Canonical Singularity Law. This specification establishes the Strongly-Typed Actionable Error Framework for the `nomos/core/types` package, anchoring `NomosError` as the compiled Go Single Source of Truth (SSoT).
 
 ## 2. Axiomatic Invariants & Laws Codified
 - **Law 2: The Non-Verbal Proof Law**: Error structures must provide deterministic, non-verbal proofs of failure states, including machine-parsable error codes, contextual triage hashes, and verifiable root-cause unwrapping.
-- **Law 4: The Single Source of Truth Law**: Error schemas are unified across planes: the Go struct `NomosError` in `substrate/src/nomos/core/types/errors.go` and the compiled CUE schema `#NomosError` in `intent/contracts/cue/errors.cue` maintain strict 1:1 structural correspondence.
+- **Law 4: The Single Source of Truth Law**: `NomosError` in `substrate/src/nomos/core/types/errors.go` serves as the single authoritative Go SSoT for structured error reporting and JSON serialization across all Substrate modules.
 - **Law 6: The Canonical Singularity Law**: A singular, unified error type (`nomos/core/types.NomosError`) governs execution failure reporting across all Substrate modules, eliminating ad-hoc error formats, loose string conventions, and legacy wrappers.
 - **Law 7: The Fail-Closed Pre-Flight Law**: Error construction requires mandatory non-empty classification codes and descriptions. Unstructured naked errors (`fmt.Errorf`, `errors.New`) in verification gate logic fail pre-flight validation closed via AST static analysis.
 
@@ -99,29 +99,25 @@ The `NomosError.Error()` method produces deterministic, Markdown blockquote-form
 > Run `nomos task chore "<title>"` (or `nomos task start <key> && nomos task edit <key>`) to transition to EDIT phase before modifying files.
 >
 > 📚 **Required Reading:**
-> - intent/contracts/cue/phase_state.cue
+> - intent/architecture/specs/core/task_lifecycle_cli_spec.md
 >
 > 💡 **Diagnostic Context (`ERR-9b2f4c`):** Run `nomos directive` or `nomos verify` to inspect structured remediation guidance.
 ```
 
-## 5. Companion CUE Schema Contract
-The declarative companion schema resides in `intent/contracts/cue/errors.cue` and is evaluated during pre-flight contract checks.
+## 5. Structured JSON Wire Representation
+When `--json` output is requested, `NomosError` serializes deterministically with closed JSON field keys:
 
-```cue
-package schemas
-
-import "strings"
-
-// NomosError encapsulates structured agent-focused context for execution boundary constraint failures.
-#NomosError: close({
-	code:               string & =~"^ERR_[A-Z0-9_]+$"
-	description:        string & strings.MinRunes(1)
-	remedy?:            string
-	context_files?:     [...string]
-	fatal:              bool | *false
-	triage_hash?:       string & =~"^ERR-[a-f0-9]+$"
-	interactive_prompt?: string
-})
+```json
+{
+  "code": "ERR_PHASE_VIOLATION",
+  "description": "Cannot modify substrate files during IDLE phase.",
+  "remedy": "Run `nomos task chore \"<title>\"` to enter EDIT phase.",
+  "context_files": [
+    "intent/architecture/specs/core/task_lifecycle_cli_spec.md"
+  ],
+  "fatal": false,
+  "triage_hash": "ERR-9b2f4c"
+}
 ```
 
 ### 5.1 Canonical Error Code Registry
@@ -130,7 +126,7 @@ The following error codes constitute the canonical, closed registry of Substrate
 | Error Code | Category | Associated Quality Gate / Invariant |
 | :--- | :--- | :--- |
 | `ERR_DOD_GATE_FAILED` | Gate Failure | General DoD Quality Gate failure (`nomos verify`) |
-| `ERR_PHASE_VIOLATION` | Phase Discipline | Phase Discipline Invariant (`phase_state.cue`) |
+| `ERR_PHASE_VIOLATION` | Phase Discipline | Phase Discipline Invariant (`core/types/phase.go`) |
 | `ERR_HERMETIC_BREACH` | Worktree Isolation | Hermetic Worktree Invariant (Law 3) |
 | `ERR_SSOT_DRIFT` | Schema / Intent Parity | Intent SSoT Parity Audit (Law 4) |
 | `ERR_PATH_HARDCODED` | Static Topology | Forbidden Literals Invariant (Law 5) |
@@ -178,5 +174,5 @@ To prevent the recurrence of naked `fmt.Errorf` usage across the Substrate:
 
 ## 9. Rigor & Verification Boundary
 All modifications to `nomos_actionable_error_framework_spec.md` and related schemas are continuously certified by:
-1. `nomos verify` evaluating CUE contract schema integrity and AST parity.
+1. `nomos verify` evaluating Go SSoT contract schema parity and AST traceability.
 2. `nomos verify` across all automated DoD quality gates.

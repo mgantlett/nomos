@@ -40,11 +40,11 @@ Nomos v4 transitions persistence to **pure Go** via `modernc.org/sqlite`.
 ### `INV-SQL-001`: Pure-Go CGO-Free Driver (Law 2: Non-Verbal Proof)
 The Nomos database subsystem must compile with `CGO_ENABLED=0`. All database operations must execute via `modernc.org/sqlite` without foreign C compiler toolchains or shared object dependencies.
 
-### `INV-SQL-002`: Relational-CUE Schema Parity (Law 4: SSoT)
-The SQLite schema must maintain 1:1 structural parity with authoritative contracts:
-- `tasks` table maps to `task.TaskRecord` (`#TaskRecord` in `intent/contracts/cue/task.cue`).
-- `leases` table maps to `storage.LeaseRecord` (`#CapBACLease` in `intent/contracts/cue/capbac.cue`).
-- `telemetry_capabilities` table maps to `telemetry.CapabilityMetrics` (`#CapabilityMetrics` in `intent/contracts/cue/telemetry.cue`).
+### `INV-SQL-002`: Relational-Go SSoT Schema Parity (Law 4: SSoT)
+The SQLite schema must maintain 1:1 structural parity with authoritative compiled Go structs:
+- `tasks` table maps to `task.TaskRecord` (`substrate/src/nomos/modules/task/task.go`).
+- `leases` table maps to `storage.LeaseRecord` (`substrate/src/nomos/core/storage/leases.go`).
+- `telemetry_capabilities` table maps to `telemetry.CapabilityMetrics` (`substrate/src/nomos/modules/telemetry/registry.go`).
 
 ### `INV-SQL-003`: Dynamic Database Resolution (Law 5: Zero-Hardcoded-Path)
 Database filesystem locations are strictly forbidden from appearing as string literals in source code. All paths must resolve dynamically via `config.ResolveGlobalDBPath()`.

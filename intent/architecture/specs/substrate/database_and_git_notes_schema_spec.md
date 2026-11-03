@@ -18,7 +18,7 @@ execution_frontier:
       summary: "Specify Unified Database & Git Notes Topology with Dual-Write 2PC Pipeline"
     - key: "INT-836"
       plane: "intent"
-      summary: "Align v4 SQLite DDL, RFC3339 defaults, composite indexes, and CUE schema contracts"
+      summary: "Align v4 SQLite DDL, RFC3339 defaults, composite indexes, and Go SSoT contracts"
 ---
 
 # Unified Database & Git Notes Topology Contract
@@ -31,7 +31,7 @@ The Nomos v4 architecture establishes a strict separation of concerns across per
 3. **The Local Runtime Coordinator (`nomos_global.db`):** The node-local operational SQLite WAL database managing Living Ledger task DAG wavefronts (`tasks`), CapBAC object-capability leases (`leases`), and local CLI capability invocation metrics (`telemetry_capabilities`).
 
 This contract formalizes:
-- Full DDL and RFC3339 timestamp alignment between `nomos_global.db`, `mneme.db`, and compiled CUE contracts (`task.cue`, `capbac.cue`, `mneme_memory.cue`, `telemetry.cue`, `git_notes.cue`).
+- Full DDL and RFC3339 timestamp alignment between `nomos_global.db`, `mneme.db`, and compiled Go SSoT structs (`task.TaskRecord`, `storage.LeaseRecord`, `mem.Memory`, `telemetry.CapabilityMetrics`, `task.ReleaseNotePayload`).
 - Automatic rolling compaction (`Store.Maintain`, `storage.MaintainRuntimeStorage`) capping expired leases, dropping retired legacy tables, reclaiming SQLite freelist pages via conditional `VACUUM`, and checkpointing WAL files (`PRAGMA wal_checkpoint(TRUNCATE)`).
 - The atomic 2PC dual-write synchronization pipeline and fail-closed reconstruction state machine.
 
@@ -43,7 +43,7 @@ This contract formalizes:
 | :---: | :--- | :--- |
 | **Law 1** | **Dual-Core Inversion** | Substrate Go core orchestrates Git Notes emission and SQLite projections; Tier 1 agents access state strictly via canonical CLI commands (`nomos mem`, `nomos task`). |
 | **Law 2** | **Non-Verbal Proof** | Reconstructed databases match Git Notes receipts with zero missing records, proven by table-driven test vectors (`TC-DBNOTE-001` through `TC-DBNOTE-006`). |
-| **Law 4** | **Single Source of Truth** | SQLite schemas match compiled CUE contracts (`task.cue`, `capbac.cue`, `mneme_memory.cue`, `git_notes.cue`) with strict field and RFC3339 timestamp parity. |
+| **Law 4** | **Single Source of Truth** | SQLite schemas match compiled Go SSoT structs (`TaskRecord`, `LeaseRecord`, `Memory`, `ReleaseNotePayload`) with strict field and RFC3339 timestamp parity. |
 | **Law 5** | **Zero-Hardcoded-Path** | Database paths resolve dynamically via `config.ResolveGlobalDBPath()` and `config.ResolveMnemeDBPath()`. |
 | **Law 6** | **Canonical Singularity** | Single canonical release note namespace (`refs/notes/nomos/releases`) capturing walkthrough journals and DoD proof. Legacy `refs/notes/agent` is excised. |
 | **Law 7** | **Fail-Closed Pre-Flight** | Direct SQLite file queries via raw `sqlite3` CLI are blocked (`ADR-0062`), and unparseable Git Notes halt reconstruction with non-zero exit code. |
@@ -79,10 +79,10 @@ This contract formalizes:
 
 ---
 
-## 4. Formal SQL DDL & CUE Contract Alignment
+## 4. Formal SQL DDL & Compiled Go SSoT Alignment
 
 ### 4.1 `mneme.db` (`substrate/src/nomos/modules/mem/memory.go`)
-Aligned with `intent/contracts/cue/mneme_memory.cue`:
+Aligned with `mem.Memory`:
 
 ```sql
 CREATE TABLE IF NOT EXISTS memories (
@@ -106,7 +106,7 @@ CREATE INDEX IF NOT EXISTS idx_memories_repo_kind_status ON memories(repo_id, ki
 ```
 
 ### 4.2 `nomos_global.db` (`substrate/src/nomos/core/storage/db.go`)
-Aligned with `intent/contracts/cue/task.cue`, `capbac.cue`, and `telemetry.cue`:
+Aligned with `task.TaskRecord`, `storage.LeaseRecord`, and `telemetry.CapabilityMetrics`:
 
 ```sql
 CREATE TABLE IF NOT EXISTS tasks (
@@ -189,7 +189,7 @@ stateDiagram-v2
 ```
 
 ### 5.1 Provenance & Hygiene Guarantees
-1. **Git Notes Provenance (`refs/notes/nomos/releases`):** Every `nomos task sync` atomically records a `#ReleaseNotePayload` Git Note validated against `intent/contracts/cue/git_notes.cue` and distills structural patterns into `mneme.db`.
+1. **Git Notes Provenance (`refs/notes/nomos/releases`):** Every `nomos task sync` atomically records a `ReleaseNotePayload` Git Note (`substrate/src/nomos/modules/task/git_notes.go`) and distills structural patterns into `mneme.db`.
 2. **Automatic Compaction (`Store.Maintain` & `storage.MaintainRuntimeStorage`):** Runs automatically on `nomos handshake` (throttled once per 24h) and `nomos task sync` — deduplicating active clones, purging inactive memories older than 30 days, capping expired `leases`, dropping retired legacy tables, running `VACUUM` when SQLite freelist exceeds 2 MiB, and executing `PRAGMA wal_checkpoint(TRUNCATE); PRAGMA optimize;`.
 
 ---
@@ -202,7 +202,7 @@ stateDiagram-v2
 | **TC-DBNOTE-002** | Legacy Note Rejection | Note staged on `refs/notes/agent` | Rejects: Deprecated namespace | Law 6 (Singularity) |
 | **TC-DBNOTE-003** | Release Receipt Verification | `ReleaseReceiptGate` audit on release commit | Verifies signed JSON note in `refs/notes/nomos/releases` | Law 2 & Law 3 |
 | **TC-DBNOTE-004** | Corrupted Note Payload | Malformed JSON in Git Note | Rejects record during indexing; fails closed | Law 7 (Fail-closed pre-flight) |
-| **TC-DBNOTE-005** | Schema Parity Audit | CUE contracts vs SQLite DDL | Zero column or RFC3339 format mismatches | Law 4 (Schema Parity) |
+| **TC-DBNOTE-005** | Schema Parity Audit | Compiled Go structs vs SQLite DDL | Zero column or RFC3339 format mismatches | Law 4 (Schema Parity) |
 | **TC-DBNOTE-006** | Atomic Rollback | SQLite write failure during sync | Git note removed; task remains in REVIEW | Law 7 (Atomic 2PC) |
 
 ---
@@ -211,6 +211,6 @@ stateDiagram-v2
 
 1. **Git Notes Authoritative SSoT:** Releases and walkthroughs persist immutably to `refs/notes/nomos/releases`.
 2. **Ephemeral Brain Reconstructibility:** `mneme.db` release history can be reconstructed from Git Notes with zero data loss.
-3. **CUE & SQL Schema Parity:** SQLite tables match compiled CUE contracts (`task.cue`, `capbac.cue`, `mneme_memory.cue`, `telemetry.cue`) with RFC3339 defaults and composite indexes.
+3. **Go SSoT & SQL Schema Parity:** SQLite tables match compiled Go structs (`TaskRecord`, `LeaseRecord`, `Memory`, `CapabilityMetrics`) with RFC3339 defaults and composite indexes.
 4. **42-Gate DoD Verification:** Verification passes all 42 quality gates (`nomos verify`) with exit code 0.
 5. **Clean Markdown Graph:** Zero broken links across documentation.

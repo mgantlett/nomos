@@ -43,7 +43,7 @@ The Nomos Substrate enforces mathematical Definition of Done (DoD) quality gates
 This specification formalizes the **Polyglot AST Validation Engine**:
 1. **Dynamic Dialect Dispatching:** Routes Go source files to `go/ast` (zero CGO overhead, 100% type-aware) and TypeScript, JavaScript, and Svelte assets to `go-tree-sitter`.
 2. **DoD Gate Integration:** Enforces Gate 21 (`ip_leak`), Gate 22 (`magic_strings`), and Gate 23 (`magic_string_duplication`) across all polyglot files.
-3. **CUE Contract Parity:** Validates findings against `intent/contracts/cue/polyglot.cue`.
+3. **Go SSoT & JSON Schema Parity:** Validates findings and `source_roots` against `config.SourceRoot` (`nomos.schema.json`) and compiled Go DTOs.
 4. **Universal Topology:** References strictly adhere to `nomos` (Open-Core Public Foundation) and `gsi-sov` (Sovereign Proprietary Extensions).
 
 ---
@@ -54,7 +54,7 @@ This specification formalizes the **Polyglot AST Validation Engine**:
 | :---: | :--- | :--- |
 | **Law 1** | **Dual-Core Inversion** | Substrate Go core executes deterministic AST parsing; Tier 1 agents cannot disable polyglot verification. |
 | **Law 2** | **Non-Verbal Proof** | AST node inspection replaces fragile regex scanning, proven by table-driven test vectors (`TC-POLY-001` through `TC-POLY-006`). |
-| **Law 4** | **Single Source of Truth** | Scanners unify findings against `intent/contracts/cue/polyglot.cue` and compiled Go DTOs. |
+| **Law 4** | **Single Source of Truth** | Scanners bind findings strictly to compiled Go DTOs in `substrate/src/nomos/modules/verify/` and `nomos.schema.json`. |
 | **Law 5** | **Zero-Hardcoded-Path** | Scanned roots and exclusions resolve dynamically via `nomos.yaml` (`quality_gates.substrate_source_roots`). |
 | **Law 6** | **Canonical Singularity** | Single canonical scanner pipeline (`substrate/src/nomos/modules/verify/gates_architecture.go`) auditing all frontend and service syntaxes. |
 | **Law 7** | **Fail-Closed Pre-Flight** | Any unparseable AST node or Tree-sitter error fails closed immediately with exit code 1. |
@@ -100,7 +100,7 @@ flowchart TD
 
 ## 4. Formal Schema & Go Contracts
 
-The contracts reside in `substrate/src/nomos/modules/verify/` and mirror `polyglot.cue`:
+The authoritative Go SSoT contracts reside in `substrate/src/nomos/modules/verify/`:
 
 ```go
 package verify
@@ -142,6 +142,6 @@ The following deterministic test vectors validate polyglot AST verification:
 
 1. **Tree-Sitter Structural Precision:** Polyglot analysis inspects AST property and string nodes; whitespace and comments are completely ignored.
 2. **Exemption Integrity:** Tooling configs (`vite.config.ts`, `package.json`) are legitimately exempt; application source files are strictly enforced.
-3. **CUE Contract Parity:** Validated against `intent/contracts/cue/polyglot.cue`.
+3. **Go SSoT & JSON Schema Parity:** Validated against `nomos.schema.json` and `verify.ComplexityFinding`.
 4. **42-Gate DoD Verification:** Verification passes all 42 quality gates (`nomos verify`) with exit code 0.
 5. **No Broken Links:** All markdown documentation links resolve cleanly.

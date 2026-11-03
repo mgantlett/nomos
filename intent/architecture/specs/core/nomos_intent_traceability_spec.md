@@ -18,7 +18,7 @@ ssot_repository: nomos
 ## 1. Executive Summary
 The Nomos Open-Core protocol enforces Law 4 (Single Source of Truth) by maintaining intent specifications separately from the substrate Go code. However, without a cryptographic or structural linkage between the Substrate AST and the Intent plane, there is no deterministic proof that a given block of code implements a specific Intent task.
 
-This specification defines the exact code-level tagging syntax (`// @intent <TARGET>`) required to map Go substrate components to their originating Intent specifications, semantic heading anchors, or declarative CUE schema contracts.
+This specification defines the exact code-level tagging syntax (`// @intent <TARGET>`) required to map Go substrate components to their originating Intent specifications, semantic heading anchors, or compiled Go SSoT type anchors.
 
 ---
 
@@ -47,12 +47,12 @@ The tag parser (`ParseIntentTag`) supports three canonical binding forms:
    ```
    Binds the symbol to a specific slugified Markdown section heading within the Intent specification.
 
-3. **Declarative CUE Schema Contract**:
+3. **Compiled Go Type & Specification Anchor**:
    ```go
-   // @intent CUE:physics#PhysicsFrame
-   // @intent CUE:pipeline
+   // @intent #PhysicsFrame (software_physics_engine_spec.md)
+   // @intent #PipelineDeclaration
    ```
-   Binds the Go DTO or sensor implementation directly to a compiled schema in `intent/contracts/cue/<name>.cue`.
+   Binds the Go symbol directly to a compiled Go `type <TypeName>` AST declaration across `substrate/` and/or an Intent Markdown specification (`<name>_spec.md`) in `intent/`.
 
 ### 3.2 Example Implementation
 ```go
@@ -67,48 +67,31 @@ func ValidateStagedBoundaries(repoRoot, currentBranch string, stagedFiles []stri
 
 ## 4. In-Line Interface Contracts & Go DTO Structs
 
-The Substrate implements intent binding resolution in `substrate/src/nomos/modules/verify/gates_intent.go`:
+The Substrate implements intent binding resolution in `substrate/src/nomos/modules/verify/gates_intent.go` and `intent_schema_helpers.go`:
 
 ```go
 // IntentTagBinding encapsulates a parsed @intent annotation.
 type IntentTagBinding struct {
-	Raw        string `json:"raw"`
-	TaskKey    string `json:"task_key,omitempty"`
-	Anchor     string `json:"anchor,omitempty"`
-	IsCUE      bool   `json:"is_cue"`
-	SchemaName string `json:"schema_name,omitempty"`
-	TypeName   string `json:"type_name,omitempty"`
+	Raw      string `json:"raw"`
+	TaskKey  string `json:"task_key,omitempty"`
+	Anchor   string `json:"anchor,omitempty"`
+	SpecFile string `json:"spec_file,omitempty"`
+	TypeName string `json:"type_name,omitempty"`
 }
-```
-
-Declarative CUE schema counterpart:
-
-```cue
-package schemas
-
-// IntentTagBinding defines the contract for parsed AST traceability annotations.
-#IntentTagBinding: close({
-	raw:          string & != ""
-	task_key?:    =~"^INT-[0-9]+$"
-	anchor?:      string
-	is_cue:       bool | *false
-	schema_name?: string
-	type_name?:   string
-})
 ```
 
 ---
 
-## 5. Substrate Verification (DoD Gate 25)
+## 5. Substrate Verification (DoD Cell 4.1)
 
-The `nomos verify` engine enforces intent traceability via **Gate 25 (`IntentTraceabilityGate`)**:
+The `nomos verify` engine enforces intent traceability via **`IntentTraceabilityGate` (`Cell 4.1`)**:
 
 ### 5.1 Gate Rules & Execution Stages
-1. **AST Extraction**: `ExtractIntentTagBindings` parses all package and symbol docstrings across the substrate using Tree-sitter AST scanning.
-2. **Task Ledger Validation**: For `INT-` tasks, the parsed task key must exist in `nomos_global.db` under the `tasks` table with `plane="intent"`.
-3. **Semantic Anchor Verification**: When `#anchor` is present, the parser asserts that the targeted markdown heading exists within the corresponding Intent document.
-4. **CUE Contract Resolution**: For `CUE:` bindings, `ValidateCUEContract` verifies that `intent/contracts/cue/<name>.cue` exists and defines `#<TypeName>`.
-5. **Fail-Closed Rejection**: If an `@intent` tag references a non-existent task, missing anchor, or unresolvable CUE definition, the gate immediately fails closed (exit code 1).
+1. **AST Extraction**: `verifyIntentASTAnchors` parses package and exported function docstrings across the substrate using `go/parser` AST scanning.
+2. **Density Enforcement**: Modified Go source files with exported functions must maintain `@intent` docstring coverage $\ge 50\%$.
+3. **Go Type Anchor Resolution**: Every `#<TypeName>` token on an `@intent` line must resolve to a real `type <TypeName>` AST declaration across `substrate/`.
+4. **Specification File Resolution**: Every `<name>_spec.md` token on an `@intent` line must resolve to an existing Markdown specification under `intent/`.
+5. **Fail-Closed Rejection**: If an `@intent` tag references an unresolvable `#<TypeName>` or non-existent `<name>_spec.md`, the gate immediately fails closed (exit code 1).
 
 ### 5.2 Scope of Tracing
 Traceability tags are strictly required for:
@@ -127,10 +110,10 @@ Traceability tags are NOT required for:
 
 | Test Case ID | Target Component | Input Vector | Expected State / Output | Invariant Verified |
 | :--- | :--- | :--- | :--- | :--- |
-| `TC-TRC-001` | `ParseIntentTag` | `"INT-541"` | `IntentTagBinding{Raw: "INT-541", TaskKey: "INT-541"}` | Law 4 & Law 6 (Canonical Singularity) |
-| `TC-TRC-002` | `ParseIntentTag` | `"INT-541#physics-hull"` | `IntentTagBinding{Raw: "INT-541#physics-hull", TaskKey: "INT-541", Anchor: "physics-hull"}` | Law 4 (SSoT Semantic Alignment) |
-| `TC-TRC-003` | `ParseIntentTag` | `"CUE:physics#PhysicsFrame"` | `IntentTagBinding{Raw: "CUE:physics#PhysicsFrame", IsCUE: true, SchemaName: "physics", TypeName: "PhysicsFrame"}` | Law 4 (SSoT CUE Contract Alignment) |
-| `TC-TRC-004` | `IntentTraceabilityGate` | Tag pointing to non-existent `INT-99999` | Gate 25 returns `Passed: false` with descriptive error and line number | Law 2 & Law 7 (Fail-Closed AST Proof) |
+| `TC-TRC-001` | `IntentTraceabilityGate` | `"// @intent INT-541"` | Accepted with valid docstring density | Law 4 & Law 6 (Canonical Singularity) |
+| `TC-TRC-002` | `verifyIntentASTAnchors` | `"// @intent #HandshakeEvent (jit_handshake_and_session_journal_spec.md)"` | Resolves `type HandshakeEvent` in Go AST and spec file in `intent/` | Law 4 (SSoT AST & Spec Alignment) |
+| `TC-TRC-003` | `verifyIntentASTAnchors` | `"// @intent #NonExistentPhantomType"` | `IntentTraceabilityGate` returns `Passed: false` identifying unresolved `#NonExistentPhantomType` | Law 2 & Law 7 (Fail-Closed AST Proof) |
+| `TC-TRC-004` | `verifyIntentASTAnchors` | `"// @intent missing_ghost_spec.md"` | `IntentTraceabilityGate` returns `Passed: false` identifying missing spec | Law 4 & Law 7 (Fail-Closed Spec Proof) |
 
 ---
 
@@ -142,4 +125,4 @@ Traceability tags are NOT required for:
    ```bash
    nomos verify
    ```
-   Must pass all 29 Definition of Done quality gates with zero regressions.
+   Must pass all 42 Definition of Done quality gates with zero regressions.

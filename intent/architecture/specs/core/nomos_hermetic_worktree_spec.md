@@ -24,7 +24,7 @@ This specification formalizes the **Hermetic Worktree and Git Hygiene Subsystem*
 - **Law 1: The Dual-Core Inversion Law**: The Go Substrate engine retains absolute governance over worktree creation, branch provisioning, and git executions. Tier 1 coding agents (AGY-IDE, Claude Code, OpenCode) execute within the hermetic boundary under indirect control. Direct shell invocations of raw `git` commands that bypass substrate envelopes are prohibited.
 - **Law 2: The Non-Verbal Proof Law**: Worktree boundary integrity and subprocess sanitization are continuously verified via automated, deterministic table-driven test vectors.
 - **Law 3: The Hermetic Worktree Law**: Protected trunk branches are guarded against direct mutation via Git pre-commit hooks and CapBAC boundary enforcement. Code modifications, dependency installs, and file generation must execute exclusively inside isolated task worktrees (`worktrees/nomos-<KEY>`).
-- **Law 4: The Single Source of Truth Law**: Worktree configuration schemas are unified across planes: the Go structs in `nomos/core/workspace` and the compiled CUE schema `#WorktreeBoundaryConfig` in `intent/contracts/cue/worktree.cue`.
+- **Law 4: The Single Source of Truth Law**: Worktree configuration schemas bind directly to compiled Go structs in `nomos/core/workspace` and `nomos/core/config`, reflected into `nomos.schema.json`.
 - **Law 5: The Zero-Hardcoded-Path Law**: Worktree directories and repository roots resolve dynamically via configuration discovery (`config.ResolveWorktreeDir()`, `FindRepoRoot()`). Hardcoded host home directory prefixes, container mount literals (`/app/...`), and literal workstation paths are strictly prohibited.
 - **Law 6: The Canonical Singularity Law**: Subprocess executions are unified under the singular envelope `workspace.SafeGitCommand`. Ad-hoc `exec.Command("git", ...)` invocations are prohibited across the Substrate codebase.
 - **Law 7: The Fail-Closed Pre-Flight Law**: Attempting to stage or commit files to the root repository while on a protected branch fails closed immediately with `ERR_HERMETIC_BREACH`.
@@ -72,28 +72,26 @@ func LockTrunk(repoRoot string) error
 func UnlockTrunk(repoRoot string) error
 ```
 
-## 4. Companion CUE Schema Contract
-The declarative companion schema resides in `intent/contracts/cue/worktree.cue`.
+## 4. Worktree Configuration & Session DTOs
+The configuration and session structs reside in `substrate/src/nomos/core/config/` and `substrate/src/nomos/core/workspace/`:
 
-```cue
-package schemas
+```go
+package workspace
 
-import "strings"
-
-// WorktreeBoundaryConfig defines the contract for hermetic worktree boundaries and protected branches.
-#WorktreeBoundaryConfig: close({
-	protected_branches:  [...string]
-	worktree_base_dir:   string & strings.MinRunes(1)
-	exempt_patterns?:    [...string]
-})
+// WorktreeBoundaryConfig defines hermetic worktree boundaries and protected branches.
+type WorktreeBoundaryConfig struct {
+	ProtectedBranches []string `json:"protected_branches"`
+	WorktreeBaseDir   string   `json:"worktree_base_dir"`
+	ExemptPatterns    []string `json:"exempt_patterns,omitempty"`
+}
 
 // WorktreeSession captures the runtime state of an isolated task worktree.
-#WorktreeSession: close({
-	task_key:      =~"^(INT|SUB)-[0-9]+$"
-	branch_name:   string & strings.MinRunes(1)
-	worktree_path: string & strings.MinRunes(1)
-	created_at:    string
-})
+type WorktreeSession struct {
+	TaskKey      string `json:"task_key"`
+	BranchName   string `json:"branch_name"`
+	WorktreePath string `json:"worktree_path"`
+	CreatedAt    string `json:"created_at"`
+}
 ```
 
 ## 5. Substrate DoD Quality Gate Integration
@@ -121,5 +119,5 @@ The hermetic worktree and git hygiene invariants are enforced automatically duri
 
 ## 8. Rigor & Verification Boundary
 All specifications and state machines defined herein are continuously certified by:
-1. `nomos verify` evaluating CUE contract schema integrity and AST parity.
+1. `nomos verify` evaluating Go SSoT contract schema parity and AST traceability.
 2. `nomos verify` enforcing all automated Definition of Done quality gates.

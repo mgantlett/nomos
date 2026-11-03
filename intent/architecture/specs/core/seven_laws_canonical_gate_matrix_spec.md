@@ -71,7 +71,7 @@ $$\mathcal{M}_{7 \times 3} = \{ \mathcal{C}(L_i, R_j) \mid i \in [1, 7], j \in [
 | **1** | **Dual-Core Inversion** *(Governance & Control)* | **Cell (1, 1)**: Cognitive Debt & Complexity AST (CDS $\le 45$, cyclomatic $\le 15$, LOC $\le 60$) | **Cell (1, 2)**: Phase Discipline State Machine Transition Validation | **Cell (1, 3)**: CapBAC Active Task Lease Authorization Verification |
 | **2** | **Non-Verbal Proof** *(Epistemology & Verification)* | **Cell (2, 1)**: AST Anti-Shim, Dead-Code Reachability & Docstring Density Scanner | **Cell (2, 2)**: Polyglot Test Runner & Coverage Engine (`go test ./...` exit 0, cov $\ge 55\%$) | **Cell (2, 3)**: Adversarial Review Receipt & Gate Mathematical Integrity Proof (score $\ge 80.0$) |
 | **3** | **Hermetic Worktree** *(State & Isolation)* | **Cell (3, 1)**: Worktree Boundary AST & Staged Path Invariant Scanner | **Cell (3, 2)**: Safe Git Subprocess Isolation (`workspace.SafeGitCommand`) | **Cell (3, 3)**: Two-Phase Commit (2PC) Release Certificate in Git Notes (`refs/notes/nomos/releases`) |
-| **4** | **Single Source of Truth** *(Contracts & Schemas)* | **Cell (4, 1)**: CUE / Markdown Broken Link & Wire Invariant Gate | **Cell (4, 2)**: Universal Contract & Schema Parity Gate (`nomos verify`, $\Delta(t) = 0$) | **Cell (4, 3)**: Cryptographic SHA-256 Byte-Parity Audit Gate (`AGENTS.md`, ambient hooks, directives) |
+| **4** | **Single Source of Truth** *(Contracts & Schemas)* | **Cell (4, 1)**: Markdown Broken Link, Frontmatter & AST Traceability Gate | **Cell (4, 2)**: Universal Contract & Schema Parity Gate (`nomos.schema.json`, $\Delta(t) = 0$) | **Cell (4, 3)**: Cryptographic SHA-256 Byte-Parity Audit Gate (`AGENTS.md`, ambient hooks, directives) |
 | **5** | **Zero-Hardcoded-Path** *(Portability & Environment)* | **Cell (5, 1)**: AST Path Literal, IP Leak & Magic String Invariant Scanner | **Cell (5, 2)**: Dynamic Workspace Discovery & Environment Ingress Engine | **Cell (5, 3)**: Multi-Seat Topology & Port Ingress Cryptographic Audit |
 | **6** | **Canonical Singularity** *(Action Space & Surface)* | **Cell (6, 1)**: CLI Zero-Alias AST Parser & Schema Validator | **Cell (6, 2)**: Deprecated Command & Shim Tripwire Engine | **Cell (6, 3)**: Pure 2-Plane Key Singularity Attestation (`INT-*` / `SUB-*` strictly enforced) |
 | **7** | **Fail-Closed Pre-Flight** *(Safety & Budgets)* | **Cell (7, 1)**: Configuration Immutability & Contract Boundary Scanner | **Cell (7, 2)**: Unchecked Error Hygiene & Resource Breaker Gate | **Cell (7, 3)**: Threshold Integrity & Signed Release Readiness Attestation |
@@ -95,49 +95,34 @@ When a new language is introduced to Nomos:
 
 ---
 
-## 5. Formal CUE Contract & Frontmatter Schema
+## 5. Formal Go SSoT Contract (`verify/matrix.go`)
 
-The declarative CUE contract in `intent/contracts/cue/pipeline.cue` defines:
+The compiled Go matrix registry in `substrate/src/nomos/modules/verify/matrix.go` defines:
 
-```cue
-package schemas
+```go
+package verify
 
 // DefenseRing defines the 3 canonical architectural rings of defense.
-#DefenseRing: "syntactic" | "dynamic" | "cryptographic"
+type DefenseRing string
 
-// CanonicalMatrix models the finite 7x3 Invariant Cells of the Nomos DoD.
-#CanonicalMatrix: {
-	laws:  7
-	rings: 3
-	cells: 21
-}
-
-// GateSpec defines the declarative schema for an individual sensor probe.
-#GateSpec: close({
-	id:       string & != "" & =~"^[a-z0-9_-]+$"
-	name:     string & != ""
-	law:      int & >=1 & <=7
-	ring:     #DefenseRing
-	domain:   string & != ""
-	sensor:   #SensorType
-	phase:    "IDLE" | "PLAN" | "EDIT" | "REVIEW" | "SYNC" | "LEARN" | *"REVIEW"
-	enabled:  bool | *true
-	remedy:   string & != ""
-	rule_key: string | *""
-})
+const (
+	RingSyntactic     DefenseRing = "syntactic"
+	RingDynamic       DefenseRing = "dynamic"
+	RingCryptographic DefenseRing = "cryptographic"
+)
 
 // InvariantCell defines the canonical schema for each of the 21 cells in the 7x3 matrix.
-#InvariantCell: close({
-	id:        string & != "" & =~"^[a-z0-9_-]+$"
-	name:      string & != ""
-	law:       int & >=1 & <=7
-	ring:      #DefenseRing
-	domain:    string & != ""
-	phase:     "IDLE" | "PLAN" | "EDIT" | "REVIEW" | "SYNC" | "LEARN" | *"REVIEW"
-	enabled:   bool | *true
-	remedy:    string & != ""
-	probe_ids: [...string]
-})
+type InvariantCell struct {
+	ID       string      `json:"id"`
+	Name     string      `json:"name"`
+	Law      int         `json:"law"`
+	Ring     DefenseRing `json:"ring"`
+	Domain   string      `json:"domain"`
+	Phase    string      `json:"phase"`
+	Enabled  bool        `json:"enabled"`
+	Remedy   string      `json:"remedy"`
+	ProbeIDs []string    `json:"probe_ids"`
+}
 ```
 
 ---
@@ -148,14 +133,14 @@ package schemas
 The Nomos DoD verification suite is strictly composed of exactly 21 Invariant Cells corresponding to the $7 \times 3$ Cartesian product of the 7 Laws and the 3 Defense Rings. No gate shall exist outside this matrix.
 
 ### `INV-CANON-002`: Explicit Cell Binding
-Every quality gate specification registered in CUE (`pipeline.cue`) or Go must declare:
+Every quality gate specification registered in `matrix.go` (`CanonicalMatrixCells`) and `pipeline_loader.go` must declare:
 1. `law`: An integer in $[1, 7]$.
 2. `ring`: An enumeration in `{"syntactic", "dynamic", "cryptographic"}`.
 3. `domain`: The canonical domain string of the corresponding Law.
 Failure to bind to a canonical cell results in an immediate fail-closed pipeline rejection (Law 7).
 
 ### `INV-CANON-003`: Bilateral Parity Governance
-The Universal Contract & Schema Parity Gate is the open-core implementation of **Cell (4, 2)** [Law 4: SSoT $\times$ Ring 2: Dynamic Execution]. It verifies contract and schema grounding at pre-flight and pre-release. Cross-hemisphere multi-tier AST isomorphism is decoupled to the sovereign extension domain (`gsi-sov`).
+The Universal Contract & Schema Parity Gate is the open-core implementation of **Cell (4, 2)** [Law 4: SSoT $\times$ Ring 2: Dynamic Execution]. It verifies `nomos.schema.json` reflection parity and engine grounding at pre-flight and pre-release. Cross-hemisphere multi-tier AST isomorphism is decoupled to the sovereign extension domain (`gsi-sov`).
 
 ### `INV-CANON-004`: Matrix Completeness & Multi-Sensor Cells
 A canonical invariant cell $\mathcal{C}(L_i, R_j)$ may contain zero, one, or multiple sensor drivers (e.g. Go and TypeScript AST parsers both contributing to Cell (2, 1)). A cell with zero active sensors is declared *sparse* but valid. However, every active sensor must strictly register into one canonical cell.
@@ -163,8 +148,8 @@ A canonical invariant cell $\mathcal{C}(L_i, R_j)$ may contain zero, one, or mul
 ---
 
 ## 7. Verification & Transduction Mechanics
-1. **Declarative Pipeline**:
-   - `intent/contracts/cue/pipeline.cue` models the 21 cells and validates gate registrations.
+1. **Compiled Matrix SSoT**:
+   - `substrate/src/nomos/modules/verify/matrix.go` models the 21 cells and validates gate registrations.
 2. **Substrate Sensor Mapping**:
    - `substrate/src/nomos/modules/verify/pipeline_loader.go` binds Go sensors to `(Law, Ring)` coordinates.
 3. **Visualizer Rendering**:

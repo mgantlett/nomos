@@ -18,17 +18,17 @@ ssot_repository: nomos
 ## 1. Executive Summary & Problem Statement
 In Gen 2, the Nomos Definition of Done (DoD) quality gates relied upon line-scanning regex heuristics to validate codebase hygiene (e.g., cyclomatic complexity, docstring density, forbidden literal scanning). This approach was inherently brittle: it failed on polyglot workspaces, was susceptible to false positives inside comments or multiline strings, and could not parse deeply nested syntactic structures.
 
-In strict compliance with **Law 2 (The Non-Verbal Proof Law)**, this specification formalizes the **Tree-sitter AST Gate Engine**. The engine integrates Tree-sitter parser bindings across Go, TypeScript, Svelte, Python, and Markdown, replacing regex line-matching with deterministic concrete syntax trees (CST/AST). Under Nomos v4 (Milestone 5), the engine executes polyglot Tree-sitter parsers hermetically in pure Go via the `wazero` WebAssembly runtime (`github.com/tetratelabs/wazero`), strictly avoiding CGo and external process spawns. The engine binds to `#TreeSitterWasmConfig` in `intent/contracts/cue/polyglot.cue` and unifies AST metric extractions directly with the canonical CUE gates schema (`intent/contracts/cue/gates.cue`) to enforce all automated DoD quality gates.
+In strict compliance with **Law 2 (The Non-Verbal Proof Law)**, this specification formalizes the **Tree-sitter AST Gate Engine**. The engine integrates Tree-sitter parser bindings across Go, TypeScript, Svelte, Python, and Markdown, replacing regex line-matching with deterministic concrete syntax trees (CST/AST). Under Nomos v4, the engine executes polyglot Tree-sitter parsers hermetically in pure Go via the `wazero` WebAssembly runtime (`github.com/tetratelabs/wazero`), strictly avoiding CGo and external process spawns. The engine binds to `treesitter.TreeSitterWasmConfig` (`substrate/src/nomos/modules/verify/treesitter/types.go`) and evaluates AST metric extractions directly against `config.ThresholdsConfig` (`nomos.yaml` / `nomos.schema.json`) to enforce all automated DoD quality gates.
 
 ```mermaid
 graph TD
-    A["Source File Ingestion"] --> B["SourceRootResolver (polyglot.cue)"]
+    A["Source File Ingestion"] --> B["SourceRootResolver (nomos.yaml)"]
     B --> C["Tree-sitter Parser Instance"]
     C --> D{"AST Syntax Error / MISSING?"}
     D -- Yes --> E["Fail-Closed Pre-Flight (Exit 1)"]
     D -- No --> F["Execute S-Expression Query (@func, @doc, @branch)"]
     F --> G["Compute Mathematical Predicates (M, CDS, Density)"]
-    G --> H["Unify with gates.cue (#Thresholds)"]
+    G --> H["Evaluate ThresholdsConfig (nomos.yaml)"]
     H --> I["DoD Gate Verdict (PASS / FAIL)"]
 ```
 
@@ -39,7 +39,7 @@ graph TD
 | Law # | Law Name | Architectural Invariant Enforced in Tree-sitter Engine |
 | :---: | :--- | :--- |
 | **Law 2** | **The Non-Verbal Proof Law** | Code correctness and architectural hygiene require deterministic AST proof. Regex matching on source code is strictly prohibited for DoD gates. |
-| **Law 4** | **The Single Source of Truth Law** | AST query definitions are compiled directly into the Substrate Go binary via `//go:embed` as an immutable SSoT. Extraction outputs map 1:1 to `intent/contracts/cue/gates.cue`. |
+| **Law 4** | **The Single Source of Truth Law** | AST query definitions are compiled directly into the Substrate Go binary via `//go:embed` as an immutable SSoT. Extraction outputs map 1:1 to compiled Go metric structs (`FunctionMetric`, `FileMetric`) and `config.ThresholdsConfig`. |
 | **Law 5** | **The Zero-Hardcoded-Path Law** | Source roots and target files are resolved dynamically via configuration discovery (`#SourceRootConfig`). Zero hardcoded absolute paths or filesystem literals tolerated. |
 | **Law 6** | **The Canonical Singularity Law** | Exactly one canonical AST gatekeeper pipeline evaluates all supported languages through a unified `TreeSitterGateEngine` interface. |
 | **Law 7** | **The Fail-Closed Pre-Flight Law** | Unparseable syntax trees, malformed S-expressions, or Tree-sitter `ERROR`/`MISSING` syntax nodes trigger immediate pre-flight abort (Exit Code 1). |
@@ -125,26 +125,20 @@ The file passes Gate 17 if $CDS(S) \le \text{thresholds.max\_cds}$ (default: 45)
 
 ---
 
-## 4. Formal Go Contracts & CUE Gates Binding
+## 4. Formal Go Contracts & Thresholds Binding
 
-### 4.1 Integration with `intent/contracts/cue/gates.cue`
-The extraction results are serialized into CUE-compliant JSON matching `#FunctionMetric` and `#FileMetric`:
+### 4.1 Thresholds Configuration (`config.ThresholdsConfig` / `nomos.schema.json`)
+Extracted AST metrics are evaluated deterministically against `config.ThresholdsConfig`:
 
-```cue
-// Excerpt from intent/contracts/cue/gates.cue
-#FunctionMetric: close({
-	file:       string & strings.MinRunes(1)
-	line:       int & >= 1
-	name:       string & strings.MinRunes(1)
-	complexity: int & >= 1
-	loc:        int & >= 1
-})
-
-#FileMetric: close({
-	name: string & strings.MinRunes(1)
-	loc:  int & >= 0 | *0
-	cds:  int & >= 0 | *0
-})
+```json
+{
+  "max_cognitive_debt_score": 45,
+  "max_cyclomatic_complexity": 15,
+  "max_file_loc": 400,
+  "max_func_loc": 60,
+  "min_comment_density_pct": 10,
+  "min_test_coverage_pct": 55
+}
 ```
 
 ### 4.2 Substrate Go Engine Interface
@@ -160,7 +154,7 @@ import (
 //go:embed queries/*
 var QueryFS embed.FS
 
-// FunctionMetric matches gates.cue #FunctionMetric
+// FunctionMetric captures per-function AST complexity and LOC metrics.
 type FunctionMetric struct {
 	File       string `json:"file"`
 	Line       int    `json:"line"`
@@ -170,7 +164,7 @@ type FunctionMetric struct {
 	Documented bool   `json:"documented"`
 }
 
-// FileMetric matches gates.cue #FileMetric
+// FileMetric captures per-file LOC and Cognitive Debt Score metrics.
 type FileMetric struct {
 	Name string `json:"name"`
 	LOC  int    `json:"loc"`

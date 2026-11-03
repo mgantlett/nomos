@@ -28,9 +28,9 @@ ssot_repository: nomos
 
 ## 1. Purpose
 
-This specification defines the formal contract for Living Ledger tasks. The authoritative Single Source of Truth (SSoT) is the compiled CUE contract [`intent/contracts/cue/task.cue`](../../../contracts/cue/task.cue) (`#TaskRecord` and `#TaskCardInput`), enforced deterministically by the Go substrate (`substrate/src/nomos/modules/task/`) under Law 4 (The Single Source of Truth Law), Law 6 (The Canonical Singularity Law), and Law 7 (The Fail-Closed Pre-Flight Law).
+This specification defines the formal contract for Living Ledger tasks. The authoritative Single Source of Truth (SSoT) is compiled in `substrate/src/nomos/modules/task/` (`TaskRecord` in `task.go` and `ValidateCardDescription` / `SynthesizeCardMarkdown` in `card.go`), enforced deterministically under Law 4 (The Single Source of Truth Law), Law 6 (The Canonical Singularity Law), and Law 7 (The Fail-Closed Pre-Flight Law).
 
-Twin semantics and lifecycle state transitions are codified in [`task_lifecycle_cli_spec.md`](task_lifecycle_cli_spec.md) and [`task.cue`](../../../contracts/cue/task.cue).
+Twin semantics and lifecycle state transitions are codified in [`task_lifecycle_cli_spec.md`](task_lifecycle_cli_spec.md).
 
 ---
 
@@ -125,4 +125,4 @@ Under Law 2 (**The Non-Verbal Proof Law**), the Universal 3-Section Task Card Co
 | **TV-SCH-05** | Domain Token Tolerance | Card mentions `StatusTodo` and `<task-key>` | Accepted without false-positive regex rejection | 0 |
 | **TV-SCH-06** | Fast-Lane Chore Exemption | `nomos task chore "Quick typo fix"` | Provisions `EDIT` worktree immediately with zero template flags | 0 |
 | **TV-SCH-07** | Explicit Burden Bounds | `--burden 11` or `--burden -1` | Rejected (`ERR_VALIDATION_FAILED`: must be 1-10) | 1 |
-| **TV-SCH-08** | CUE SSoT Unification | Serialized `#TaskRecord` & `#TaskCardInput` | Unifies cleanly against `intent/contracts/cue/task.cue` | 0 |
+| **TV-SCH-08** | Go SSoT Validation | Serialized `TaskRecord` & `CardSections` | Validates cleanly against `task.ValidateTaskKey` and `task.ValidateCardDescription` | 0 |

@@ -29,7 +29,7 @@ The `nomos` repository represents the public, open-core foundation of the Nomos 
 
 This specification formalizes the open-core licensing model, contribution governance, and automated release readiness:
 1. **Permissive Open-Core Licensing:** Apache License 2.0 applied across all public open-core assets in `nomos`, providing patent grants while preserving commercial sovereign boundaries in `gsi-sov`.
-2. **42 DoD Quality Gate Enforcement (Law 4 & Law 7):** All releases require greenlight certification across the compiled 42-gate pipeline (`intent/contracts/cue/pipeline.cue`), specifically asserting the `boundary` and `ip_leak` gates.
+2. **42 DoD Quality Gate Enforcement (Law 4 & Law 7):** All releases require greenlight certification across the compiled 42-gate pipeline (`substrate/src/nomos/modules/verify/matrix.go`), specifically asserting the `boundary` and `ip_leak` gates.
 3. **Fail-Closed Release Pre-Flight:** Pre-flight audits reject release builds on dirty git worktrees, unverified commits, missing Ed25519 signatures, or broken checksums.
 4. **Universal Topology:** Replaces legacy `gsi-open` terminology with `nomos` (Open-Core Public Foundation) and `gsi-sov` (Sovereign Proprietary Extensions).
 
@@ -41,7 +41,7 @@ This specification formalizes the open-core licensing model, contribution govern
 | :---: | :--- | :--- |
 | **Law 1** | **Dual-Core Inversion** | Substrate Go release pipeline automates hermetic packaging; Tier 1 agents cannot trigger release mutations. |
 | **Law 2** | **Non-Verbal Proof** | Release artifacts require exit code 0 across all 42 DoD gates, verified by table-driven test vectors (`TC-REL-001` through `TC-REL-006`). |
-| **Law 4** | **Single Source of Truth** | Release verification and receipt manifests bind strictly to `pipeline.cue` (`#CanonicalMatrix`) and `git_notes.cue` (`#ReleaseNotePayload`). |
+| **Law 4** | **Single Source of Truth** | Release verification and receipt manifests bind strictly to `verify.CanonicalMatrixCells` (`matrix.go`) and `task.ReleaseNotePayload` (`git_notes.go`). |
 | **Law 5** | **Zero-Hardcoded-Path** | Release directories and tool paths resolve dynamically via `config.LoadConfig()`, avoiding hardcoded path literals. |
 | **Law 6** | **Canonical Singularity** | Single canonical release pipeline (`.goreleaser.yaml`) governing all multi-arch distributions. |
 | **Law 7** | **Fail-Closed Pre-Flight** | Any uncommitted file, gate failure, or missing Ed25519 signature halts release packaging immediately with exit code 1. |
@@ -76,7 +76,7 @@ Release readiness is enforced directly by the compiled `verify` gate suite (`sub
 1. **`BoundaryGate` (`substrate/src/nomos/modules/verify/gates_architecture.go`):** Audits AST imports, prohibited commands, and locked dependency manifests against configured open-core boundaries.
 2. **`IPLeakGate` (`substrate/src/nomos/modules/verify/gates_security.go`):** Scans open-core source and documentation for proprietary sovereign identifiers or internal hostnames.
 3. **`EcosystemDriftGate` (`substrate/src/nomos/modules/verify/gates_architecture.go`):** Rejects dirty trunk trees (`git status --porcelain`) prior to packaging.
-4. **`ReleaseReceiptGate` (`substrate/src/nomos/modules/verify/gates_capbac_release.go`):** Verifies cryptographic release receipts (`#ReleaseNotePayload` in `intent/contracts/cue/git_notes.cue`) in `refs/notes/nomos/releases`.
+4. **`ReleaseReceiptGate` (`substrate/src/nomos/modules/verify/gates_capbac_release.go`):** Verifies cryptographic release receipts (`task.ReleaseNotePayload` in `substrate/src/nomos/modules/task/git_notes.go`) in `refs/notes/nomos/releases`.
 
 ---
 
@@ -129,6 +129,6 @@ The following deterministic test vectors validate release readiness:
 
 1. **Apache 2.0 Licensing:** Root `LICENSE` exists with Apache 2.0 terms; copyright notices identify Mark Gantlett and Nomos Open-Core Substrate.
 2. **DoD Quality Gates Greenlight:** Release pipeline invokes `nomos verify` and asserts all DoD gates passed before compiling.
-3. **CUE Schema Parity:** Validated against `intent/contracts/cue/pipeline.cue` and `intent/contracts/cue/git_notes.cue`.
+3. **Go SSoT & JSON Schema Parity:** Validated against `nomos.schema.json` and `task.ReleaseNotePayload`.
 4. **Hermetic Pre-Flight:** Dirty worktrees, missing signatures, or IP leaks fail closed with exit code 1.
 5. **No Broken Links:** All root documentation files (`CONTRIBUTING.md`, `SECURITY.md`) resolve without broken links.

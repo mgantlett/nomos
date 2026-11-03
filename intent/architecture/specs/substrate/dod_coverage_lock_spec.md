@@ -41,8 +41,8 @@ Under **Law 2 (Non-Verbal Proof)** and **Law 7 (Fail-Closed Pre-Flight)**, this 
 | Law # | Law Name | Architectural Enforcement |
 | :---: | :--- | :--- |
 | **Law 1** | **Dual-Core Inversion** | Substrate Go core evaluates threshold integrity and statement coverage; Tier 1 agents cannot override gate policies. |
-| **Law 2** | **Non-Verbal Proof** | Statement coverage must satisfy `gates.cue` (`coverage >= min_coverage`), proven by table-driven test vectors (`TC-COV-001` through `TC-COV-006`). |
-| **Law 4** | **Single Source of Truth** | Plane and task types bind strictly to `#TaskRecord` in `intent/contracts/cue/task.cue`. Thresholds bind to `gates.cue`. |
+| **Law 2** | **Non-Verbal Proof** | Statement coverage must satisfy `config.ThresholdsConfig` (`coverage >= min_test_coverage_pct`), proven by table-driven test vectors (`TC-COV-001` through `TC-COV-006`). |
+| **Law 4** | **Single Source of Truth** | Plane and task types bind strictly to `task.TaskRecord` (`substrate/src/nomos/modules/task/task.go`). Thresholds bind to `config.ThresholdsConfig` (`nomos.schema.json`). |
 | **Law 5** | **Zero-Hardcoded-Path** | Configuration and git root resolve dynamically via `config.LocateConfigPath()` and `workspace.SafeGitCommand`. |
 | **Law 6** | **Canonical Singularity** | Single canonical `CoverageGate` (Gate 7) and `ThresholdIntegrityGate` (Gate 24) in the 29-gate DoD pipeline. |
 | **Law 7** | **Fail-Closed Pre-Flight** | Any relaxation of thresholds outside a designated `debt` task halts verification immediately with exit code 1. |
@@ -67,11 +67,11 @@ stateDiagram-v2
     CheckPlane --> EnforceCoverage: plane == "substrate" (Evaluate package coverage)
 
     EnforceCoverage --> RunTestSuite: Execute go test --cover ./...
-    RunTestSuite --> UnifyCUE: Unify with intent/contracts/cue/gates.cue
+    RunTestSuite --> CheckThreshold: Evaluate ThresholdsConfig (nomos.yaml)
     
-    state UnifyCUE <<choice>>
-    UnifyCUE --> PassGate: coverage >= min_coverage (PASS)
-    UnifyCUE --> FailClosed: coverage < min_coverage (FAIL)
+    state CheckThreshold <<choice>>
+    CheckThreshold --> PassGate: coverage >= min_coverage (PASS)
+    CheckThreshold --> FailClosed: coverage < min_coverage (FAIL)
 
     ExemptCoverage --> [*]: GateResult(Passed=true, "exempt: zero Go mutations")
     PassGate --> [*]: GateResult(Passed=true, "coverage threshold met")
@@ -138,6 +138,6 @@ The following deterministic test vectors certify the coverage and threshold lock
 
 1. **Go Mutation Guard Active:** Zero blanket exemptions; any `.go` modification enforces coverage regardless of task plane.
 2. **Monotonic Threshold Enforcement:** Downward coverage or upward complexity mutations without `schema_type: "debt"` trigger immediate failure.
-3. **CUE Contract Parity:** Validated against `intent/contracts/cue/gates.cue` and `task.cue`.
+3. **Go SSoT & JSON Schema Parity:** Validated against `config.ThresholdsConfig` (`nomos.schema.json`) and `task.TaskRecord`.
 4. **42-Gate DoD Verification:** Verification passes all 42 quality gates (`nomos verify`) with exit code 0.
 5. **No Broken Links:** All markdown documentation links resolve cleanly.

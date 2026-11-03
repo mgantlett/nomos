@@ -34,7 +34,7 @@ Without continuous, physical constraints, agents drift into un-indexed loops, se
 
 ### 1.2 Separation of Substrate Physics from Ergonomic Telemetry
 To maintain uncompromising realism and avoid metaphor degradation:
-1. **The Software Physics Engine (Open-Core Substrate):** Pure Go mathematical calculations and CUE declarative schemas evaluating AST graph metrics, Shannon information entropy, directed call-graph reachability, and capability leases.
+1. **The Software Physics Engine (Open-Core Substrate):** Pure Go mathematical calculations and compiled Go telemetry structs evaluating AST graph metrics, Shannon information entropy, directed call-graph reachability, and capability leases.
 2. **The Air Traffic Control Interface (HMI / Presentation Layer):** The ergonomic telemetry projection (`nomos physics`) that visualizes these underlying physics vectors (AST mass, worktree hulls, collision threat levels) for human architects. The visualization never replaces the math; it merely renders it at human-perceptual speed.
 
 ---
@@ -46,7 +46,7 @@ To maintain uncompromising realism and avoid metaphor degradation:
 | **1** | **The Dual-Core Inversion Law** | Aerodynamic Airframe vs. Pilot | Substrate Go core enforces flight laws; Tier 1 agent is a bounded cognitive craft under indirect control. |
 | **2** | **The Non-Verbal Proof Law** | Conservation of Mass & Momentum | Zero trust in textual claims; code mass, entropy, and collision vectors are calculated from AST and git invariants. |
 | **3** | **The Hermetic Worktree Law** | Isolated Flight Corridors | Mutations occur strictly inside transient isolated worktrees; trunk `main` is physically immutable. |
-| **4** | **The Single Source of Truth Law** | Unified Spacetime Metric | All physics telemetry compiles against exactly one CUE schema (`intent/contracts/cue/physics.cue`). |
+| **4** | **The Single Source of Truth Law** | Unified Spacetime Metric | All physics telemetry binds strictly to compiled Go structs in `substrate/cli/physics.go`. |
 | **5** | **The Zero-Hardcoded-Path Law** | Relativistic Reference Frames | Symbol coordinates and paths resolve dynamically relative to transient worktree roots. |
 | **6** | **The Canonical Singularity Law** | Conservation of Energy | Exactly one canonical tensor for mass, drag, and collision; zero duplicate metrics or shadow state. |
 | **7** | **The Fail-Closed Pre-Flight Law** | Atmospheric Re-entry Envelope | Any DoD gate failure triggers an immediate wave-off and restoration of the clean baseline (`git checkout -- <file>`). |
@@ -197,6 +197,6 @@ The Open-Core Software Physics Engine exposes real-time worktree AST mass, inert
 
 ## 6. Definition of Done & Verification Boundary
 
-1. Declarative CUE schema enforced in `intent/contracts/cue/physics.cue` with closed `#PhysicsFrame` and `#CollisionVector` types.
+1. Compiled Go physics telemetry structs (`WorktreeHull`, `CollisionVector`, `FileMass`) enforced in `substrate/cli/physics.go`.
 2. All 42 DoD quality gates pass cleanly via `nomos verify`.
 3. Zero shims, zero placeholders, and strict adherence to the 7 Laws of the Nomos Open-Core Protocol.

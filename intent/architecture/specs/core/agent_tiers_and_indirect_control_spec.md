@@ -151,28 +151,21 @@ type GatekeeperRegistry interface {
 }
 ```
 
-Declarative CUE schema counterpart:
+Reflected Draft 2020-12 JSON Schema counterpart (`nomos.schema.json`):
 
-```cue
-package schemas
-
-// AgentTier specifies the canonical classification of a coding agent.
-#AgentTier: "TIER_1_INDIRECT" | "TIER_2_DIRECT"
-
-// BoundaryConfig declares the open-core edition boundary deny-list.
-#BoundaryConfig: close({
-	enforce:              bool | *true
-	prohibited_packages: [...string]
-	prohibited_commands: [...string]
-})
-
-// AdoptionProfileSpec defines the configuration schema for downstream consumer profiles.
-#AdoptionProfileSpec: close({
-	profile_name:   "Solo" | "Team" | "Regulated" | "Foundry"
-	agent_tier:     #AgentTier
-	strict_mode:    bool | *false
-	audit_required: bool | *false
-})
+```json
+{
+  "boundary": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "enforce": { "type": "boolean", "default": true },
+      "prohibited_packages": { "type": "array", "items": { "type": "string" } },
+      "prohibited_commands": { "type": "array", "items": { "type": "string" } },
+      "lock_dependencies": { "type": "boolean" }
+    }
+  }
+}
 ```
 
 ---
@@ -200,7 +193,7 @@ These compiled subcommands replace fragile external shell, `jq`, and Python hook
 | :--- | :--- | :--- | :--- |
 | `nomos hook session-start` | `SessionStart` | Executes `nomos handshake` in the target workspace and formats the orientation payload. | JSON `injectSteps` or `hookSpecificOutput` on `stdout` |
 | `nomos hook pre-tool` | `PreToolUse` | Evaluates Law 3 boundary isolation, unexpanded variable guards, and Law 7 command safety. | JSON `{"decision": "allow"}` or `{"decision": "deny", "reason": "..."}` |
-| `nomos hook post-tool` | `PostToolUse` / `PostInvocation` | Runs zero-footprint in-memory AST, JSON, JSONL, and CUE syntax verification on mutated files. | Silent `{}` on valid edits; injects advisory context only on real syntax or radar violations |
+| `nomos hook post-tool` | `PostToolUse` / `PostInvocation` | Runs zero-footprint in-memory AST, JSON, and JSONL syntax verification on mutated files. | Silent `{}` on valid edits; injects advisory context only on real syntax or radar violations |
 
 Every `nomos hook` subcommand accepts an optional `--hermetic-dir <path>` flag for container and sandbox environments.
 When `--hermetic-dir <path>` is active, `nomos hook pre-tool` confines file mutations and shell paths to the canonical realpath of `<path>` without requiring a transient `worktrees/` subdirectory.
@@ -252,7 +245,7 @@ Specifications reject hardcoded path literals.
 | `config.Paths.RulesDir` | Agent operating rules | Dynamic discovery via `config.ResolveRulesDir()` |
 | `config.Paths.HooksDir` | Ambient lifecycle hooks | Dynamic discovery via `config.ResolveHooksDir()` |
 | `config.Paths.WorktreesDir` | Transient task worktrees | Dynamic discovery via `config.ResolveWorktreeDir()` |
-| `config.Paths.SchemasDir` | Declarative CUE schemas | Dynamic discovery via `config.ResolveSchemasDir()` |
+| `config.Paths.SchemasDir` | Reflected JSON Schema contracts | Dynamic discovery via `config.LocateConfigPath()` |
 
 ---
 

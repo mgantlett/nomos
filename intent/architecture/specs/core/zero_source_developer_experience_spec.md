@@ -64,16 +64,17 @@ Downstream Tier 1 coding agents achieve full phase discipline in under 60 second
 
 Every lifecycle phase transition and orientation command emits valid next-step hypermedia commands (`#ActionAffordance`).
 
-### 3.1 Declarative CUE Contract (`handshake.cue` & `phase_state.cue`)
+### 3.1 Compiled Go SSoT Contract (`core/types/affordance.go` & `phase.go`)
 
-```cue
-package schemas
+```go
+package types
 
-#ActionAffordance: close({
-	command: string & != ""
-	summary: string & != ""
-	phase:   #DirectivePhase
-})
+// ActionAffordance represents a deterministic HATEOAS next-step command.
+type ActionAffordance struct {
+	Command string `json:"command"`
+	Summary string `json:"summary"`
+	Phase   Phase  `json:"phase,omitempty"`
+}
 ```
 
 `#HandshakeEvent` and `#PhaseState` expose `next_actions?: [...#ActionAffordance]` for machine-readable `--json` consumers and terminal banners.

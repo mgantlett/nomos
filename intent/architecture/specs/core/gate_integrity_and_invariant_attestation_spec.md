@@ -116,32 +116,27 @@ Output schema:
 
 ---
 
-## 4. Cross-Plane CUE Schema Contract
+## 4. Compiled Go SSoT Report Contract
 
-The attestation report is strictly typed in `intent/contracts/cue/gate_integrity_proof.cue`:
+The attestation report is strictly typed in `substrate/src/nomos/modules/verify/`:
 
-```cue
-package schemas
+```go
+package verify
 
-#GateIntegrityReport: {
-	target_dir:             string
-	is_codebase_targeted:   bool
-	codebase_files_scanned: int & >=0
-	mutation_killed:        int & >=0
-	mutation_total:         int & >=0
-	mutation_score:         float & >=0.0 & <=100.0
-	false_positive_rate:    float & >=0.0 & <=100.0
-	reference_gates_pass:   int & >=0
-	reference_gates_total:  int & >0
-	non_vacuous_gates:      int & >=0
-	total_gates_evaluated:  int & >0
-	passed:                 bool
-
-	_sensitivity_pass: mutation_score >= 100.0
-	_specificity_pass: false_positive_rate == 0.0
-	_anti_vacuous_pass: non_vacuous_gates == total_gates_evaluated
-
-	passed: _sensitivity_pass && _specificity_pass && _anti_vacuous_pass
+// GateIntegrityReport captures empirical mutation sensitivity, specificity, and AST anti-vacuity metrics.
+type GateIntegrityReport struct {
+	TargetDir            string  `json:"target_dir"`
+	IsCodebaseTargeted   bool    `json:"is_codebase_targeted"`
+	CodebaseFilesScanned int     `json:"codebase_files_scanned"`
+	MutationKilled       int     `json:"mutation_killed"`
+	MutationTotal        int     `json:"mutation_total"`
+	MutationScore        float64 `json:"mutation_score"`
+	FalsePositiveRate    float64 `json:"false_positive_rate"`
+	ReferenceGatesPass   int     `json:"reference_gates_pass"`
+	ReferenceGatesTotal  int     `json:"reference_gates_total"`
+	NonVacuousGates      int     `json:"non_vacuous_gates"`
+	TotalGatesEvaluated  int     `json:"total_gates_evaluated"`
+	Passed               bool    `json:"passed"`
 }
 ```
 
@@ -151,9 +146,9 @@ package schemas
 
 | Vector ID | Attestation Dimension | Input Scenario | Expected Verdict |
 | :--- | :--- | :--- | :--- |
-| `TC-PRF-01` | Vector 1 (Sensitivity) | Synthetic mutant escapes gate detection (`mutation_score < 100.0`) | `FAIL` (Exit 1, `_sensitivity_pass == false`) |
-| `TC-PRF-02` | Vector 2 (Specificity) | Clean reference fixture triggers false alarm (`false_positive_rate > 0.0`) | `FAIL` (Exit 1, `_specificity_pass == false`) |
+| `TC-PRF-01` | Vector 1 (Sensitivity) | Synthetic mutant escapes gate detection (`mutation_score < 100.0`) | `FAIL` (Exit 1, `MutationScore < 100.0`) |
+| `TC-PRF-02` | Vector 2 (Specificity) | Clean reference fixture triggers false alarm (`false_positive_rate > 0.0`) | `FAIL` (Exit 1, `FalsePositiveRate > 0.0`) |
 | `TC-PRF-03` | Vector 3 (Anti-Vacuity) | Gate implementation returns unconditional `GateResult{Passed: true}` | `FAIL` (`ERR_TRIVIAL_PASS_SHIM`) |
-| `TC-PRF-04` | Full Cell 2.3 Proof | 100% mutant kill rate, 0% FPR, and 100% non-vacuous AST bodies | `PASS` (Exit 0, CUE report valid) |
+| `TC-PRF-04` | Full Cell 2.3 Proof | 100% mutant kill rate, 0% FPR, and 100% non-vacuous AST bodies | `PASS` (Exit 0, `GateIntegrityReport.Passed == true`) |
 
 

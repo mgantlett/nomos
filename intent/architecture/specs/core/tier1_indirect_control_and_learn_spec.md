@@ -70,7 +70,7 @@ flowchart TD
 
 1. **Tier A — Local Episodic & Structural Distillation (`mneme.db`, Automatic, Per-Repo)**:
    - **Negative-Path Pitfalls (`kind: "pitfall"`):** When `nomos verify` or `nomos task review` rejects a task worktree, the harness records failing gate probes and touched directory scope in a transient task trap buffer. Upon 2PC release (`nomos task sync`), `finalizeSync` distills `Gate Failure -> Verified Fix` into `mneme.db`, superseding stale duplicate traps on the same gate+scope.
-   - **Positive-Path Verified Patterns (`kind: "pattern"`):** On every 42/42 DoD-verified 2PC release (`nomos task sync`), even when zero gate failures occurred, `finalizeSync` extracts a compact structural blueprint from modified worktree source files (directory scope, exported AST symbol signatures, `@intent` CUE anchors, and paired `_test` vectors) and persists it as `kind: "pattern"`, superseding older pattern blueprints on the same directory scope.
+   - **Positive-Path Verified Patterns (`kind: "pattern"`):** On every 42/42 DoD-verified 2PC release (`nomos task sync`), even when zero gate failures occurred, `finalizeSync` extracts a compact structural blueprint from modified worktree source files (directory scope, exported AST symbol signatures, `@intent` Go AST/spec anchors, and paired `_test` vectors) and persists it as `kind: "pattern"`, superseding older pattern blueprints on the same directory scope.
    - **Statutory Write Provenance:** Manual CLI `nomos mem save` calls reject statutory kinds (`pitfall`, `pattern`, `release`, `task`, `commit`, `review`) fail-closed so unverified sessions can never forge 2PC-backed memories.
    - **Dual-Sided Turn-1 Recall & Graduation Surfacing:** Subsequent `nomos handshake`, `nomos task start`, and `nomos task chore` invocations recall both `HandshakeEvent.learned_pitfalls` and `HandshakeEvent.verified_patterns`, plus surface recurring statutory records (`access_count >= 3`) via `HandshakeEvent.graduation_candidates`.
 2. **Tier B — Declarative Repository Policy (`nomos.yaml`, Explicit Team Promotion)**:
@@ -80,22 +80,22 @@ flowchart TD
 
 ---
 
-## 4. Declarative SSoT Contract Extensions
+## 4. Compiled Go SSoT & JSON Schema Contract Extensions
 
-### 4.1 Handshake Telemetry (`#HandshakeEvent`)
-`intent/contracts/cue/handshake.cue` extends `#HandshakeEvent` with four optional slices:
-- `learned_pitfalls?: [...string]` — Top repository-scoped distilled pitfalls recalled from `mneme.db`.
-- `verified_patterns?: [...string]` — Top repository-scoped positive structural blueprints distilled from 2PC-verified releases in `mneme.db`.
-- `graduation_candidates?: [...string]` — High-reinforcement statutory memories (`access_count >= 3`) eligible for Tier B codification into `nomos.yaml`.
-- `impact_summary?: [...string]` — Deterministic 1-hop blast-radius descriptors (reverse package/module importers, paired `_test` coverage status, and `@intent` CUE schema bindings) for modified worktree files.
+### 4.1 Handshake Telemetry (`handshake.HandshakeEvent`)
+`substrate/src/nomos/modules/handshake/handshake.go` extends `HandshakeEvent` with four optional slices:
+- `learned_pitfalls` — Top repository-scoped distilled pitfalls recalled from `mneme.db`.
+- `verified_patterns` — Top repository-scoped positive structural blueprints distilled from 2PC-verified releases in `mneme.db`.
+- `graduation_candidates` — High-reinforcement statutory memories (`access_count >= 3`) eligible for Tier B codification into `nomos.yaml`.
+- `impact_summary` — Deterministic 1-hop blast-radius descriptors (reverse package/module importers, paired `_test` coverage status, and `@intent` Go AST/spec bindings) for modified worktree files.
 
-### 4.2 Mneme Memory Taxonomy (`#MnemeMemory`)
-`intent/contracts/cue/mneme_memory.cue` extends `#MnemeMemory.kind` with `"pitfall"` and `"pattern"` to classify 2PC-verified negative gate-trap resolutions and positive structural blueprints distinctly from advisory `"reflection"` or `"decision"` records while preserving canonical lifecycle states (`"active"`, `"superseded"`, `"tombstoned"`).
+### 4.2 Mneme Memory Taxonomy (`mem.Memory`)
+`substrate/src/nomos/modules/mem/memory.go` extends `Memory.Kind` with `"pitfall"` and `"pattern"` to classify 2PC-verified negative gate-trap resolutions and positive structural blueprints distinctly from advisory `"reflection"` or `"decision"` records while preserving canonical lifecycle states (`"active"`, `"superseded"`, `"tombstoned"`).
 
-### 4.3 Ecosystem Governance (`#NomosConfig`)
-`intent/contracts/cue/nomos_config.cue` extends:
-- `#BoundaryConfig.lock_dependencies?: bool | *false` — When `true`, blocks unapproved mutations to dependency manifests and lockfiles (`go.mod`, `go.sum`, `package.json`, `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `Cargo.toml`, `Cargo.lock`, `pyproject.toml`, `poetry.lock`, `uv.lock`, `requirements.txt`).
-- `#QualityGatesConfig.polyglot_toolchains?: bool | *true` — Enables deterministic local toolchain checks for Python (`py_compile` / `pytest`), TypeScript (`tsc --noEmit`), and Rust (`cargo check`) when matching ecosystems exist in the workspace.
+### 4.3 Ecosystem Governance (`config.EcosystemConfig` & `nomos.schema.json`)
+`substrate/src/nomos/core/config/config.go` (`nomos.schema.json`) extends:
+- `BoundaryConfig.LockDependencies` (`lock_dependencies: false` default) — When `true`, blocks unapproved mutations to dependency manifests and lockfiles (`go.mod`, `go.sum`, `package.json`, `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `Cargo.toml`, `Cargo.lock`, `pyproject.toml`, `poetry.lock`, `uv.lock`, `requirements.txt`).
+- `QualityGatesConfig.PolyglotToolchains` (`polyglot_toolchains: true` default) — Enables deterministic local toolchain checks for Python (`py_compile` / `pytest`), TypeScript (`tsc --noEmit`), and Rust (`cargo check`) when matching ecosystems exist in the workspace.
 
 ---
 
