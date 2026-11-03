@@ -41,6 +41,8 @@ var configFieldDescriptions = map[string]string{
 	"prohibited_packages":          "Import path substrings disallowed inside this repository.",
 	"prohibited_commands":          "CLI subcommands disallowed inside this repository.",
 	"lock_dependencies":            "Reject unapproved dependency graph mutations in worktrees.",
+	"allowed_mcp_servers":          "Explicit allowlist of permitted MCP server identifiers on PreToolUse.",
+	"blocked_mcp_servers":          "Explicit denylist of prohibited MCP server identifiers on PreToolUse.",
 	"quality_gates":                "Static AST, test hygiene, and cross-plane verification settings.",
 	"forbidden_literals":           "Hardcoded string or path literals rejected by Law 5.",
 	"forbidden_shims":              "Stub or placeholder patterns rejected by the Anti-Shim Gate.",

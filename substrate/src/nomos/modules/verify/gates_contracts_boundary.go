@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/treesitter"
 )
@@ -188,8 +187,8 @@ func verifySchemaArtifacts(root string, schemaFiles []string) string {
 			return fmt.Sprintf("invalid JSON syntax in schema artifact %s", relPath)
 		}
 		if filepath.Base(relPath) == "nomos.schema.json" {
-			if pErr := config.VerifyConfigJSONSchemaParity(data); pErr != nil {
-				return pErr.Error()
+			if issue := verifyNomosSchemaArtifact(root, data); issue != "" {
+				return issue
 			}
 		}
 	}

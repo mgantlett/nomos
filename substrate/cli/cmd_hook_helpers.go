@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/capbac"
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 )
 
@@ -186,21 +187,60 @@ func EvaluatePreToolHook(p *HookPayload, hermeticDir string) HookDecision {
 			return dec
 		}
 	}
-	if p.TargetFile != "" && p.CommandLine == "" && hasUnexpandedShellPathToken(p.TargetFile) {
-		return HookDecision{
-			Decision: hookDecisionDeny,
-			Reason:   fmt.Sprintf("Hermetic Path Violation (Law 3): Unexpanded shell variable or tilde in target path '%s'. Native file tools do not expand shell syntax; pass a concrete relative or resolved path.", p.TargetFile),
-		}
+	if dec := evaluateMCPPreToolGuard(p, hermeticDir); dec.Decision == hookDecisionDeny {
+		return dec
 	}
-	if p.TargetFile != "" && !isReadOnlyTool(p.ToolName) {
-		if dec := evaluateFileMutationGuard(p, hermeticDir); dec.Decision == hookDecisionDeny {
-			return dec
-		}
+	if dec := evaluateTargetFilePreToolGuard(p, hermeticDir); dec.Decision == hookDecisionDeny {
+		return dec
 	}
 	if dec := evaluateCapabilityFlowGuard(p, hermeticDir); dec.Decision == hookDecisionDeny {
 		return dec
 	}
 	return EvaluateLoopCircuitBreaker(p, hermeticDir)
+}
+
+func evaluateTargetFilePreToolGuard(p *HookPayload, hermeticDir string) HookDecision {
+	if p.TargetFile == "" {
+		return HookDecision{Decision: hookDecisionAllow}
+	}
+	if p.CommandLine == "" && hasUnexpandedShellPathToken(p.TargetFile) {
+		return HookDecision{
+			Decision: hookDecisionDeny,
+			Reason:   fmt.Sprintf("Hermetic Path Violation (Law 3): Unexpanded shell variable or tilde in target path '%s'. Native file tools do not expand shell syntax; pass a concrete relative or resolved path.", p.TargetFile),
+		}
+	}
+	if !isReadOnlyTool(p.ToolName) {
+		return evaluateFileMutationGuard(p, hermeticDir)
+	}
+	return HookDecision{Decision: hookDecisionAllow}
+}
+
+func evaluateMCPPreToolGuard(p *HookPayload, hermeticDir string) HookDecision {
+	mcpInv, ok := capbac.ParseMCPInvocation(p.ToolName, p.TargetFile, p.ArgsDigest)
+	if !ok {
+		return HookDecision{Decision: hookDecisionAllow}
+	}
+	wsRoot := resolveCanonicalHookWorkspace(p, hermeticDir)
+	policy := loadWorkspaceMCPBoundaryPolicy(wsRoot)
+	dec := capbac.EvaluateMCPBoundary(wsRoot, mcpInv, policy)
+	if !dec.Allowed {
+		return HookDecision{
+			Decision: hookDecisionDeny,
+			Reason:   dec.Reason,
+		}
+	}
+	return HookDecision{Decision: hookDecisionAllow}
+}
+
+func loadWorkspaceMCPBoundaryPolicy(wsRoot string) capbac.MCPBoundaryPolicy {
+	cfg, err := config.LoadConfig(wsRoot)
+	if err != nil || cfg == nil {
+		return capbac.MCPBoundaryPolicy{}
+	}
+	return capbac.MCPBoundaryPolicy{
+		AllowedServers: cfg.Governance.Boundary.AllowedMCPServers,
+		BlockedServers: cfg.Governance.Boundary.BlockedMCPServers,
+	}
 }
 
 func evaluateCapabilityFlowGuard(p *HookPayload, hermeticDir string) HookDecision {
@@ -233,8 +273,8 @@ func resolveCanonicalHookWorkspace(p *HookPayload, hermeticDir string) string {
 
 func isReadOnlyTool(name string) bool {
 	lower := strings.ToLower(strings.TrimSpace(name))
-	if strings.HasPrefix(lower, "mcp_") {
-		return true
+	if mcpInv, ok := capbac.ParseMCPInvocation(lower, "", ""); ok {
+		return mcpInv.Mode == capbac.MCPModeRead
 	}
 	return readOnlyTools[lower]
 }

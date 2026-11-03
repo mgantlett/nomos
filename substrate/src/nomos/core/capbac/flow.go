@@ -18,6 +18,8 @@ const (
 	TaintUntrustedExternal TaintLabel = "untrusted_external"
 	// TaintCredentialSource marks sessions that read sensitive local credential material.
 	TaintCredentialSource TaintLabel = "credential_source"
+	// TaintMCPUntrustedIngress marks sessions that ingested untrusted external MCP server content.
+	TaintMCPUntrustedIngress TaintLabel = "mcp_untrusted_ingress"
 )
 
 // FlowRole classifies how an individual tool invocation interacts with the capability-flow graph.
@@ -157,6 +159,7 @@ func (g *CapabilityFlowGraph) EvaluateToolFlow(inv ToolFlowInvocation) FlowDecis
 	}
 	if cmd != "" && verifySanitizerRe.MatchString(cmd) {
 		g.ClearTaint(TaintUntrustedExternal)
+		g.ClearTaint(TaintMCPUntrustedIngress)
 		return FlowDecision{Allowed: true, Role: FlowRoleSanitizer}
 	}
 	labels, resource := classifyFlowSources(inv)

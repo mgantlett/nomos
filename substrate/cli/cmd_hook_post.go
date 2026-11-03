@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/capbac"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify"
 )
@@ -98,7 +99,7 @@ func EvaluatePostToolHook(p *HookPayload, hermeticDir string) string {
 	if p == nil || p.IsPostInvoke || p.TargetFile == "" {
 		return ""
 	}
-	if p.CommandLine != "" || isReadOnlyTool(p.ToolName) {
+	if p.CommandLine != "" || capbac.IsMCPToolName(p.ToolName) || isReadOnlyTool(p.ToolName) {
 		return ""
 	}
 	baseCwd := resolveHookWorkspaceDir(p, hermeticDir)
