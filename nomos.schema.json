@@ -18,6 +18,20 @@
           "description": "Package import and CLI command boundary protections.",
           "type": "object",
           "properties": {
+            "allowed_mcp_servers": {
+              "description": "Explicit allowlist of permitted MCP server identifiers on PreToolUse.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "blocked_mcp_servers": {
+              "description": "Explicit denylist of prohibited MCP server identifiers on PreToolUse.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
             "enforce": {
               "description": "Enforce declared boundary constraints during verification.",
               "type": "boolean",

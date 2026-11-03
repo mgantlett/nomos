@@ -2,6 +2,8 @@ package config
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -61,5 +63,16 @@ func TestGenerateAndVerifyConfigJSONSchema(t *testing.T) {
 	drifted := strings.Replace(string(raw), `"max_file_loc"`, `"max_file_lines_drifted"`, 1)
 	if err := VerifyConfigJSONSchemaParity([]byte(drifted)); err == nil {
 		t.Fatalf("expected drifted schema payload to fail closed in VerifyConfigJSONSchemaParity")
+	}
+}
+
+func TestWorkspaceNomosSchemaByteParity(t *testing.T) {
+	schemaPath := filepath.Clean("../../../../../nomos.schema.json")
+	data, err := os.ReadFile(schemaPath)
+	if err != nil {
+		t.Skipf("workspace nomos.schema.json not present at %s: %v", schemaPath, err)
+	}
+	if err := VerifyConfigJSONSchemaParity(data); err != nil {
+		t.Fatalf("root nomos.schema.json drifted from compiled EcosystemConfig: %v", err)
 	}
 }
