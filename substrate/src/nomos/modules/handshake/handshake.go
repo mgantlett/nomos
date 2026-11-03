@@ -1,5 +1,5 @@
 // Package handshake implements JIT session orientation telemetry, CapBAC tokens,
-// and NCTE-100 prose validation synthesized from handshake.cue, ncte.cue, and session_journal.cue.
+// and NCTE-100 prose validation synthesized from handshake.cue and ncte.cue.
 package handshake
 
 import (

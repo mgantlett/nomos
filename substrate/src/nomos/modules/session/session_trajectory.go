@@ -4,7 +4,7 @@ import (
 	"strings"
 )
 
-// TrajectoryStage models an individual causal milestone stage in an agent trajectory.
+// TrajectoryStage models an individual causal milestone stage in an agent trajectory (#TrajectoryStage).
 type TrajectoryStage struct {
 	ID       string `json:"id"`       // BOOT, ALLOCATION, BASELINE, EXPLORATION, ORACLE, IMPLEMENTATION, RELEASE
 	Label    string `json:"label"`    // Human-readable stage title
@@ -12,7 +12,7 @@ type TrajectoryStage struct {
 	Evidence string `json:"evidence"` // Milestone evidence or command summary
 }
 
-// SessionTrajectory models the complete 7-stage causal arc of a Tier 1 conversation session.
+// SessionTrajectory models the complete 7-stage causal arc of a Tier 1 conversation session (#SessionTrajectory).
 type SessionTrajectory struct {
 	CurrentStage   string            `json:"current_stage"`
 	CompletedCount int               `json:"completed_count"`

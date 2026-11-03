@@ -105,4 +105,4 @@ Before writing production code, the cross-plane dependency graph must be populat
 | **Provision Isolated Worktree** | `nomos task start <KEY>` | Transitions task to PLAN/EDIT and provisions transient worktree. |
 | **Review Definition of Done** | `nomos task review <KEY>` | Evaluates the 42 DoD quality gates for the active worktree. |
 | **Atomic 2PC Release** | `nomos task sync -F <file> <KEY>` | Merges to trunk, mints Git Notes release receipt, and closes task. |
-| **Autonomous Swarm (Sovereign)** | sovereign only (`gsi-sov`): `nomos code watch` | Multi-agent autonomous background daemon (ADR-0031). |
+| **Provision 1-Turn Chore** | `nomos task chore "<Title>"` | Atomically allocates a `SUB-*` task and enters an `EDIT` worktree in 1 turn. |

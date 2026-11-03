@@ -57,18 +57,6 @@ CREATE TABLE IF NOT EXISTS leases (
 CREATE INDEX IF NOT EXISTS idx_leases_task_key ON leases(task_key);
 CREATE INDEX IF NOT EXISTS idx_leases_valid ON leases(valid);
 
-CREATE TABLE IF NOT EXISTS journal (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    task_key   TEXT NOT NULL,
-    event_type TEXT NOT NULL,
-    payload    TEXT NOT NULL DEFAULT '{}',
-    timestamp  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-    FOREIGN KEY(task_key) REFERENCES tasks(key) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_journal_task_key ON journal(task_key);
-CREATE INDEX IF NOT EXISTS idx_journal_timestamp ON journal(timestamp);
-
 CREATE TABLE IF NOT EXISTS telemetry_capabilities (
     id               TEXT PRIMARY KEY,
     name             TEXT NOT NULL,
@@ -81,21 +69,6 @@ CREATE TABLE IF NOT EXISTS telemetry_capabilities (
 
 CREATE INDEX IF NOT EXISTS idx_telemetry_capabilities_plane ON telemetry_capabilities(plane);
 CREATE INDEX IF NOT EXISTS idx_telemetry_capabilities_type ON telemetry_capabilities(type);
-
-CREATE TABLE IF NOT EXISTS telemetry_intent_activity (
-    id           TEXT PRIMARY KEY,
-    timestamp    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-    seat         TEXT NOT NULL,
-    phase        TEXT NOT NULL,
-    active_task  TEXT DEFAULT '',
-    directive_id TEXT NOT NULL,
-    event_type   TEXT NOT NULL,
-    details_json TEXT DEFAULT '{}'
-);
-
-CREATE INDEX IF NOT EXISTS idx_telemetry_intent_task ON telemetry_intent_activity(active_task);
-CREATE INDEX IF NOT EXISTS idx_telemetry_intent_directive ON telemetry_intent_activity(directive_id);
-CREATE INDEX IF NOT EXISTS idx_telemetry_intent_timestamp ON telemetry_intent_activity(timestamp);
 `
 
 // OpenDB opens a pure-Go SQLite connection pool with WAL and foreign key pragmas.
@@ -165,6 +138,8 @@ func migrateLegacyColumns(db *sql.DB) error {
 		"ALTER TABLE tasks ADD COLUMN context_burden INTEGER NOT NULL DEFAULT 0;",
 		"ALTER TABLE tasks ADD COLUMN arch_layer INTEGER NOT NULL DEFAULT 0;",
 		"CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project);",
+		"DROP TABLE IF EXISTS journal;",
+		"DROP TABLE IF EXISTS telemetry_intent_activity;",
 	}
 	for _, m := range migrations {
 		if _, err := db.Exec(m); err != nil {

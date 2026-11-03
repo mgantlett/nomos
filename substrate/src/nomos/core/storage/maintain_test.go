@@ -16,14 +16,18 @@ func TestMaintainRuntimeStorage_CapsTablesAndRotatesLogs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("OpenDB: %v", err)
 	}
-	for i := 0; i < 15; i++ {
-		_, _ = db.Exec(
-			`INSERT INTO telemetry_intent_activity (id, seat, phase, directive_id, event_type) VALUES (?, 'local', 'IDLE', 'dir', 'boot')`,
-			fmt.Sprintf("ev-%d", i),
-		)
+	if _, err := db.Exec(`CREATE TABLE journal (id INTEGER PRIMARY KEY)`); err != nil {
+		t.Fatalf("create legacy journal: %v", err)
 	}
-	if pruned := capTelemetryTable(db, 5); pruned != 10 {
-		t.Fatalf("expected 10 telemetry rows pruned, got %d", pruned)
+	if _, err := db.Exec(`CREATE TABLE telemetry_intent_activity (id TEXT PRIMARY KEY)`); err != nil {
+		t.Fatalf("create legacy telemetry_intent_activity: %v", err)
+	}
+	if err := InitSchema(db); err != nil {
+		t.Fatalf("InitSchema: %v", err)
+	}
+	var retiredCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('journal', 'telemetry_intent_activity')`).Scan(&retiredCount); err != nil || retiredCount != 0 {
+		t.Fatalf("expected legacy journal and telemetry_intent_activity tables to be dropped, got count=%d err=%v", retiredCount, err)
 	}
 	_ = db.Close()
 

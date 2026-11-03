@@ -13,28 +13,24 @@ import (
 )
 
 const (
-	defaultMaxJournalRows    = 5000
-	defaultMaxTelemetryRows  = 5000
-	defaultMaxExpiredLeases  = 200
-	defaultMinVacuumBytes    = 2 * 1024 * 1024
-	defaultMaxLogBytes       = 10 * 1024 * 1024
-	defaultTailKeepBytes     = 1 * 1024 * 1024
-	maintenanceInterval      = 24 * time.Hour
-	legacyDirMaxAge          = 24 * time.Hour
-	stampFileName            = "last_maintenance.stamp"
-	dirLogsName              = "logs"
+	defaultMaxExpiredLeases = 200
+	defaultMinVacuumBytes   = 2 * 1024 * 1024
+	defaultMaxLogBytes      = 10 * 1024 * 1024
+	defaultTailKeepBytes    = 1 * 1024 * 1024
+	maintenanceInterval     = 24 * time.Hour
+	legacyDirMaxAge         = 24 * time.Hour
+	stampFileName           = "last_maintenance.stamp"
+	dirLogsName             = "logs"
 )
 
 // RuntimeMaintainReport summarizes bounded retention and log rotation actions performed on Nomos runtime storage.
 type RuntimeMaintainReport struct {
-	JournalPruned         int  `json:"journal_pruned"`
-	TelemetryPruned       int  `json:"telemetry_pruned"`
-	ExpiredLeasesPruned   int  `json:"expired_leases_pruned"`
-	LegacyDBFilesPurged   int  `json:"legacy_db_files_purged"`
-	LogsRotated           int  `json:"logs_rotated"`
-	LegacyLogDirsPurged   int  `json:"legacy_log_dirs_purged"`
-	Vacuumed              bool `json:"vacuumed"`
-	WALCheckpointed       bool `json:"wal_checkpointed"`
+	ExpiredLeasesPruned int  `json:"expired_leases_pruned"`
+	LegacyDBFilesPurged int  `json:"legacy_db_files_purged"`
+	LogsRotated         int  `json:"logs_rotated"`
+	LegacyLogDirsPurged int  `json:"legacy_log_dirs_purged"`
+	Vacuumed            bool `json:"vacuumed"`
+	WALCheckpointed     bool `json:"wal_checkpointed"`
 }
 
 func maintenanceStampPath() string {
@@ -61,7 +57,7 @@ func touchMaintenanceStamp() {
 	_ = os.WriteFile(stamp, []byte(time.Now().UTC().Format(time.RFC3339)+"\n"), 0644)
 }
 
-// MaintainRuntimeStorage bounds SQLite telemetry tables, reclaims freelist pages, checkpoints WAL files, and rotates logs.
+// MaintainRuntimeStorage bounds expired SQLite leases, reclaims freelist pages, checkpoints WAL files, and rotates logs.
 func MaintainRuntimeStorage(force bool) (*RuntimeMaintainReport, error) {
 	if !ShouldRunPeriodicMaintenance(force) {
 		return &RuntimeMaintainReport{}, nil
@@ -70,8 +66,6 @@ func MaintainRuntimeStorage(force bool) (*RuntimeMaintainReport, error) {
 	rep := &RuntimeMaintainReport{}
 	db, err := OpenDB("")
 	if err == nil {
-		rep.JournalPruned = capJournalTable(db, defaultMaxJournalRows)
-		rep.TelemetryPruned = capTelemetryTable(db, defaultMaxTelemetryRows)
 		rep.ExpiredLeasesPruned = capExpiredLeases(db, defaultMaxExpiredLeases)
 		normalizeLegacyTimestamps(db)
 		rep.Vacuumed = VacuumIfFragmented(db, defaultMinVacuumBytes)
@@ -86,36 +80,6 @@ func MaintainRuntimeStorage(force bool) (*RuntimeMaintainReport, error) {
 	rep.LegacyDBFilesPurged = purgeRetiredDBArtifacts(dbDir)
 	touchMaintenanceStamp()
 	return rep, nil
-}
-
-func capJournalTable(db *sql.DB, maxRows int) int {
-	res, err := db.Exec(
-		`DELETE FROM journal WHERE id NOT IN (SELECT id FROM journal ORDER BY id DESC LIMIT ?)`,
-		maxRows,
-	)
-	if err != nil {
-		return 0
-	}
-	n, rErr := res.RowsAffected()
-	if rErr != nil {
-		return 0
-	}
-	return int(n)
-}
-
-func capTelemetryTable(db *sql.DB, maxRows int) int {
-	res, err := db.Exec(
-		`DELETE FROM telemetry_intent_activity WHERE rowid NOT IN (SELECT rowid FROM telemetry_intent_activity ORDER BY timestamp DESC LIMIT ?)`,
-		maxRows,
-	)
-	if err != nil {
-		return 0
-	}
-	n, rErr := res.RowsAffected()
-	if rErr != nil {
-		return 0
-	}
-	return int(n)
 }
 
 func capExpiredLeases(db *sql.DB, maxRetained int) int {
@@ -138,9 +102,7 @@ func normalizeLegacyTimestamps(db *sql.DB) {
 		`UPDATE tasks SET created_at = replace(created_at, ' ', 'T') || 'Z' WHERE length(created_at) = 19 AND substr(created_at, 11, 1) = ' '`,
 		`UPDATE tasks SET updated_at = replace(updated_at, ' ', 'T') || 'Z' WHERE length(updated_at) = 19 AND substr(updated_at, 11, 1) = ' '`,
 		`UPDATE leases SET issued_at = replace(issued_at, ' ', 'T') || 'Z' WHERE length(issued_at) = 19 AND substr(issued_at, 11, 1) = ' '`,
-		`UPDATE journal SET timestamp = replace(timestamp, ' ', 'T') || 'Z' WHERE length(timestamp) = 19 AND substr(timestamp, 11, 1) = ' '`,
 		`UPDATE telemetry_capabilities SET last_accessed_at = replace(last_accessed_at, ' ', 'T') || 'Z' WHERE length(last_accessed_at) = 19 AND substr(last_accessed_at, 11, 1) = ' '`,
-		`UPDATE telemetry_intent_activity SET timestamp = replace(timestamp, ' ', 'T') || 'Z' WHERE length(timestamp) = 19 AND substr(timestamp, 11, 1) = ' '`,
 	}
 	for _, stmt := range statements {
 		if _, err := db.Exec(stmt); err != nil {

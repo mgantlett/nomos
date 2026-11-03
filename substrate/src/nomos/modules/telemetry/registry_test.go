@@ -52,5 +52,4 @@ func TestRecordInvocationSafe_NoPanic(t *testing.T) {
 	// Must not panic on invalid DB path
 	telemetry.RecordInvocationSafe("/dev/null/invalid/path/db.sqlite", "cli-test")
 	telemetry.RecordWorkflowInvocationSafe("/dev/null/invalid/path/db.sqlite", "wf-test", "Test", "workflow")
-	telemetry.RecordIntentActivitySafe("/dev/null/invalid/path/db.sqlite", "antigravity", "PLAN", "SUB-1", "plan-01", "directive_dispatched", "{}")
 }

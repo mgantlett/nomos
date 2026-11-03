@@ -1,5 +1,5 @@
 // Package task defines domain models, schema constraints, and tracking mechanisms
-// synthesized directly from authoritative Intent CUE schemas (task.cue, task_contract.cue).
+// synthesized directly from authoritative Intent CUE schemas (task.cue).
 package task
 
 import (

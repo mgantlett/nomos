@@ -1,17 +1,15 @@
-// Package telemetry provides non-blocking runtime invocation tracking,
-// cognitive metrics, and intent activity auditing for Nomos.
+// Package telemetry provides non-blocking runtime capability invocation tracking
+// and cognitive metrics for Nomos.
 package telemetry
 
 import (
 	"database/sql"
-	"fmt"
-	"time"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/storage"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 )
 
-// CapabilityMetrics represents the persisted invocation metrics for a capability (#CapabilityMetrics, #CLIAuditEvent).
+// CapabilityMetrics represents the persisted invocation metrics for a capability (#CapabilityMetrics).
 type CapabilityMetrics struct {
 	ID              string `json:"id"`
 	Name            string `json:"name"`
@@ -102,30 +100,4 @@ func scanCapabilityMetrics(rows *sql.Rows) (map[string]CapabilityMetrics, error)
 		return nil, types.NewNomosError(types.ErrCodeSubstrate, "error iterating capability metrics: %v", err)
 	}
 	return metrics, nil
-}
-
-// RecordIntentActivitySafe records an Intent phase activity event non-blockingly.
-func RecordIntentActivitySafe(dbPath string, seat, phase, taskKey, directiveID, eventType, detailsJSON string) {
-	db, err := storage.OpenDB(dbPath)
-	if err != nil {
-		return
-	}
-	defer func() {
-		if cErr := db.Close(); cErr != nil {
-			return
-		}
-	}()
-
-	id := fmt.Sprintf("act_%d", time.Now().UnixNano())
-	if detailsJSON == "" {
-		detailsJSON = "{}"
-	}
-
-	query := `
-	INSERT INTO telemetry_intent_activity (id, timestamp, seat, phase, active_task, directive_id, event_type, details_json)
-	VALUES (?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), ?, ?, ?, ?, ?, ?);
-	`
-	if _, qErr := db.Exec(query, id, seat, phase, taskKey, directiveID, eventType, detailsJSON); qErr != nil {
-		return
-	}
 }

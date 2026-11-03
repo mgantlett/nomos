@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// SessionEvent captures a discrete causal milestone or action within a session.
+// SessionEvent captures a discrete causal milestone or action within a session (#SessionEvent).
 type SessionEvent struct {
 	Type      string `json:"type"` // USER_REQUEST, TOOL_CALL, PLAN, RECEIPT
 	Timestamp string `json:"timestamp,omitempty"`
@@ -18,7 +18,7 @@ type SessionEvent struct {
 	IsError   bool   `json:"is_error,omitempty"`
 }
 
-// SessionDetail captures the deep causal inspection telemetry of an agent session.
+// SessionDetail captures the deep causal inspection telemetry of an agent session (#SessionDetail).
 type SessionDetail struct {
 	AgentSession
 	ToolsSummary  map[string]int     `json:"tools_summary"`

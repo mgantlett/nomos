@@ -11,7 +11,7 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 )
 
-// AgentSession captures the live state, telemetry, and coordinates of an agent conversation arc.
+// AgentSession captures the live state, telemetry, and coordinates of an agent conversation arc (#AgentSession).
 type AgentSession struct {
 	ID            string    `json:"id"`
 	Name          string    `json:"name,omitempty"`
@@ -28,7 +28,7 @@ type AgentSession struct {
 	RecentSummary string    `json:"recent_summary,omitempty"`
 }
 
-// SessionVisualGraph represents the topological view of active agent sessions.
+// SessionVisualGraph represents the topological view of active agent sessions (#SessionVisualGraph).
 type SessionVisualGraph struct {
 	Mermaid  string         `json:"mermaid"`
 	Sessions []AgentSession `json:"sessions"`

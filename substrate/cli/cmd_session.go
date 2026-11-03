@@ -1,5 +1,5 @@
-// Package cli implements Tier 1 agent adapters, software physics telemetry,
-// release readiness, upgrades, and CLI command dispatch contracts.
+// Package cli implements deterministic Cobra command dispatch, software physics telemetry,
+// session management, and terminal UI contracts for Nomos.
 package cli
 
 import (

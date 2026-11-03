@@ -1,5 +1,5 @@
-// Package cli implements Tier 1 agent adapters, software physics telemetry,
-// release readiness, upgrades, and CLI command dispatch contracts.
+// Package cli implements deterministic Cobra command dispatch, software physics telemetry,
+// session management, and terminal UI contracts for Nomos.
 package cli
 
 import (
@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// IssueReport holds the collected and sanitized diagnostic bundle.
+// IssueReport holds the collected and sanitized diagnostic bundle (#IssueReport).
 type IssueReport struct {
 	Title          string
 	Description    string
