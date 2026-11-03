@@ -8,7 +8,7 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 )
 
-// Role defines the allowed agent or user personas bound to CUE #Role.
+// Role defines the allowed agent or operator authorization personas.
 type Role string
 
 const (
@@ -19,7 +19,7 @@ const (
 	RoleCritic    Role = "critic"
 )
 
-// IsValid evaluates whether Role matches the CUE #Role definition.
+// IsValid evaluates whether Role matches the canonical Role enumeration.
 func (r Role) IsValid() bool {
 	switch r {
 	case RoleArchitect, RoleDeveloper, RoleObserver, RoleGuest, RoleCritic:
@@ -29,7 +29,7 @@ func (r Role) IsValid() bool {
 	}
 }
 
-// Action defines the authorized execution operations bound to CUE #Action.
+// Action defines the authorized execution operations.
 type Action string
 
 const (
@@ -40,7 +40,7 @@ const (
 	ActionRelease Action = "release"
 )
 
-// IsValid evaluates whether Action matches the CUE #Action definition.
+// IsValid evaluates whether Action matches the canonical Action enumeration.
 func (a Action) IsValid() bool {
 	switch a {
 	case ActionRead, ActionWrite, ActionTest, ActionVerify, ActionRelease:
@@ -53,7 +53,7 @@ func (a Action) IsValid() bool {
 // regexResource validates that resource contains no whitespace characters.
 var regexResource = regexp.MustCompile(`^\S+$`)
 
-// AuthzPolicy defines the authoritative authorization evaluation contract bound to CUE #AuthzPolicy.
+// AuthzPolicy defines the authoritative authorization evaluation contract.
 type AuthzPolicy struct {
 	Role     Role   `json:"role"`
 	Action   Action `json:"action"`
@@ -61,7 +61,7 @@ type AuthzPolicy struct {
 	Allow    bool   `json:"allow"`
 }
 
-// Validate ensures AuthzPolicy satisfies all CUE schema constraints.
+// Validate ensures AuthzPolicy satisfies all structural constraints.
 func (p *AuthzPolicy) Validate() error {
 	if p == nil {
 		return types.NewNomosError(types.ErrCodeValidationFailed, "authz policy cannot be nil")
@@ -78,7 +78,7 @@ func (p *AuthzPolicy) Validate() error {
 	return nil
 }
 
-// EvaluateAuthz evaluates authorization predicates adhering to CUE #AuthzPolicy (Law 7 Least-Privilege).
+// EvaluateAuthz evaluates authorization predicates adhering to AuthzPolicy (Law 7 Least-Privilege).
 func EvaluateAuthz(role Role, action Action, resource string) bool {
 	cleanResource := strings.TrimSpace(resource)
 	if cleanResource == "" || !regexResource.MatchString(cleanResource) {

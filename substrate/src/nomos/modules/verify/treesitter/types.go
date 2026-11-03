@@ -11,7 +11,7 @@ import (
 //go:embed queries/*
 var QueryFS embed.FS
 
-// FunctionMetric matches gates.cue #FunctionMetric
+// FunctionMetric captures per-function complexity and line count metrics.
 type FunctionMetric struct {
 	File       string `json:"file"`
 	Line       int    `json:"line"`
@@ -22,7 +22,7 @@ type FunctionMetric struct {
 	EmptyBlock bool   `json:"empty_block,omitempty"`
 }
 
-// FileMetric matches gates.cue #FileMetric
+// FileMetric captures per-file line count and cognitive debt metrics.
 type FileMetric struct {
 	Name string `json:"name"`
 	LOC  int    `json:"loc"`

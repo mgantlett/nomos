@@ -32,7 +32,7 @@ type GateSpec struct {
 	RuleKey string `json:"rule_key"`
 }
 
-// PipelineDeclaration models the compiled pipeline schema from CUE (#Pipeline).
+// PipelineDeclaration models the compiled quality gate pipeline schema.
 type PipelineDeclaration struct {
 	Version string              `json:"version"`
 	Cells   []InvariantCellSpec `json:"cells,omitempty"`

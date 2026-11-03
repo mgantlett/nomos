@@ -1,5 +1,5 @@
 // Package task defines domain models, schema constraints, and tracking mechanisms
-// synthesized directly from authoritative Intent CUE schemas.
+// enforced by compiled Go SSoT contracts.
 package task
 
 import (
@@ -33,7 +33,7 @@ func NewDefaultSQLiteTaskStore() (*SQLiteTaskStore, error) {
 	return NewSQLiteTaskStore(db), nil
 }
 
-// CreateTask registers a new task in SQLite, enforcing CUE schema invariants.
+// CreateTask registers a new task in SQLite, enforcing structural schema invariants.
 func (s *SQLiteTaskStore) CreateTask(t TaskRecord) error {
 	if err := ValidateTaskRecord(&t); err != nil {
 		return err

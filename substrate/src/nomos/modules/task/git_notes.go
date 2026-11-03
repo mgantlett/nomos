@@ -1,5 +1,5 @@
 // Package task defines domain models, schema constraints, and tracking mechanisms
-// synthesized directly from authoritative Intent CUE schemas (git_notes.cue).
+// enforced by compiled Go SSoT contracts.
 package task
 
 import (
@@ -30,7 +30,7 @@ type ReleaseNotePayload struct {
 	SHA256Receipt      string `json:"sha256_receipt"`
 }
 
-// ValidateReleaseNote asserts that a ReleaseNotePayload satisfies the git_notes.cue contract.
+// ValidateReleaseNote asserts that a ReleaseNotePayload satisfies structural invariants.
 func ValidateReleaseNote(p ReleaseNotePayload) error {
 	if err := ValidateTaskKey(p.TaskKey); err != nil {
 		return err

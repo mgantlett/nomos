@@ -74,7 +74,7 @@ nomos task create "Substrate: Telemetry Kernel & CLI Surface" \
 - **Domain**: Cognitive co-processor protocols, living specifications, schemas, ADRs, and JIT directives.
 - **Artifacts**:
   - Authoritative Markdown specs in the configured `intent/` specification root.
-  - Compiled CUE Singularity contracts in `intent/contracts/cue/`.
+  - Reflected Draft 2020-12 JSON Schema (`nomos.schema.json`) bound to `config.EcosystemConfig`.
   - Schema and contract parity verified via `nomos verify`.
 
 ### 2. Substrate Hemisphere (`--plane=substrate`, `SUB-*`)

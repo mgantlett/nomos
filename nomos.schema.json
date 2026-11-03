@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mgantlett/nomos/blob/main/nomos.schema.json",
+  "title": "Nomos Ecosystem Configuration (nomos.yaml)",
+  "description": "Deterministic configuration schema synthesized via Go reflection from config.EcosystemConfig (Law 4 Single Source of Truth).",
+  "type": "object",
+  "properties": {
+    "default_branch": {
+      "description": "Protected trunk branch name (default: main).",
+      "type": "string",
+      "default": "main"
+    },
+    "governance": {
+      "description": "Boundary enforcement and Definition of Done quality gate policies.",
+      "type": "object",
+      "properties": {
+        "boundary": {
+          "description": "Package import and CLI command boundary protections.",
+          "type": "object",
+          "properties": {
+            "enforce": {
+              "description": "Enforce declared boundary constraints during verification.",
+              "type": "boolean",
+              "default": true
+            },
+            "lock_dependencies": {
+              "description": "Reject unapproved dependency graph mutations in worktrees.",
+              "type": "boolean"
+            },
+            "prohibited_commands": {
+              "description": "CLI subcommands disallowed inside this repository.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "prohibited_packages": {
+              "description": "Import path substrings disallowed inside this repository.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "quality_gates": {
+          "description": "Static AST, test hygiene, and cross-plane verification settings.",
+          "type": "object",
+          "properties": {
+            "contracts": {
+              "description": "Contract schema parity, UI membrane, and ingress boundaries.",
+              "type": "object",
+              "properties": {
+                "auto_promote": {
+                  "description": "Allow automatic graduation of recurring verified invariants.",
+                  "type": "boolean"
+                },
+                "contracts": {
+                  "description": "Contract schema parity, UI membrane, and ingress boundaries.",
+                  "type": "object",
+                  "properties": {
+                    "backend_roots": {
+                      "description": "Backend source directories verified against contract schemas.",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "schema_files": {
+                      "description": "Generated JSON Schema artifacts verified for Go SSoT byte parity.",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "spec_roots": {
+                      "description": "Intent specification directories audited for contract grounding.",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "strict_types": {
+                      "description": "Require strict structural type alignment across boundaries.",
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "infra": {
+                  "description": "Environment variable and port ingress parity configuration.",
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "env_declarations": {
+                      "description": "Environment template files (for example .env.example).",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "fail_on_orphan_env": {
+                      "description": "Fail when code reads environment variables absent from templates.",
+                      "type": "boolean"
+                    },
+                    "ingress_configs": {
+                      "description": "Infrastructure manifest paths audited for port collisions.",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "port_scan": {
+                      "description": "Audit declared service ports for multi-seat collisions.",
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "membrane": {
+                  "description": "Frontend-to-backend DTO boundary verification settings.",
+                  "type": "object",
+                  "properties": {
+                    "backend_dto_roots": {
+                      "description": "Backend DTO directories paired with frontend roots.",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "banish_defensive_masks": {
+                      "description": "Reject silent fallback masks that conceal contract drift.",
+                      "type": "boolean"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "fail_on_contract_drift": {
+                      "description": "Fail verification when DTO shapes diverge across boundaries.",
+                      "type": "boolean"
+                    },
+                    "frontend_roots": {
+                      "description": "Frontend component directories audited for defensive masks.",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "exclude": {
+              "description": "Workspace-relative glob patterns excluded from AST gates.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "forbidden_literals": {
+              "description": "Hardcoded string or path literals rejected by Law 5.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "forbidden_shims": {
+              "description": "Stub or placeholder patterns rejected by the Anti-Shim Gate.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "intent_source_roots": {
+              "description": "Directories classified under the Intent plane (Law 7).",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "polyglot_toolchains": {
+              "description": "Enable automatic polyglot test/linter toolchain discovery.",
+              "type": "boolean",
+              "default": true
+            },
+            "strict_mode": {
+              "description": "Enforce statutory baseline thresholds without relaxation.",
+              "type": "boolean",
+              "default": true
+            },
+            "substrate_source_roots": {
+              "description": "Directories classified under the Substrate plane (Law 7).",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "thresholds": {
+              "description": "Numerical AST complexity, size, clone, and coverage bounds.",
+              "type": "object",
+              "properties": {
+                "max_cognitive_debt_score": {
+                  "description": "Maximum allowable per-file Cognitive Debt Score (statutory: 45).",
+                  "type": "integer",
+                  "default": 45,
+                  "minimum": 1
+                },
+                "max_cyclomatic_complexity": {
+                  "description": "Maximum per-function cyclomatic complexity (statutory: 15).",
+                  "type": "integer",
+                  "default": 15,
+                  "minimum": 1
+                },
+                "max_file_loc": {
+                  "description": "Maximum lines of code per source file (statutory: 400).",
+                  "type": "integer",
+                  "default": 400,
+                  "minimum": 1
+                },
+                "max_func_loc": {
+                  "description": "Maximum lines of code per function (statutory: 60).",
+                  "type": "integer",
+                  "default": 60,
+                  "minimum": 1
+                },
+                "max_func_params": {
+                  "description": "Maximum parameter count per function signature (statutory: 8).",
+                  "type": "integer",
+                  "default": 8,
+                  "minimum": 1
+                },
+                "max_magic_string_duplication": {
+                  "description": "Maximum repeated string literal occurrences per package.",
+                  "type": "integer",
+                  "default": 10,
+                  "minimum": 1
+                },
+                "min_clone_lines": {
+                  "description": "Minimum AST line span flagged as a structural Type-2 clone.",
+                  "type": "integer",
+                  "default": 18,
+                  "minimum": 1
+                },
+                "min_comment_density_pct": {
+                  "description": "Minimum comment density percentage (0-100).",
+                  "type": "integer",
+                  "default": 10,
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "min_test_coverage_pct": {
+                  "description": "Minimum statement test coverage percentage (statutory: 55).",
+                  "type": "integer",
+                  "default": 55,
+                  "minimum": 0,
+                  "maximum": 100
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "project": {
+      "description": "Canonical repository or project identifier.",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

@@ -174,7 +174,7 @@ func extractFileIntentAnchors(absPath string) []string {
 	}
 	seen := make(map[string]bool)
 	var out []string
-	for _, m := range intentCUEAnchorRe.FindAllStringSubmatch(string(data), -1) {
+	for _, m := range intentGoTypeAnchorRe.FindAllStringSubmatch(string(data), -1) {
 		if len(m) > 1 && !seen[m[1]] {
 			seen[m[1]] = true
 			out = append(out, m[1])

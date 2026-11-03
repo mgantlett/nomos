@@ -14,7 +14,6 @@ import (
 	"strings"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
-	"github.com/mgantlett/nomos/substrate/src/nomos/core/policy"
 )
 
 func init() {
@@ -51,12 +50,12 @@ func (g *IntentTraceabilityGate) Evaluate(ctx *VerifyContext) (*GateResult, erro
 		}, nil
 	}
 
-	if unresolved := verifyIntentCUEAnchors(ctx, root, targetDir); len(unresolved) > 0 {
+	if unresolved := verifyIntentASTAnchors(ctx, root, targetDir); len(unresolved) > 0 {
 		return &GateResult{
 			GateName: g.Name(), ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
 			Passed:  false,
-			Message: fmt.Sprintf("unresolved @intent CUE anchor(s): %s", strings.Join(unresolved, "; ")),
-			Remedy:  "provision an INT-* twin task ('nomos task pair \"<title>\"') to codify the referenced #<Schema> in the configured CUE contracts directory before binding it in Substrate (Law 4)",
+			Message: fmt.Sprintf("unresolved @intent AST/spec anchor(s): %s", strings.Join(unresolved, "; ")),
+			Remedy:  "ensure #<TypeName> matches a compiled Go type in substrate/ and <spec>.md resolves under intent/ (Law 4)",
 		}, nil
 	}
 
@@ -95,34 +94,37 @@ func countTraceabilityTags(srcDir string) (int, int) {
 	return tagged, total
 }
 
-// IntentSteelmanGate validates CUE runtime schemas and Intent frontmatters (Cell 4.1, Law 4).
+// IntentSteelmanGate validates Intent specification YAML frontmatters and code fences (Cell 4.1, Law 4).
 type IntentSteelmanGate struct{}
 
 // Name returns the canonical display name.
 func (g *IntentSteelmanGate) Name() string { return "Intent Steel-Man Parity Gate" }
 
-// Evaluate compiles CUE schemas to ensure zero broken schemas in Intent.
+// Evaluate audits all Intent Markdown documents for valid YAML frontmatter and balanced code fences.
 func (g *IntentSteelmanGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	root := resolveIntentRoot(ctx)
-	cueDir := filepath.Join(root, "intent", "contracts", "cue")
-	if _, err := os.Stat(cueDir); os.IsNotExist(err) {
+	intentDir := filepath.Join(root, "intent")
+	if _, err := os.Stat(intentDir); os.IsNotExist(err) {
 		return &GateResult{
 			GateName: g.Name(), ProbeID: "intent_steelman", Law: 4, Ring: RingSyntactic,
-			Passed: true, Message: "no CUE schema directory detected; skipping steel-man audit",
+			Passed: true, Message: "no Intent directory detected; skipping steel-man audit",
 		}, nil
 	}
 
-	if err := policy.GetDefaultEngine().ValidatePackageDir(cueDir); err != nil {
+	cfg := resolveVerifyConfig(ctx)
+	requireFrontmatter := cfg != nil && cfg.Governance.QualityGates.GetContractsBoundary().Contracts.Enabled
+	docCount, issues := validateIntentDocuments(intentDir, requireFrontmatter)
+	if len(issues) > 0 {
 		return &GateResult{
 			GateName: g.Name(), ProbeID: "intent_steelman", Law: 4, Ring: RingSyntactic,
-			Passed: false, Message: err.Error(),
-			Remedy: "resolve CUE schema syntax or value unification conflicts in configured CUE contract roots",
+			Passed: false, Message: fmt.Sprintf("Intent specification schema violation(s): %s", strings.Join(issues, "; ")),
+			Remedy: "ensure every Intent Markdown file has valid YAML frontmatter (title, plane, status) and balanced code fences",
 		}, nil
 	}
 
 	return &GateResult{
 		GateName: g.Name(), ProbeID: "intent_steelman", Law: 4, Ring: RingSyntactic,
-		Passed: true, Message: "all declarative CUE schemas compiled cleanly without lattice leaks",
+		Passed: true, Message: fmt.Sprintf("verified %d Intent specification document(s) with valid frontmatter and balanced fences", docCount),
 	}, nil
 }
 

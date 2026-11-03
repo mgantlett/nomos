@@ -1,5 +1,5 @@
 // Package task defines domain models, schema constraints, and tracking mechanisms
-// synthesized directly from authoritative Intent CUE schemas (task.cue).
+// enforced by compiled Go SSoT contracts.
 package task
 
 import (
@@ -83,7 +83,7 @@ type TaskRecord struct {
 	ArchLayer     int        `json:"arch_layer,omitempty"`
 }
 
-// ValidateTaskRecord validates relational invariants defined in task.cue (Law 7).
+// ValidateTaskRecord validates relational task record invariants (Law 7).
 func ValidateTaskRecord(r *TaskRecord) error {
 	if r == nil {
 		return types.NewNomosError(types.ErrCodeValidationFailed, "task record cannot be nil")

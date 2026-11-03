@@ -60,8 +60,8 @@ type NCTEBounds struct {
 	MaxPassiveAdverbGap   int `json:"max_passive_adverb_gap"`
 }
 
-// VocabularyEntry defines a canonical term in the compiled SSoT registry (#VocabularyDefinition).
-// @intent nomos_controlled_technical_english_spec.md #VocabularyDefinition
+// VocabularyEntry defines a canonical term in the compiled SSoT registry (#VocabularyEntry).
+// @intent nomos_controlled_technical_english_spec.md #VocabularyEntry
 type VocabularyEntry struct {
 	Domain          string   `json:"domain"`
 	CanonicalTerm   string   `json:"canonical_term"`

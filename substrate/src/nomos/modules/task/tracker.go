@@ -1,5 +1,5 @@
 // Package task defines domain models, schema constraints, and tracking mechanisms
-// synthesized directly from authoritative Intent CUE schemas.
+// enforced by compiled Go SSoT contracts.
 package task
 
 import (

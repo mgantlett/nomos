@@ -5,32 +5,32 @@ authors:
 category: architecture
 classification: public
 date: "2026-09-28"
-last_updated: "2026-10-15"
+last_updated: "2026-11-03"
 phases:
     - PLAN
     - EDIT
 plane: intent
 priority: high
 status: active
-summary: "Schema contract synthesis, Living Intent SSoT authoring, and CUE Singularity type alignment."
-title: "Schema Contracts & CUE Type Synthesis"
+summary: "Compiled Go SSoT contract authoring, structural validation, and Draft 2020-12 JSON Schema parity."
+title: "Compiled Go Contracts & JSON Schema Synthesis"
 type: directive
-version: 3.0.0
+version: 4.3.0
 ---
 
-# Schema Contracts & CUE Type Synthesis
+# Compiled Go Contracts & JSON Schema Synthesis
 
 ## 1. Executive Summary & Problem Statement
-In earlier iterations, schema definitions were fractured across JSON Draft-07 models, external OPA/Rego policies, and loose YAML files. This multi-engine sprawl violated **Law 4 (The Single Source of Truth Law)** and **Law 6 (The Canonical Singularity Law)**.
+Earlier iterations split contracts across external policy engines and passive domain-specific schema files. Maintaining parallel schema files alongside Go structs created duplication and drift against **Law 4 (The Single Source of Truth Law)** and **Law 6 (The Canonical Singularity Law)**.
 
-Under ADR-0054 and the CUE Singularity, all runtime configurations, task records, CapBAC capabilities, and gate thresholds are unified into strongly typed CUE schemas in `intent/contracts/cue/`. This directive establishes the authoring discipline for synthesizing CUE contracts and corresponding Go DTO structs with compile-time byte parity.
+Nomos consolidates every runtime configuration, task record, CapBAC capability, and quality gate threshold directly into compiled Go structs with deterministic `Validate()` methods. Public configuration contracts (`config.EcosystemConfig`) reflect directly into Draft 2020-12 JSON Schema (`nomos.schema.json`), enforced in byte parity by `ContractParityGate`.
 
 ```mermaid
 graph LR
-    CUE["1. Author CUE Schema (intent/contracts/cue/*.cue)"] --> Unify["2. Validate cue eval"]
-    Unify --> GoDTO["3. Define Matching Go DTO Struct"]
-    GoDTO --> Parity["4. nomos verify (Contract Schema Integrity)"]
-    Parity --> DoD["5. nomos verify (The 7 Laws Exit 0)"]
+    GoSSoT["1. Define Go SSoT Struct & Validate()"] --> Reflect["2. Synthesize nomos.schema.json"]
+    Reflect --> Trace["3. Bind // @intent #<TypeName> Anchors"]
+    Trace --> Parity["4. nomos verify (ContractParityGate)"]
+    Parity --> DoD["5. nomos verify (42 Gates Exit 0)"]
 ```
 
 ---
@@ -39,39 +39,37 @@ graph LR
 
 | Law # | Law Name | Architectural Invariant Enforced in Schema Synthesis |
 | :---: | :--- | :--- |
-| **Law 2** | **The Non-Verbal Proof Law** | Schema contracts require deterministic machine proof via `cue vet` or `cue eval`. Untyped dictionaries or loose maps are rejected. |
-| **Law 4** | **The Single Source of Truth Law** | Every contract possesses exactly one compiled Go SSoT mirrored in CUE with cryptographic byte parity. |
-| **Law 6** | **The Canonical Singularity Law** | CUE is the single constraint language. Zero redundant JSON schemas or external Rego files tolerated. |
-| **Law 7** | **The Fail-Closed Pre-Flight Law** | Data payloads failing CUE schema unification trigger immediate pre-flight rejection (Exit Code 1). |
+| **Law 2** | **The Non-Verbal Proof Law** | Contracts require deterministic compilation (`go test ./...`) and explicit `Validate()` unit test vectors. |
+| **Law 4** | **The Single Source of Truth Law** | Compiled Go structs serve as the sole runtime SSoT; `nomos.schema.json` is generated from Go reflection with byte parity. |
+| **Law 6** | **The Canonical Singularity Law** | Zero parallel DSLs, external Rego files, or duplicate handwritten schema manifests permitted. |
+| **Law 7** | **The Fail-Closed Pre-Flight Law** | Payloads failing `Validate()` or drifting from `nomos.schema.json` trigger immediate pre-flight rejection (Exit Code 1). |
 
 ---
 
 ## 3. Operational Synthesis Workflow
 
-1. **CUE Contract Definition:**
-   Define strongly typed closed schemas in `intent/contracts/cue/<name>.cue`:
-   ```cue
-   package schemas
-
-   #ExampleContract: close({
-       id:        string & strings.MinRunes(1)
-       count:     int & >= 0
-       is_active: bool
-   })
-   ```
-
-2. **Go DTO Implementation:**
-   Mirror the CUE schema in the Substrate Go codebase with identical field names and json/yaml struct tags:
+1. **Compiled Go Contract & Validator Definition:**
+   Define strongly typed structs with explicit `json`/`yaml` tags and deterministic `Validate()` invariants:
    ```go
    type ExampleContract struct {
        ID       string `json:"id" yaml:"id"`
        Count    int    `json:"count" yaml:"count"`
        IsActive bool   `json:"is_active" yaml:"is_active"`
    }
+
+   func (c *ExampleContract) Validate() error {
+       if strings.TrimSpace(c.ID) == "" || c.Count < 0 {
+           return types.NewNomosError(types.ErrCodeValidationFailed, "invalid ExampleContract")
+       }
+       return nil
+   }
    ```
 
+2. **Configuration JSON Schema Reflection (`nomos.yaml` Changes Only):**
+   When mutating `config.EcosystemConfig`, regenerate root `nomos.schema.json` via `config.GenerateConfigJSONSchema()` so IDE `yaml-language-server` validation and `ContractParityGate` stay in byte parity.
+
 3. **Contract Schema Verification:**
-   Run the Law 4 contract schema auditor to assert zero drift:
+   Run the Law 4 verification suite to confirm AST traceability and JSON Schema byte parity:
    ```bash
    nomos verify
    ```
@@ -80,18 +78,17 @@ graph LR
 
 ## 4. The Seven Laws & 21 Invariant Cells Suite (DoD Compliance)
 
-1. **Cell (4, 1) - Schema Invariant Verification (Probe 25: `intent_cue_eval`):** Validates all Intent schemas and documents via CUE unification.
-2. **Cell (4, 2) - Contract Schema Integrity (Probe 26: `contract_parity`):** Enforces typed AST field mapping between CUE schemas and compiled Substrate Go structs.
-3. **Cell (4, 3) - Intent Immutability & Traceability (Probe 27: `intent_tags`, Probe 28: `intent_immutability`):** Core configuration schemas remain immutable outside explicit schema tasks.
+1. **Cell (4, 1) - Intent Steel-Man Parity (`intent_steelman`):** Validates all Intent Markdown YAML frontmatter (`title`, `plane`, `status`) and balanced code fences.
+2. **Cell (4, 2) - Contract Schema Integrity (`contract_parity`):** Verifies byte parity between `config.EcosystemConfig` and `nomos.schema.json` plus grounded engine charters.
+3. **Cell (4, 3) - Intent Traceability (`intent_traceability`):** Resolves `// @intent #<TypeName>` and `<spec>.md` annotations against compiled Go AST types and Intent documents.
 
 ---
 
 ## 5. Table-Driven Test Vectors
 
-| Vector ID | Schema Action | Target Schema Path | CUE Evaluation | Gate Outcome | Governing Law |
+| Vector ID | Schema Action | Target Path | Substrate Check | Gate Outcome | Governing Law |
 | :---: | :--- | :--- | :--- | :--- | :--- |
-| **VEC-SCH-01** | Define `#HandshakeEvent` | `schemas/handshake.cue` | `cue eval` clean | `PASS` | Law 4: SSoT verified |
-| **VEC-SCH-02** | Add untyped open field | `schemas/task.cue` | Open schema detected | `FAIL` (Exit Code 1) | Law 4: All schemas must be `close()` |
-| **VEC-SCH-03** | Field type mismatch with Go struct | `schemas/gates.cue` | Byte parity mismatch | `FAIL` (Exit Code 1) | Cell (4, 2): Parity violation |
-| **VEC-SCH-04** | Introduce `.rego` policy file | `substrate/policy.rego` | Rego engine detected | `FAIL` (Exit Code 1) | Law 6: CUE Singularity |
-
+| **VEC-SCH-01** | Define `HandshakeEvent` + `Validate()` | `pkg/contracts/handshake.go` | `go test` & AST scan | `PASS` | Law 4: Compiled Go SSoT |
+| **VEC-SCH-02** | Mutate `EcosystemConfig` without schema regen | `nomos.schema.json` | `VerifyConfigJSONSchemaParity` | `FAIL` (Exit Code 1) | Cell (4, 2): Schema drift |
+| **VEC-SCH-03** | Tag `// @intent #GhostSchema` | `pkg/service/handler.go` | `IntentTraceabilityGate` | `FAIL` (Exit Code 1) | Cell (4, 3): Missing Go AST type |
+| **VEC-SCH-04** | Malformed YAML frontmatter in spec | `intent/specs/sample_spec.md` | `IntentSteelmanGate` | `FAIL` (Exit Code 1) | Cell (4, 1): Invalid frontmatter |

@@ -1,5 +1,5 @@
 // Package types provides foundational domain types, schema bindings, and
-// invariant contracts synthesized directly from authoritative Intent CUE schemas.
+// invariant contracts enforced by compiled Go SSoT types.
 package types
 
 import (
@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// Phase defines the canonical lifecycle phases of a Nomos workspace, bound to #Phase in phase_state.cue.
+// Phase defines the canonical lifecycle phases of a Nomos workspace.
 type Phase string
 
 const (
@@ -66,7 +66,7 @@ var allowedTransitions = map[Phase]map[Phase]bool{
 	},
 }
 
-// Transition defines an edge in the deterministic phase state machine, bound to #Transition in phase_state.cue.
+// Transition defines an edge in the deterministic phase state machine.
 type Transition struct {
 	From Phase `json:"from"`
 	To   Phase `json:"to"`
@@ -92,7 +92,7 @@ func IsValidTransition(from, to Phase) bool {
 }
 
 // PhaseState defines the active workspace phase state, affine CapBAC tokens,
-// execution step budgets, and task bindings, bound to #PhaseState in phase_state.cue.
+// execution step budgets, and task bindings.
 type PhaseState struct {
 	Phase       Phase              `json:"phase"`
 	TaskID      string             `json:"task_id,omitempty"`

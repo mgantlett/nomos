@@ -39,7 +39,7 @@ Adversarial audit executes strictly during the **`REVIEW`** phase within the iso
 ### 1. Substrate Hemisphere Protocol (`plane: "substrate"`)
 - **First-Principles Distrust:** Verify all claims through non-verbal proofs (`nomos verify`), never conversational explanations.
 - **AST Quality Gates:**
-  - Cyclomatic Complexity $CC \le 15$ on all modified functions (`gates.cue`).
+  - Cyclomatic Complexity $CC \le 15$ on all modified functions (`verify.DefaultThresholds`).
   - Cognitive Debt Score $CDS \le 45$ with ReLU clamping.
   - Docstring density $\ge 10\%$ on every exported symbol.
   - Zero forbidden literals and strict typed constants.
@@ -100,5 +100,5 @@ Adversarial audit executes strictly during the **`REVIEW`** phase within the iso
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `TC-AUD-01` | Clean Worktree Diff | The Seven Laws & 21 Invariant Cells Suite | `nomos verify` | Pass (Exit 0) | `N/A` |
 | `TC-AUD-02` | Function with $CC = 16$ | Complexity Invariant ($CC \le 15$) | `ComplexityGate` | Fail Closed | `ERR_COMPLEXITY_EXCEEDED` |
-| `TC-AUD-03` | Broken CUE Schema Hash | Single Source of Truth (Law 4) | `IntentParityGate` | Fail Closed | `ERR_INTENT_SUBSTRATE_DRIFT` |
+| `TC-AUD-03` | Drifted Protocol / Schema Hash | Single Source of Truth (Law 4) | `IntentParityGate` / `ContractParityGate` | Fail Closed | `ERR_INTENT_SUBSTRATE_DRIFT` |
 | `TC-AUD-04` | Task Key with Custom Prefix | Canonical Singularity (Law 6) | `TaskKeyGate` | Fail Closed | `ERR_CANONICAL_VIOLATION` |

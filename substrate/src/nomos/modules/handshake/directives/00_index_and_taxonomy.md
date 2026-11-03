@@ -46,7 +46,7 @@ graph LR
 | Law # | Law Name | Architectural Invariant Enforced in Directives |
 | :---: | :--- | :--- |
 | **Law 2** | **The Non-Verbal Proof Law** | Directives define machine-enforceable invariants verifiable via AST inspection and compiler exit codes. Zero conversational claims tolerated. |
-| **Law 4** | **The Single Source of Truth Law** | Directive YAML frontmatter strictly conforms to `#DirectiveFrontmatter` in `intent/contracts/cue/handshake.cue`. Exactly one schema governs directive metadata. |
+| **Law 4** | **The Single Source of Truth Law** | Directive YAML frontmatter strictly conforms to `handshake.DirectiveFrontmatter`. Exactly one compiled Go schema governs directive metadata. |
 | **Law 5** | **The Zero-Hardcoded-Path Law** | Directives reference paths dynamically relative to workspace roots; zero absolute paths or hardcoded developer directory structures. |
 | **Law 6** | **The Canonical Singularity Law** | Workspace phases strictly adhere to the canonical 6: `IDLE`, `PLAN`, `EDIT`, `REVIEW`, `SYNC`, `LEARN`. Zero ad-hoc phase aliases (`audit`, `triage`, `all`) permitted. |
 | **Law 7** | **The Fail-Closed Pre-Flight Law** | Directives with missing required frontmatter fields, invalid phase enumerations, or broken markdown wires trigger immediate pre-flight rejection (Exit Code 1). |
@@ -62,38 +62,33 @@ Directives are mapped deterministically to agent reasoning phases via their fron
 | **Orientation** | `00_*.md` | `[IDLE, PLAN]` | System architecture, Tier 1 indirect control harness, taxonomy index. |
 | **Handshake** | `handshake_*.md` | `[IDLE, PLAN]` | Workspace topology, dynamic path discovery, worktree boundaries. |
 | **Planning** | `plan_*.md` | `[PLAN]` | Task sizing, DAG dependencies, 2-plane singularity (`INT-*` / `SUB-*`). |
-| **Mutation** | `edit_*.md` | `[EDIT]` | Hermetic worktree mutations, refactoring disciplines, deprecated terms, CUE schema synthesis. |
+| **Mutation** | `edit_*.md` | `[EDIT]` | Hermetic worktree mutations, refactoring disciplines, deprecated terms, Go & JSON Schema synthesis. |
 | **Verification** | `review_*.md` | `[REVIEW]` | The Seven Laws & 21 Invariant Cells Suite across 3 Defense Rings (37 Sensor Probes), AST anti-shim inspection, non-verbal proof enforcement. |
 | **Synchronization** | `sync_*.md` | `[SYNC]` | 2PC atomic release, Living Ledger synchronization, git notes receipts. |
 | **Distillation** | `learn_*.md` | `[LEARN]` | Cognitive reflection, Knowledge Item (KI) generation, memory distillation (`nomos mem save`). |
 
 ---
 
-## 4. Formal CUE Contract & Frontmatter Schema
+## 4. Formal Go Contract & Frontmatter Schema
 
-All directive documents must validate against `#DirectiveFrontmatter` in `intent/contracts/cue/handshake.cue`:
+All directive documents must validate against the compiled `DirectiveFrontmatter` contract:
 
-```cue
-package schemas
-
-#DirectivePhase: "IDLE" | "PLAN" | "EDIT" | "REVIEW" | "SYNC" | "LEARN"
-
-#DirectiveFrontmatter: close({
-	title:          string & strings.MinRunes(1)
-	description?:   string
-	authors:        [...string]
-	classification: "public" | "internal"
-	date:           string
-	last_updated:   string
-	plane:          "intent" | "substrate"
-	status:         "active" | "archived" | "superseded"
-	type:           string & strings.MinRunes(1)
-	phases:         [...#DirectivePhase]
-	category?:      string
-	priority?:      "low" | "medium" | "high" | "critical"
-	items?:         [...string]
-	summary?:       string
-})
+```go
+type DirectiveFrontmatter struct {
+	Title          string   `yaml:"title"`
+	Description    string   `yaml:"description,omitempty"`
+	Authors        []string `yaml:"authors"`
+	Classification string   `yaml:"classification"` // "public" | "internal"
+	Date           string   `yaml:"date"`
+	LastUpdated    string   `yaml:"last_updated"`
+	Plane          string   `yaml:"plane"`  // "intent" | "substrate"
+	Status         string   `yaml:"status"` // "active" | "archived" | "superseded"
+	Type           string   `yaml:"type"`
+	Phases         []string `yaml:"phases"` // IDLE | PLAN | EDIT | REVIEW | SYNC | LEARN
+	Category       string   `yaml:"category,omitempty"`
+	Priority       string   `yaml:"priority,omitempty"`
+	Summary        string   `yaml:"summary,omitempty"`
+}
 ```
 
 ---
@@ -102,8 +97,8 @@ package schemas
 
 Directives are deterministically validated across `nomos verify` Invariant Cells:
 1. **Cell (2, 2) - Documentation Link Integrity (Probe 09: `doc_links`):** All cross-directive markdown links must resolve to existing files.
-2. **Cell (4, 1) - Schema Invariant Verification (Probe 25: `intent_cue_eval`):** Directive frontmatter validates against `#DirectiveFrontmatter`.
-3. **Cell (4, 2) - Contract Schema Integrity (Probe 26: `contract_parity`):** Directives and contracts match compiled Substrate Go types.
+2. **Cell (4, 1) - Intent Steel-Man Parity (Probe 25: `intent_steelman`):** Directive and Intent frontmatter validates against required metadata constraints.
+3. **Cell (4, 2) - Contract Schema Integrity (Probe 26: `contract_parity`):** Directives and JSON Schema artifacts match compiled Substrate Go types.
 4. **Cell (4, 3) - Intent Immutability (Probe 28: `intent_immutability`):** Operational directives cannot mutate outside active Intent tasks (`INT-*`).
 
 ---

@@ -19,7 +19,7 @@ const (
 )
 
 // ExtractProtocolMarkerBlock extracts the canonical marker-bounded protocol block from AGENTS.md or CLAUDE.md.
-// @intent INT-841 #ProtocolMarkerBounds #ParityHashScope
+// @intent INT-841 #IntentParityGate
 func ExtractProtocolMarkerBlock(content []byte) ([]byte, bool) {
 	text := string(content)
 	startIdx := strings.Index(text, ProtocolStartMarker)

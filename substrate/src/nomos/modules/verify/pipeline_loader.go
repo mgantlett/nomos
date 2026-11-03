@@ -68,7 +68,7 @@ var CanonicalGateOrder = []string{
 	"zero_filesystem_alias", "plane_separation", "uasset_dependency", "visual_regression",
 }
 
-// DefaultBaselineGates returns the fallback sequence when pipeline.cue is unavailable.
+// DefaultBaselineGates returns the canonical sequence of baseline verification gates.
 func DefaultBaselineGates() []Gate {
 	registryMu.RLock()
 	defer registryMu.RUnlock()

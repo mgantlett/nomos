@@ -9,13 +9,12 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 )
 
-// AssetType defines the category of embedded asset bound to CUE #AssetType.
+// AssetType defines the category of canonical embedded asset governed under Law 4.
 type AssetType string
 
 const (
@@ -26,7 +25,7 @@ const (
 	AssetTypeConfig    AssetType = "config"
 )
 
-// IsValid validates whether an AssetType matches the CUE enum definition.
+// IsValid validates whether an AssetType matches the canonical enum definition.
 func (t AssetType) IsValid() bool {
 	switch t {
 	case AssetTypeHook, AssetTypeRule, AssetTypeDirective, AssetTypeSchema, AssetTypeConfig:
@@ -36,13 +35,13 @@ func (t AssetType) IsValid() bool {
 	}
 }
 
-// Regex patterns for CUE schema validation.
+// Regex patterns for asset parity validation.
 var (
 	regexAssetPath = regexp.MustCompile(`^[a-zA-Z0-9_./-]+$`)
 	regexSHA256    = regexp.MustCompile(`^[a-f0-9]{64}$`)
 )
 
-// EmbeddedAsset binds the CUE #EmbeddedAsset schema contract.
+// EmbeddedAsset models a SHA-256 checksummed workspace asset contract.
 type EmbeddedAsset struct {
 	RelativePath string    `json:"relative_path"`
 	AssetType    AssetType `json:"asset_type"`
@@ -50,7 +49,7 @@ type EmbeddedAsset struct {
 	SizeBytes    int64     `json:"size_bytes"`
 }
 
-// Validate ensures EmbeddedAsset satisfies all CUE schema constraints.
+// Validate ensures EmbeddedAsset satisfies all structural constraints.
 func (a *EmbeddedAsset) Validate() error {
 	if a == nil {
 		return types.NewNomosError(types.ErrCodeValidationFailed, "embedded asset cannot be nil")
@@ -79,7 +78,7 @@ const (
 	MismatchUnreadable ParityMismatchReason = "unreadable"
 )
 
-// ParityMismatch binds the CUE #ParityMismatch schema contract.
+// ParityMismatch records a cryptographic or missing-file asset parity failure.
 type ParityMismatch struct {
 	SourcePath string               `json:"source_path"`
 	TargetPath string               `json:"target_path"`
@@ -88,7 +87,7 @@ type ParityMismatch struct {
 	Reason     ParityMismatchReason `json:"reason"`
 }
 
-// Validate ensures ParityMismatch satisfies all CUE schema constraints.
+// Validate ensures ParityMismatch satisfies all structural constraints.
 func (m *ParityMismatch) Validate() error {
 	if m == nil {
 		return types.NewNomosError(types.ErrCodeValidationFailed, "parity mismatch cannot be nil")
@@ -101,7 +100,7 @@ func (m *ParityMismatch) Validate() error {
 	}
 }
 
-// ParityAuditReport binds the CUE #ParityAuditReport schema contract.
+// ParityAuditReport summarizes the workspace parity audit outcome.
 type ParityAuditReport struct {
 	WorktreePath string           `json:"worktree_path"`
 	Timestamp    string           `json:"timestamp"`
@@ -110,7 +109,7 @@ type ParityAuditReport struct {
 	Passed       bool             `json:"passed"`
 }
 
-// Validate ensures ParityAuditReport satisfies all CUE schema constraints.
+// Validate ensures ParityAuditReport satisfies all structural constraints.
 func (r *ParityAuditReport) Validate() error {
 	if r == nil {
 		return types.NewNomosError(types.ErrCodeValidationFailed, "parity audit report cannot be nil")
@@ -224,25 +223,17 @@ func DiscoverParityAssets(sourceRoot string) ([]EmbeddedAsset, error) {
 		}
 	}
 
-	// 2. CUE schemas under intent/contracts/cue
-	cueDir := filepath.Join(sourceRoot, "intent", "contracts", "cue")
-	if err := filepath.Walk(cueDir, func(p string, info os.FileInfo, err error) error {
-		if err == nil && !info.IsDir() && strings.HasSuffix(p, ".cue") {
-			rel, rErr := filepath.Rel(sourceRoot, p)
-			if rErr == nil {
-				if hash, size, hErr := ComputeFileSHA256(p); hErr == nil {
-					assets = append(assets, EmbeddedAsset{
-						RelativePath: rel,
-						AssetType:    AssetTypeSchema,
-						SHA256:       hash,
-						SizeBytes:    size,
-					})
-				}
-			}
+	// 2. Root nomos.schema.json contract artifact
+	schemaPath := filepath.Join(sourceRoot, "nomos.schema.json")
+	if _, err := os.Stat(schemaPath); err == nil {
+		if hash, size, hErr := ComputeFileSHA256(schemaPath); hErr == nil {
+			assets = append(assets, EmbeddedAsset{
+				RelativePath: "nomos.schema.json",
+				AssetType:    AssetTypeSchema,
+				SHA256:       hash,
+				SizeBytes:    size,
+			})
 		}
-		return nil
-	}); err != nil {
-		return nil, err
 	}
 
 	// 3. Ambient lifecycle hooks under .agents

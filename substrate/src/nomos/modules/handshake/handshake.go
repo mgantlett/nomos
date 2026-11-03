@@ -1,5 +1,5 @@
 // Package handshake implements JIT session orientation telemetry, CapBAC tokens,
-// and NCTE-100 prose validation synthesized from handshake.cue and ncte.cue.
+// and NCTE-100 prose validation enforced by compiled Go SSoT contracts.
 package handshake
 
 import (
@@ -300,7 +300,7 @@ func queryReadyWavefront() []string {
 
 
 
-// ValidateHandshakeEvent asserts that HandshakeEvent conforms to handshake.cue constraints.
+// ValidateHandshakeEvent asserts that HandshakeEvent satisfies structural invariants.
 func ValidateHandshakeEvent(event *HandshakeEvent) error {
 	if event == nil {
 		return types.NewNomosError(types.ErrCodeValidationFailed, "handshake event cannot be nil")

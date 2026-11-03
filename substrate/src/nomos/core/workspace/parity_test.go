@@ -43,7 +43,7 @@ func TestEmbeddedAsset_Validate(t *testing.T) {
 		{
 			name: "valid asset",
 			asset: &EmbeddedAsset{
-				RelativePath: "contracts/cue/worktree.cue",
+				RelativePath: "nomos.schema.json",
 				AssetType:    AssetTypeSchema,
 				SHA256:       validSHA,
 				SizeBytes:    1024,
@@ -58,7 +58,7 @@ func TestEmbeddedAsset_Validate(t *testing.T) {
 		{
 			name: "invalid relative path characters",
 			asset: &EmbeddedAsset{
-				RelativePath: "invalid path with spaces.cue",
+				RelativePath: "invalid path with spaces.json",
 				AssetType:    AssetTypeSchema,
 				SHA256:       validSHA,
 				SizeBytes:    100,
@@ -68,7 +68,7 @@ func TestEmbeddedAsset_Validate(t *testing.T) {
 		{
 			name: "invalid asset type",
 			asset: &EmbeddedAsset{
-				RelativePath: "contracts/cue/worktree.cue",
+				RelativePath: "nomos.schema.json",
 				AssetType:    AssetType("invalid"),
 				SHA256:       validSHA,
 				SizeBytes:    100,
@@ -78,7 +78,7 @@ func TestEmbeddedAsset_Validate(t *testing.T) {
 		{
 			name: "invalid sha256 length",
 			asset: &EmbeddedAsset{
-				RelativePath: "contracts/cue/worktree.cue",
+				RelativePath: "nomos.schema.json",
 				AssetType:    AssetTypeSchema,
 				SHA256:       "abc123",
 				SizeBytes:    100,
@@ -88,7 +88,7 @@ func TestEmbeddedAsset_Validate(t *testing.T) {
 		{
 			name: "negative size bytes",
 			asset: &EmbeddedAsset{
-				RelativePath: "contracts/cue/worktree.cue",
+				RelativePath: "nomos.schema.json",
 				AssetType:    AssetTypeSchema,
 				SHA256:       validSHA,
 				SizeBytes:    -5,
@@ -116,8 +116,8 @@ func TestParityMismatch_Validate(t *testing.T) {
 		{
 			name: "valid missing mismatch",
 			mismatch: &ParityMismatch{
-				SourcePath: "/a/source.cue",
-				TargetPath: "/b/target.cue",
+				SourcePath: "/a/source.schema.json",
+				TargetPath: "/b/target.schema.json",
 				SourceHash: "abc",
 				Reason:     MismatchMissing,
 			},
@@ -126,8 +126,8 @@ func TestParityMismatch_Validate(t *testing.T) {
 		{
 			name: "valid drift mismatch",
 			mismatch: &ParityMismatch{
-				SourcePath: "/a/source.cue",
-				TargetPath: "/b/target.cue",
+				SourcePath: "/a/source.schema.json",
+				TargetPath: "/b/target.schema.json",
 				SourceHash: "abc",
 				TargetHash: "def",
 				Reason:     MismatchDrift,
@@ -137,8 +137,8 @@ func TestParityMismatch_Validate(t *testing.T) {
 		{
 			name: "invalid reason",
 			mismatch: &ParityMismatch{
-				SourcePath: "/a/source.cue",
-				TargetPath: "/b/target.cue",
+				SourcePath: "/a/source.schema.json",
+				TargetPath: "/b/target.schema.json",
 				Reason:     ParityMismatchReason("corrupted"),
 			},
 			wantErr: true,
@@ -166,20 +166,20 @@ func TestCheckAssetParity(t *testing.T) {
 
 	contentA := []byte("schema A content")
 	hashA := sha256Hex(contentA)
-	pathA := "schemas/a.cue"
+	pathA := "schemas/a.schema.json"
 	writeTestFile(t, srcDir, pathA, contentA)
 	writeTestFile(t, tgtDir, pathA, contentA)
 
 	// Missing in target
 	contentB := []byte("schema B content")
 	hashB := sha256Hex(contentB)
-	pathB := "schemas/b.cue"
+	pathB := "schemas/b.schema.json"
 	writeTestFile(t, srcDir, pathB, contentB)
 
 	// Drifting in target
 	contentC := []byte("schema C source content")
 	hashC := sha256Hex(contentC)
-	pathC := "schemas/c.cue"
+	pathC := "schemas/c.schema.json"
 	writeTestFile(t, srcDir, pathC, contentC)
 	writeTestFile(t, tgtDir, pathC, []byte("schema C target content drift"))
 
@@ -228,7 +228,7 @@ func TestCheckAssetParity_ZeroAssets(t *testing.T) {
 func TestDiscoverParityAssets(t *testing.T) {
 	tempDir := t.TempDir()
 	writeTestFile(t, tempDir, "AGENTS.md", []byte("# Nomos Protocol"))
-	writeTestFile(t, tempDir, filepath.Join("intent", "contracts", "cue", "schema.cue"), []byte("package schemas"))
+	writeTestFile(t, tempDir, "nomos.schema.json", []byte(`{"type":"object"}`))
 	writeTestFile(t, tempDir, filepath.Join(".agents", "hooks.json"), []byte(`{"session-handshake":{}}`))
 	writeTestFile(t, tempDir, filepath.Join(".agents", "scripts", "session-start.sh"), []byte("#!/usr/bin/env bash\necho {}\n"))
 

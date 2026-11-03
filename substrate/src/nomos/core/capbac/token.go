@@ -14,13 +14,13 @@ import (
 )
 
 var (
-	// regexTokenID validates token ID matching CUE #CapBACToken: ^(cap_[a-f0-9]{32}|cap_lease_[a-f0-9]+)$.
+	// regexTokenID validates token ID format: ^(cap_[a-f0-9]{32}|cap_lease_[a-f0-9]+)$.
 	regexTokenID = regexp.MustCompile(`^(cap_[a-f0-9]{32}|cap_lease_[a-f0-9]+)$`)
 	// regexTokenTaskID validates task key format: ^(INT|SUB)-[0-9]+(-[a-z0-9-]+)?$.
 	regexTokenTaskID = regexp.MustCompile(`^(INT|SUB)-[0-9]+(-[a-z0-9-]+)?$`)
 )
 
-// CapBACToken binds the CUE #CapBACToken schema contract.
+// CapBACToken models a cryptographic capability token contract.
 type CapBACToken struct {
 	ID           string      `json:"id"`
 	Phase        types.Phase `json:"phase"`
@@ -32,7 +32,7 @@ type CapBACToken struct {
 	ExpiresAt    time.Time   `json:"expires_at,omitempty"`
 }
 
-// Validate ensures CapBACToken satisfies all CUE schema constraints and Law 7 bounds.
+// Validate ensures CapBACToken satisfies all structural constraints and Law 7 bounds.
 func (t *CapBACToken) Validate() error {
 	if t == nil {
 		return types.NewNomosError(types.ErrCodeValidationFailed, "capbac token cannot be nil")
@@ -125,7 +125,7 @@ func (t *CapBACToken) ValidateWrite(targetPath string) error {
 	return nil
 }
 
-// Step increments tokens used, enforcing the CUE step budget invariant.
+// Step increments tokens used, enforcing the step budget invariant.
 func (t *CapBACToken) Step() error {
 	if t == nil {
 		return types.NewNomosError(types.ErrCodeCapBAC, "capbac step violation: nil token")

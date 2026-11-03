@@ -75,8 +75,8 @@ The corresponding Intent specification must contain:
 
 ## 4. The Seven Laws & 21 Invariant Cells Suite (DoD Compliance)
 
-1. **Cell (4, 1) - Schema Invariant Verification (Probe 25: `intent_cue_eval`):** Validates all Intent schemas and documents.
-2. **Cell (4, 2) - Contract Schema Integrity (Probe 26: `contract_parity`):** Enforces deterministic schema alignment between Intent CUE definitions and compiled Substrate Go structs.
+1. **Cell (4, 1) - Intent Steel-Man Parity (Probe 25: `intent_steelman`):** Validates all Intent Markdown YAML frontmatter and balanced code fences.
+2. **Cell (4, 2) - Contract Schema Integrity (Probe 26: `contract_parity`):** Enforces deterministic byte parity between `nomos.schema.json` and compiled Substrate Go structs.
 3. **Cell (4, 3) - Intent Traceability Anchors (Probe 27: `intent_tags`):** Audits all exported Go symbols for valid `// @intent` tags, ensuring 100% resolution against Intent documents.
 
 ---

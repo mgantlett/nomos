@@ -1,5 +1,5 @@
 // Package config provides declarative configuration management, dynamic path discovery,
-// and schema-bound structures synthesized directly from authoritative Intent CUE schemas.
+// and compiled Go Single Source of Truth (SSoT) structures reflected to nomos.schema.json.
 package config
 
 import (
@@ -10,7 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// BoundaryConfig declares architectural package and CLI command boundary protections (#BoundaryConfig).
+// BoundaryConfig declares architectural package and CLI command boundary protections.
 type BoundaryConfig struct {
 	Enforce            bool     `yaml:"enforce" json:"enforce"`
 	ProhibitedPackages []string `yaml:"prohibited_packages,omitempty" json:"prohibited_packages,omitempty"`
@@ -18,16 +18,16 @@ type BoundaryConfig struct {
 	LockDependencies   bool     `yaml:"lock_dependencies,omitempty" json:"lock_dependencies,omitempty"`
 }
 
-// ContractsConfig defines contract schema verification (#ContractVerificationConfig).
+// ContractsConfig defines contract schema and backend verification roots.
 type ContractsConfig struct {
 	Enabled      bool     `yaml:"enabled" json:"enabled"`
 	SpecRoots    []string `yaml:"spec_roots,omitempty" json:"spec_roots,omitempty"`
-	CueRoots     []string `yaml:"cue_roots,omitempty" json:"cue_roots,omitempty"`
+	SchemaFiles  []string `yaml:"schema_files,omitempty" json:"schema_files,omitempty"`
 	BackendRoots []string `yaml:"backend_roots,omitempty" json:"backend_roots,omitempty"`
 	StrictTypes  bool     `yaml:"strict_types" json:"strict_types"`
 }
 
-// MembraneConfig defines membrane boundary verification (#MembraneVerificationConfig).
+// MembraneConfig defines membrane boundary verification.
 type MembraneConfig struct {
 	Enabled              bool     `yaml:"enabled" json:"enabled"`
 	FrontendRoots        []string `yaml:"frontend_roots,omitempty" json:"frontend_roots,omitempty"`
@@ -36,7 +36,7 @@ type MembraneConfig struct {
 	FailOnContractDrift  bool     `yaml:"fail_on_contract_drift,omitempty" json:"fail_on_contract_drift,omitempty"`
 }
 
-// InfraConfig defines infrastructure and environment ingress verification (#InfraVerificationConfig).
+// InfraConfig defines infrastructure and environment ingress verification.
 type InfraConfig struct {
 	Enabled         bool     `yaml:"enabled" json:"enabled"`
 	IngressConfigs  []string `yaml:"ingress_configs,omitempty" json:"ingress_configs,omitempty"`
@@ -45,7 +45,7 @@ type InfraConfig struct {
 	FailOnOrphanEnv bool     `yaml:"fail_on_orphan_env" json:"fail_on_orphan_env"`
 }
 
-// ContractsBoundaryConfig defines cross-plane contract and infrastructure verification boundaries (#ContractsBoundaryConfig).
+// ContractsBoundaryConfig defines cross-plane contract and infrastructure verification boundaries.
 type ContractsBoundaryConfig struct {
 	Contracts   ContractsConfig `yaml:"contracts" json:"contracts"`
 	Membrane    *MembraneConfig `yaml:"membrane,omitempty" json:"membrane,omitempty"`
@@ -53,7 +53,7 @@ type ContractsBoundaryConfig struct {
 	AutoPromote bool            `yaml:"auto_promote,omitempty" json:"auto_promote,omitempty"`
 }
 
-// ThresholdsConfig captures numerical AST and test hygiene quality bounds (#ThresholdsConfig).
+// ThresholdsConfig captures numerical AST and test hygiene quality bounds.
 type ThresholdsConfig struct {
 	MaxCognitiveDebtScore     int `yaml:"max_cognitive_debt_score" json:"max_cognitive_debt_score"`
 	MaxCyclomaticComplexity   int `yaml:"max_cyclomatic_complexity" json:"max_cyclomatic_complexity"`
@@ -66,7 +66,7 @@ type ThresholdsConfig struct {
 	MaxMagicStringDuplication int `yaml:"max_magic_string_duplication,omitempty" json:"max_magic_string_duplication,omitempty"`
 }
 
-// QualityGatesConfig defines verification policies (#QualityGatesConfig).
+// QualityGatesConfig defines verification policies.
 type QualityGatesConfig struct {
 	ForbiddenLiterals            []string                 `yaml:"forbidden_literals,omitempty" json:"forbidden_literals,omitempty"`
 	HasForbiddenLiteralsOverride bool                     `yaml:"-" json:"-"`
@@ -96,20 +96,20 @@ func (q *QualityGatesConfig) GetContractsBoundary() ContractsBoundaryConfig {
 	return ContractsBoundaryConfig{}
 }
 
-// GovernanceConfig aggregates governance boundaries and quality gates (#GovernanceConfig).
+// GovernanceConfig aggregates governance boundaries and quality gates.
 type GovernanceConfig struct {
 	Boundary     BoundaryConfig     `yaml:"boundary" json:"boundary"`
 	QualityGates QualityGatesConfig `yaml:"quality_gates" json:"quality_gates"`
 }
 
-// EcosystemConfig is the authoritative SSoT Go structure matching nomos.yaml (#NomosConfig).
+// EcosystemConfig is the authoritative SSoT Go structure matching nomos.yaml.
 type EcosystemConfig struct {
 	Project       string           `yaml:"project" json:"project"`
 	DefaultBranch string           `yaml:"default_branch" json:"default_branch"`
 	Governance    GovernanceConfig `yaml:"governance" json:"governance"`
 }
 
-// DefaultNomosConfig returns a clean, downstream-safe baseline configuration (#DefaultNomosConfig).
+// DefaultNomosConfig returns a clean, downstream-safe baseline configuration.
 func DefaultNomosConfig() *EcosystemConfig {
 	polyglot := true
 	return &EcosystemConfig{

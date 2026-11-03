@@ -1,5 +1,5 @@
 // Package types provides foundational domain types, schema bindings, and
-// invariant contracts synthesized directly from authoritative Intent CUE schemas.
+// invariant contracts enforced by compiled Go SSoT types.
 package types
 
 import (

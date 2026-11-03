@@ -18,7 +18,7 @@ import (
 const MaxFunctionParams = 8
 
 // PrescribeFunctionSeams analyzes a violating function and returns deterministic AST extraction cut-lines.
-// @intent: #RefactoringSeam
+// @intent: #FunctionMetric
 func PrescribeFunctionSeams(filePath string, src []byte, funcName string, funcLine int) []string {
 	if len(src) == 0 {
 		return nil
@@ -203,7 +203,7 @@ func slicePolyglotFuncBody(lines []string, startIdx int) ([]string, int) {
 }
 
 // PrescribeFileDecomposition generates a baseline delta and ranks the top 3 extraction candidates in a file.
-// @intent: #FileDecompositionPlan
+// @intent: #FileMetric
 func PrescribeFileDecomposition(root, relPath string, src []byte, currentLOC, currentCDS, maxComp, maxFuncLOC int) string {
 	var parts []string
 	if delta := computeGitBaselineDelta(root, relPath, currentLOC, currentCDS, maxComp, maxFuncLOC); delta != "" {

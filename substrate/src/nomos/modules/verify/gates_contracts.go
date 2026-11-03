@@ -8,7 +8,6 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 )
 
@@ -42,7 +41,7 @@ type Thresholds struct {
 	MaxMagicStringDuplication int     `json:"max_magic_string_duplication"`
 }
 
-// DefaultThresholds returns canonical defaults defined in gates.cue.
+// DefaultThresholds returns canonical statutory quality gate thresholds.
 func DefaultThresholds() Thresholds {
 	return Thresholds{
 		MinCoverage:               55.0,
@@ -274,84 +273,4 @@ func PlaneSeparationRemedy(taskKey string) string {
 		targetPlane, oppPlane, oppPlane)
 }
 
-var (
-	cueDefAnchorRe    = regexp.MustCompile(`(?m)^\s*(#[A-Za-z0-9_]+)\s*:`)
-	intentCUEAnchorRe = regexp.MustCompile(`@intent[^\n]*?(#[A-Za-z0-9_]+)`)
-)
-
-func verifyIntentCUEAnchors(ctx *VerifyContext, root, targetDir string) []string {
-	cueDir := resolveIntentCUEDir(ctx, root)
-	defined := collectDefinedCUEAnchors(cueDir)
-	if len(defined) == 0 {
-		return nil
-	}
-
-	fset := token.NewFileSet()
-	var unresolved []string
-	WalkTargetFiles(ctx, targetDir, func(path string, info os.FileInfo, err error) error {
-		if err == nil && !info.IsDir() {
-			unresolved = append(unresolved, scanFileIntentCUEAnchors(fset, targetDir, path, defined)...)
-		}
-		return nil
-	})
-	return unresolved
-}
-
-func resolveIntentCUEDir(ctx *VerifyContext, root string) string {
-	cueDir := filepath.Join(root, "intent", "contracts", "cue")
-	if _, err := os.Stat(cueDir); os.IsNotExist(err) && ctx != nil && ctx.RepoRoot != "" {
-		return filepath.Join(ctx.RepoRoot, "intent", "contracts", "cue")
-	}
-	return cueDir
-}
-
-func scanFileIntentCUEAnchors(fset *token.FileSet, targetDir, path string, defined map[string]bool) []string {
-	if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-		return nil
-	}
-	node, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
-	if err != nil {
-		return nil
-	}
-	rel, rErr := filepath.Rel(targetDir, path)
-	if rErr != nil {
-		rel = path
-	}
-	var unresolved []string
-	for _, decl := range node.Decls {
-		fn, ok := decl.(*ast.FuncDecl)
-		if !ok || fn.Doc == nil {
-			continue
-		}
-		for _, m := range intentCUEAnchorRe.FindAllStringSubmatch(fn.Doc.Text(), -1) {
-			if len(m) > 1 && !defined[m[1]] {
-				unresolved = append(unresolved, fmt.Sprintf("%s (%s -> %s)", rel, fn.Name.Name, m[1]))
-			}
-		}
-	}
-	return unresolved
-}
-
-func collectDefinedCUEAnchors(cueDir string) map[string]bool {
-	entries, err := os.ReadDir(cueDir)
-	if err != nil {
-		return nil
-	}
-	defined := make(map[string]bool)
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".cue") {
-			continue
-		}
-		data, rErr := os.ReadFile(filepath.Join(cueDir, e.Name()))
-		if rErr != nil {
-			continue
-		}
-		for _, m := range cueDefAnchorRe.FindAllStringSubmatch(string(data), -1) {
-			if len(m) > 1 {
-				defined[m[1]] = true
-			}
-		}
-	}
-	return defined
-}
 

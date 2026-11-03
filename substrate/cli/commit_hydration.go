@@ -126,7 +126,7 @@ func resolveWalkthroughText(taskKey, wtDir, repoRoot, explicitFile string) strin
 
 // hydrateCommitMessage synthesizes a complete Dual-Layer commit message from explicit flags,
 // Living Ledger 3-section cards, walkthrough release notes, and staged Git diff telemetry.
-// @intent INT-874 #CommitMessage #CommitHydrationSource
+// @intent nomos_commit_schema_invariant_spec.md
 func hydrateCommitMessage(ctx commitHydrationContext, opts *commitCmdOptions) string {
 	var rawSummary, expRationale, expBlast, expMechanics string
 	if opts != nil {

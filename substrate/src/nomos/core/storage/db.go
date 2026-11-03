@@ -1,5 +1,5 @@
 // Package storage provides pure-Go SQLite connection pooling, schema initialization,
-// and relational persistence primitives conforming to authoritative CUE contracts.
+// and relational persistence primitives conforming to compiled Go contracts.
 package storage
 
 import (
@@ -14,7 +14,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// SchemaDDL defines the authoritative relational schema matching CUE contracts.
+// SchemaDDL defines the authoritative relational SQLite schema (Law 4 SSoT).
 const SchemaDDL = `
 CREATE TABLE IF NOT EXISTS tasks (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,

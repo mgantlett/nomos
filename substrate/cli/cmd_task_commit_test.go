@@ -83,8 +83,8 @@ func TestNormalizeCommitSubject_DeduplicationAndInference(t *testing.T) {
 			taskKey:     "INT-12",
 			raw:         "",
 			rec:         &task.TaskRecord{Title: "Codify commit hydration contract"},
-			stagedFiles: []string{"intent/contracts/cue/commit_rules.cue"},
-			want:        "docs(cue): Codify commit hydration contract",
+			stagedFiles: []string{"intent/architecture/specs/core/commit_rules_spec.md"},
+			want:        "docs(specs): Codify commit hydration contract",
 		},
 	}
 

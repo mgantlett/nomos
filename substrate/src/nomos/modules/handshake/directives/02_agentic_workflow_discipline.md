@@ -74,7 +74,7 @@ Execute all file edits strictly within the designated worktree `worktrees/<repo>
 git add .
 nomos task commit <KEY> -m "<Summary>" --rationale "<Why>" --blast-radius "<What>" --mechanics "<How>"
 ```
-*Effect:* Generates machine-verifiable commit schema matching `intent/contracts/cue/commit_rules.cue`, injects short-lived CapBAC commit token, and executes git commit.
+*Effect:* Generates machine-verifiable Dual-Layer commit schema enforced by `CommitSchemaGate`, injects short-lived CapBAC commit token, and executes git commit.
 
 ### Step 5: 2PC Atomic Release (`nomos task sync`)
 From the repository root (outside the worktree):

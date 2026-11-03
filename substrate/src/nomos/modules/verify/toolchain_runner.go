@@ -230,11 +230,11 @@ func hasGoOrContractImpact(files []string) bool {
 		lower := strings.ToLower(filepath.ToSlash(rel))
 		base := filepath.Base(lower)
 		ext := filepath.Ext(lower)
-		if ext == ".go" || ext == ".cue" {
+		if ext == ".go" {
 			return true
 		}
 		switch base {
-		case "go.mod", "go.sum", "nomos.yaml", "nomos.yml", ".nomos.yaml", ".nomos.yml":
+		case "go.mod", "go.sum", "nomos.schema.json", "nomos.yaml", "nomos.yml", ".nomos.yaml", ".nomos.yml":
 			return true
 		}
 	}

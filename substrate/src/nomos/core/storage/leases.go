@@ -1,5 +1,5 @@
 // Package storage provides pure-Go SQLite connection pooling, schema initialization,
-// and relational persistence primitives conforming to authoritative CUE contracts.
+// and relational persistence primitives conforming to compiled Go contracts.
 package storage
 
 import (

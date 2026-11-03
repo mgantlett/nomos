@@ -39,7 +39,7 @@ by the mandatory 3-section contract (Scope & Context, Acceptance Criteria, Verif
 
 	helpTaskPairLong = `Atomically allocate and bind twinned INT-<N> (Intent) and SUB-<N> (Substrate)
 Living Ledger task cards so specification and implementation evolve in lockstep.`
-	helpTaskPairExample = `  nomos task pair "Add schema gate" --int-scope "Define CUE contract" --sub-scope "Implement Go gate" --ac "42/42 gates pass" --verify "nomos verify"`
+	helpTaskPairExample = `  nomos task pair "Add schema gate" --int-scope "Document contract spec" --sub-scope "Implement Go gate" --ac "42/42 gates pass" --verify "nomos verify"`
 
 	helpTaskChoreLong = `Provision a single-turn fast-lane task (burden 1) directly into an isolated git
 worktree in EDIT phase with an active CapBAC lease and zero card boilerplate.`

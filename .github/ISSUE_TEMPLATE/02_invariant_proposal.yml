@@ -40,7 +40,7 @@ body:
       label: Target Defense Ring
       description: Which orthogonal defense ring evaluates this invariant?
       options:
-        - "Ring 1: Syntactic AST (Static code analysis, Tree-sitter, CUE schemas)"
+        - "Ring 1: Syntactic AST (Static Go AST analysis, Tree-sitter, JSON Schema)"
         - "Ring 2: Dynamic Execution (Subprocess exit codes, state transitions, toolchains)"
         - "Ring 3: Cryptographic Provenance (CapBAC tokens, Git Notes, release receipts)"
     validations:
@@ -56,8 +56,8 @@ body:
     id: specification
     attributes:
       label: Proposed Contract / Interface
-      description: Provide the proposed CUE schema, Go struct/interface, or CLI command signature.
-      render: cue
+      description: Provide the proposed Go struct/interface, JSON Schema snippet, or CLI command signature.
+      render: go
     validations:
       required: true
   - type: textarea

@@ -246,23 +246,23 @@ func cloneWorker(items []int, mult int) int {
 	}
 }
 
-func TestIntentTraceabilityGate_CUEAnchorResolution(t *testing.T) {
+func TestIntentTraceabilityGate_GoTypeAndSpecAnchorResolution(t *testing.T) {
 	tempDir := t.TempDir()
-	cueDir := filepath.Join(tempDir, "intent", "contracts", "cue")
+	specDir := filepath.Join(tempDir, "intent", "architecture", "specs", "core")
 	srcDir := filepath.Join(tempDir, "substrate", "src")
-	if err := os.MkdirAll(cueDir, 0755); err != nil {
+	if err := os.MkdirAll(specDir, 0755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(srcDir, 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(filepath.Join(cueDir, "sample.cue"), []byte("package schemas\n#DefinedContract: {\n\tid: string\n}\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(specDir, "sample_spec.md"), []byte("---\ntitle: Sample\nplane: intent\nstatus: active\n---\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	// 1. Valid anchor (#DefinedContract) passes
-	validGo := "package p\n// ValidFunc is anchored.\n// @intent: #DefinedContract\nfunc ValidFunc() int { return 1 }\n"
+	// 1. Valid Go type and spec anchor (#DefinedContract + sample_spec.md) passes
+	validGo := "package p\n// DefinedContract models the compiled Go contract.\ntype DefinedContract struct{ ID string }\n// ValidFunc is anchored.\n// @intent sample_spec.md #DefinedContract\nfunc ValidFunc() int { return 1 }\n"
 	if err := os.WriteFile(filepath.Join(srcDir, "valid.go"), []byte(validGo), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -271,11 +271,11 @@ func TestIntentTraceabilityGate_CUEAnchorResolution(t *testing.T) {
 	ctx := &VerifyContext{RepoRoot: tempDir, WorktreePath: tempDir, IsBaseline: true}
 	resOk, err := gate.Evaluate(ctx)
 	if err != nil || !resOk.Passed {
-		t.Fatalf("expected valid @intent CUE anchor to pass, got: %+v, err=%v", resOk, err)
+		t.Fatalf("expected valid @intent Go type and spec anchor to pass, got: %+v, err=%v", resOk, err)
 	}
 
-	// 2. Unregistered anchor (#GhostSchema) fails closed
-	invalidGo := "package p\n// GhostFunc references a missing CUE schema.\n// @intent: #GhostSchema\nfunc GhostFunc() int { return 2 }\n"
+	// 2. Unregistered Go type (#GhostSchema) fails closed
+	invalidGo := "package p\n// GhostFunc references a missing Go type.\n// @intent: #GhostSchema\nfunc GhostFunc() int { return 2 }\n"
 	if err := os.WriteFile(filepath.Join(srcDir, "ghost.go"), []byte(invalidGo), 0644); err != nil {
 		t.Fatal(err)
 	}

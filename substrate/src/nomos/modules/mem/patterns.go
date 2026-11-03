@@ -34,7 +34,7 @@ type scopeBlueprint struct {
 	intents []string
 }
 
-// DistillVerifiedPattern promotes verified 2PC worktree diffs into repo-scoped pattern blueprints (@intent: #MnemeMemory).
+// DistillVerifiedPattern promotes verified 2PC worktree diffs into repo-scoped pattern blueprints (@intent: #Memory).
 func DistillVerifiedPattern(repoRoot, taskKey, walkthrough string, touchedFiles []string) (int, error) {
 	if strings.TrimSpace(repoRoot) == "" || strings.TrimSpace(taskKey) == "" || len(touchedFiles) == 0 {
 		return 0, nil
@@ -131,7 +131,7 @@ func isDistillableFile(rel string) bool {
 	}
 	ext := strings.ToLower(filepath.Ext(rel))
 	switch ext {
-	case ".go", ".py", ".ts", ".tsx", ".js", ".rs", ".cue", ".svelte":
+	case ".go", ".py", ".ts", ".tsx", ".js", ".rs", ".svelte":
 		return true
 	default:
 		return false
@@ -258,7 +258,7 @@ func (s *Store) supersedeOlderTopicPatterns(repoID, topic string, newestID int) 
 	}
 }
 
-// RecallRepoPatterns retrieves active 2PC-verified structural blueprints partitioned to repoRoot (@intent: #MnemeMemory).
+// RecallRepoPatterns retrieves active 2PC-verified structural blueprints partitioned to repoRoot (@intent: #Memory).
 func RecallRepoPatterns(repoRoot, queryHint string, touchedFiles []string, limit int) []string {
 	if strings.TrimSpace(repoRoot) == "" {
 		return nil
@@ -330,7 +330,7 @@ func rankRepoPatterns(candidates []*Memory, targetScope, queryHint string) {
 	})
 }
 
-// RecallGraduationCandidates surfaces high-reinforcement statutory memories eligible for Tier B nomos.yaml promotion (@intent: #MnemeMemory).
+// RecallGraduationCandidates surfaces high-reinforcement statutory memories eligible for Tier B nomos.yaml promotion (@intent: #Memory).
 func RecallGraduationCandidates(repoRoot string, limit int) []string {
 	if strings.TrimSpace(repoRoot) == "" {
 		return nil

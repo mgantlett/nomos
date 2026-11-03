@@ -98,6 +98,6 @@ Run `nomos directive --lexicon` to list all 36 compiled terms or `nomos directiv
 
 1. "Declare the single-sentence intent objective using 25 words or fewer."
 2. "State all axiomatic invariants with exact numeric bounds."
-3. "Define data structures in CUE schemas and Go contracts."
+3. "Define data structures in compiled Go contracts and JSON Schema."
 4. "Declare procedural steps with imperative verbs and 20 words or fewer."
 5. "Audit finished specifications via `nomos directive --lint <file>`."

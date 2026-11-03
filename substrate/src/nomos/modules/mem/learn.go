@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// GateTrapEntry records a gate failure observed before verified resolution (#MnemeMemory).
+// GateTrapEntry records a gate failure observed before verified resolution (#Memory).
 type GateTrapEntry struct {
 	GateName  string `json:"gate_name"`
 	Message   string `json:"message"`
@@ -24,7 +24,7 @@ func trapBufferPath(repoRoot, taskKey string) string {
 	return filepath.Join(repoRoot, ".tmp", "active_traps_"+cleanKey+".json")
 }
 
-// DeriveDirectoryScope computes a concise directory scope label from modified paths (@intent: #MnemeMemory).
+// DeriveDirectoryScope computes a concise directory scope label from modified paths (@intent: #Memory).
 func DeriveDirectoryScope(repoRoot string, touchedFiles []string) string {
 	for _, f := range touchedFiles {
 		clean := filepath.ToSlash(strings.TrimSpace(f))
@@ -45,7 +45,7 @@ func DeriveDirectoryScope(repoRoot string, touchedFiles []string) string {
 	return "workspace"
 }
 
-// RecordGateTrap buffers active DoD gate failures for episodic distillation upon sync (@intent: #MnemeMemory).
+// RecordGateTrap buffers active DoD gate failures for episodic distillation upon sync (@intent: #Memory).
 func RecordGateTrap(repoRoot, taskKey string, touchedFiles []string, traps []GateTrapEntry) error {
 	if strings.TrimSpace(repoRoot) == "" || strings.TrimSpace(taskKey) == "" || len(traps) == 0 {
 		return nil
@@ -108,7 +108,7 @@ func mergeTrapEntries(existing, incoming []GateTrapEntry, defaultScope, now stri
 	return out
 }
 
-// DistillTaskLearnings promotes resolved gate traps into repo-scoped pitfall memories (@intent: #MnemeMemory).
+// DistillTaskLearnings promotes resolved gate traps into repo-scoped pitfall memories (@intent: #Memory).
 func DistillTaskLearnings(repoRoot, taskKey, walkthrough string, touchedFiles []string) (int, error) {
 	if strings.TrimSpace(repoRoot) == "" || strings.TrimSpace(taskKey) == "" {
 		return 0, nil
@@ -186,7 +186,7 @@ func (s *Store) supersedeOlderTopicPitfalls(repoID, topic string, newestID int) 
 	}
 }
 
-// RecallRepoPitfalls retrieves active distilled pitfalls strictly partitioned to repoRoot (@intent: #MnemeMemory).
+// RecallRepoPitfalls retrieves active distilled pitfalls strictly partitioned to repoRoot (@intent: #Memory).
 func RecallRepoPitfalls(repoRoot string, touchedFiles []string, limit int) []string {
 	if strings.TrimSpace(repoRoot) == "" {
 		return nil

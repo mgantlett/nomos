@@ -110,7 +110,7 @@ func TestEvaluatePlaneViolationsWithRoots(t *testing.T) {
 		t.Fatalf("expected 1 violation for SUB modifying custom intent root docs/, got %d", len(vSub))
 	}
 
-	vSubNested := EvaluatePlaneViolationsWithRoots("SUB-10", []string{"specs/architecture/api.cue"}, intentRoots, substrateRoots)
+	vSubNested := EvaluatePlaneViolationsWithRoots("SUB-10", []string{"specs/architecture/api_spec.md"}, intentRoots, substrateRoots)
 	if len(vSubNested) != 1 {
 		t.Fatalf("expected 1 violation for SUB modifying nested intent root specs/architecture/, got %d", len(vSubNested))
 	}
@@ -132,7 +132,7 @@ func TestEvaluatePlaneViolationsWithRoots(t *testing.T) {
 		t.Fatalf("expected 0 violations for valid SUB modifications, got %d", len(vSubOk))
 	}
 
-	vIntOk := EvaluatePlaneViolationsWithRoots("INT-10", []string{"docs/architecture.md", "specs/architecture/api.cue", "README.md"}, intentRoots, substrateRoots)
+	vIntOk := EvaluatePlaneViolationsWithRoots("INT-10", []string{"docs/architecture.md", "specs/architecture/api_spec.md", "README.md"}, intentRoots, substrateRoots)
 	if len(vIntOk) != 0 {
 		t.Fatalf("expected 0 violations for valid INT modifications, got %d", len(vIntOk))
 	}

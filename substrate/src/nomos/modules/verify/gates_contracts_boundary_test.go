@@ -3,7 +3,10 @@ package verify
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
 )
 
 func TestContractParityGate(t *testing.T) {
@@ -28,14 +31,14 @@ governance:
     contracts:
       contracts:
         enabled: true
-        cue_roots: ["intent/contracts/cue"]
+        schema_files: ["nomos.schema.json"]
         backend_roots: ["substrate/src/nomos"]
 `
 	if err := os.WriteFile(filepath.Join(tempDir, "nomos.yaml"), []byte(cfgContent), 0644); err != nil {
 		t.Fatalf("failed writing test nomos.yaml: %v", err)
 	}
 
-	// In an empty brownfield directory (no intent directory), contract boundary skips gracefully
+	// In an empty brownfield directory (no intent directory or schema file), contract boundary skips gracefully
 	res, err := gate.Evaluate(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -44,26 +47,40 @@ governance:
 		t.Errorf("expected brownfield skip on empty dir, got failure: %v", res)
 	}
 
-	// If intent/contracts/cue exists but has 0 CUE schemas, it must fail closed
-	cueDir := filepath.Join(tempDir, "intent", "contracts", "cue")
-	_ = os.MkdirAll(cueDir, 0755)
-	resEmptyCue, err := gate.Evaluate(ctx)
+	// If intent/ exists without nomos.schema.json, it must fail closed
+	intentDir := filepath.Join(tempDir, "intent")
+	_ = os.MkdirAll(intentDir, 0755)
+	resMissingSchema, err := gate.Evaluate(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if resEmptyCue.Passed {
-		t.Errorf("expected failure when intent CUE root exists but has 0 schemas")
+	if resMissingSchema.Passed {
+		t.Errorf("expected failure when intent scope exists without nomos.schema.json")
 	}
 
-	// Scaffold CUE and Go roots matching default config
+	// Drifted nomos.schema.json must fail closed
+	_ = os.WriteFile(filepath.Join(tempDir, "nomos.schema.json"), []byte(`{"type":"object"}`), 0644)
+	resDrifted, err := gate.Evaluate(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resDrifted.Passed || !strings.Contains(resDrifted.Message, "drifted") {
+		t.Errorf("expected failure on drifted nomos.schema.json, got: %+v", resDrifted)
+	}
+
+	// Valid generated nomos.schema.json and Go backend files pass cleanly
+	schemaBytes, sErr := config.GenerateConfigJSONSchema()
+	if sErr != nil {
+		t.Fatalf("failed generating schema: %v", sErr)
+	}
+	_ = os.WriteFile(filepath.Join(tempDir, "nomos.schema.json"), schemaBytes, 0644)
 	goDir := filepath.Join(tempDir, "substrate", "src", "nomos")
 	_ = os.MkdirAll(goDir, 0755)
-	_ = os.WriteFile(filepath.Join(cueDir, "task.cue"), []byte("package schemas"), 0644)
 	_ = os.WriteFile(filepath.Join(goDir, "main.go"), []byte("package main"), 0644)
 
 	resGood, errGood := gate.Evaluate(ctx)
 	if errGood != nil || !resGood.Passed {
-		t.Errorf("expected pass with discovered CUE and Go files: %v, %v", resGood, errGood)
+		t.Errorf("expected pass with valid nomos.schema.json and Go files: %v, %v", resGood, errGood)
 	}
 }
 

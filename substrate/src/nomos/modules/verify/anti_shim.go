@@ -24,7 +24,7 @@ type AntiShimDTO struct {
 	ForbiddenLiteralShim string `json:"ForbiddenLiteralShim"`
 }
 
-// ValidateAntiShim enforces zero-trust AST bounds defined in ast_anti_shim.cue.
+// ValidateAntiShim enforces zero-trust AST anti-shim bounds (Law 2).
 func ValidateAntiShim(dto AntiShimDTO) error {
 	if dto.BodyStatementCount <= 0 {
 		return types.NewNomosError(types.ErrCodeInvariant, "function %s is an empty stub (0 statements)", dto.Name)

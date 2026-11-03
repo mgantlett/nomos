@@ -21,7 +21,7 @@ var (
 	regexLeaseTaskKey = regexp.MustCompile(`^(INT|SUB)-[0-9]+(-[a-z0-9-]+)?$`)
 )
 
-// CapBACLease binds the CUE #CapBACLease schema contract.
+// CapBACLease models an active task capability lease contract.
 type CapBACLease struct {
 	ID         string      `json:"id"`
 	TaskKey    string      `json:"task_key"`
@@ -32,7 +32,7 @@ type CapBACLease struct {
 	Valid      bool        `json:"valid"`
 }
 
-// Validate ensures CapBACLease satisfies all CUE schema constraints.
+// Validate ensures CapBACLease satisfies all structural constraints.
 func (l *CapBACLease) Validate() error {
 	if l == nil {
 		return types.NewNomosError(types.ErrCodeValidationFailed, "capbac lease cannot be nil")
@@ -75,7 +75,7 @@ func NewLeaseManager() LeaseManager {
 	}
 }
 
-// AcquireLease provisions a new CapBACLease adhering to CUE constraints.
+// AcquireLease provisions a new CapBACLease adhering to capability bounds.
 func (m *MemoryLeaseManager) AcquireLease(ctx context.Context, taskKey string, phase types.Phase, stepBudget int) (*CapBACLease, error) {
 	cleanKey := strings.ToUpper(strings.TrimSpace(taskKey))
 	if !regexLeaseTaskKey.MatchString(cleanKey) {

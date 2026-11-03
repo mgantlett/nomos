@@ -146,7 +146,7 @@ func TestTaskCmd_PairAndTwinOf(t *testing.T) {
 	pairCmd := newTaskPairCmd()
 	pairCmd.SetArgs([]string{
 		"Bilateral Feature Pair",
-		"--int-scope", "Codify bilateral contract in intent/contracts/cue/task.cue.",
+		"--int-scope", "Codify bilateral contract in intent/architecture/specs/core/task_lifecycle_cli_spec.md.",
 		"--sub-scope", "Enforce bilateral contract in substrate/cli/cmd_task.go.",
 		"--ac", "Pass 42 DoD gates across both planes",
 		"--verify", "nomos verify",
@@ -165,7 +165,7 @@ func TestTaskCmd_PairAndTwinOf(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed getting INT-1: %v", err)
 	}
-	if intTask.TwinKey != "SUB-1" || intTask.Burden != 4 || !strings.Contains(intTask.Description, "intent/contracts/cue/task.cue") {
+	if intTask.TwinKey != "SUB-1" || intTask.Burden != 4 || !strings.Contains(intTask.Description, "task_lifecycle_cli_spec.md") {
 		t.Errorf("unexpected INT-1 state: twin=%q burden=%d desc=%q", intTask.TwinKey, intTask.Burden, intTask.Description)
 	}
 

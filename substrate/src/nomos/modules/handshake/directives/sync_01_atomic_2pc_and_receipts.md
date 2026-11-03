@@ -55,7 +55,7 @@ Every release operates in two deterministic phases governed by Go transaction lo
   - Executes fast-forward or squash merge into trunk `main`.
   - Atomically mints an immutable `ReleaseReceipt` into Git Notes (`refs/notes/nomos/releases`).
   - Updates `#TaskRecord.status` from `SYNC` to `DONE` in SQLite.
-  - Transitions workspace lifecycle phase from `SYNC` to `IDLE` (`phase_state.cue`).
+  - Transitions workspace lifecycle phase from `SYNC` to `IDLE` (`types.PhaseState`).
   - Revokes task CapBAC lease and unlinks transient worktree.
 
 ---

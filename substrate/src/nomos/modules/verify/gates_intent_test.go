@@ -24,7 +24,34 @@ func TestIntentSteelmanGateClean(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !res.Passed {
-		t.Errorf("expected intent steelman gate to pass: %s", res.Message)
+		t.Errorf("expected intent steelman gate to pass when no intent dir present: %s", res.Message)
+	}
+
+	tempDir := t.TempDir()
+	specDir := filepath.Join(tempDir, "intent", "architecture", "specs", "core")
+	if err := os.MkdirAll(specDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	validDoc := "---\ntitle: \"Sample Spec\"\nplane: intent\nstatus: active\n---\n\n# Sample\n\n```go\ntype Sample struct{}\n```\n"
+	specPath := filepath.Join(specDir, "sample_spec.md")
+	if err := os.WriteFile(specPath, []byte(validDoc), 0644); err != nil {
+		t.Fatal(err)
+	}
+	resValid, err := g.Evaluate(&VerifyContext{WorktreePath: tempDir, RepoRoot: tempDir})
+	if err != nil || !resValid.Passed {
+		t.Fatalf("expected valid Intent spec to pass steelman audit, got: %+v, err=%v", resValid, err)
+	}
+
+	brokenFence := validDoc + "\n```go\nfunc unclosed() {\n"
+	if err := os.WriteFile(specPath, []byte(brokenFence), 0644); err != nil {
+		t.Fatal(err)
+	}
+	resBroken, err := g.Evaluate(&VerifyContext{WorktreePath: tempDir, RepoRoot: tempDir})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resBroken.Passed || !strings.Contains(resBroken.Message, "unclosed Markdown fenced code block") {
+		t.Fatalf("expected unclosed fence to fail IntentSteelmanGate, got: %+v", resBroken)
 	}
 }
 

@@ -34,7 +34,7 @@ const (
 	KindPattern      MemoryKind = "pattern"
 )
 
-// ValidateAdvisoryWriteKind enforces statutory write provenance for manual CLI saves (@intent: #MnemeMemory).
+// ValidateAdvisoryWriteKind enforces statutory write provenance for manual CLI saves (@intent: #Memory).
 func ValidateAdvisoryWriteKind(kind MemoryKind) error {
 	normalized := MemoryKind(strings.ToLower(strings.TrimSpace(string(kind))))
 	switch normalized {
@@ -61,7 +61,7 @@ const (
 	StatusTombstoned MemoryStatus = "tombstoned"
 )
 
-// Memory represents a single knowledge item indexed in Nomos Mneme (#MnemeMemory).
+// Memory represents a single knowledge item indexed in Nomos Mneme (#Memory).
 type Memory struct {
 	ID          int          `json:"id"`
 	RepoID      string       `json:"repo_id,omitempty"`

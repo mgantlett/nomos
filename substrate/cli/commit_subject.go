@@ -59,7 +59,7 @@ var verbToCommitType = map[string]string{
 }
 
 // normalizeCommitSubject strips redundant task key tokens and ensures Conventional Commit alignment.
-// @intent INT-874 #CommitMessage
+// @intent nomos_commit_schema_invariant_spec.md
 func normalizeCommitSubject(taskKey, rawSummary string, rec *task.TaskRecord, stagedFiles []string) string {
 	candidate := resolveCandidateSummary(taskKey, rawSummary, rec, stagedFiles)
 	if formatted, ok := normalizeExistingConventionalSubject(candidate); ok {

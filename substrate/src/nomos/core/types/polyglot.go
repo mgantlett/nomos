@@ -1,5 +1,5 @@
 // Package types provides foundational domain types, schema bindings, and
-// invariant contracts synthesized directly from authoritative Intent CUE schemas.
+// invariant contracts enforced by compiled Go SSoT types.
 package types
 
 import (
@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// SupportedLanguage defines languages supported by polyglot AST verification, bound to #SupportedLanguage in polyglot.cue.
+// SupportedLanguage defines languages supported by polyglot AST verification.
 type SupportedLanguage string
 
 const (
@@ -43,7 +43,7 @@ var AllSupportedLanguages = []SupportedLanguage{
 	LanguageCSS,
 }
 
-// FindingRule defines AST rule violation codes, bound to #FindingRule in polyglot.cue.
+// FindingRule defines AST rule violation codes.
 type FindingRule string
 
 const (
@@ -85,7 +85,7 @@ func IsValidFindingRule(r FindingRule) bool {
 	return false
 }
 
-// SourceRootConfig binds a directory path to a polyglot language scanner, bound to #SourceRootConfig in polyglot.cue.
+// SourceRootConfig binds a directory path to a polyglot language scanner.
 type SourceRootConfig struct {
 	Path            string            `json:"path"`
 	Language        SupportedLanguage `json:"language"`
@@ -112,8 +112,7 @@ func (src *SourceRootConfig) Validate() error {
 	return nil
 }
 
-// PolyglotWorkspaceManifest declares workspace source roots and polyglot enforcement rules,
-// bound to #PolyglotWorkspaceManifest in polyglot.cue.
+// PolyglotWorkspaceManifest declares workspace source roots and polyglot enforcement rules.
 type PolyglotWorkspaceManifest struct {
 	SourceRoots    []SourceRootConfig `json:"source_roots"`
 	StrictPolyglot bool               `json:"strict_polyglot"`
@@ -226,7 +225,7 @@ func isPathExcluded(patterns []string, cleanPath string) bool {
 	return false
 }
 
-// TreeSitterQueryConfig binds an AST query pattern to a finding rule, bound to #TreeSitterQueryConfig in polyglot.cue.
+// TreeSitterQueryConfig binds an AST query pattern to a finding rule.
 type TreeSitterQueryConfig struct {
 	Language      SupportedLanguage `json:"language"`
 	QueryPattern  string            `json:"query_pattern"`
@@ -251,8 +250,7 @@ func (tsq *TreeSitterQueryConfig) Validate() error {
 	return nil
 }
 
-// PolyglotASTFinding represents a concrete AST violation discovered during static analysis,
-// bound to #PolyglotASTFinding in polyglot.cue.
+// PolyglotASTFinding represents a concrete AST violation discovered during static analysis.
 type PolyglotASTFinding struct {
 	File     string      `json:"file"`
 	Line     int         `json:"line"`
@@ -281,8 +279,7 @@ func (paf *PolyglotASTFinding) Validate() error {
 	return nil
 }
 
-// PolyglotScanReport summarizes the results of an AST verification pass,
-// bound to #PolyglotScanReport in polyglot.cue.
+// PolyglotScanReport summarizes the results of an AST verification pass.
 type PolyglotScanReport struct {
 	WorktreePath string               `json:"worktree_path"`
 	ScannedFiles int                  `json:"scanned_files"`
@@ -306,8 +303,7 @@ func (psr *PolyglotScanReport) Validate() error {
 	return nil
 }
 
-// TreeSitterWasmConfig defines WebAssembly runtime and language bindings for Tree-sitter,
-// bound to #TreeSitterWasmConfig in polyglot.cue.
+// TreeSitterWasmConfig defines WebAssembly runtime and language bindings for Tree-sitter.
 type TreeSitterWasmConfig struct {
 	EngineName         string              `json:"engine_name"`
 	Runtime            string              `json:"runtime"`

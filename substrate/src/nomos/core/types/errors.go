@@ -1,5 +1,5 @@
 // Package types provides foundational domain types, schema bindings, and
-// invariant contracts synthesized directly from authoritative Intent CUE schemas.
+// invariant contracts enforced by compiled Go SSoT types.
 package types
 
 import (
@@ -15,7 +15,7 @@ var (
 	regexTriageHash = regexp.MustCompile(`^ERR-[a-f0-9]+$`)
 )
 
-// Standard Nomos core error code constants adhering to CUE schema #NomosError.
+// Standard Nomos core error code constants adhering to NomosError invariants.
 const (
 	ErrCodeCore             = "ERR_CORE"
 	ErrCodeIntent           = "ERR_INTENT"
@@ -29,7 +29,7 @@ const (
 )
 
 // NomosError encapsulates structured agent-focused context for execution boundary
-// and invariant constraint failures, bound to #NomosError in errors.cue.
+// and invariant constraint failures.
 type NomosError struct {
 	Code              string   `json:"code"`
 	Description       string   `json:"description"`
@@ -115,7 +115,7 @@ func (e *NomosError) WithInteractivePrompt(prompt string) *NomosError {
 	return e
 }
 
-// Validate verifies that the NomosError satisfies all constraints defined in errors.cue.
+// Validate verifies that the NomosError satisfies all structural constraints.
 func (e *NomosError) Validate() error {
 	if e == nil {
 		return fmt.Errorf("nomos error cannot be nil")

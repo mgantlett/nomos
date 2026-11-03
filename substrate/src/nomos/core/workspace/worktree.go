@@ -17,17 +17,17 @@ import (
 // ProtectedTrunkBranches defines protected branches that cannot be modified directly in the root repository.
 var ProtectedTrunkBranches = []string{constants.ValMain, constants.ValMaster, "intent", "substrate"}
 
-// regexWorktreeTaskKey enforces the CUE #WorktreeSession task_key constraint: ^(INT|SUB)-[0-9]+(-[a-z0-9-]+)?$.
+// regexWorktreeTaskKey enforces the canonical WorktreeSession task_key constraint: ^(INT|SUB)-[0-9]+(-[a-z0-9-]+)?$.
 var regexWorktreeTaskKey = regexp.MustCompile(`^(INT|SUB)-[0-9]+(-[a-z0-9-]+)?$`)
 
-// WorktreeBoundaryConfig binds the CUE #WorktreeBoundaryConfig schema contract.
+// WorktreeBoundaryConfig defines protected branches and hermetic worktree directory bounds.
 type WorktreeBoundaryConfig struct {
 	ProtectedBranches []string `json:"protected_branches"`
 	WorktreeBaseDir   string   `json:"worktree_base_dir"`
 	ExemptPatterns    []string `json:"exempt_patterns,omitempty"`
 }
 
-// Validate ensures WorktreeBoundaryConfig satisfies all CUE schema constraints.
+// Validate ensures WorktreeBoundaryConfig satisfies all structural constraints.
 func (c *WorktreeBoundaryConfig) Validate() error {
 	if c == nil {
 		return types.NewNomosError(types.ErrCodeValidationFailed, "worktree boundary config cannot be nil")
@@ -38,7 +38,7 @@ func (c *WorktreeBoundaryConfig) Validate() error {
 	return nil
 }
 
-// WorktreeSession binds the CUE #WorktreeSession schema contract.
+// WorktreeSession records an isolated hermetic git worktree lease binding.
 type WorktreeSession struct {
 	TaskKey      string `json:"task_key"`
 	BranchName   string `json:"branch_name"`
@@ -46,7 +46,7 @@ type WorktreeSession struct {
 	CreatedAt    string `json:"created_at"`
 }
 
-// Validate ensures WorktreeSession satisfies all CUE schema constraints.
+// Validate ensures WorktreeSession satisfies all structural constraints.
 func (s *WorktreeSession) Validate() error {
 	if s == nil {
 		return types.NewNomosError(types.ErrCodeValidationFailed, "worktree session cannot be nil")

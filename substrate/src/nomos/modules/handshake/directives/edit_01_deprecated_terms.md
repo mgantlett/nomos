@@ -29,7 +29,7 @@ This directive establishes the authoritative dictionary of deprecated terms and 
 graph LR
     Deprecated["Deprecated Term Encountered (e.g. gsi-open, seats, OPA)"] --> Scanner["Forbidden Literals Scanner (Gate 9)"]
     Scanner --> Reject["Fail-Closed DoD Rejection (Exit Code 1)"]
-    Reject --> Replace["Apply Canonical Replacement (nomos, 2-plane, CUE)"]
+    Reject --> Replace["Apply Canonical Replacement (nomos, 2-plane, Go SSoT)"]
     Replace --> Pass["Verification Green (Exit Code 0)"]
 ```
 
@@ -52,7 +52,7 @@ graph LR
 | :--- | :--- | :--- |
 | `gsi-open` | `nomos` | Ecosystem foundation rename; single open-core public repository (ADR-0055). |
 | `Sophia vs Nomos seats` / `seats` | `Pure 2-Plane Singularity (INT-* / SUB-*)` | Eliminates persona/seat taxonomy; identity derives purely from planes (ADR-0061). |
-| `OPA / Rego` / `.rego` | `CUE Singularity (*.cue)` | Deprecates external policy engine in favor of unified Go-native CUE constraint lattice. |
+| `OPA / Rego` / `.rego` | `Compiled Go SSoT & JSON Schema` | Eliminates external DSL engines in favor of compiled Go validation and `nomos.schema.json`. |
 | `nomos intent stream` | `nomos session` | Eliminates bespoke matrix streaming daemon in favor of canonical session engine. |
 | `NAML chmod` | `Law 3 Hermetic Worktrees & Trunk Lockout` | Replaces brittle OS `chmod` with CapBAC capability tokens and git worktrees (INT-588). |
 | `devops kit` / `operating system` | `Deterministic Engineering Substrate` | Nomos is an execution & verification substrate, analogous to Cargo or Terraform. |
@@ -81,7 +81,7 @@ Terminology compliance is verified across the following automated invariant cell
 | :---: | :--- | :--- | :--- | :--- |
 | **VEC-TERM-01** | `repo = "gsi-open"` | `gsi-open` | `FAIL` (Cell (3, 1) violation) | Replace with `nomos` (ADR-0055) |
 | **VEC-TERM-02** | `[Seat: sophia]` | `[Seat:` | `FAIL` (Cell (3, 1) violation) | Remove seat tag; use Pure 2-Plane (ADR-0061) |
-| **VEC-TERM-03** | `policy.rego` | `rego` | `FAIL` (Cell (3, 1) violation) | Convert to CUE schema (`*.cue`) |
+| **VEC-TERM-03** | `policy.rego` | `rego` | `FAIL` (Cell (3, 1) violation) | Implement compiled Go gate (`verify.Gate`) |
 | **VEC-TERM-04** | `chmod -R a-w .` | `chmod -R a-w` | `FAIL` (Cell (3, 1) violation) | Use `nomos task start` worktree isolation |
 | **VEC-TERM-05** | `Nomos is a deterministic engineering substrate` | None | `PASS` | Clean canonical terminology |
 

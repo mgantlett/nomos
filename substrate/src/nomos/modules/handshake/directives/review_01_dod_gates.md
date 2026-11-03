@@ -44,7 +44,7 @@ Zero trust in conversational claims. Code correctness requires full compilation 
 ### Mandatory Commit Trailers
 Every release commit merged into protected trunk `main` must declare compliant git commit trailers:
 - `Task: <KEY>` (matching `^(INT|SUB)-[0-9]+(-[a-z0-9-]+)?$`)
-- `Plane: <intent|substrate>` (strictly matching `#TaskRecord.plane` from `task.cue`)
+- `Plane: <intent|substrate>` (strictly matching `task.TaskRecord.Plane`)
 - `Tier: <T1|T2>` (matching `tier: "T1" | "T2"`)
 - `Executor: <agent-id>` (canonical agent identity, e.g. `antigravity-ide`)
 - `Skip-Receipt: <reason>` (Optional; permitted strictly on documentation-only intent chore commits when authorized by CapBAC lease; strictly forbidden on any commit mutating compiled Go or TypeScript substrate code, failing closed with `ERR_INVALID_SKIP_RECEIPT`).

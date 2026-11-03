@@ -15,7 +15,7 @@ type CanonicalMatrixModel struct {
 	Cells int `json:"cells"`
 }
 
-// CanonicalMatrix is the singleton definition matching #CanonicalMatrix in pipeline.cue.
+// CanonicalMatrix is the singleton 7x3 Definition of Done matrix definition.
 var CanonicalMatrix = CanonicalMatrixModel{
 	Laws:  7,
 	Rings: 3,
@@ -203,7 +203,7 @@ func law4Cells() []InvariantCellSpec {
 		{
 			ID: "cell_4_1", Name: "SSoT Broken Link & Traceability Invariant", Law: 4, Ring: RingSyntactic,
 			Domain: "Contracts & Schemas", Phase: "REVIEW", Enabled: true,
-			Remedy:   "fix broken links, validate CUE steelman, and tag exported symbols with valid Intent anchors (Law 4)",
+			Remedy:   "fix broken links, validate Intent frontmatter, and tag exported symbols with valid Go AST/spec anchors (Law 4)",
 			ProbeIDs: []string{"broken_wire", "intent_traceability", "intent_steelman"},
 		},
 		{

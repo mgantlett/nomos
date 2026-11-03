@@ -3,6 +3,7 @@ package verify
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/treesitter"
 )
@@ -45,10 +47,10 @@ func AuditArchitecturalEngines(root string) []ArchitecturalEngineDescriptor {
 			IsImplemented: dirExists(filepath.Join(root, "substrate", "src", "nomos", "modules", "mem")),
 		},
 		{
-			Name:          "CUE Singularity Policy Engine",
-			IntentSpec:    "cue_singularity_policy_engine_spec.md",
-			EnforcedBy:    "substrate/src/nomos/core/policy",
-			IsImplemented: fileExists(filepath.Join(root, "substrate", "src", "nomos", "core", "policy", "engine.go")),
+			Name:          "Compiled Go & JSON Schema Contract Engine",
+			IntentSpec:    "go_ssot_and_json_schema_spec.md",
+			EnforcedBy:    "substrate/src/nomos/core/config/schema.go",
+			IsImplemented: fileExists(filepath.Join(root, "substrate", "src", "nomos", "core", "config", "schema.go")),
 		},
 		{
 			Name:       "Nomos Software Physics Engine",
@@ -128,13 +130,13 @@ func resolveBoundaryRoot(ctx *VerifyContext) string {
 	return root
 }
 
-// ContractParityGate verifies that declarative CUE contracts and Go backend DTOs remain in sync.
+// ContractParityGate verifies compiled Go SSoT and JSON Schema contract parity (Cell 4.2, Law 4).
 type ContractParityGate struct{}
 
 // Name returns the canonical display name of the contract schema integrity gate.
 func (g *ContractParityGate) Name() string { return "Contract Schema Integrity Invariant" }
 
-// Evaluate validates CUE schema roots and Go backend packages for bilateral contract integrity.
+// Evaluate validates JSON Schema artifacts against compiled Go SSoT structures and backend packages.
 func (g *ContractParityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	root := resolveBoundaryRoot(ctx)
 	cfg := resolveVerifyConfig(ctx)
@@ -143,24 +145,28 @@ func (g *ContractParityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		return &GateResult{GateName: g.Name(), Passed: true, Message: "contract boundary verification disabled in configuration (skip)"}, nil
 	}
 
-	cueCount, cueErr := countFilesWithExt(root, contracts.CueRoots, ".cue")
-	if cueErr != nil || cueCount == 0 {
-		if !hasIntentContractRoots(root, contracts.CueRoots) {
-			return &GateResult{
-				GateName: g.Name(),
-				Passed:   true,
-				Message:  "no CUE contract directory detected; skipping contract schema verification in brownfield repository",
-			}, nil
-		}
+	schemaFiles := contracts.SchemaFiles
+	if len(schemaFiles) == 0 {
+		schemaFiles = []string{"nomos.schema.json"}
+	}
+	if !hasContractBoundaryScope(root, contracts.SchemaFiles) {
+		return &GateResult{
+			GateName: g.Name(),
+			Passed:   true,
+			Message:  "no contract schema scope detected; skipping contract schema verification in brownfield repository",
+		}, nil
+	}
+
+	if schemaIssue := verifySchemaArtifacts(root, schemaFiles); schemaIssue != "" {
 		return &GateResult{
 			GateName: g.Name(), Passed: false,
-			Message: fmt.Sprintf("contract schema verification failed: 0 CUE schemas discovered in roots %v", contracts.CueRoots),
-			Remedy:  "ensure CUE contract roots exist and contain authoritative schemas",
+			Message: fmt.Sprintf("contract schema verification failed: %s", schemaIssue),
+			Remedy:  "regenerate nomos.schema.json from config.GenerateConfigJSONSchema() or fix schema_files in nomos.yaml (Law 4)",
 		}, nil
 	}
 
 	backendCount, bErr := countPolyglotFiles(root, contracts.BackendRoots)
-	if bErr != nil || backendCount == 0 {
+	if len(contracts.BackendRoots) > 0 && (bErr != nil || backendCount == 0) {
 		return &GateResult{
 			GateName: g.Name(), Passed: false,
 			Message: fmt.Sprintf("contract schema verification failed: 0 polyglot backend files discovered in roots %v", contracts.BackendRoots),
@@ -168,18 +174,29 @@ func (g *ContractParityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		}, nil
 	}
 
-	if orphans := findOrphanCUEContracts(root, contracts.CueRoots, contracts.BackendRoots); len(orphans) > 0 {
-		return &GateResult{
-			GateName: g.Name(), Passed: false,
-			Message: fmt.Sprintf("contract schema verification failed: %d orphan CUE contract(s) with zero backend references: %s", len(orphans), strings.Join(orphans, ", ")),
-			Remedy:  "bind CUE #Definitions to backend types via (#DefName) doc comments or remove orphan CUE files (Law 4)",
-		}, nil
-	}
-
-	return evaluateEngineParity(g.Name(), ctx, root, cueCount, backendCount)
+	return evaluateEngineParity(g.Name(), ctx, root, len(schemaFiles), backendCount)
 }
 
-func evaluateEngineParity(name string, ctx *VerifyContext, root string, cueCount, backendCount int) (*GateResult, error) {
+func verifySchemaArtifacts(root string, schemaFiles []string) string {
+	for _, relPath := range schemaFiles {
+		fullPath := filepath.Join(root, relPath)
+		data, err := os.ReadFile(fullPath)
+		if err != nil {
+			return fmt.Sprintf("missing or unreadable schema artifact %s", relPath)
+		}
+		if !json.Valid(data) {
+			return fmt.Sprintf("invalid JSON syntax in schema artifact %s", relPath)
+		}
+		if filepath.Base(relPath) == "nomos.schema.json" {
+			if pErr := config.VerifyConfigJSONSchemaParity(data); pErr != nil {
+				return pErr.Error()
+			}
+		}
+	}
+	return ""
+}
+
+func evaluateEngineParity(name string, ctx *VerifyContext, root string, schemaCount, backendCount int) (*GateResult, error) {
 	engines := AuditArchitecturalEngines(root)
 	var missingEngines []string
 	implementedCount := 0
@@ -200,8 +217,8 @@ func evaluateEngineParity(name string, ctx *VerifyContext, root string, cueCount
 		}, nil
 	}
 
-	msg := fmt.Sprintf("contract schema verified: %d CUE schemas and %d Go backend files in parity (%d/%d engines active",
-		cueCount, backendCount, implementedCount, len(engines))
+	msg := fmt.Sprintf("contract schema verified: %d JSON schema(s) and %d Go backend files in parity (%d/%d engines active",
+		schemaCount, backendCount, implementedCount, len(engines))
 	if len(missingEngines) > 0 {
 		msg += fmt.Sprintf("; %d pending: %s)", len(missingEngines), strings.Join(missingEngines, ", "))
 	} else {
@@ -277,21 +294,21 @@ func (g *UIAntiMaskSentinelGate) Evaluate(ctx *VerifyContext) (*GateResult, erro
 	}, nil
 }
 
-func countFilesWithExt(root string, dirs []string, ext string) (int, error) {
-	total := 0
-	for _, relDir := range dirs {
-		fullDir := filepath.Join(root, relDir)
-		err := filepath.Walk(fullDir, func(p string, info os.FileInfo, err error) error {
-			if err == nil && !info.IsDir() && strings.HasSuffix(p, ext) {
-				total++
-			}
-			return nil
-		})
-		if err != nil && !os.IsNotExist(err) {
-			return 0, err
+func hasContractBoundaryScope(root string, schemaFiles []string) bool {
+	for _, sf := range schemaFiles {
+		cand := filepath.Join(root, sf)
+		if fi, err := os.Stat(cand); err == nil && !fi.IsDir() {
+			return true
 		}
 	}
-	return total, nil
+	if fileExists(filepath.Join(root, "nomos.schema.json")) {
+		return true
+	}
+	intentDir := filepath.Join(root, "intent")
+	if fi, err := os.Stat(intentDir); err == nil && fi.IsDir() {
+		return true
+	}
+	return false
 }
 
 func findCodeEnvVars(root string) map[string]bool {
@@ -361,16 +378,3 @@ func readDeclaredEnvVars(filePath string) (map[string]bool, error) {
 	return declared, scanner.Err()
 }
 
-func hasIntentContractRoots(root string, cueRoots []string) bool {
-	for _, cr := range cueRoots {
-		cand := filepath.Join(root, cr)
-		if fi, err := os.Stat(cand); err == nil && fi.IsDir() {
-			return true
-		}
-	}
-	intentDir := filepath.Join(root, "intent")
-	if fi, err := os.Stat(intentDir); err == nil && fi.IsDir() {
-		return true
-	}
-	return false
-}

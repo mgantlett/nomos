@@ -30,7 +30,7 @@ version: 4.0.0
 | **1** | **The Dual-Core Inversion Law** | Substrate Go core governs state & execution; the **Tier 1 coding agent** (AGY-IDE, opencode, Claude Code, Cursor…) operates strictly as a bounded cognitive co-processor under **indirect control**. | `nomos verify`, Phase Discipline state machine |
 | **2** | **The Non-Verbal Proof Law** | Zero trust in conversational claims; code correctness requires compilation exit code 0 and AST proof. | The 7x3 Canonical Invariant Suite (7 Laws, 21 Invariant Cells) (`nomos verify`) |
 | **3** | **The Hermetic Worktree Law** | Protected trunk branches (`main`) are physically read-only; mutations occur strictly inside isolated task worktrees. | `ValidateWorktreeBoundary`, Pre-Commit Hooks |
-| **4** | **The Single Source of Truth Law** | Every contract, schema, and configuration possesses exactly one compiled SSoT with schema parity. | Static CUE/AST schema validation (`nomos verify`) |
+| **4** | **The Single Source of Truth Law** | Every contract, schema, and configuration possesses exactly one compiled Go SSoT with schema parity. | Static Go AST & JSON Schema parity (`nomos verify`) |
 | **5** | **The Zero-Hardcoded-Path Law** | Path literals and workstation directory paths are strictly prohibited in source; paths resolve dynamically. | Configuration discovery (`nomos.yaml`) |
 | **6** | **The Canonical Singularity Law** | Zero aliases, duplicates, convenience wrappers, or symlinks tolerated in CLI engines or contract schemas. | Zero-Alias AST Parser & ZeroFilesystemAliasGate (`nomos verify`) |
 | **7** | **The Fail-Closed Pre-Flight Law** | Mutations require explicit declarative configuration, strict 2-plane hemisphere separation, and pass mandatory DoD quality gates. | CapBAC Object Capabilities, PlaneSeparationGate, DoD quality gates |
@@ -57,7 +57,7 @@ version: 4.0.0
 | Protocol Check | Input / Action | Invariant Enforced | Substrate Gate | Expected Outcome |
 | :--- | :--- | :--- | :--- | :--- |
 | `TC-AGT-01` | Direct commit on `main` | Law 3 (Hermetic Worktree) | CapBAC Pre-Commit Hook | Fail Closed (Exit 1) |
-| `TC-AGT-02` | invalid: `nomos task create "Task" --key CUST-1` | Law 6 (Canonical Singularity) | Regex Key Gate (`task.cue`) | Fail Closed (`ERR_CANONICAL_VIOLATION`) |
+| `TC-AGT-02` | invalid: `nomos task create "Task" --key CUST-1` | Law 6 (Canonical Singularity) | Regex Key Gate (`task.ValidateTaskKey`) | Fail Closed (`ERR_CANONICAL_VIOLATION`) |
 | `TC-AGT-03` | Direct internal database file tampering | Law 1 & ADR-0062 (Encapsulation) | ForbiddenCommandGate | Fail Closed (`ERR_DIRECT_DB_ACCESS_FORBIDDEN`) |
 | `TC-AGT-04` | Execute `nomos verify` | Law 2 (Non-Verbal Proof) | 42 Quality Gates | Pass (Exit 0) |
 | `TC-AGT-05` | Symlink creation in repository | Law 6 (Canonical Singularity) | ZeroFilesystemAliasGate | Fail Closed (`ERR_SYMLINK_FORBIDDEN`) |

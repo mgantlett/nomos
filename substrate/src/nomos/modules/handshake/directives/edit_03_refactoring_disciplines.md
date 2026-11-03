@@ -42,7 +42,7 @@ graph TD
 | :---: | :--- | :--- |
 | **Law 2** | **The Non-Verbal Proof Law** | Zero conversational claims. Refactoring correctness requires Go compilation (`go test ./...`) exit code 0 and AST proof. |
 | **Law 3** | **The Hermetic Worktree Law** | Refactoring executes strictly inside isolated task worktrees (`worktrees/<repo>-<KEY>`). Protected trunk `main` is read-only. |
-| **Law 4** | **The Single Source of Truth Law** | When refactoring contract schemas, update the single compiled Go/CUE SSoT. Zero split-brain or duplicate definitions. |
+| **Law 4** | **The Single Source of Truth Law** | When refactoring contract schemas, update the single compiled Go SSoT (`nomos.schema.json` if `EcosystemConfig`). Zero split-brain definitions. |
 | **Law 5** | **The Zero-Hardcoded-Path Law** | Zero hardcoded filesystem paths or literal string ports introduced during refactoring. Use dynamic config discovery (`config.LoadConfig()`). |
 | **Law 7** | **The Fail-Closed Pre-Flight Law** | Mutations that break compilation or drop exported symbols without atomic caller updates fail closed immediately. |
 

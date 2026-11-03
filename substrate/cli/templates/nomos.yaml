@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=./nomos.schema.json
 # ==============================================================================
 # Nomos Ecosystem Configuration (nomos.yaml)
 # Single Source of Truth (SSoT) for Deterministic AI Agent Governance (Law 4)
@@ -90,15 +91,15 @@ governance:
             - '"/Users/'
             - '"/var/home/'
 
-        # Optional: Cross-plane CUE contract, UI membrane, & env ingress verification (Law 4 & 5)
+        # Optional: Cross-plane JSON Schema contract, UI membrane, & env ingress verification (Law 4 & 5)
         # contracts:
         #     auto_promote: false
         #     contracts:
         #         enabled: true
         #         spec_roots:
         #             - "intent/architecture/specs"
-        #         cue_roots:
-        #             - "intent/contracts/cue"
+        #         schema_files:
+        #             - "nomos.schema.json"
         #         backend_roots:
         #             - "substrate"
         #         strict_types: true

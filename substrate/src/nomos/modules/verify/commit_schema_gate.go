@@ -26,8 +26,8 @@ var dualLayerHeaders = []string{
 }
 
 // CommitSchemaGate enforces the Dual-Layer Hybrid AI schema and Canonical Singularity Law
-// across all unmerged branch commits (#CommitMessage, #CommitValidationReport).
-// @intent INT-380 INT-874 #CommitMessage #CommitValidationReport
+// across all unmerged branch commits.
+// @intent nomos_commit_schema_invariant_spec.md #CommitSchemaGate
 type CommitSchemaGate struct{}
 
 // Name returns the canonical name of the Commit Schema quality gate.
