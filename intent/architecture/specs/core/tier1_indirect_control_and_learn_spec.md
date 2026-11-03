@@ -4,12 +4,12 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-30"
-last_updated: "2026-11-01"
+last_updated: "2026-11-03"
 plane: intent
 status: active
 title: "Tier 1 Indirect-Control Multipliers & Nomos Learn: Episodic Trap Distillation Specification"
 type: spec
-version: "4.0.0"
+version: "4.3.0"
 execution_frontier:
   tasks:
     - key: "INT-821"
@@ -18,6 +18,9 @@ execution_frontier:
     - key: "INT-855"
       plane: "intent"
       summary: "Codify Positive-Path Verified Pattern Distillation, Statutory Provenance Guard, and Tier B Graduation Surfacing"
+    - key: "INT-899"
+      plane: "intent"
+      summary: "Codify Read-Only IDLE Recall, Failing-File Trap Attribution, Pitfall-Only Graduation, and Mneme Dismiss"
 ssot_repository: nomos
 ---
 
@@ -69,12 +72,12 @@ flowchart TD
 ```
 
 1. **Tier A — Local Episodic & Structural Distillation (`mneme.db`, Automatic, Per-Repo)**:
-   - **Negative-Path Pitfalls (`kind: "pitfall"`):** When `nomos verify` or `nomos task review` rejects a task worktree, the harness records failing gate probes and touched directory scope in a transient task trap buffer. Upon 2PC release (`nomos task sync`), `finalizeSync` distills `Gate Failure -> Verified Fix` into `mneme.db`, superseding stale duplicate traps on the same gate+scope.
+   - **Negative-Path Pitfalls (`kind: "pitfall"`):** When `nomos verify` or `nomos task review` rejects a task worktree, the harness records failing gate probes and derives the exact failing file's directory scope from the gate diagnostic message (`mem.DeriveTrapScope`, falling back to touched files when no path is present) in a transient task trap buffer. Upon 2PC release (`nomos task sync`), `finalizeSync` distills `Gate Failure -> Verified Fix` into `mneme.db`, superseding stale duplicate traps on the same gate+scope.
    - **Positive-Path Verified Patterns (`kind: "pattern"`):** On every 42/42 DoD-verified 2PC release (`nomos task sync`), even when zero gate failures occurred, `finalizeSync` extracts a compact structural blueprint from modified worktree source files (directory scope, exported AST symbol signatures, `@intent` Go AST/spec anchors, and paired `_test` vectors) and persists it as `kind: "pattern"`, superseding older pattern blueprints on the same directory scope.
    - **Statutory Write Provenance:** Manual CLI `nomos mem save` calls reject statutory kinds (`pitfall`, `pattern`, `release`, `task`, `commit`, `review`) fail-closed so unverified sessions can never forge 2PC-backed memories.
-   - **Dual-Sided Turn-1 Recall & Graduation Surfacing:** Subsequent `nomos handshake`, `nomos task start`, and `nomos task chore` invocations recall both `HandshakeEvent.learned_pitfalls` and `HandshakeEvent.verified_patterns`, plus surface recurring statutory records (`access_count >= 3`) via `HandshakeEvent.graduation_candidates`.
-2. **Tier B — Declarative Repository Policy (`nomos.yaml`, Explicit Team Promotion)**:
-   - When a repository team sees a recurring `graduation_candidates` entry warrant deterministic fail-closed blocking across every developer seat and CI runner, they promote it into version-controlled `nomos.yaml` (`forbidden_literals`, `forbidden_shims`, `prohibited_packages`, `lock_dependencies`, `thresholds`).
+   - **Signal-Disciplined Recall & Pitfall Graduation Surfacing:** Passive `IDLE` trunk orientation (`nomos handshake`, `nomos status`, `nomos task status`) recalls `learned_pitfalls` and `verified_patterns` read-only (`RecallRepoPitfallsReadOnly`, `RecallRepoPatternsReadOnly`) without inflating `access_count`. Active task execution (`nomos task start`, `nomos task chore`, and non-`IDLE` worktree `nomos handshake`) reinforces `access_count`, surfacing recurring `kind: "pitfall"` guardrails (`access_count >= 3`) via `HandshakeEvent.graduation_candidates`.
+2. **Tier B — Declarative Repository Policy (`nomos.yaml`, Explicit Team Promotion & Dismissal)**:
+   - When a repository team sees a recurring `graduation_candidates` pitfall warrant deterministic fail-closed blocking across every developer seat and CI runner, they promote it into version-controlled `nomos.yaml` (`forbidden_literals`, `forbidden_shims`, `prohibited_packages`, `lock_dependencies`, `thresholds`) and retire the Tier A candidate via `nomos mem dismiss <id>`.
 3. **Tier C — Core Substrate Engine (Universal Go Gates)**:
    - Only universal, repository-agnostic engineering laws graduate into the compiled `nomos` Go binary. Zero repository-specific strings, paths, or heuristics ever enter Tier C.
 
@@ -86,7 +89,7 @@ flowchart TD
 `substrate/src/nomos/modules/handshake/handshake.go` extends `HandshakeEvent` with four optional slices:
 - `learned_pitfalls` — Top repository-scoped distilled pitfalls recalled from `mneme.db`.
 - `verified_patterns` — Top repository-scoped positive structural blueprints distilled from 2PC-verified releases in `mneme.db`.
-- `graduation_candidates` — High-reinforcement statutory memories (`access_count >= 3`) eligible for Tier B codification into `nomos.yaml`.
+- `graduation_candidates` — High-reinforcement `kind="pitfall"` memories (`access_count >= 3`) eligible for Tier B codification into `nomos.yaml`.
 - `impact_summary` — Deterministic 1-hop blast-radius descriptors (reverse package/module importers, paired `_test` coverage status, and `@intent` Go AST/spec bindings) for modified worktree files.
 
 ### 4.2 Mneme Memory Taxonomy (`mem.Memory`)
@@ -126,7 +129,8 @@ Rather than proliferating duplicate security gates, the canonical `SecretGate` (
 | **TV-LRN-06** | `package.json` modified when `lock_dependencies: true` | Dependency manifest boundary lock | **FAIL** (`boundary` gate blocks lockfile mutation) |
 | **TV-LRN-07** | Clean 42/42 verified `nomos task sync` with zero gate traps | Positive-path pattern distillation | **PASS** (`kind="pattern"` saved in `mneme.db` & recalled via `verified_patterns`) |
 | **TV-LRN-08** | `nomos mem save "spoofed" --kind pattern` or `--kind pitfall` | Statutory write provenance guard | **FAIL** (`ERR_VALIDATION_FAILED` blocks manual statutory minting) |
-| **TV-LRN-09** | Statutory `pitfall`/`pattern` recalled $\ge 3$ times | Tier A $\to$ Tier B graduation surfacing | **PASS** (Surfaced in `HandshakeEvent.graduation_candidates`) |
+| **TV-LRN-09** | Statutory `pitfall` recalled $\ge 3$ times across active tasks (`pattern` excluded) | Tier A $\to$ Tier B graduation surfacing | **PASS** (Surfaced in `HandshakeEvent.graduation_candidates`) |
+| **TV-LRN-10** | Repeated `IDLE` `nomos handshake` followed by `nomos mem dismiss <id>` | Read-only passive `IDLE` recall & lifecycle dismissal | **PASS** (`IDLE` preserves `access_count`; `dismiss` transitions to `tombstoned`) |
 
 ---
 

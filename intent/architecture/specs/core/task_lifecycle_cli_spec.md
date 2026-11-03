@@ -4,7 +4,7 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-23"
-last_updated: "2026-11-02"
+last_updated: "2026-11-03"
 plane: intent
 status: active
 tags:
@@ -18,10 +18,12 @@ tags:
     - SUB-1558
     - INT-890
     - SUB-1623
+    - INT-899
+    - SUB-1680
 title: Task Lifecycle CLI and Workspace State Transition Specification
 trigger: always_on
 type: spec
-version: "4.1.0"
+version: "4.3.0"
 ssot_repository: nomos
 ---
 
@@ -106,16 +108,16 @@ stateDiagram-v2
 ## 4. CLI Command Taxonomy & Invocation Semantics
 
 ### 4.1 `nomos status`
-* **Syntax**: `nomos status [--json]`
-* **Semantics**: Emits formatted Lipgloss dashboard (or JSON payload) showing active phase, task card, worktree, token budget, and database status.
+* **Syntax**: `nomos status [-A|--all-projects] [--json]`
+* **Semantics**: Emits formatted Lipgloss dashboard (or JSON payload) scoped by default to the active repository's `project` (or across all workstation repositories when `-A, --all-projects` is supplied), showing active phase, task card, worktree, token budget, database status, distinct `In Progress` vs `Pending` ledger counts (excluding terminal `DONE`, `ABORTED`, and `CANCELLED` rows), and repository-scoped DAG wavefront candidates.
 
 ### 4.2 `nomos task create`
 * **Syntax**: `nomos task create <TITLE> --plane <intent|substrate> (--scope <TEXT> --ac <ITEM>... --verify <TEXT> | -F <PATH|-> | -d <MARKDOWN>) [--project <PROJECT>] [--depends-on <KEY>...] [--burden <1-10>] [--tier <T1|T2>] [--priority <int>] [--twin-of <KEY>]`
 * **Semantics**: Fails closed unless the universal 3-section backlog card (`task.ValidateCardDescription` in `card.go`: `## Scope & Context`, `## Acceptance Criteria` with >=1 `- [ ]` item, `## Verification`) is supplied via structured synthesis flags or Markdown body; auto-derives `burden` (`2-8`) when `--burden` is omitted; auto-stamps `project` from active repository `nomos.yaml` or Git common-dir root basename (unless `--project` is supplied); allocates next sequential key (`INT-<N>` or `SUB-<N>`) and persists record in `tasks` table with status `TODO`.
 
 ### 4.3 `nomos task start`
-* **Syntax**: `nomos task start <KEY> [--edit]`
-* **Semantics**: Validates task exists; verifies trunk is on `main`; provisions `worktrees/nomos-<KEY>` on branch `feature/<KEY>`; mints CapBAC lease; sets phase to `PLAN` (or directly enters `EDIT` when `--edit` is passed).
+* **Syntax**: `nomos task start <KEY> [--edit] [--force-project]`
+* **Semantics**: Validates task exists; fails closed if the task's stamped `project` belongs to another repository unless `--force-project` is explicitly passed; verifies trunk is on `main`; provisions `worktrees/<repo>-<KEY>` on branch `feature/<KEY>`; mints CapBAC lease; sets phase to `PLAN` (or directly enters `EDIT` when `--edit` is passed).
 
 ### 4.4 `nomos task edit`
 * **Syntax**: `nomos task edit <KEY>`
@@ -138,12 +140,12 @@ stateDiagram-v2
 * **Semantics**: Sweeps orphaned `worktrees/*` directories that are no longer registered in `git worktree list` and have no active `IN_PROGRESS` CapBAC lease or uncommitted source files, runs `git worktree prune --expire now`, deletes merged `feature/*` branches, and cleans stale `.tmp/walkthrough-*` artifacts. Automatically invoked in non-dry-run mode during `nomos task sync` and periodic `nomos handshake` maintenance.
 
 ### 4.9 `nomos task list`
-* **Syntax**: `nomos task list [--status <STATUS>] [--pending] [--plane <intent|substrate>] [--tier <T1|T2>] [--project <PROJECT>] [--limit <N>] [--json]`
-* **Semantics**: Queries SQLite `tasks` table with optional multi-dimensional filtering (`--status`, `--pending` excluding `DONE`/`ABORTED`, `--plane`, `--tier`, `--project`, `--limit`); renders an adaptive Lipgloss table with HATEOAS `Next Actions` (or structured JSON). Invalid filter values fail closed with a remedial command hint.
+* **Syntax**: `nomos task list [-A|--all-projects] [--status <STATUS>] [--pending] [--plane <intent|substrate>] [--tier <T1|T2>] [--project <PROJECT>] [--limit <N>] [--json]`
+* **Semantics**: Queries SQLite `tasks` table scoped by default to the active repository's `project` (or across all workstation repositories when `-A, --all-projects` is supplied) with optional multi-dimensional filtering (`--status`, `--pending` excluding `DONE`/`ABORTED`/`CANCELLED`, `--plane`, `--tier`, `--project`, `--limit`); renders an adaptive Lipgloss table with HATEOAS `Next Actions` (or structured JSON). Invalid filter values fail closed with a remedial command hint.
 
 ### 4.10 `nomos task dag`
-* **Syntax**: `nomos task dag [--plane <intent|substrate>] [--tier <T1|T2>] [--project <PROJECT>] [--limit <N>] [--json]`
-* **Semantics**: Inspects task causal dependencies; identifies ready unblocked tasks emitting `#WavefrontCandidate` records with optional plane, tier, project, and row-limit filters plus HATEOAS `Next Actions`.
+* **Syntax**: `nomos task dag [-A|--all-projects] [--plane <intent|substrate>] [--tier <T1|T2>] [--project <PROJECT>] [--limit <N>] [--json]`
+* **Semantics**: Inspects task causal dependencies scoped by default to the active repository's `project` (or across all workstation repositories when `-A, --all-projects` is supplied); identifies ready unblocked tasks emitting `WavefrontCandidate` records with optional plane, tier, project, and row-limit filters plus HATEOAS `Next Actions`.
 
 ### 4.11 `nomos task pair` / `chore` / `project` / `commit` / `show` / `status`
 * **`nomos task pair <TITLE>`**: Atomically allocates twinned `INT-<N>` and `SUB-<N>` task records bound in `SQLiteTaskStore`, enforcing the same fail-closed 3-section `#TaskCardInput` contract (`--scope` / `--int-scope` / `--sub-scope`, `--ac`, `--verify`, or `-F <PATH|->` / `-d <MARKDOWN>`, plus optional `--project`, `--depends-on`, and `--burden`).
@@ -171,6 +173,8 @@ stateDiagram-v2
 | `TC-TSK-10` | Law 7 (Fail-Closed Card) | `nomos task create "Title" -d "plain paragraph"` | Rejects unstructured prose (`ERR_VALIDATION_FAILED`) with 3-line HATEOAS remedy; exit 1 |
 | `TC-TSK-11` | Law 4 (Card Synthesis) | `nomos task create "Title" --scope "..." --ac "..." --verify "..."` | Synthesizes canonical 3-section Markdown card and derives non-zero `burden`; exit 0 |
 | `TC-TSK-12` | Law 1 (Fast-Lane Chore) | `nomos task chore "Quick fix"` | Provisions `EDIT` worktree in 1 turn with zero template requirement; exit 0 |
-| `TC-TSK-13` | Law 4 (Filtered Ledger Query) | `nomos task list --pending --plane substrate --limit 10 --json` | Emits active/pending substrate tasks capped to 10 records; exit 0 |
+| `TC-TSK-13` | Law 4 (Filtered Ledger Query) | `nomos task list --pending --plane substrate --limit 10 --json` | Emits active/pending substrate tasks for active repo capped to 10 records; exit 0 |
 | `TC-TSK-14` | Law 7 (Fail-Closed Filter) | `nomos task list --status BOGUS` | Rejects unknown status (`ERR_VALIDATION_FAILED`) with remedial command; exit 1 |
+| `TC-TSK-15` | Law 4 (Multi-Repo Ledger Isolation) | `nomos task list` vs `nomos task list -A` | Default scopes strictly to active repo `project`; `-A` opts into global workstation view; exit 0 |
+| `TC-TSK-16` | Law 7 (Cross-Project Start Guard) | `nomos task start SUB-99` (foreign `project`) | Rejects foreign-repo task (`ERR_VALIDATION_FAILED`) unless `--force-project` is passed; exit 1 |
 

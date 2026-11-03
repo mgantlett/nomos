@@ -4,17 +4,19 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-23"
-last_updated: "2026-11-01"
+last_updated: "2026-11-03"
 plane: intent
 status: active
 title: "Nomos Mneme Episodic and Semantic Memory Subsystem Specification"
 type: spec
-version: "4.0.0"
+version: "4.3.0"
 tags:
     - INT-735
     - SUB-1213
     - INT-855
     - SUB-1524
+    - INT-899
+    - SUB-1680
 ssot_repository: nomos
 ---
 
@@ -38,7 +40,7 @@ Nomos Mneme operates with **zero CGO dependencies**, using deterministic local v
 | **2** | **The Non-Verbal Proof Law** | Memory embeddings and ranking algorithms produce deterministic mathematical scores. | Unit test vectors, cosine bounded in $[-1.0, 1.0]$ |
 | **4** | **The Single Source of Truth Law** | Memory record schema binds directly to compiled `mem.Memory` (`substrate/src/nomos/modules/mem/memory.go`). | Relational DDL matching `mem.Memory` |
 | **5** | **The Zero-Hardcoded-Path Law** | Database path dynamically resolves via `config.ResolveMnemeDBPath()`. | Dynamic configuration discovery |
-| **6** | **The Canonical Singularity Law** | Exactly three core memory actions: `save`, `recall`, and `list`. Zero redundant aliases. | CLI surface validation (`cmd/nomos`) |
+| **6** | **The Canonical Singularity Law** | Exactly four core memory actions: `save`, `recall`, `list`, and `dismiss`. Zero redundant aliases. | CLI surface validation (`cmd/nomos`) |
 | **7** | **The Fail-Closed Pre-Flight Law** | Direct SQLite database queries via raw `sqlite3` CLI are prohibited (Database Encapsulation Invariant). | Static gate and hook rules |
 
 ---
@@ -97,7 +99,7 @@ $$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{Lexica
 - **Cosine Similarity**: $\frac{A \cdot B}{\|A\| \|B\|}$ evaluating semantic alignment.
 - **Lexical Overlap**: Word token Jaccard-style intersection over query length.
 - **Ebbinghaus Temporal Decay**: $\exp(-\lambda \times \text{age}_{\text{days}})$, where $\lambda$ is tuned by memory kind (`axiom`: $0.005$, `pattern`: $0.006$, `pitfall`: $0.008$, `reflection`: $0.02$, `release`/`task`/`commit`: $0.05$).
-- **Access Reinforcement**: $1.0 + 0.05 \times \min(\text{access\_count}, 10)$, reinforcing frequently accessed wisdom and tracking Tier A $\to$ Tier B graduation candidates (`access_count >= 3`).
+- **Access Reinforcement**: $1.0 + 0.05 \times \min(\text{access\_count}, 10)$, reinforcing wisdom recalled during active task execution (`nomos task start`, `nomos task chore`, active worktree `nomos handshake`, and explicit `nomos mem recall`) while passive `IDLE` trunk orientation (`nomos handshake`, `nomos status`, `nomos task status`) queries read-only so `access_count` reflects genuine task reinforcement and surfaces `kind="pitfall"` Tier A $\to$ Tier B graduation candidates (`access_count >= 3`).
 
 ---
 
@@ -128,6 +130,11 @@ $$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{Lexica
   - `-n, --limit <int>`: Max results (default: 20).
   - `--json`: Structured JSON output.
 
+### 5.4 `nomos mem dismiss <id> [id...]`
+- Transitions one or more active or superseded memory records to `tombstoned` (`Store.Dismiss`) once a `pitfall` guardrail has been codified into `nomos.yaml` or an advisory memory is obsolete, while preserving audit history in `mneme.db` without raw SQLite manipulation (ADR-0062).
+- Flags:
+  - `--json`: Structured JSON output.
+
 ---
 
 ## 6. Table-Driven Verification Vectors
@@ -141,4 +148,5 @@ $$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{Lexica
 | `TC-MEM-05` | Empty content rejection | `nomos mem save ""` | Fails closed: memory content cannot be empty. |
 | `TC-MEM-06` | Statutory provenance guard | `nomos mem save "fake" --kind pattern` or `--kind pitfall` | Fails closed (`ERR_VALIDATION_FAILED`): statutory kinds minted strictly by 2PC `nomos task sync`. |
 | `TC-MEM-07` | Positive-path pattern distillation | Clean 42/42 verified `nomos task sync` | Distills `kind="pattern"` blueprint into `mneme.db` and recalls via `verified_patterns`. |
-| `TC-MEM-08` | Tier B graduation surfacing | Statutory memory reaches `access_count >= 3` | Surfaced in `graduation_candidates` for promotion into `nomos.yaml`. |
+| `TC-MEM-08` | Tier B graduation surfacing | Statutory `pitfall` memory reaches `access_count >= 3` | Surfaced in `graduation_candidates` for promotion into `nomos.yaml` (`pattern` blueprints excluded). |
+| `TC-MEM-09` | Memory dismissal | `nomos mem dismiss <id>` | Transitions record to `tombstoned`; excluded from active recall and `graduation_candidates`. |

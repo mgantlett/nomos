@@ -8,9 +8,9 @@ category: Cybernetic Control & Linguistics
 classification: public
 date: "2026-11-02"
 excerpt: Transactional code worktrees and declarative intent schemas are only two axes of deterministic software engineering. The third axis is the Cybernetic Agent-Steering Protocol - how the compiled Go substrate and human architect steer Tier 1 coding agents through HATEOAS CLI affordances, self-healing remedies, sub-5ms ambient hooks, and the 36-term NCTE-100 Succinct Action Lexicon.
-last_updated: "2026-11-02"
-order: 12
-part: "Part IV: The Invariant Canon"
+last_updated: "2026-11-03"
+order: 1
+part: "Open-Core Architectural Reference"
 plane: intent
 publishedAt: November 2026
 readTime: 14 min read
