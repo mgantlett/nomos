@@ -183,7 +183,8 @@ func EvaluatePreToolHook(p *HookPayload, hermeticDir string) HookDecision {
 		return HookDecision{Decision: hookDecisionAllow}
 	}
 	if p.CommandLine != "" {
-		if dec := evaluateCommandGuard(p.CommandLine, hermeticDir); dec.Decision == hookDecisionDeny {
+		cmdCwd := firstNonEmpty(p.Cwd, resolveHookWorkspaceDir(p, hermeticDir))
+		if dec := evaluateCommandGuard(p.CommandLine, cmdCwd, hermeticDir); dec.Decision == hookDecisionDeny {
 			return dec
 		}
 	}

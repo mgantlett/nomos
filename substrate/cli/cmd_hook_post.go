@@ -24,17 +24,17 @@ const (
 	hookDecisionAllow = "allow"
 )
 
-func evaluateCommandGuard(cmdLine, hermeticDir string) HookDecision {
+func evaluateCommandGuard(cmdLine, baseCwd, hermeticDir string) HookDecision {
 	if wildRmPattern.MatchString(cmdLine) {
 		return HookDecision{
 			Decision: hookDecisionDeny,
 			Reason:   "❌ [NOMOS INTERCEPT] Wildcard or root/parent deletion ('rm ... *', 'rm -rf /', 'rm -rf ~', 'rm -rf ..') is strictly prohibited (Law 7). Verify item-level eligibility and remove explicit file paths only.",
 		}
 	}
-	if strings.Contains(cmdLine, "go install") && strings.Contains(cmdLine, "nomos") {
+	if isForbiddenNomosGoInstall(cmdLine, baseCwd, hermeticDir) {
 		return HookDecision{
 			Decision: hookDecisionDeny,
-			Reason:   "❌ [NOMOS INTERCEPT] Manual binary installation ('go install' of nomos) during active task sessions is prohibited by Law 4 (Single Source of Truth). Invoke the installed 'nomos' CLI binary directly.",
+			Reason:   "❌ [NOMOS INTERCEPT] Manual binary installation ('go install' of nomos) outside a clean IDLE 'main' trunk is prohibited by Law 4 (Single Source of Truth). Sync active tasks to 'main' first or invoke the installed 'nomos' CLI binary directly.",
 		}
 	}
 	if isForbiddenSQLiteCmd(cmdLine) {
