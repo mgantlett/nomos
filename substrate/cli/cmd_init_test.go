@@ -1,13 +1,61 @@
 package cli
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 )
+
+var (
+	compiledHookTestOnce   sync.Once
+	compiledHookTestBinDir string
+	compiledHookTestErr    error
+	initialCliTestDir      = resolveInitialCliTestDir()
+)
+
+func resolveInitialCliTestDir() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "."
+	}
+	return wd
+}
+
+func ensureCompiledHookTestEnv(t *testing.T) []string {
+	t.Helper()
+	compiledHookTestOnce.Do(func() {
+		binDir, err := os.MkdirTemp("", "nomos-hook-test-bin-*")
+		if err != nil {
+			compiledHookTestErr = err
+			return
+		}
+		subRoot := filepath.Dir(initialCliTestDir)
+		buildCmd := exec.Command("go", "build", "-o", filepath.Join(binDir, "nomos"), "./cmd/nomos")
+		buildCmd.Dir = subRoot
+		if out, bErr := buildCmd.CombinedOutput(); bErr != nil {
+			compiledHookTestErr = fmt.Errorf("%w: %s", bErr, string(out))
+			return
+		}
+		compiledHookTestBinDir = binDir
+	})
+	if compiledHookTestErr != nil {
+		t.Fatalf("failed building compiled nomos binary for hook test: %v", compiledHookTestErr)
+	}
+	env := os.Environ()
+	out := make([]string, 0, len(env)+1)
+	for _, kv := range env {
+		if !strings.HasPrefix(kv, "PATH=") {
+			out = append(out, kv)
+		}
+	}
+	return append(out, "PATH="+compiledHookTestBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
 
 func TestExecuteInit(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "nomos-init-test-*")
@@ -138,7 +186,7 @@ func assertScaffoldedHooks(t *testing.T, dir string) {
 		t.Errorf("expected session-handshake hook in hooks.json, got: %s", string(manifestBytes))
 	}
 
-	for _, sc := range []string{"session-start.sh", "worktree-guard.sh", "nomos-build-guard.sh"} {
+	for _, sc := range []string{"session-start.sh", "worktree-guard.sh", "nomos-build-guard.sh", "post-edit-radar.sh"} {
 		p := filepath.Join(agentsDir, "scripts", sc)
 		fi, err := os.Stat(p)
 		if err != nil {
@@ -149,6 +197,13 @@ func assertScaffoldedHooks(t *testing.T, dir string) {
 		}
 		if fi.Mode().Perm()&0111 == 0 {
 			t.Errorf("expected hook script %s to be executable, mode=%v", sc, fi.Mode())
+		}
+		body, rErr := os.ReadFile(p)
+		if rErr != nil {
+			t.Fatalf("read %s: %v", sc, rErr)
+		}
+		if strings.Contains(string(body), "jq") || !strings.Contains(string(body), "exec ") {
+			t.Errorf("expected %s to be a pure zero-jq exec launcher, got:\n%s", sc, string(body))
 		}
 	}
 }

@@ -153,7 +153,7 @@ func invokeHookScript(t *testing.T, scriptPath, workDir string, payload map[stri
 		t.Fatalf("failed marshaling payload: %v", err)
 	}
 	cmd := exec.Command("bash", scriptPath)
-	cmd.Dir = workDir
+	cmd.Dir, cmd.Env = workDir, ensureCompiledHookTestEnv(t)
 	cmd.Stdin = bytes.NewReader(raw)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

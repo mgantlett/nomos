@@ -1,42 +1,16 @@
 #!/usr/bin/env bash
 set -e
 
-PAYLOAD=$(cat || true)
-
-NOMOS_BIN=""
 if command -v nomos >/dev/null 2>&1; then
-    NOMOS_BIN="nomos"
+    exec nomos hook session-start
 elif [ -n "${GOBIN:-}" ] && [ -x "${GOBIN}/nomos" ]; then
-    NOMOS_BIN="${GOBIN}/nomos"
+    exec "${GOBIN}/nomos" hook session-start
+elif [ -x "${HOME}/.nomos/bin/nomos" ]; then
+    exec "${HOME}/.nomos/bin/nomos" hook session-start
 elif [ -x "${HOME}/go/bin/nomos" ]; then
-    NOMOS_BIN="${HOME}/go/bin/nomos"
+    exec "${HOME}/go/bin/nomos" hook session-start
 elif [ -x "${HOME}/.local/bin/nomos" ]; then
-    NOMOS_BIN="${HOME}/.local/bin/nomos"
-else
-    echo "{}"
-    exit 0
+    exec "${HOME}/.local/bin/nomos" hook session-start
 fi
 
-if "$NOMOS_BIN" hook --help >/dev/null 2>&1; then
-    printf '%s' "$PAYLOAD" | "$NOMOS_BIN" hook session-start
-    exit 0
-fi
-
-if ! command -v jq >/dev/null 2>&1; then
-    echo "{}"
-    exit 0
-fi
-
-WORKSPACE_DIR=$(echo "$PAYLOAD" | jq -r '.workspacePaths[0] // empty' 2>/dev/null || true)
-if [ -z "$WORKSPACE_DIR" ] || [ ! -d "$WORKSPACE_DIR" ]; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-fi
-
-HANDSHAKE_OUT=$(cd "$WORKSPACE_DIR" && "$NOMOS_BIN" handshake 2>/dev/null || true)
-if [ -z "$HANDSHAKE_OUT" ]; then
-    echo "{}"
-    exit 0
-fi
-
-printf '%s\n' "$HANDSHAKE_OUT" | jq -Rs '{injectSteps: [{systemMessage: {systemMessage: .}}]}'
+echo "{}"
