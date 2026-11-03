@@ -54,14 +54,10 @@ Quality gates must never reject valid development workflows:
   - **Rust/Compiled**: `target/`, `*.so`, `*.dylib`, `*.dll`, `*.a`
 - `StagedBoundariesGate` must explicitly permit git deletions (`D`) inside the allowed boundary roots, distinguishing between valid file excision and unauthorized modifications.
 
-### Invariant 2: Idempotent Worktree & Stale Lock Recovery (Law 3 & Law 7)
-Worktree provisioning and trunk synchronization must be self-healing:
-- Before executing git branch mutations, `nomos task start` and workspace lifecycle engines inspect `.git/*.lock` and `.git/refs/heads/*.lock` (resolving linked worktree paths via `gitdir:` pointers).
-- A lock is evaluated using `RecoverStaleGitLocks`:
-  1. File modification timestamp is compared against `DefaultLockTTL = 30 * time.Second`.
-  2. If the lock age exceeds 30 seconds, the substrate verifies that no active `git` or `nomos` process holds an open file descriptor on the lock.
-  3. If confirmed stale, the lock is safely unlinked (`os.Remove`) and recorded in `cli_audit_events` with an audit note appended to `task_journal`.
-- Locks held by active processes or within the 30-second TTL remain untouched (`LockActive`), preserving concurrency safety during long-running operations.
+### Invariant 2: Hermetic Trunk Protection Without OS `chmod` Mutations (Law 3 & Law 7)
+Worktree provisioning and trunk synchronization enforce boundary isolation via CapBAC leases and Git hooks rather than filesystem permission hacks:
+- `LockTrunk` and `UnlockTrunk` in `substrate/src/nomos/core/workspace/trunk_lock.go` verify repository accessibility while delegating trunk mutation blocking to CapBAC leases and self-healing `pre-commit` / `PreToolUse` defense hooks.
+- Orphaned worktrees and merged `feature/*` branches are deterministically garbage-collected by `nomos task prune` while preserving any active `IN_PROGRESS` worktree with uncommitted state.
 
 ### Invariant 3: Adaptive Polyglot Initialization (Law 4)
 `nomos init` automatically inspects the workspace root and scaffolds the correct project profile:
@@ -79,49 +75,17 @@ Every Definition of Done gate failure must render an explicit `Remedy` field con
 
 ---
 
-## 3. Substrate Interface Contracts & Go DTO Structs
-
-The Substrate implements lock hygiene and recovery in `substrate/src/nomos/core/workspace/trunk_lock.go`:
+## 3. Substrate Interface Contracts (`substrate/src/nomos/core/workspace/trunk_lock.go`)
 
 ```go
 package workspace
 
-import "time"
+// LockTrunk attests trunk isolation under Law 3. Trunk boundary protection is
+// enforced via CapBAC object capabilities and Git pre-commit defense hooks without OS chmod mutations.
+func LockTrunk(repoRoot string) error
 
-// LockRecoveryDecision indicates the resolution outcome of an inspect lock operation.
-type LockRecoveryDecision int
-
-const (
-	// LockActive indicates a lock is still within its valid operational TTL.
-	LockActive LockRecoveryDecision = iota
-	// LockStaleReclaimed indicates a stale lock was detected and safely removed.
-	LockStaleReclaimed
-	// LockPermissionDenied indicates a lock could not be removed due to filesystem permissions.
-	LockPermissionDenied
-)
-
-// DefaultLockTTL is the default staleness threshold for git lock files (30 seconds).
-const DefaultLockTTL = 30 * time.Second
-
-// LockRecoveryReport encapsulates the outcome of a lock sweep.
-type LockRecoveryReport struct {
-	ReclaimedLocks []string             `json:"reclaimed_locks"`
-	Decision       LockRecoveryDecision `json:"decision"`
-	ScannedAt      time.Time            `json:"scanned_at"`
-}
-```
-
-Declarative CUE schema counterpart:
-
-```cue
-package schemas
-
-// LockRecoveryReport captures the outcome of an automated git lock hygiene sweep.
-#LockRecoveryReport: close({
-	reclaimed_locks: [...string]
-	decision:        "LockActive" | "LockStaleReclaimed" | "LockPermissionDenied"
-	scanned_at:      string
-})
+// UnlockTrunk verifies 2PC atomic release preconditions.
+func UnlockTrunk(repoRoot string) error
 ```
 
 ---
@@ -136,15 +100,15 @@ graph TD
 
     subgraph Substrate Plane
         GATE[DoD Gate Boundary Filters]
-        LOCK[Git Stale Lock Recovery Engine]
+        LOCK[CapBAC & Pre-Commit Trunk Guard]
         INIT[Adaptive Polyglot nomos init]
         HINT[JIT Agent Remediation Formatter]
     end
 
-    subgraph Ecosystem Repositories
-        OPEN[nomos open-core]
-        DATA[gsi-data Python Monorepo]
-        SOV[gsi-sov Sovereign Workspace]
+    subgraph Target Repositories
+        GO[Go Repositories]
+        PY[Python Monorepos]
+        TS[TypeScript & Rust Workspaces]
     end
 
     INT --> GATE
@@ -152,16 +116,15 @@ graph TD
     INT --> INIT
     INT --> HINT
 
-    GATE --> OPEN
-    GATE --> DATA
-    LOCK --> DATA
-    INIT --> DATA
-    GATE --> SOV
+    GATE --> GO
+    GATE --> PY
+    LOCK --> PY
+    INIT --> TS
 ```
 
-1. **Intent Plane (`INT-538`)**: Authors specification, establishes lock duration bounds, and codifies universal polyglot ignore taxonomy.
-2. **Substrate Plane (`SUB-666`)**: Implements ignore lists in `substrate/src/nomos/modules/verify/`, integrates lock recovery in `substrate/src/nomos/core/workspace/trunk_lock.go`, and updates `substrate/cli/`.
-3. **Downstream Adoption**: Unblocks seamless multi-language agent workflows across Python, Rust, and Node repositories without false-positive failures.
+1. **Intent Plane (`INT-538`)**: Authors specification and codifies universal polyglot ignore taxonomy.
+2. **Substrate Plane (`SUB-666`)**: Implements ignore lists in `substrate/src/nomos/modules/verify/`, trunk isolation in `substrate/src/nomos/core/workspace/trunk_lock.go`, and adaptive scaffolding in `substrate/cli/cmd_init.go`.
+3. **Downstream Adoption**: Unblocks multi-language agent workflows across Python, Rust, TypeScript, and Go repositories without false-positive gate failures.
 
 ---
 
@@ -170,8 +133,8 @@ graph TD
 | Test Case ID | Target Component | Input Vector | Expected State / Output | Invariant Verified |
 | :--- | :--- | :--- | :--- | :--- |
 | `TC-POLY-001` | `StagedBoundariesGate` | Staged file deletion (`git rm path/to/file.go`) within worktree boundary | Returns `Passed: true` with zero boundary violations | Invariant 1 (Zero-False-Positive Gates) |
-| `TC-POLY-002` | `RecoverStaleGitLocks` | `.git/index.lock` with mtime $> 30$s and no active process | Returns `LockStaleReclaimed`, lock file is deleted, logged to `cli_audit_events` | Invariant 2 (Idempotent Lock Recovery) |
-| `TC-POLY-003` | `RecoverStaleGitLocks` | `.git/index.lock` with mtime $< 10$s | Returns `LockActive`, lock file is preserved | Law 7 (Fail-Closed Safety) |
+| `TC-POLY-002` | `LockTrunk` / Pre-Commit Hook | Direct commit attempt on protected `main` branch | Blocked fail-closed with `nomos task chore` remedy | Invariant 2 (Hermetic Trunk Protection) |
+| `TC-POLY-003` | `nomos task prune` | Orphaned `worktrees/*` folder with no active lease | Safely swept while preserving active `IN_PROGRESS` worktrees | Law 3 & Law 7 |
 | `TC-POLY-004` | `SecretGate` | Source tree containing `.venv/` and `.so` binary artifacts | Ignores `.venv/` and `.so` files, zero false-positive secret detections | Invariant 1 & Law 5 |
 
 ---

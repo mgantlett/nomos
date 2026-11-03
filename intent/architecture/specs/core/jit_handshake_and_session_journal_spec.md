@@ -4,19 +4,20 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-23"
-last_updated: "2026-11-01"
+last_updated: "2026-11-03"
 plane: intent
 status: active
-title: "Just-In-Time (JIT) Handshake Dynamic Injection and Session Journal Distillation Specification"
+title: "Just-In-Time (JIT) Handshake Dynamic Injection and Release Receipt Distillation Specification"
 type: spec
-version: "4.0.0"
+version: "4.2.0"
 tags:
     - INT-736
     - SUB-1214
+    - INT-896
 ssot_repository: nomos
 ---
 
-# Just-In-Time (JIT) Handshake Dynamic Injection and Session Journal Distillation Specification
+# Just-In-Time (JIT) Handshake Dynamic Injection and Release Receipt Distillation Specification
 
 ## 1. Executive Summary & Problem Statement
 
@@ -26,9 +27,9 @@ In stateless or poorly bounded agentic workflows, cognitive models frequently su
 1. **Context Amnesia & Hallucination:** Agents lack visibility into current workspace state, active phase, remaining step budgets, and database health.
 2. **Phase Boundary Drift:** Agents attempt file mutations while the workspace is conceptually in `PLAN` or `REVIEW` phase, violating phase discipline.
 3. **Unchecked Capability Escalation:** Operations occur without verifiable Object Capability (CapBAC) authorization tokens or bounded lease lifetimes.
-4. **Session Journal Decay:** Epistemic progress made during engineering sessions is lost because no deterministic distillation pipeline records session outcomes to the Intent Single Source of Truth (SSoT).
+4. **Release Provenance Decay:** Epistemic progress made during engineering sessions is lost unless release receipts and structural patterns are deterministically distilled into Git Notes and Nomos Mneme.
 
-This specification codifies the **JIT Handshake Dynamic Invariant Injection Subsystem**, the **Session Journal Distillation Engine**, and the activation of two statutory Definition of Done (DoD) sensor probes: **`capbac_lease` (Cell 1.3)** and **`release_receipt` (Cell 3.3)**, advancing active gate enforcement to 21 statutory gates.
+This specification codifies the **JIT Handshake Dynamic Invariant Injection Subsystem**, the **Release Receipt & Mneme Distillation Pipeline** (superseding legacy v3 `nomos journal` tables; see [`session_management_cli_spec.md`](session_management_cli_spec.md) for live `nomos session` inspection), and two statutory Definition of Done (DoD) sensor probes: **`capbac_lease` (Cell 1.3)** and **`release_receipt` (Cell 3.3)** across the 42-gate pipeline.
 
 ---
 
@@ -39,8 +40,8 @@ This specification codifies the **JIT Handshake Dynamic Invariant Injection Subs
 | **1** | **The Dual-Core Inversion Law** | The Go core synthesizes and injects bounded cognitive envelopes into Tier 1 agents. | `nomos handshake`, `capbac_lease` gate |
 | **2** | **The Non-Verbal Proof Law** | Zero trust in verbal session reports; session outcomes require verifiable release receipts. | `release_receipt` probe (`refs/notes/nomos/releases`) |
 | **3** | **The Hermetic Worktree Law** | Execution occurs strictly within leased worktrees bound to cryptographic token lifetimes. | CapBAC token leases in SQLite, worktree boundary checks |
-| **4** | **The Single Source of Truth Law** | Handshake envelopes and session journals adhere strictly to compiled CUE contracts. | `handshake.cue`, `session_journal.cue` parity audits |
-| **5** | **The Zero-Hardcoded-Path Law** | Dynamic resolution of session journal vaults, database paths, and git note namespaces. | `config.ResolveGlobalDBPath()`, `config.ResolveMnemeDBPath()` |
+| **4** | **The Single Source of Truth Law** | Handshake envelopes and release receipts adhere strictly to compiled CUE contracts. | `handshake.cue`, `git_notes.cue` parity audits |
+| **5** | **The Zero-Hardcoded-Path Law** | Dynamic resolution of database paths and git note namespaces. | `config.ResolveGlobalDBPath()`, `config.ResolveMnemeDBPath()` |
 | **6** | **The Canonical Singularity Law** | `nomos handshake` serves as the sole canonical session initialization entrypoint. | Zero-alias CLI dispatch |
 | **7** | **The Fail-Closed Pre-Flight Law** | Expired leases, unhealthy databases, or missing release receipts fail pre-flight verification closed. | DoD gate pipeline exit code 1 |
 
@@ -87,53 +88,38 @@ The handshake dynamically filters and loads statutory directives from compiled s
 
 ---
 
-## 4. Session Journal Distillation Pipeline
+## 4. Release Receipt & Episodic Mneme Distillation Pipeline
 
 ### 4.1 Purpose & Structure
-Session journals serve as the permanent, machine-auditable record of engineering iterations. Each journal is distilled into cryptographic Git Notes (`refs/notes/nomos/releases`) and indexed into persistent Nomos Mneme SQLite storage.
+Instead of maintaining a mutable SQLite `journal` table, Nomos v4 distills completed task walkthroughs directly into immutable cryptographic Git Notes (`refs/notes/nomos/releases`) during `nomos task sync -F <walkthrough>` and indexes verified structural patterns into local `mneme.db` storage (`Nomos Learn`).
 
-### 4.2 Authoritative Frontmatter Contract
-All session journals must strictly satisfy `#SessionJournal` defined in `intent/contracts/cue/session_journal.cue`:
+### 4.2 Authoritative Git Notes Receipt Contract
+All synchronized release receipts conform strictly to `#ReleaseNotePayload` defined in `intent/contracts/cue/git_notes.cue`:
 
-```yaml
----
-authors:
-    - Mark Gantlett
-    - Nomos Open-Core Substrate
-classification: public
-date: "2026-10-23"
-last_updated: "2026-10-23"
-hemisphere: substrate
-status: active
-title: "Milestone 5 - JIT Handshake and Session Journal Distillation"
-type: session_journal
-tasks:
-    - INT-736
-    - SUB-1214
-invariants_verified:
-    - Law 1: Dual-Core Inversion
-    - Law 3: Hermetic Worktree
-    - Law 4: Single Source of Truth
-tags:
-    - handshake
-    - session_journal
-    - capbac
-version: "1.0.0"
----
+```cue
+#ReleaseNotePayload: close({
+	task_key:            #TaskKey
+	commit_sha:          string & =~"^[a-f0-9]{40}$"
+	timestamp:           string
+	phase:               "SYNC"
+	dod_gates_passed:    int & >= 42
+	capbac_token_id:     string
+	walkthrough_content: string
+	sha256_receipt:      string & =~"^[a-f0-9]{64}$"
+})
 ```
 
-### 4.3 Dual-Layer Markdown Structure
-Each distilled session journal contains:
+### 4.3 Walkthrough & Structural Pattern Distillation
+Each synchronized release walkthrough (`-F <walkthrough>`) captures:
 1. **Executive Summary:** High-level narrative of objectives and outcomes.
-2. **Task Lifecycles Completed:** Key, Title, Plane, and Commit SHA for each synchronized task.
-3. **Invariants & Gates Enforced:** Non-verbal proof of DoD gate evaluation results.
-4. **Epistemic Reflections:** Architectural lessons persisted into Nomos Mneme.
+2. **Key Changes:** Concrete files, symbols, and invariants modified inside the isolated worktree.
+3. **Verification Proof:** Non-verbal DoD gate evaluation results (`42/42` gates satisfied), automatically distilled into `mneme.db` structural patterns and recalled by subsequent `nomos handshake` invocations.
 
 ---
 
 ## 5. Statutory Sensor Probes Activation
 
-Milestone 5 activates two cryptographic ring probes, bringing the active gate suite from 19 to 21:
+Two cryptographic ring probes enforce capability lease validity and release attestation within the 42-gate pipeline:
 
 ### 5.1 `capbac_lease` Probe (Law 1, Cryptographic Ring, Cell 1.3)
 - **Invariant:** Tasks operating in transient worktrees must possess an active, non-expired CapBAC capability lease registered in the `leases` table of `nomos_global.db`.
@@ -152,4 +138,4 @@ Milestone 5 activates two cryptographic ring probes, bringing the active gate su
 | `TC-JIT-01` | `nomos handshake` invoked on clean trunk baseline | Law 1 (Dual-Core Inversion) | `PASS` (Emits `IDLE` envelope & verifies Git hooks) |
 | `TC-JIT-02` | Worktree mutation attempted with expired or missing CapBAC lease | Law 1 & Law 7 (`Cell 1.3`) | `FAIL` (`ERR_CAPBAC_LEASE_INVALID`) |
 | `TC-JIT-03` | Release commit missing `refs/notes/nomos/releases` attestation | Law 3 (`Cell 3.3`) | `FAIL` (`ERR_MISSING_RELEASE_RECEIPT`) |
-| `TC-JIT-04` | Session journal unified against `session_journal.cue` | Law 4 (SSoT) | `PASS` (Indexed cleanly into `mneme.db`) |
+| `TC-JIT-04` | Release walkthrough synced and unified against `git_notes.cue` | Law 4 (SSoT) | `PASS` (Recorded in `refs/notes/nomos/releases` & indexed into `mneme.db`) |

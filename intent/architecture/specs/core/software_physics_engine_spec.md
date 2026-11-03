@@ -35,7 +35,7 @@ Without continuous, physical constraints, agents drift into un-indexed loops, se
 ### 1.2 Separation of Substrate Physics from Ergonomic Telemetry
 To maintain uncompromising realism and avoid metaphor degradation:
 1. **The Software Physics Engine (Open-Core Substrate):** Pure Go mathematical calculations and CUE declarative schemas evaluating AST graph metrics, Shannon information entropy, directed call-graph reachability, and capability leases.
-2. **The Air Traffic Control Interface (HMI / Presentation Layer):** The ergonomic telemetry projection (`nomos telemetry`) that visualizes these underlying physics vectors (altimeters, radar blips, airway corridors) for human architects. The visualization never replaces the math; it merely renders it at human-perceptual speed.
+2. **The Air Traffic Control Interface (HMI / Presentation Layer):** The ergonomic telemetry projection (`nomos physics`) that visualizes these underlying physics vectors (AST mass, worktree hulls, collision threat levels) for human architects. The visualization never replaces the math; it merely renders it at human-perceptual speed.
 
 ---
 

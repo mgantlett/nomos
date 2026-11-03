@@ -1,0 +1,101 @@
+---
+authors:
+    - Mark Gantlett
+    - Nomos Open-Core Substrate
+classification: public
+date: "2026-11-03"
+last_updated: "2026-11-03"
+plane: intent
+ssot_repository: nomos
+status: active
+tags:
+    - INT-896
+    - SUB-1668
+title: "Tier 1 Agent Session Discovery, Telemetry & Sentinel CLI Specification"
+type: spec
+version: "4.2.0"
+---
+
+# Tier 1 Agent Session Discovery, Telemetry & Sentinel CLI Specification
+
+**Role:** Autonomous Open-Core Software Architect  
+**Objective:** Codify the canonical `nomos session` CLI command group, polymorphic Tier 1 coding agent discovery (`AGY-IDE`, `AGY-CLI`, `Claude Code`, `OpenCode`), 7-stage causal trajectory inference, and Zero-Trust Sentinel evaluation contracts.
+
+---
+
+## 1. Context & Problem Statement
+
+In Nomos v4, Tier 1 coding agents operate across multiple developer harnesses simultaneously while sharing a repository's Living Ledger and hermetic git worktrees. Legacy v3 session journaling (`nomos journal`, `nomos task journal`, `nomos task note`) required manual logging into a dedicated SQLite `journal` table, creating drift whenever agents failed to emit verbal status updates.
+
+Nomos v4 replaces manual journaling with two non-verbal mechanisms:
+1. **Immutable Release Receipts (`refs/notes/nomos/releases`):** Minted atomically at merge time by `nomos task sync`.
+2. **Live Transcript Introspection (`nomos session`):** Discovers, labels, visualizes, and audits live Tier 1 agent conversation transcripts directly from local harness storage without requiring conversational cooperation from the agent.
+
+---
+
+## 2. Axiomatic Invariants & Statutory Laws
+
+| Law # | Law Name | Architectural Invariant | Machine Enforcement Mechanism |
+| :---: | :--- | :--- | :--- |
+| **1** | **The Dual-Core Inversion Law** | Substrate Go core inspects Tier 1 agent transcripts externally under indirect control. | `session.DiscoverSessions`, `session.GetSessionDetail` |
+| **2** | **The Non-Verbal Proof Law** | Trajectory stages and Sentinel integrity scores derive strictly from observed tool invocations rather than prose claims. | `InferTrajectory`, `EvaluateSentinel` |
+| **3** | **The Hermetic Worktree Law** | Active sessions are correlated against live `worktrees/<repo>-<KEY>` checkouts and flagged if mutating trunk directly. | `evalHermeticWorktree` Sentinel invariant |
+| **4** | **The Single Source of Truth Law** | Session JSON payloads bind 1:1 to compiled Go structs `session.AgentSession`, `session.SessionVisualGraph`, `session.SessionDetail`, and `session.SessionTrajectory` (`substrate/src/nomos/modules/session/`). | Go struct JSON tags & `multi_agent_session_test.go` |
+| **5** | **The Zero-Hardcoded-Path Law** | Harness transcript directories resolve dynamically from user configuration roots or explicit `--brain` / `--root` overrides. | `session.DefaultProviders` |
+| **6** | **The Canonical Singularity Law** | `nomos session` (`name`, `list`, `visual`, `show`) is the sole CLI surface for live session inspection; legacy `nomos journal` is excised. | `ZeroAliasGate`, `DeadCodeGate` |
+| **7** | **The Fail-Closed Pre-Flight Law** | Missing session identifiers when no active session exists or empty `session name` arguments fail closed with `ERR_VALIDATION_FAILED` / `ERR_CORE`. | `NewSessionCmd` argument & discovery guards |
+
+---
+
+## 3. Polymorphic Tier 1 Provider Architecture
+
+`substrate/src/nomos/modules/session/` implements polymorphic discovery across the four supported Tier 1 coding agent harnesses:
+
+1. **Antigravity IDE (`AGY-IDE`):** Parses `.system_generated/logs/transcript.jsonl` and `session_meta.json` under the active Gemini IDE brain directory.
+2. **Antigravity CLI (`AGY-CLI`):** Parses headless CLI conversation brain directories and transcript logs.
+3. **Claude Code (`Claude Code`):** Discovers project JSONL transcripts and tool-use blocks from local Claude session storage.
+4. **OpenCode (`OpenCode`):** Discovers local OpenCode session metadata and message/part storage trees.
+
+### 3.1 7-Stage Causal Trajectory (`#SessionTrajectory`)
+`InferTrajectory` reconstructs seven ordered engineering milestones from observed transcript tool calls:
+`BOOT` (`nomos handshake`) -> `ALLOCATION` (`nomos task start` / `chore`) -> `BASELINE` (`nomos verify`) -> `EXPLORATION` (search/read) -> `ORACLE` (test execution) -> `IMPLEMENTATION` (worktree edits) -> `RELEASE` (`nomos task sync`).
+
+### 3.2 Zero-Trust Sentinel Scorecard
+`EvaluateSentinel` audits every tool call in the transcript across five statutory checks (20 points each, `0..100`):
+1. Hermetic worktree isolation (`evalHermeticWorktree`)
+2. Repository boundary containment (`evalRepoBoundary`)
+3. Non-verbal DoD verification (`evalDoDVerification`)
+4. Database encapsulation under ADR-0062 (`evalDBEncapsulation`)
+5. AST / file budget discipline (`evalASTBudget`)
+
+---
+
+## 4. CLI Command Taxonomy & Flags (`substrate/cli/cmd_session.go`)
+
+### 4.1 `nomos session name [NAME]`
+- **Flags:** `--id` / `-i <SESSION_ID>`, `--brain` / `-b <DIR>`, `--json`
+- **Semantics:** Persists a human-readable operator title in `session_meta.json` for the target session (auto-discovering the most recently active session when `--id` is omitted). Fails closed if `NAME` is empty.
+
+### 4.2 `nomos session list`
+- **Flags:** `--brain` / `-b <DIR>`, `--json`
+- **Semantics:** Discovers sessions across all supported Tier 1 providers sorted by `last_active_at` descending, rendering a Lipgloss table or `#AgentSession` JSON array.
+
+### 4.3 `nomos session visual`
+- **Flags:** `--brain` / `-b <DIR>`, `--root` / `-r <REPO_ROOT>`, `--json`
+- **Semantics:** Generates a Mermaid topology diagram mapping active Tier 1 agent sessions to their bound `INT-*` / `SUB-*` tasks and worktrees (or emits `#SessionVisualGraph` JSON when `--json` is passed).
+
+### 4.4 `nomos session show [SESSION_ID]`
+- **Flags:** `--brain` / `-b <DIR>`, `--root` / `-r <REPO_ROOT>`, `--json`
+- **Semantics:** Deeply inspects a single session (defaulting to the most recently active session when `SESSION_ID` is omitted), rendering turn/tool counts, phase, worktree, Sentinel integrity score, and 7-stage causal trajectory (or `#SessionDetail` JSON).
+
+---
+
+## 5. Table-Driven Verification Vectors
+
+| Vector ID | Target Component | Input Vector | Expected Verdict | Invariant Verified |
+| :--- | :--- | :--- | :--- | :--- |
+| `TC-SES-01` | `DiscoverSessions` | Clean-room mock transcripts for `AGY-IDE`, `AGY-CLI`, `Claude Code`, `OpenCode` | All 4 sessions discovered with accurate `TaskKey`, `TurnCount`, and `Status` | Law 1 & Law 5 |
+| `TC-SES-02` | `nomos session name` | `nomos session name ""` (empty name) | Fails closed with `ERR_VALIDATION_FAILED` | Law 7 (Fail-Closed) |
+| `TC-SES-03` | `InferTrajectory` | Transcript containing `nomos handshake`, `nomos task start`, `nomos verify`, and file edits | Reconstructs 7-stage `#SessionTrajectory` with `ORACLE` and `IMPLEMENTATION` marked `COMPLETED` | Law 2 (Non-Verbal Proof) |
+| `TC-SES-04` | `GenerateMermaidVisual` | `nomos session visual --json` | Emits valid `#SessionVisualGraph` JSON containing Mermaid graph and `#AgentSession` slice | Law 4 (SSoT CUE Parity) |
+

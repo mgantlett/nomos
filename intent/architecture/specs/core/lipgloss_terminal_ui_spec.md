@@ -52,79 +52,36 @@ Open-core CLI enhancements must never attempt to embed web servers, HTTP asset b
 
 ## 3. UI Token Taxonomy & Semantic Styling
 
-Styling tokens are centralized in the single source of truth package `substrate/cli/ui`:
+Styling tokens are centralized in the single source of truth `substrate/cli/theme.go` (`package cli`):
 
 ### 3.1 Status Badge Palette (Canonical Task State Alignment)
 
-In strict alignment with `intent/contracts/cue/task.cue` (`#TaskRecord.status` enum), status badges map deterministically to the semantic color palette:
+In strict alignment with `task.TaskRecord.Status`, adaptive status pills (`styleSemanticBadge`) map deterministically to the semantic palette:
 
-| Status Code | Foreground | Background | Semantic Usage |
-| :--- | :--- | :--- | :--- |
-| `BACKLOG` / `TODO` | `#FFFFFF` | Slate (`#64748B`) / Muted Border (`#334155`) | Unstarted tasks in backlog or ready queue |
-| `PLAN` | `#FFFFFF` | Purple (`#8B5CF6`) | Architectural formulation and causal planning |
-| `EDIT` / `IN_PROGRESS` | `#0F172A` | Amber (`#F59E0B`) | Active worktree mutation and code authoring |
-| `REVIEW` | `#0F172A` | Cyan (`#06B6D4`) | Definition of Done gatekeeper audit |
-| `SYNC` | `#FFFFFF` | Sky (`#38BDF8`) | Two-Phase Commit atomic merge and Git Notes release |
-| `DONE` / `PASS` | `#FFFFFF` | Emerald (`#10B981`) | Verified and green milestone |
-| `BLOCKED` / `FAIL` | `#FFFFFF` | Crimson (`#EF4444`) | Gate failure, lease collision, or unmet causal prerequisite |
-| `ABORTED` / `CANCELLED` | `#FFFFFF` | Slate (`#64748B`) | Safely rolled-back or tombstoned task |
+| Status Code | Semantic Style | Usage |
+| :--- | :--- | :--- |
+| `BACKLOG` / `TODO` | Neutral Slate Pill (`pillNeutralStyle`) | Unstarted tasks in backlog or ready queue |
+| `PLAN` | Celestial Purple Pill (`pillPurpleStyle`) | Architectural formulation and causal planning |
+| `EDIT` / `IN_PROGRESS` | Solar Amber Pill (`pillWarnStyle`) | Active worktree mutation and code authoring |
+| `REVIEW` / `SYNC` | Substrate Sky Cyan Pill (`pillCyanStyle`) | Definition of Done audit and 2PC merge |
+| `DONE` / `PASS` / `ACTIVE` | Verification Mint Pill (`pillSuccessStyle`) | Verified green milestone or active session |
+| `BLOCKED` / `FAIL` | Fail-Closed Coral Pill (`pillDangerStyle`) | Gate failure, lease collision, or unmet prerequisite |
+| `ABORTED` | Neutral Slate Pill (`pillNeutralStyle`) | Safely rolled-back or tombstoned task |
 
 ### 3.2 Visual Components
-- **Card Border**: Rounded borders (`lipgloss.RoundedBorder()`) styled with muted slate (`#334155`).
-- **Dividers**: Clean horizontal and vertical glyphs with padding.
-- **Remediation Callouts**: Indented blocks with bold red left-border pipes (`│`) and highlighted remedy instructions.
-- **Workspace HUD**: Comprehensive card header rendering Phase, Worktree/Branch, and DB health.
+- **Adaptive Rules (`uiRule`)**: Responsive horizontal rules (`ruleNarrow`, `ruleStandard`, `ruleWide`, `ruleSession`).
+- **Dual-Core Hemisphere Accents**: Intent Purple (`uiIntentStyle`) and Substrate Cyan (`uiSubstrateStyle`).
+- **HATEOAS Remediation Callouts (`affordance_render.go`)**: Structured `Next Actions` command hints rendered below operational outputs.
 
 ---
 
-## 4. In-Line Interface Contracts & Go DTO Structs
+## 4. Substrate Styling Primitives (`substrate/cli/theme.go`)
 
-The Substrate implements responsive table and theme rendering in `substrate/cli/ui`:
-
-```go
-package ui
-
-// TaskRow defines the tabular data for a task row in nomos task list.
-type TaskRow struct {
-	Key    string `json:"key"`
-	Twin   string `json:"twin"`
-	Arc    string `json:"arc"`
-	Type   string `json:"type"`
-	Plane  string `json:"plane"`
-	Status string `json:"status"`
-	Tier   string `json:"tier"`
-	Title  string `json:"title"`
-}
-
-// CapabilityRow defines tabular data for a capability row across Substrate and Intent planes.
-type CapabilityRow struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	Type            string `json:"type"`
-	Plane           string `json:"plane"`
-	Status          string `json:"status"`
-	InvocationCount int    `json:"invocation_count"`
-	LastAccessed    string `json:"last_accessed"`
-}
-```
-
-Declarative CUE schema counterpart:
-
-```cue
-package schemas
-
-// TaskRow models tabular task representations for CLI totems.
-#TaskRow: close({
-	key:    =~"^(INT|SUB)-[0-9]+$"
-	twin?:  string
-	arc?:   string
-	type:   string
-	plane:  "intent" | "substrate"
-	status: "BACKLOG" | "TODO" | "PLAN" | "EDIT" | "REVIEW" | "SYNC" | "DONE" | "BLOCKED" | "ABORTED"
-	tier:   string
-	title:  string
-})
-```
+The Substrate centralizes adaptive terminal rendering inside `substrate/cli/theme.go` and `substrate/cli/theme_gradient.go`:
+- `renderBrandTitle(title string)` — Adaptive gradient title header.
+- `styleSemanticBadge(status string)` / `styleSemanticBadgeWidth(status string, width int)` — Semantic status pill formatting.
+- `styleTaskKey(key string)` — Plane-colored task key formatting (`INT-*` purple, `SUB-*` cyan).
+- `kvLine(label string, width int, value string)` — Aligned key-value telemetry rows.
 
 ---
 
@@ -132,9 +89,9 @@ package schemas
 
 1. **Law 1 (The Dual-Core Inversion Law)**: Lipgloss terminal UX serves as the high-clarity telemetry interface for human developers and Tier 1 cognitive agents under indirect control.
 2. **Law 2 (The Non-Verbal Proof Law)**: Terminal formatting must strictly preserve deterministic command exit codes (`0` for success, non-zero for gate failures).
-3. **Machine-Readable Flag Isolation**: When `--json`, `--quiet`, or batch flags are provided, all Lipgloss styling, ANSI codes, and ASCII art banners are completely bypassed. Output must emit raw, valid JSON or plaintext.
-4. **Environment-Aware Color Stripping**: When `NO_COLOR` is present, `TERM=dumb`, or stdout is redirected to a non-TTY pipe/file, `IsColorEnabled()` returns `false`, and styling automatically degrades to clean plaintext without ANSI escape sequences.
-5. **Sub-2ms Render Overhead**: Terminal layout and string styling computation must execute in $< 2$ms without blocking the CLI event loop.
+3. **Machine-Readable JSON Isolation**: When `--json` is passed on any inspection command, all Lipgloss styling, ANSI codes, and banners are bypassed in favor of raw, valid JSON.
+4. **Environment-Aware Color Stripping**: When `NO_COLOR` is present, `TERM=dumb`, or stdout is redirected to a non-TTY pipe/file, styling automatically degrades to clean plaintext without ANSI escape sequences.
+5. **Sub-2ms Render Overhead**: Terminal layout and string styling computation must execute in $< 2$ms without blocking CLI execution.
 
 ---
 
@@ -142,20 +99,19 @@ package schemas
 
 | Test Case ID | Target Component | Input Environment / Vector | Expected State / Output | Invariant Verified |
 | :--- | :--- | :--- | :--- | :--- |
-| `TC-UI-001` | `BadgeStatus` | `status: "EDIT"` with `NO_COLOR=""` | Rendered pill with amber background and dark text | Law 4 (SSoT State Alignment) |
-| `TC-UI-002` | `IsColorEnabled` | `os.Setenv("NO_COLOR", "1")` | Returns `false`; `BadgeStatus("DONE")` returns `"[DONE]"` | Law 2 (Deterministic Plaintext Degradation) |
-| `TC-UI-003` | `RenderTaskTable` | `[]TaskRow{...}` under `TERM=dumb` | Output contains ASCII separator lines and zero ANSI escape sequences | Invariant 4 (Environment-Aware Degradation) |
-| `TC-UI-004` | AST Gate Check | Go source files outside `substrate/cli/ui` | Zero terminal escape literals detected by `ForbiddenLiteralsGate` | Law 5 & Law 6 (SSoT Package Isolation) |
+| `TC-UI-001` | `styleSemanticBadge` | `status: "EDIT"` in color TTY | Rendered pill with amber styling | Law 4 (SSoT State Alignment) |
+| `TC-UI-002` | `NO_COLOR` Environment | `os.Setenv("NO_COLOR", "1")` | Degrades cleanly without ANSI escape sequences | Law 2 (Deterministic Plaintext Degradation) |
+| `TC-UI-003` | `--json` Flag | `nomos task list --json` | Emits valid raw JSON array with zero ANSI prefixes | Machine-Readable Isolation |
+| `TC-UI-004` | SSoT Theme Centralization | `substrate/cli/theme.go` | Shared adaptive styles used across `status`, `task`, `verify`, `session`, and `capabilities` | Law 6 (Canonical Singularity) |
 
 ---
 
 ## 7. Verification Boundaries & DoD Evidence
 
 1. **DoD Compliance**: Passes 100% of Definition of Done quality gates (`nomos verify`) with exit code 0.
-2. **Markdown Integrity**: All markdown relative links resolve deterministically via Gate 14 (`BrokenWireGate`).
-3. **Clean AST Compliance**: Zero hardcoded terminal escape literals outside `substrate/cli/ui`.
-4. **Verification Command**:
+2. **Markdown Integrity**: All markdown relative links resolve deterministically via `BrokenWireGate`.
+3. **Verification Command**:
    ```bash
    nomos verify
    ```
-   Must pass all 29 Definition of Done quality gates with zero regressions.
+   Must pass all 42 Definition of Done quality gates with zero regressions.

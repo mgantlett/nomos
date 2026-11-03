@@ -89,7 +89,7 @@ For every command invocation, the engine tokenizes all option arguments:
 2. **Merged FlagSet Resolution:**
    Every flag is resolved against the target command's **merged flag set**:
    $$\text{MergedFlags}(c) = c.\text{Flags}() \cup c.\text{PersistentFlags}() \cup c.\text{InheritedFlags}()$$
-   This ensures standard persistent flags (`--help`, `-h`, `--json`, `--root`, `--quiet`) are universally recognized.
+   This ensures standard Cobra flags (`--help`, `-h`) and subcommand-registered flags (`--json`, `--verbose`) are accurately resolved per command.
 3. **Fail-Closed Drift Condition:**
    If a cited flag is missing from `MergedFlags(c)`, the discrepancy is recorded under `contracts.flags`:
    $$\text{Discrepancy} = \text{fmt.Sprintf}(\text{"Doc \%s cites invalid flag '\%s' for command '\%s'", docPath, flagName, cmdString})$$
@@ -127,53 +127,17 @@ To prevent false positives on historical records, counter-examples, and test fix
 
 ---
 
-## 4.0 Substrate Implementation Blueprint
+## 4.0 Open-Core Substrate Enforcement (`substrate/src/nomos/modules/verify/`)
 
-### 4.1 CLI Descriptor Data Contracts (Law 4)
+In Open-Core `nomos`, static Cobra command reachability and documentation completeness are enforced deterministically at AST level during `nomos verify`:
 
-### CLIFlagDescriptor Contract
-```go
-// CLIFlagDescriptor defines the formal schema for a compiled CLI flag.
-type CLIFlagDescriptor struct {
-	Name       string `json:"name"`
-	Shorthand  string `json:"shorthand,omitempty"`
-	Usage      string `json:"usage"`
-	Persistent bool   `json:"persistent"`
-	TakesValue bool   `json:"takes_value"`
-}
-```
-
-### CLICommandDescriptor Contract
-```go
-// CLICommandDescriptor defines the formal schema for a compiled CLI command.
-type CLICommandDescriptor struct {
-	Use         string                           `json:"use"`
-	Path        string                           `json:"path"`
-	Short       string                           `json:"short"`
-	IsLeaf      bool                             `json:"is_leaf"`
-	AcceptsArgs bool                             `json:"accepts_args"`
-	Subcommands map[string]*CLICommandDescriptor `json:"subcommands,omitempty"`
-	Flags       map[string]*CLIFlagDescriptor    `json:"flags"`
-}
-```
-
----
-
-### 4.2 Fail-Closed Pre-Flight Gate (Law 7)
-
-```go
-// AuditCommandSurface audits Intent documentation against the compiled Cobra command registry.
-func AuditCommandSurface(rootDir string, table *IntentSymbolTable, cliCmds map[string]*CLICommandDescriptor, repoProfile string) ([]string, error) {
-	if cliCmds == nil || len(cliCmds) < 5 {
-		return nil, fmt.Errorf("fail-closed pre-flight: CLI registry is empty or uninitialized (Law 7)")
-	}
-	if repoProfile == "" {
-		repoProfile = "open-core" // Fail-closed to most restrictive boundary
-	}
-	// ... execution logic ...
-	return discrepancies, nil
-}
-```
+1. **`ScanCobraSurfaceCompletenessInDir` (`substrate/src/nomos/modules/verify/cli_surface_audit.go`, enforced in `ZeroAliasGate` `Cell 6.2`, `INV-PARITY-011`):**
+   - Walks every static `&cobra.Command{}` composite literal in `substrate/cli/` (excluding `plugin.go` passthroughs and `_test.go` files).
+   - Fails closed if any command omits non-empty `Use`, `Short`, `Long`, or `Example` fields, or registers `Aliases` (`Law 6`).
+2. **`DeadCodeGate` (`findUnreachableCommands` in `substrate/src/nomos/modules/verify/gates_governance.go`):**
+   - Parses `substrate/cli/root.go` and every `New*Cmd()` constructor in `substrate/cli/*.go`, failing closed if any command constructor is not wired into `NewRootCmd()`.
+3. **Sovereign Markdown Cross-Reference Scanner (`INV-PARITY-008` .. `INV-PARITY-010`):**
+   - Markdown command/flag tokenization (`contracts.cli` and `contracts.flags` described in Sections 2–3) executes in the Sovereign Parity Engine while Open-Core enforces static AST Cobra completeness and zero-alias reachability directly in `nomos verify`.
 
 ---
 
@@ -181,7 +145,7 @@ func AuditCommandSurface(rootDir string, table *IntentSymbolTable, cliCmds map[s
 
 | Vector ID | Test Vector Description | Expected Verification Outcome |
 | :--- | :--- | :--- |
-| **`VEC-CLI-01`** | Valid command invocation `nomos task create --desc "..."` | **PASS**: Command and flags recognized in Cobra registry. |
+| **`VEC-CLI-01`** | Valid command invocation `nomos task create "Title" --plane substrate --scope "..." --ac "..." --verify "..."` | **PASS**: Command and flags recognized in Cobra registry. |
 | **`VEC-CLI-02`** | Phantom command invocation `nomos phantomcmd run` | **DRIFT**: Flagged under `contracts.cli` (`unknown command "phantomcmd"`). |
 | **`VEC-CLI-03`** | Valid command with invalid flag `nomos init --bogusflag` | **DRIFT**: Flagged under `contracts.flags` (`unknown flag "--bogusflag"`). |
 | **`VEC-CLI-04`** | Sovereign command `nomos code watch` in open-core directive | **DRIFT**: Flagged under `contracts.cli` (Law 0.2 / `INV-PARITY-010`). |

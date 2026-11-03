@@ -41,7 +41,7 @@ This specification formalizes the open-core licensing model, contribution govern
 | :---: | :--- | :--- |
 | **Law 1** | **Dual-Core Inversion** | Substrate Go release pipeline automates hermetic packaging; Tier 1 agents cannot trigger release mutations. |
 | **Law 2** | **Non-Verbal Proof** | Release artifacts require exit code 0 across all 42 DoD gates, verified by table-driven test vectors (`TC-REL-001` through `TC-REL-006`). |
-| **Law 4** | **Single Source of Truth** | Release manifests bind strictly to `release_readiness.cue` and matching Go DTO structs. |
+| **Law 4** | **Single Source of Truth** | Release verification and receipt manifests bind strictly to `pipeline.cue` (`#CanonicalMatrix`) and `git_notes.cue` (`#ReleaseNotePayload`). |
 | **Law 5** | **Zero-Hardcoded-Path** | Release directories and tool paths resolve dynamically via `config.LoadConfig()`, avoiding hardcoded path literals. |
 | **Law 6** | **Canonical Singularity** | Single canonical release pipeline (`.goreleaser.yaml`) governing all multi-arch distributions. |
 | **Law 7** | **Fail-Closed Pre-Flight** | Any uncommitted file, gate failure, or missing Ed25519 signature halts release packaging immediately with exit code 1. |
@@ -69,59 +69,14 @@ During `nomos verify`, two dedicated gates enforce repository boundary integrity
 
 ---
 
-## 4. Formal Schema & Go DTO Contracts
+## 4. Compiled Verification Gates & GoReleaser Packaging Contracts
 
-All contracts reside in `substrate/src/nomos/core/release/` and bind to `release_readiness.cue`:
+Release readiness is enforced directly by the compiled `verify` gate suite (`substrate/src/nomos/modules/verify/`) paired with `.goreleaser.yaml` (`CGO_ENABLED=0` across `linux/darwin/windows` `amd64/arm64`) rather than a separate runtime release daemon:
 
-```go
-package release
-
-import (
-	"context"
-)
-
-// ReleaseTarget defines the target OS and architecture tuple.
-type ReleaseTarget struct {
-	OS   string `json:"os"`   // "linux" | "darwin" | "windows"
-	Arch string `json:"arch"` // "amd64" | "arm64"
-	Cgo  bool   `json:"cgo"`
-}
-
-// ReleaseArtifact captures metadata for a compiled distribution binary.
-type ReleaseArtifact struct {
-	Name      string        `json:"name"`
-	Target    ReleaseTarget `json:"target"`
-	SHA256    string        `json:"sha256"`
-	SizeBytes int64         `json:"size_bytes"`
-}
-
-// ReleaseManifest captures the complete release payload and cryptographic proofs.
-type ReleaseManifest struct {
-	Version          string            `json:"version"`
-	Commit           string            `json:"commit"`
-	ReleaseDate      string            `json:"release_date"`
-	Artifacts        []ReleaseArtifact `json:"artifacts"`
-	PublicKeyEd25519 string            `json:"public_key_ed25519"`
-	SignatureBase64  string            `json:"signature_base64"`
-}
-
-// ReleasePreflightAudit captures the state of the pre-flight verification gate.
-type ReleasePreflightAudit struct {
-	WorktreePath   string `json:"worktree_path"`
-	DirtyState     bool   `json:"dirty_state"`
-	DoDGatesPassed int    `json:"dod_gates_passed"`
-	LicenseType    string `json:"license_type"` // "Apache-2.0"
-	IPLeakClean    bool   `json:"ip_leak_clean"`
-	Passed         bool   `json:"passed"`
-}
-
-// ReleaseAuditor executes pre-flight assertions prior to packaging.
-type ReleaseAuditor interface {
-	AuditPreflight(ctx context.Context, repoRoot string) (*ReleasePreflightAudit, error)
-	ValidateManifest(manifest ReleaseManifest) error
-	VerifySignature(manifest ReleaseManifest) (bool, error)
-}
-```
+1. **`BoundaryGate` (`substrate/src/nomos/modules/verify/gates_architecture.go`):** Audits AST imports, prohibited commands, and locked dependency manifests against configured open-core boundaries.
+2. **`IPLeakGate` (`substrate/src/nomos/modules/verify/gates_security.go`):** Scans open-core source and documentation for proprietary sovereign identifiers or internal hostnames.
+3. **`EcosystemDriftGate` (`substrate/src/nomos/modules/verify/gates_architecture.go`):** Rejects dirty trunk trees (`git status --porcelain`) prior to packaging.
+4. **`ReleaseReceiptGate` (`substrate/src/nomos/modules/verify/gates_capbac_release.go`):** Verifies cryptographic release receipts (`#ReleaseNotePayload` in `intent/contracts/cue/git_notes.cue`) in `refs/notes/nomos/releases`.
 
 ---
 
@@ -174,6 +129,6 @@ The following deterministic test vectors validate release readiness:
 
 1. **Apache 2.0 Licensing:** Root `LICENSE` exists with Apache 2.0 terms; copyright notices identify Mark Gantlett and Nomos Open-Core Substrate.
 2. **DoD Quality Gates Greenlight:** Release pipeline invokes `nomos verify` and asserts all DoD gates passed before compiling.
-3. **CUE Schema Parity:** Validated against `intent/contracts/cue/release_readiness.cue`.
+3. **CUE Schema Parity:** Validated against `intent/contracts/cue/pipeline.cue` and `intent/contracts/cue/git_notes.cue`.
 4. **Hermetic Pre-Flight:** Dirty worktrees, missing signatures, or IP leaks fail closed with exit code 1.
 5. **No Broken Links:** All root documentation files (`CONTRIBUTING.md`, `SECURITY.md`) resolve without broken links.

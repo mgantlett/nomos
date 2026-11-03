@@ -27,12 +27,12 @@ execution_frontier:
 
 The Nomos v4 architecture establishes a strict separation of concerns across persistence layers:
 1. **The Immutable Distributed SSoT (Git Notes):** Git commits and cryptographic Git Notes (`refs/notes/nomos/releases`) serve as the distributed, append-only Source of Truth for verified releases.
-2. **The Ephemeral Semantic Projection (`mneme.db`):** A pure-Go SQLite WAL database providing hybrid 64-dim vector and lexical memory recall, distilled gate-trap pitfalls (`Nomos Learn`), and idempotent write-time deduplication. If deleted, release history can be reconstructed from Git commit history and Git Notes (`nomos mem reindex`).
-3. **The Local Runtime Coordinator (`nomos_global.db`):** The node-local operational SQLite WAL database managing Living Ledger task DAG wavefronts (`tasks`), CapBAC object-capability leases (`leases`), phase transition audit trails (`journal`), and local CLI invocation telemetry (`telemetry_capabilities`, `telemetry_intent_activity`).
+2. **The Ephemeral Semantic Projection (`mneme.db`):** A pure-Go SQLite WAL database providing hybrid 64-dim vector and lexical memory recall (`nomos mem save`, `nomos mem recall`, `nomos mem list`), distilled gate-trap pitfalls (`Nomos Learn`), and idempotent write-time deduplication. Immutable release provenance remains anchored in Git commit history and Git Notes (`refs/notes/nomos/releases`).
+3. **The Local Runtime Coordinator (`nomos_global.db`):** The node-local operational SQLite WAL database managing Living Ledger task DAG wavefronts (`tasks`), CapBAC object-capability leases (`leases`), and local CLI capability invocation metrics (`telemetry_capabilities`).
 
 This contract formalizes:
 - Full DDL and RFC3339 timestamp alignment between `nomos_global.db`, `mneme.db`, and compiled CUE contracts (`task.cue`, `capbac.cue`, `mneme_memory.cue`, `telemetry.cue`, `git_notes.cue`).
-- Automatic rolling compaction (`Store.Maintain`, `MaintainGlobalDB`) capping high-churn tables, reclaiming SQLite freelist pages via conditional `VACUUM`, and checkpointing WAL files (`PRAGMA wal_checkpoint(TRUNCATE)`).
+- Automatic rolling compaction (`Store.Maintain`, `storage.MaintainRuntimeStorage`) capping expired leases, dropping retired legacy tables, reclaiming SQLite freelist pages via conditional `VACUUM`, and checkpointing WAL files (`PRAGMA wal_checkpoint(TRUNCATE)`).
 - The atomic 2PC dual-write synchronization pipeline and fail-closed reconstruction state machine.
 
 ---
@@ -58,15 +58,14 @@ This contract formalizes:
 │               Git Tree + refs/notes/nomos/releases                     │
 └────────────────────────────────────┬───────────────────────────────────┘
                                      │
-                 Dual-Write 2PC Sync │ Index Reconstruction (nomos mem reindex)
+                 Dual-Write 2PC Sync │ Git Notes Audit Trail
                                      ▼
 ┌──────────────────────────────────────────────┬─────────────────────────┐
 │     SEMANTIC PROJECTION (mneme.db)           │   RUNTIME COORDINATOR   │
 │  - memories (reflections, pitfalls, axioms)  │    (nomos_global.db)    │
 │  - 64-dim unit vectors + repo_id isolation   │  - tasks (DAG wavefront)│
 │  - Write-time dedup + 30d inactive purge     │  - leases (CapBAC)      │
-│                                              │  - journal (bounded)    │
-│                                              │  - telemetry_* (local)  │
+│                                              │  - telemetry_capabilities│
 └──────────────────────────────────────────────┴─────────────────────────┘
 ```
 
@@ -114,6 +113,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     key            TEXT NOT NULL UNIQUE,
     plane          TEXT NOT NULL CHECK(plane IN ('intent', 'substrate')),
+    project        TEXT NOT NULL DEFAULT '',
     schema_type    TEXT NOT NULL DEFAULT 'substrate',
     title          TEXT NOT NULL,
     description    TEXT NOT NULL DEFAULT '',
@@ -134,6 +134,7 @@ CREATE TABLE IF NOT EXISTS tasks (
 CREATE INDEX IF NOT EXISTS idx_tasks_key ON tasks(key);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_plane ON tasks(plane);
+CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project);
 
 CREATE TABLE IF NOT EXISTS leases (
     lease_id    TEXT PRIMARY KEY,
@@ -148,17 +149,6 @@ CREATE TABLE IF NOT EXISTS leases (
 CREATE INDEX IF NOT EXISTS idx_leases_task_key ON leases(task_key);
 CREATE INDEX IF NOT EXISTS idx_leases_valid ON leases(valid);
 
-CREATE TABLE IF NOT EXISTS journal (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    task_key   TEXT NOT NULL,
-    event_type TEXT NOT NULL,
-    payload    TEXT NOT NULL DEFAULT '{}',
-    timestamp  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-    FOREIGN KEY(task_key) REFERENCES tasks(key) ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS idx_journal_task_key ON journal(task_key);
-CREATE INDEX IF NOT EXISTS idx_journal_timestamp ON journal(timestamp);
-
 CREATE TABLE IF NOT EXISTS telemetry_capabilities (
     id               TEXT PRIMARY KEY,
     name             TEXT NOT NULL,
@@ -170,20 +160,6 @@ CREATE TABLE IF NOT EXISTS telemetry_capabilities (
 );
 CREATE INDEX IF NOT EXISTS idx_telemetry_capabilities_plane ON telemetry_capabilities(plane);
 CREATE INDEX IF NOT EXISTS idx_telemetry_capabilities_type ON telemetry_capabilities(type);
-
-CREATE TABLE IF NOT EXISTS telemetry_intent_activity (
-    id           TEXT PRIMARY KEY,
-    timestamp    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-    seat         TEXT NOT NULL,
-    phase        TEXT NOT NULL,
-    active_task  TEXT DEFAULT '',
-    directive_id TEXT NOT NULL,
-    event_type   TEXT NOT NULL,
-    details_json TEXT DEFAULT '{}'
-);
-CREATE INDEX IF NOT EXISTS idx_telemetry_intent_task ON telemetry_intent_activity(active_task);
-CREATE INDEX IF NOT EXISTS idx_telemetry_intent_directive ON telemetry_intent_activity(directive_id);
-CREATE INDEX IF NOT EXISTS idx_telemetry_intent_timestamp ON telemetry_intent_activity(timestamp);
 ```
 
 ---
@@ -202,19 +178,19 @@ stateDiagram-v2
     WriteGitNote --> StageNotePayload: Format #ReleaseNotePayload JSON
     StageNotePayload --> CommitGitNote: git notes --ref=nomos/releases add -F note.json <commit_sha>
     
-    CommitGitNote --> IndexSQLite: Update tasks, journal & mneme.memories
+    CommitGitNote --> IndexSQLite: Update tasks, leases & mneme.memories
     
     state IndexSQLite <<choice>>
-    IndexSQLite --> MaintainDBs: Compact clones, prune telemetry & checkpoint WAL
+    IndexSQLite --> MaintainDBs: Compact clones, prune expired leases & checkpoint WAL
     IndexSQLite --> RevertNote: SQLite write failure (Atomic Rollback)
 
     MaintainDBs --> [*]: Task status -> DONE (Exit 0)
     RevertNote --> [*]: Revert Git Note & fail-closed (Exit 1)
 ```
 
-### 5.1 Reconstructibility & Hygiene Guarantees
-1. **Reconstructibility (`nomos mem reindex`):** Re-scans `refs/notes/nomos/releases`, validates notes against `intent/contracts/cue/git_notes.cue`, and repopulates release memories in `mneme.db`.
-2. **Automatic Compaction (`Store.Maintain` & `MaintainGlobalDB`):** Runs automatically on `nomos handshake` (throttled once per 24h) and `nomos task sync` — deduplicating active clones, purging inactive memories older than 30 days, capping `journal` / `telemetry_intent_activity` / expired `leases`, running `VACUUM` when SQLite freelist exceeds 2 MiB, and executing `PRAGMA wal_checkpoint(TRUNCATE); PRAGMA optimize;`.
+### 5.1 Provenance & Hygiene Guarantees
+1. **Git Notes Provenance (`refs/notes/nomos/releases`):** Every `nomos task sync` atomically records a `#ReleaseNotePayload` Git Note validated against `intent/contracts/cue/git_notes.cue` and distills structural patterns into `mneme.db`.
+2. **Automatic Compaction (`Store.Maintain` & `storage.MaintainRuntimeStorage`):** Runs automatically on `nomos handshake` (throttled once per 24h) and `nomos task sync` — deduplicating active clones, purging inactive memories older than 30 days, capping expired `leases`, dropping retired legacy tables, running `VACUUM` when SQLite freelist exceeds 2 MiB, and executing `PRAGMA wal_checkpoint(TRUNCATE); PRAGMA optimize;`.
 
 ---
 
@@ -222,9 +198,9 @@ stateDiagram-v2
 
 | Vector ID | Scenario Context | Input Trigger | Expected Behavior | Invariant Enforced |
 | :--- | :--- | :--- | :--- | :--- |
-| **TC-DBNOTE-001** | Release Note Dual-Write | `nomos task sync SUB-1452` | Writes Note to `refs/notes/nomos/releases`, indexes into SQLite | Law 4 & Law 6 |
+| **TC-DBNOTE-001** | Release Note Dual-Write | `nomos task sync SUB-1452 -F walkthrough.md` | Writes Note to `refs/notes/nomos/releases`, indexes patterns into `mneme.db` | Law 4 & Law 6 |
 | **TC-DBNOTE-002** | Legacy Note Rejection | Note staged on `refs/notes/agent` | Rejects: Deprecated namespace | Law 6 (Singularity) |
-| **TC-DBNOTE-003** | Index Reconstruction | `nomos mem reindex` after DB delete | Release memories restored from Git Notes | Law 4 (Reconstructible) |
+| **TC-DBNOTE-003** | Release Receipt Verification | `ReleaseReceiptGate` audit on release commit | Verifies signed JSON note in `refs/notes/nomos/releases` | Law 2 & Law 3 |
 | **TC-DBNOTE-004** | Corrupted Note Payload | Malformed JSON in Git Note | Rejects record during indexing; fails closed | Law 7 (Fail-closed pre-flight) |
 | **TC-DBNOTE-005** | Schema Parity Audit | CUE contracts vs SQLite DDL | Zero column or RFC3339 format mismatches | Law 4 (Schema Parity) |
 | **TC-DBNOTE-006** | Atomic Rollback | SQLite write failure during sync | Git note removed; task remains in REVIEW | Law 7 (Atomic 2PC) |

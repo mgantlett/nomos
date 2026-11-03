@@ -114,12 +114,12 @@ stateDiagram-v2
 * **Semantics**: Fails closed unless the universal 3-section backlog card (`#TaskCardInput` in `task.cue`: `## Scope & Context`, `## Acceptance Criteria` with >=1 `- [ ]` item, `## Verification`) is supplied via structured synthesis flags or Markdown body; auto-derives `burden` (`2-8`) when `--burden` is omitted; auto-stamps `project` from active repository `nomos.yaml` or Git common-dir root basename (unless `--project` is supplied); allocates next sequential key (`INT-<N>` or `SUB-<N>`) and persists record in `tasks` table with status `TODO`.
 
 ### 4.3 `nomos task start`
-* **Syntax**: `nomos task start <KEY>`
-* **Semantics**: Validates task exists; verifies trunk is on `main`; provisions `worktrees/nomos-<KEY>` on branch `feature/<KEY>`; mints CapBAC lease; sets phase to `PLAN`.
+* **Syntax**: `nomos task start <KEY> [--edit]`
+* **Semantics**: Validates task exists; verifies trunk is on `main`; provisions `worktrees/nomos-<KEY>` on branch `feature/<KEY>`; mints CapBAC lease; sets phase to `PLAN` (or directly enters `EDIT` when `--edit` is passed).
 
 ### 4.4 `nomos task edit`
 * **Syntax**: `nomos task edit <KEY>`
-* **Semantics**: Verifies lease is active; transitions task status to `EDIT`; logs session journal entry.
+* **Semantics**: Verifies lease is active and transitions task status and workspace phase to `EDIT`.
 
 ### 4.5 `nomos task review`
 * **Syntax**: `nomos task review <KEY>`
