@@ -8,6 +8,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/capbac"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/handshake"
 	"github.com/spf13/cobra"
@@ -61,6 +62,9 @@ func newHookSessionStartCmd(hermeticDir *string) *cobra.Command {
 			}
 			if _, hErr := workspace.EnsureHooksInstalled(hookRoot); hErr != nil && cmd.ErrOrStderr() != nil {
 				// Non-fatal in read-only or non-git containers
+			}
+			if rErr := capbac.ResetWorkspaceFlowState(hookRoot); rErr != nil && cmd.ErrOrStderr() != nil {
+				// Non-fatal in read-only containers
 			}
 
 			ev, sErr := handshake.SynthesizeDynamicHandshake(targetDir)

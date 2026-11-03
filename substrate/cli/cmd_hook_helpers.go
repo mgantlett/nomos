@@ -9,6 +9,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/capbac"
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 )
 
 // HookPayload normalizes incoming JSON hook events across Claude Code, Cursor, and Antigravity.
@@ -194,7 +197,38 @@ func EvaluatePreToolHook(p *HookPayload, hermeticDir string) HookDecision {
 			return dec
 		}
 	}
+	if dec := evaluateCapabilityFlowGuard(p, hermeticDir); dec.Decision == hookDecisionDeny {
+		return dec
+	}
 	return EvaluateLoopCircuitBreaker(p, hermeticDir)
+}
+
+func evaluateCapabilityFlowGuard(p *HookPayload, hermeticDir string) HookDecision {
+	wsRoot := resolveCanonicalHookWorkspace(p, hermeticDir)
+	flowDec := capbac.EvaluateWorkspaceToolFlow(wsRoot, capbac.ToolFlowInvocation{
+		ToolName:    p.ToolName,
+		TargetFile:  p.TargetFile,
+		CommandLine: p.CommandLine,
+		ArgsDigest:  p.ArgsDigest,
+	})
+	if !flowDec.Allowed {
+		return HookDecision{
+			Decision: hookDecisionDeny,
+			Reason:   flowDec.Reason,
+		}
+	}
+	return HookDecision{Decision: hookDecisionAllow}
+}
+
+func resolveCanonicalHookWorkspace(p *HookPayload, hermeticDir string) string {
+	if hermeticDir != "" {
+		return filepath.Clean(hermeticDir)
+	}
+	base := resolveHookWorkspaceDir(p, "")
+	if pr, err := workspace.FindRepoRoot(base); err == nil && pr != "" {
+		return filepath.Clean(pr)
+	}
+	return filepath.Clean(base)
 }
 
 func isReadOnlyTool(name string) bool {

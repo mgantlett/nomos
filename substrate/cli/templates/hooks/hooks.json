@@ -13,7 +13,7 @@
     "enabled": true,
     "PreToolUse": [
       {
-        "matcher": "replace_file_content|multi_replace_file_content|write_to_file|edit_file|write_file|Write|Edit|MultiEdit",
+        "matcher": "replace_file_content|multi_replace_file_content|write_to_file|edit_file|write_file|read_file|Write|Edit|MultiEdit|Read|WebFetch|WebSearch|search_web|mcp_.*|mcp__.*",
         "hooks": [
           {
             "type": "command",

@@ -122,7 +122,7 @@ func DefaultClaudeSettingsHooksJSON() []byte {
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|Read|Write|Edit|MultiEdit|NotebookEdit|Glob|Grep|Task.*|mcp__.*",
+        "matcher": "Bash|Read|Write|Edit|MultiEdit|NotebookEdit|Glob|Grep|WebFetch|WebSearch|Task.*|mcp__.*",
         "hooks": [
           {
             "type": "command",
