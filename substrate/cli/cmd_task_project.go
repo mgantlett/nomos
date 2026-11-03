@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/constants"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
@@ -30,32 +29,11 @@ func resolveActiveTaskProject(explicit string) string {
 }
 
 func resolveRepoProjectName(repoRoot string) string {
-	cleanRoot := filepath.Clean(repoRoot)
-	repoBase := filepath.Base(cleanRoot)
-	if cfg, err := config.LoadConfig(cleanRoot); err == nil && cfg != nil {
-		cfgProj := strings.TrimSpace(cfg.Project)
-		if cfgProj != "" && (cfgProj != constants.AppName || repoBase == constants.AppName) {
-			return cfgProj
-		}
-	}
-	if repoBase != "" && repoBase != "." && repoBase != string(filepath.Separator) {
-		return repoBase
-	}
-	return constants.AppName
+	return task.ResolveRepoProject(repoRoot)
 }
 
 func filterTasksByProject(tasks []task.TaskRecord, project string) []task.TaskRecord {
-	clean := strings.TrimSpace(project)
-	if clean == "" {
-		return tasks
-	}
-	out := make([]task.TaskRecord, 0, len(tasks))
-	for _, t := range tasks {
-		if strings.EqualFold(strings.TrimSpace(t.Project), clean) {
-			out = append(out, t)
-		}
-	}
-	return out
+	return task.FilterTasksByProject(tasks, project, false)
 }
 
 func newTaskProjectCmd() *cobra.Command {

@@ -2,6 +2,7 @@
 package mem
 
 import (
+	"database/sql"
 	"os"
 	"path/filepath"
 	"sort"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/storage"
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 )
 
 const (
@@ -173,6 +175,30 @@ func (s *Store) checkpointAndOptimizeLocked() bool {
 	}
 	_, err := s.db.Exec(`PRAGMA wal_checkpoint(TRUNCATE); PRAGMA optimize;`)
 	return err == nil
+}
+
+// Dismiss transitions an active or superseded memory record to tombstoned status (@intent: #Memory).
+func (s *Store) Dismiss(id int) (*Memory, error) {
+	if id <= 0 {
+		return nil, types.NewNomosError(types.ErrCodeValidationFailed, "memory ID must be a positive integer, got %d", id).
+			WithRemedy("run 'nomos mem list' to inspect valid numeric memory IDs")
+	}
+	rec, err := s.Get(id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, types.NewNomosError(types.ErrCodeValidationFailed, "memory #%d not found", id).
+				WithRemedy("run 'nomos mem list' to inspect valid numeric memory IDs")
+		}
+		return nil, types.NewNomosError(types.ErrCodeSubstrate, "failed reading memory #%d: %v", id, err)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, uErr := s.db.Exec(`UPDATE memories SET status = ? WHERE id = ?`, string(StatusTombstoned), id); uErr != nil {
+		return nil, types.NewNomosError(types.ErrCodeSubstrate, "failed dismissing memory #%d: %v", id, uErr)
+	}
+	rec.Status = StatusTombstoned
+	return rec, nil
 }
 
 // RemoveTaskTrapBuffer deletes any transient gate-trap buffer file for an aborted or completed task.

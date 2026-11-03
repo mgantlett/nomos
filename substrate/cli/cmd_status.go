@@ -21,6 +21,7 @@ import (
 // StatusReport models the unified status snapshot for machine and human consumption.
 type StatusReport struct {
 	Phase            string                   `json:"phase"`
+	Project          string                   `json:"project,omitempty"`
 	RepoRoot         string                   `json:"repo_root"`
 	ActiveBranch     string                   `json:"active_branch"`
 	IsWorktree       bool                     `json:"is_worktree"`
@@ -28,6 +29,7 @@ type StatusReport struct {
 	DatabaseStatus   string                   `json:"database_status"`
 	TotalTasks       int                      `json:"total_tasks"`
 	ActiveTasks      int                      `json:"active_tasks"`
+	PendingTasks     int                      `json:"pending_tasks"`
 	WavefrontCount   int                      `json:"wavefront_count"`
 	RemoteAheadCount int                      `json:"remote_ahead_count"`
 	NextActions      []types.ActionAffordance `json:"next_actions,omitempty"`
@@ -35,16 +37,16 @@ type StatusReport struct {
 
 // NewStatusCmd constructs the top-level 'nomos status' command.
 func NewStatusCmd() *cobra.Command {
-	var jsonOutput bool
+	var jsonOutput, allProjects bool
 
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Display unified operational status, phase state, and task wavefront",
 		Long: `Emit a comprehensive status report covering active workspace lifecycle phase,
-trunk branch, database connectivity, and Living Ledger task wavefront.`,
+trunk branch, database connectivity, and repository-scoped Living Ledger task wavefront.`,
 		Example: helpStatusExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			report := collectStatusReport()
+			report := collectStatusReportWithScope(allProjects)
 			out := cmd.OutOrStdout()
 			if jsonOutput {
 				data, err := json.MarshalIndent(report, "", "  ")
@@ -59,11 +61,16 @@ trunk branch, database connectivity, and Living Ledger task wavefront.`,
 		},
 	}
 
-	cmd.Flags().BoolVar(&jsonOutput, "json", false, "Emit status as structured JSON")
+	cmd.Flags().BoolVar(&jsonOutput, flagNameJSON, false, "Emit status as structured JSON")
+	cmd.Flags().BoolVarP(&allProjects, flagNameAllProjects, "A", false, "Aggregate Living Ledger metrics across all workstation repositories")
 	return cmd
 }
 
 func collectStatusReport() *StatusReport {
+	return collectStatusReportWithScope(false)
+}
+
+func collectStatusReportWithScope(allProjects bool) *StatusReport {
 	repoRoot, err := workspace.FindRepoRoot("")
 	if err != nil {
 		repoRoot = "."
@@ -76,13 +83,17 @@ func collectStatusReport() *StatusReport {
 
 	activeBranch := resolveBranchName(treeRoot)
 	isWorktree := strings.Contains(treeRoot, "worktrees")
+	project := task.ResolveRepoProject(repoRoot)
+	if allProjects {
+		project = "all"
+	}
 
 	dbPath := config.ResolveGlobalDBPath()
 	dbStatus := "CONNECTED"
-	total, active, wavefront := queryTaskMetrics(dbPath)
+	total, active, pending, wavefront := queryTaskMetrics(dbPath, project, allProjects)
 	if total == -1 {
 		dbStatus = "DEGRADED"
-		total, active, wavefront = 0, 0, 0
+		total, active, pending, wavefront = 0, 0, 0, 0
 	}
 
 	phase := string(types.PhaseIdle)
@@ -101,6 +112,7 @@ func collectStatusReport() *StatusReport {
 
 	return &StatusReport{
 		Phase:            phase,
+		Project:          project,
 		RepoRoot:         repoRoot,
 		ActiveBranch:     activeBranch,
 		IsWorktree:       isWorktree,
@@ -108,6 +120,7 @@ func collectStatusReport() *StatusReport {
 		DatabaseStatus:   dbStatus,
 		TotalTasks:       total,
 		ActiveTasks:      active,
+		PendingTasks:     pending,
 		WavefrontCount:   wavefront,
 		RemoteAheadCount: remoteAhead,
 		NextActions:      nextActions,
@@ -141,10 +154,10 @@ func resolveRemoteAheadCount(repoRoot string) int {
 	return 0
 }
 
-func queryTaskMetrics(dbPath string) (int, int, int) {
+func queryTaskMetrics(dbPath, project string, allProjects bool) (int, int, int, int) {
 	db, err := storage.OpenDB(dbPath)
 	if err != nil {
-		return -1, -1, -1
+		return -1, -1, -1, -1
 	}
 	defer func() {
 		if closeErr := db.Close(); closeErr != nil {
@@ -154,34 +167,53 @@ func queryTaskMetrics(dbPath string) (int, int, int) {
 
 	store := task.NewSQLiteTaskStore(db)
 	tasks := store.ListTasks()
-	active := 0
+	if !allProjects {
+		tasks = task.FilterTasksByProject(tasks, project, true)
+	}
+	active, pending := 0, 0
 	for _, t := range tasks {
-		if t.Status != task.StatusDone && t.Status != task.StatusAborted {
+		if task.IsInProgressStatus(t.Status) {
 			active++
+		}
+		if !task.IsTerminalStatus(t.Status) {
+			pending++
 		}
 	}
 
 	wf, err := store.GetWavefront()
-	wfCount := len(wf)
-	if err != nil {
-		wfCount = 0
+	wfCount := 0
+	if err == nil {
+		for _, cand := range wf {
+			if task.IsInProgressStatus(cand.Status) {
+				continue
+			}
+			if !allProjects && !task.MatchesProject(cand.Project, project, true) {
+				continue
+			}
+			wfCount++
+		}
 	}
-	return len(tasks), active, wfCount
+	return len(tasks), active, pending, wfCount
 }
 
 func renderStatusReport(out io.Writer, r *StatusReport) {
 	fmt.Fprintln(out, renderBrandTitle("📋 Nomos Operational Status"))
 	fmt.Fprintln(out, uiRule(ruleNarrow))
 	fmt.Fprintln(out, kvLine("Active Phase", 15, styleSemanticBadge(r.Phase)))
+	if r.Project != "" {
+		fmt.Fprintln(out, kvLine("Project Scope", 15, uiBoldValueStyle.Render(r.Project)))
+	}
 	fmt.Fprintln(out, kvLine("Active Branch", 15, uiBoldValueStyle.Render(r.ActiveBranch)))
 	fmt.Fprintln(out, kvLine("Is Worktree", 15, formatWorktreeFlag(r.IsWorktree)))
 	fmt.Fprintln(out, kvLine("Database Status", 15, fmt.Sprintf("%s %s",
 		styleSemanticBadge(r.DatabaseStatus),
 		uiMutedStyle.Render("("+r.DatabasePath+")"))))
-	ledgerVal := fmt.Sprintf("%s Total %s %s In Progress %s %s Wavefront Ready",
+	ledgerVal := fmt.Sprintf("%s Total %s %s In Progress %s %s Pending %s %s Wavefront Ready",
 		uiBoldValueStyle.Render(strconv.Itoa(r.TotalTasks)),
 		uiMutedStyle.Render("|"),
 		uiSubstrateStyle.Render(strconv.Itoa(r.ActiveTasks)),
+		uiMutedStyle.Render("|"),
+		uiValueStyle.Render(strconv.Itoa(r.PendingTasks)),
 		uiMutedStyle.Render("|"),
 		uiSuccessStyle.Render(strconv.Itoa(r.WavefrontCount)))
 	fmt.Fprintln(out, kvLine("Living Ledger", 15, ledgerVal))

@@ -1,7 +1,7 @@
 ---
 authors:
     - Mark Gantlett
-    - Sophia
+    - Nomos Open-Core Substrate
 category: architecture
 classification: public
 date: "2026-10-02"
@@ -15,7 +15,7 @@ status: active
 summary: "Authoritative rules for AST Intent tagging (// @intent INT-XXX), Living Intent anchors, and Law 4 Cell (4, 3) verification."
 title: "Intent Traceability Anchors & AST Tagging Discipline"
 type: directive
-version: 3.0.0
+version: 4.0.0
 ---
 
 # Intent Traceability Anchors & AST Tagging Discipline

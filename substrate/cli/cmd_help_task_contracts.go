@@ -9,18 +9,19 @@ const (
   nomos task sync SUB-101 -F .tmp/walkthrough-SUB-101.md`
 
 	helpTaskListLong = `Query and filter Living Ledger task records stored in pure-Go SQLite persistence.
-Supports filtering by repository project, lifecycle status, pending state, plane
-(intent or substrate), cognitive tier (T1 or T2), and row limit. For dependency-ready
-unblocked work, see 'nomos task dag'; to inspect a single card, run 'nomos task show <KEY>'.`
+Defaults to the active repository project unless --project or -A/--all-projects is passed.
+Supports filtering by lifecycle status, pending state, plane (intent or substrate),
+cognitive tier (T1 or T2), and row limit. For dependency-ready unblocked work, see
+'nomos task dag'; to inspect a single card, run 'nomos task show <KEY>'.`
 	helpTaskListExample = `  nomos task list --pending
   nomos task list --status TODO,EDIT --plane substrate --limit 20
-  nomos task list --project nomos --json`
+  nomos task list --all-projects --json`
 
 	helpTaskDAGLong = `Compute the causal DAG wavefront of unblocked Living Ledger tasks whose upstream
-dependencies are satisfied (DONE), ordered for immediate execution.`
+dependencies are satisfied (DONE), scoped to the active repository project by default.`
 	helpTaskDAGExample = `  nomos task dag
   nomos task dag --plane substrate --limit 10
-  nomos task dag --project nomos --json`
+  nomos task dag --all-projects --json`
 
 	helpTaskStatusLong = `Display active workspace lifecycle phase (IDLE, PLAN, EDIT, REVIEW, SYNC, LEARN),
 bound task key, CapBAC capability token budget consumption, and HATEOAS Next Actions.`

@@ -1,7 +1,7 @@
 ---
 authors:
     - Mark Gantlett
-    - Sophia
+    - Nomos Open-Core Substrate
 category: architecture
 classification: public
 date: "2026-09-27"
@@ -58,9 +58,9 @@ Exported functions, types, constants, and interface methods must never silently 
 
 ### 3.3 Topological Slicing & Anti-Truncation Discipline
 When Go source files approach length or complexity limits:
-- **Maximum File LOC:** $\le 400$ lines (Gate 16).
-- **Maximum Cognitive Debt Score (CDS):** $\le 45$ (Gate 17).
-- **Maximum Function LOC:** $\le 60$ lines; **Maximum Cyclomatic Complexity ($M$):** $\le 15$ (Gate 13).
+- **Maximum File LOC:** $\le 400$ lines (`MaxFileLOCGate`, Cell 2.1).
+- **Maximum Cognitive Debt Score (CDS):** $\le 45$ (`CognitiveDebtGate`, Cell 2.1).
+- **Maximum Function LOC:** $\le 60$ lines; **Maximum Cyclomatic Complexity ($M$):** $\le 15$ (`CognitiveComplexityGate`, Cell 2.1).
 - **Decomposition:** Slice monolithic files into modular sibling packages or files (e.g., `*_helpers.go`, `*_handlers.go`, `*_types.go`). **Never** truncate, elide, or stub logic (`// ... rest of implementation`) to save context tokens.
 
 ### 3.4 Fast Rollback on Regression

@@ -36,45 +36,51 @@ func LoadPhaseDirectives(repoRoot string, phase types.Phase) []string {
 	return loadPhaseDirectives(repoRoot, phase)
 }
 
+func isMarkdownDirective(name string) bool {
+	return strings.HasSuffix(strings.ToLower(strings.TrimSpace(name)), ".md")
+}
+
 func loadPhaseDirectives(repoRoot string, phase types.Phase) []string {
 	phasePrefix := strings.ToLower(string(phase))
+
+	if local := readLocalPhaseDirectives(repoRoot, phasePrefix); len(local) > 0 {
+		sort.Strings(local)
+		return local
+	}
+
 	var directives []string
-
-	// Check local overrides first
-	if repoRoot != "" {
-		dirPath := filepath.Join(repoRoot, "intent", "policy", "directives")
-		if entries, err := os.ReadDir(dirPath); err == nil && len(entries) > 0 {
-			for _, e := range entries {
-				if strings.HasPrefix(strings.ToLower(e.Name()), phasePrefix) {
-					directives = append(directives, e.Name())
-				}
-			}
-			if len(directives) > 0 {
-				sort.Strings(directives)
-				return directives
-			}
-		}
-	}
-
-	// Fallback to embedded phase-prefixed directives
 	if entries, err := EmbeddedDirectives.ReadDir("directives"); err == nil {
-		for _, e := range entries {
-			if strings.HasPrefix(strings.ToLower(e.Name()), phasePrefix) {
-				directives = append(directives, e.Name())
-			}
-		}
+		directives = filterPhaseMarkdownEntries(entries, phasePrefix)
 	}
-
-	// Match via parsed YAML frontmatter phases when no filename prefix matches (e.g. IDLE, LEARN)
 	if len(directives) == 0 {
 		directives = matchDirectivesByFrontmatterPhase(repoRoot, phase)
 	}
-
 	if len(directives) == 0 {
 		directives = append(directives, fmt.Sprintf("phase_%s_discipline", phasePrefix))
 	}
 	sort.Strings(directives)
 	return directives
+}
+
+func readLocalPhaseDirectives(repoRoot, phasePrefix string) []string {
+	if repoRoot == "" {
+		return nil
+	}
+	entries, err := os.ReadDir(filepath.Join(repoRoot, "intent", "policy", "directives"))
+	if err != nil {
+		return nil
+	}
+	return filterPhaseMarkdownEntries(entries, phasePrefix)
+}
+
+func filterPhaseMarkdownEntries(entries []os.DirEntry, phasePrefix string) []string {
+	var out []string
+	for _, e := range entries {
+		if !e.IsDir() && isMarkdownDirective(e.Name()) && strings.HasPrefix(strings.ToLower(e.Name()), phasePrefix) {
+			out = append(out, e.Name())
+		}
+	}
+	return out
 }
 
 func matchDirectivesByFrontmatterPhase(repoRoot string, phase types.Phase) []string {
@@ -116,6 +122,9 @@ func GetEmbeddedDirective(name string) ([]byte, error) {
 
 	target := strings.ToLower(name)
 	for _, e := range entries {
+		if e.IsDir() || !isMarkdownDirective(e.Name()) {
+			continue
+		}
 		base := strings.ToLower(e.Name())
 		baseNoExt := strings.TrimSuffix(base, filepath.Ext(base))
 		if base == target || baseNoExt == target || strings.HasPrefix(base, target) {
@@ -126,7 +135,7 @@ func GetEmbeddedDirective(name string) ([]byte, error) {
 	return nil, types.NewNomosError(types.ErrCodeBoundary, "directive %q not found in embedded substrate directives", name)
 }
 
-// ListEmbeddedDirectives returns a sorted slice of all embedded directive names.
+// ListEmbeddedDirectives returns a sorted slice of all embedded Markdown directive names.
 func ListEmbeddedDirectives() ([]string, error) {
 	entries, err := EmbeddedDirectives.ReadDir("directives")
 	if err != nil {
@@ -135,7 +144,9 @@ func ListEmbeddedDirectives() ([]string, error) {
 
 	var names []string
 	for _, e := range entries {
-		names = append(names, e.Name())
+		if !e.IsDir() && isMarkdownDirective(e.Name()) {
+			names = append(names, e.Name())
+		}
 	}
 	sort.Strings(names)
 	return names, nil
@@ -148,10 +159,11 @@ func GetDirective(repoRoot, name string) ([]byte, string, error) {
 	if repoRoot != "" {
 		localDir := filepath.Join(repoRoot, "intent", "policy", "directives")
 		localPath := filepath.Join(localDir, name)
-		if data, err := os.ReadFile(localPath); err == nil {
-			return data, "local", nil
-		}
-		if !strings.HasSuffix(name, ".md") && !strings.HasSuffix(name, ".yaml") {
+		if isMarkdownDirective(name) {
+			if data, err := os.ReadFile(localPath); err == nil {
+				return data, "local", nil
+			}
+		} else {
 			if data, err := os.ReadFile(localPath + ".md"); err == nil {
 				return data, "local", nil
 			}
@@ -160,6 +172,9 @@ func GetDirective(repoRoot, name string) ([]byte, string, error) {
 		if entries, err := os.ReadDir(localDir); err == nil {
 			target := strings.ToLower(name)
 			for _, e := range entries {
+				if e.IsDir() || !isMarkdownDirective(e.Name()) {
+					continue
+				}
 				base := strings.ToLower(e.Name())
 				baseNoExt := strings.TrimSuffix(base, filepath.Ext(base))
 				if base == target || baseNoExt == target || strings.HasPrefix(base, target) {
@@ -178,7 +193,7 @@ func GetDirective(repoRoot, name string) ([]byte, string, error) {
 	return data, "embedded", nil
 }
 
-// ListDirectives inspects all available directives (embedded and local), parsing their frontmatter.
+// ListDirectives inspects all available Markdown directives (embedded and local), parsing their frontmatter.
 func ListDirectives(repoRoot string) ([]DirectiveInfo, error) {
 	embeddedNames, err := ListEmbeddedDirectives()
 	if err != nil {
@@ -192,7 +207,7 @@ func ListDirectives(repoRoot string) ([]DirectiveInfo, error) {
 		localDir := filepath.Join(repoRoot, "intent", "policy", "directives")
 		if entries, rErr := os.ReadDir(localDir); rErr == nil {
 			for _, e := range entries {
-				if e.IsDir() {
+				if e.IsDir() || !isMarkdownDirective(e.Name()) {
 					continue
 				}
 				content, err := os.ReadFile(filepath.Join(localDir, e.Name()))

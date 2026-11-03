@@ -1,7 +1,7 @@
 ---
 authors:
     - Mark Gantlett
-    - Sophia
+    - Nomos Open-Core Substrate
 category: architecture
 classification: public
 date: "2026-10-08"

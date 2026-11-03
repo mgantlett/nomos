@@ -143,7 +143,7 @@ func (s *MemoryTaskStore) GetWavefront() ([]WavefrontCandidate, error) {
 
 	var wavefront []WavefrontCandidate
 	for _, t := range s.tasks {
-		if t.Status == StatusDone || t.Status == StatusAborted {
+		if IsTerminalStatus(t.Status) {
 			continue
 		}
 		if isTaskUnblocked(t, s.tasks) {

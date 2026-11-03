@@ -110,8 +110,17 @@ func TestRecallGraduationCandidates_ThresholdAndDecay(t *testing.T) {
 	if _, err := DistillVerifiedPattern(repo, "SUB-7", "- Added worker execution entrypoint", touched); err != nil {
 		t.Fatalf("DistillVerifiedPattern: %v", err)
 	}
+	if err := RecordGateTrap(repo, "SUB-8", []string{".github/ISSUE_TEMPLATE/02_bug.yml", "substrate/src/worker.py"}, []GateTrapEntry{{
+		GateName: "Cognitive Complexity Invariant",
+		Message:  "- substrate/src/worker.py:42 (run_worker) has cyclomatic complexity 16 (exceeds max 15)",
+	}}); err != nil {
+		t.Fatalf("RecordGateTrap: %v", err)
+	}
+	if _, err := DistillTaskLearnings(repo, "SUB-8", "- Extracted helper to reduce complexity in worker.py", touched); err != nil {
+		t.Fatalf("DistillTaskLearnings: %v", err)
+	}
 
-	// Also insert a heavily accessed advisory reflection; it must NOT appear in Tier B graduation candidates
+	// Insert heavily accessed advisory reflection; neither advisory nor positive pattern must pollute nomos.yaml Tier B candidates
 	store, err := NewStore("")
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
@@ -129,18 +138,49 @@ func TestRecallGraduationCandidates_ThresholdAndDecay(t *testing.T) {
 	}
 	_ = store.Close()
 
-	// Recalls 1 & 2 keep access_count < 3 -> 0 graduation candidates
-	_ = RecallRepoPatterns(repo, "worker", touched, 3)
-	_ = RecallRepoPatterns(repo, "worker", touched, 3)
+	// Read-only passive recalls must NOT increment access_count
+	for i := 0; i < 4; i++ {
+		_ = RecallRepoPitfallsReadOnly(repo, nil, 3)
+		_ = RecallRepoPatternsReadOnly(repo, "", nil, 3)
+	}
+	// Positive pattern recalls >= 3 must NOT appear in Tier B nomos.yaml candidates
+	for i := 0; i < 4; i++ {
+		_ = RecallRepoPatterns(repo, "worker", touched, 3)
+	}
+	if cands := RecallGraduationCandidates(repo, 3); len(cands) != 0 {
+		t.Fatalf("TC-MEM-08: expected 0 graduation candidates from read-only or positive pattern recalls, got %v", cands)
+	}
+
+	// Active pitfall recalls 1 & 2 keep access_count < 3 -> 0 graduation candidates
+	_ = RecallRepoPitfalls(repo, touched, 3)
+	_ = RecallRepoPitfalls(repo, touched, 3)
 	if cands := RecallGraduationCandidates(repo, 3); len(cands) != 0 {
 		t.Fatalf("TC-MEM-08: expected 0 graduation candidates below threshold 3, got %v", cands)
 	}
 
-	// Recall 3 crosses GraduationAccessThreshold (3) -> surfaces statutory pattern candidate
-	_ = RecallRepoPatterns(repo, "worker", touched, 3)
+	// Active pitfall recall 3 crosses GraduationAccessThreshold (3) -> surfaces statutory pitfall candidate scoped to substrate/src
+	_ = RecallRepoPitfalls(repo, touched, 3)
 	cands := RecallGraduationCandidates(repo, 3)
-	if len(cands) != 1 || !strings.Contains(cands[0], "3x recalled") || !strings.Contains(cands[0], "pattern:substrate/src") {
-		t.Fatalf("TC-MEM-08: expected 1 Tier A->B graduation candidate at 3x recall, got %v", cands)
+	if len(cands) != 1 || !strings.Contains(cands[0], "3x recalled") || !strings.Contains(cands[0], "pitfall:cognitive_complexity_invariant:substrate/src") {
+		t.Fatalf("TC-MEM-08: expected 1 pitfall Tier A->B graduation candidate at 3x recall scoped to substrate/src, got %v", cands)
+	}
+
+	// Dismissing the graduated pitfall transitions it to tombstoned and clears it from GraduationCandidates
+	store2, err := NewStore("")
+	if err != nil {
+		t.Fatalf("NewStore: %v", err)
+	}
+	allMems, _ := store2.ListAll()
+	for _, m := range allMems {
+		if m.Kind == KindPitfall {
+			if _, dErr := store2.Dismiss(m.ID); dErr != nil {
+				t.Fatalf("Dismiss(%d): %v", m.ID, dErr)
+			}
+		}
+	}
+	_ = store2.Close()
+	if afterDismiss := RecallGraduationCandidates(repo, 3); len(afterDismiss) != 0 {
+		t.Fatalf("expected dismissed pitfall removed from GraduationCandidates, got %v", afterDismiss)
 	}
 
 	// Verify CalculateTemporalDecay places KindPattern between KindAxiom and KindPitfall

@@ -81,7 +81,7 @@ func SynthesizeDynamicHandshake(repoRoot string) (*HandshakeEvent, error) {
 	gateCount := verify.RegisteredGateCount()
 
 	phase, plane, leaseID, stepBudget, tokensUsed := queryTaskAndLease(activeTask)
-	wavefront := queryReadyWavefront()
+	wavefront := queryReadyWavefront(task.ResolveRepoProject(primaryRoot))
 	directives := loadPhaseDirectives(primaryRoot, phase)
 	modifiedFiles, impactSummary := computeActiveTaskImpact(treeRoot, activeTask)
 	pitfalls, patterns, graduations := recallMnemeHandshakeContext(primaryRoot, activeTask, modifiedFiles)
@@ -147,9 +147,15 @@ func computeActiveTaskImpact(treeRoot, activeTask string) ([]string, []string) {
 }
 
 func recallMnemeHandshakeContext(primaryRoot, activeTask string, modifiedFiles []string) ([]string, []string, []string) {
-	taskTitle := resolveActiveTaskTitle(activeTask)
-	pitfalls := mem.RecallRepoPitfalls(primaryRoot, modifiedFiles, 3)
-	patterns := mem.RecallRepoPatterns(primaryRoot, taskTitle, modifiedFiles, 3)
+	var pitfalls, patterns []string
+	if strings.TrimSpace(activeTask) == "" {
+		pitfalls = mem.RecallRepoPitfallsReadOnly(primaryRoot, modifiedFiles, 3)
+		patterns = mem.RecallRepoPatternsReadOnly(primaryRoot, "", modifiedFiles, 3)
+	} else {
+		taskTitle := resolveActiveTaskTitle(activeTask)
+		pitfalls = mem.RecallRepoPitfalls(primaryRoot, modifiedFiles, 3)
+		patterns = mem.RecallRepoPatterns(primaryRoot, taskTitle, modifiedFiles, 3)
+	}
 	graduations := mem.RecallGraduationCandidates(primaryRoot, 3)
 	return pitfalls, patterns, graduations
 }
@@ -273,7 +279,7 @@ func queryTaskAndLease(taskKey string) (types.Phase, string, string, int, int) {
 	return phase, plane, "", 50, 0
 }
 
-func queryReadyWavefront() []string {
+func queryReadyWavefront(activeProject string) []string {
 	store, err := task.NewDefaultSQLiteTaskStore()
 	if err != nil {
 		return []string{}
@@ -284,15 +290,19 @@ func queryReadyWavefront() []string {
 		}
 	}()
 
-	records := store.ListTasks()
+	candidates, err := store.GetWavefront()
+	if err != nil {
+		return []string{}
+	}
 
 	var wavefront []string
-	for _, rec := range records {
-		if rec.Status == task.StatusReady {
-			wavefront = append(wavefront, rec.Key)
-			if len(wavefront) >= 5 {
-				break
-			}
+	for _, cand := range candidates {
+		if task.IsInProgressStatus(cand.Status) || !task.MatchesProject(cand.Project, activeProject, true) {
+			continue
+		}
+		wavefront = append(wavefront, cand.Key)
+		if len(wavefront) >= 5 {
+			break
 		}
 	}
 	return wavefront

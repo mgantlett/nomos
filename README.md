@@ -65,7 +65,7 @@ cd your-project
 nomos init
 ```
 
-`nomos init` detects your language stack, scaffolds [`nomos.yaml`](intent/architecture/specs/core/declarative_pipeline_spec.md), installs self-healing Git defense hooks (`pre-commit`, `commit-msg`, `pre-push`), and drops indirect-control agent contracts (`AGENTS.md`, `CLAUDE.md`) plus ambient lifecycle hooks (`.agents/hooks.json`) into your repo.
+`nomos init` detects your language stack, scaffolds [`nomos.yaml`](intent/architecture/specs/core/go_ssot_and_json_schema_spec.md) (validated against [`nomos.schema.json`](nomos.schema.json)), installs self-healing Git defense hooks (`pre-commit`, `commit-msg`, `pre-push`), and drops indirect-control agent contracts (`AGENTS.md`, `CLAUDE.md`) plus ambient lifecycle hooks (`.agents/hooks.json`) into your repo.
 
 ### 3. Prompt Your Coding Agent Naturally
 
@@ -108,10 +108,10 @@ nomos task sync SUB-1 -F .tmp/walkthrough.md       # 3. Agent atomically merges 
 | **Phase Discipline & Worktrees** | `nomos task chore \| pair \| create \| start \| edit \| review \| dag` | Separates `INT-*` spec tasks from `SUB-*` code tasks in a causal DAG wavefront and enforces `IDLE → PLAN → EDIT → REVIEW → SYNC → LEARN` state transitions inside hermetic `worktrees/<repo>-<task>` sandboxes. | [`nomos_hermetic_worktree_spec.md`](intent/architecture/specs/core/nomos_hermetic_worktree_spec.md) |
 | **42-Gate AST & DoD Engine** | `nomos verify`, `nomos verify proof` | Runs 42 statutory Definition of Done (DoD) quality gates across the 7x3 Canonical Invariant Matrix (21 Cells) via Go AST, `.scm` S-expression query rules, `wazero` WASM linear-memory scanning, polyglot structural scanners, and native toolchain/coverage probes (`tsc`, `pytest`, `cargo`, `cmake`, `gradle`/`mvn`, `dotnet`). | [`seven_laws_canonical_gate_matrix_spec.md`](intent/architecture/specs/core/seven_laws_canonical_gate_matrix_spec.md) · [`full_dod_gate_suite_and_polyglot_spec.md`](intent/architecture/specs/core/full_dod_gate_suite_and_polyglot_spec.md) |
 | **Auto-Remediation Directives** | `nomos directive` | Translates gate failures into deterministic JSON/terminal `NomosError` payloads and next-action directives for 1-turn agent self-correction. | [`nomos_actionable_error_framework_spec.md`](intent/architecture/specs/core/nomos_actionable_error_framework_spec.md) |
-| **Nomos Mneme Memory** | `nomos mem save \| recall \| list` | Pure-Go SQLite WAL + hybrid 64-dim vector & lexical memory bank (`mneme.db`) scoped per repository (`repo_id`) so agents retain architectural decisions across sessions. | [`mneme_memory_spec.md`](intent/architecture/specs/core/mneme_memory_spec.md) |
+| **Nomos Mneme Memory** | `nomos mem save \| recall \| list \| dismiss` | Pure-Go SQLite WAL + hybrid 64-dim vector & lexical memory bank (`mneme.db`) scoped per repository (`repo_id`) so agents retain architectural decisions across sessions. | [`mneme_memory_spec.md`](intent/architecture/specs/core/mneme_memory_spec.md) |
 | **Atomic 2PC Sync & Git Notes** | `nomos task sync`, `nomos verify proof` | Two-Phase Commit release to `main` with mandatory walkthrough synthesis and immutable `refs/notes/nomos/releases` provenance receipts. | [`task_lifecycle_cli_spec.md`](intent/architecture/specs/core/task_lifecycle_cli_spec.md) |
 | **Git Hooks & Sanitized Issues** | `nomos issue` | Self-healing pre-commit/commit-msg/pre-push defense hooks and zero-leak sanitized diagnostic issue reporting. | [`git_hooks_and_commit_schema_spec.md`](intent/architecture/specs/core/git_hooks_and_commit_schema_spec.md) |
-| **Complete CLI & Config Reference** | `nomos --help` | Full flag-by-flag reference for all commands and declarative `nomos.yaml` quality thresholds. | [`cli_and_flags_parity_expansion_spec.md`](intent/architecture/specs/core/cli_and_flags_parity_expansion_spec.md) · [`declarative_pipeline_spec.md`](intent/architecture/specs/core/declarative_pipeline_spec.md) |
+| **Complete CLI & Config Reference** | `nomos --help` | Full flag-by-flag reference for all commands and Draft 2020-12 `nomos.schema.json` configuration contracts. | [`cli_and_flags_parity_expansion_spec.md`](intent/architecture/specs/core/cli_and_flags_parity_expansion_spec.md) · [`go_ssot_and_json_schema_spec.md`](intent/architecture/specs/core/go_ssot_and_json_schema_spec.md) |
 
 ---
 
@@ -121,12 +121,12 @@ Every check in `nomos verify` maps to one of seven compiled architectural laws (
 
 | Law | Name | What It Prevents |
 | :---: | :--- | :--- |
-| **1** | **Dual-Core Inversion** | Prevents unverified agent execution outside the phase state machine (`PhaseStateGate`). |
+| **1** | **Dual-Core Inversion** | Prevents unverified agent execution outside the phase state machine (`PhaseDisciplineGate`). |
 | **2** | **Non-Verbal Proof** | Rejects conversational "tests pass" claims, `// TODO` shims, and empty function stubs (`AntiShimGate`). |
-| **3** | **Hermetic Worktree** | Physically blocks direct commits on `main` and path escapes outside the task worktree (`WorktreeBoundaryGate`). |
-| **4** | **Single Source of Truth** | Eliminates broken documentation links, orphaned specs, and unaligned schemas (`BrokenWireGate`, `ParityGate`). |
+| **3** | **Hermetic Worktree** | Physically blocks direct commits on `main` and path escapes outside the task worktree (`HermeticWorktreeGate`, `StagedBoundariesGate`). |
+| **4** | **Single Source of Truth** | Eliminates broken documentation links, orphaned specs, and unaligned schemas (`BrokenWireGate`, `ContractParityGate`). |
 | **5** | **Zero Hardcoded Paths** | Blocks machine-specific absolute paths (`/Users/...`, `/home/...`) and secret literals (`ForbiddenLiteralsGate`). |
-| **6** | **Canonical Singularity** | Prohibits duplicate CLI aliases, rogue task keys, and filesystem symlinks (`ZeroFilesystemAliasGate`). |
+| **6** | **Canonical Singularity** | Prohibits duplicate CLI aliases, rogue task keys, and filesystem symlinks (`ZeroAliasGate`, `ZeroFilesystemAliasGate`). |
 | **7** | **Fail-Closed Pre-Flight** | Enforces strict plane separation, test coverage floors, static analysis, and vulnerability checks (`PlaneSeparationGate`). |
 
 ---
@@ -138,7 +138,7 @@ Nomos is engineered so deterministic governance adds sub-second overhead on ever
 | Engineering Metric | Verified Result | Reproducible Proof / Implementation |
 | :--- | :--- | :--- |
 | **42-Gate Structural & AST Overhead** | **`~460 ms` (`~24 ms` `--fast-file`)** | `nomos verify` structural/AST gate pass across Go/TS/Svelte/Py/Rust/C/JVM/C# (plus project `go test`/`tsc`/`pytest`/`cargo`/`gradle`/`dotnet` runtime) |
-| **Static Binary Footprint** | **`28 MB` stripped (`CGO_ENABLED=0`)** | Single Go release binary (`-ldflags="-s -w"`) with embedded `modernc.org/sqlite` WAL + `wazero` WASM runtime host; zero host runtime deps |
+| **Static Binary Footprint** | **`19 MB` stripped (`CGO_ENABLED=0`)** | Single Go release binary (`-ldflags="-s -w"`) with embedded `modernc.org/sqlite` WAL + `wazero` WASM runtime host; zero host runtime deps |
 | **Adversarial Fail-Closed Suite (`VEC-TTB-01..07`)** | **`7/7` vectors blocked in `1.98s`** | [`cleanroom_tracetrial_bench_test.go`](substrate/cli/cleanroom_tracetrial_bench_test.go) (`go test ./cli -run TestTraceTrialBench`) |
 | **Config & Boundary Tamper Resistance** | **`0` trunk leaks** | Worktree edits to `nomos.yaml` fail closed against pinned `main`; mid-2PC gate panics abort before `main` fast-forwards |
 | **Nomos Mneme Hybrid Memory Recall** | **`< 50 ms` local query** | 64-dim vector + lexical SQLite recall (`mneme.db`); promotes `pattern` blueprints only after verified 2PC `Git Notes` release |
@@ -156,7 +156,7 @@ Nomos Community Edition is **100% open-source under Apache 2.0** with zero telem
 
 | Capability Layer | Nomos Community Edition (Apache 2.0) | SophiaLabs Sovereign Enterprise |
 | :--- | :--- | :--- |
-| **Indirect Control for Tier 1 Coding Agents** (`AGENTS.md`, `CLAUDE.md`, Skills) | ✅ Included | ✅ Included |
+| **Indirect Control for Tier 1 Coding Agents** (`AGENTS.md`, `CLAUDE.md`, `.agents/hooks.json`) | ✅ Included | ✅ Included |
 | **42-Gate Polyglot Verification Engine** (`nomos verify`, Go AST + Polyglot Scanners, 7 Laws + DoD) | ✅ Included | ✅ Included |
 | **Causal `INT-*`/`SUB-*` DAG, Hermetic Worktrees & 2PC Sync** (`nomos task`, trunk-pinned `nomos.yaml`, `refs/notes/nomos/releases`) | ✅ Included | ✅ Included |
 | **Nomos Mneme Hybrid Vector Memory & Sanitized Diagnostic Issues** (`nomos mem`, `nomos issue`) | ✅ Included | ✅ Included |

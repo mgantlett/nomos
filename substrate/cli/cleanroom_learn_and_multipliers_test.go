@@ -133,13 +133,24 @@ func verifyHandshakeRecallsDistilledPitfallAndImpact(t *testing.T, repoDir strin
 		}
 	}
 
+	// TV-LRN-09: Active worktree recalls >= 3 surface recurring pitfall in GraduationCandidates, while passive trunk boots do not inflate counts
+	_, _ = handshake.SynthesizeDynamicHandshake(wt2)
 	syncCleanroomTask(t, repoDir, "SUB-2", "Clamped reconciliation delta cleanly")
 
-	// TV-LRN-09: After >= 3 recalls of the statutory pitfall, GraduationCandidates surfaces Tier A->B promotion
-	_, _ = handshake.SynthesizeDynamicHandshake(repoDir)
 	evGrad, gErr := handshake.SynthesizeDynamicHandshake(repoDir)
-	if gErr != nil || len(evGrad.GraduationCandidates) == 0 {
-		t.Fatalf("TV-LRN-09: expected recurring statutory memory to surface in GraduationCandidates, got err=%v cands=%v", gErr, evGrad.GraduationCandidates)
+	if gErr != nil || len(evGrad.GraduationCandidates) == 0 || !strings.Contains(evGrad.GraduationCandidates[0], "pitfall:") {
+		t.Fatalf("TV-LRN-09: expected recurring statutory pitfall to surface in GraduationCandidates, got err=%v cands=%v", gErr, evGrad.GraduationCandidates)
+	}
+
+	// Dismissing the graduated pitfall via 'nomos mem dismiss' clears it from GraduationCandidates
+	dismissCmd := NewMemCmd()
+	dismissCmd.SetArgs([]string{"dismiss", "1"})
+	if dErr := dismissCmd.Execute(); dErr != nil {
+		t.Fatalf("TV-LRN-09b: expected 'nomos mem dismiss 1' to succeed, got: %v", dErr)
+	}
+	evAfterDismiss, _ := handshake.SynthesizeDynamicHandshake(repoDir)
+	if len(evAfterDismiss.GraduationCandidates) != 0 {
+		t.Fatalf("TV-LRN-09b: expected dismissed pitfall cleared from GraduationCandidates, got: %v", evAfterDismiss.GraduationCandidates)
 	}
 }
 

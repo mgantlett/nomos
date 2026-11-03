@@ -71,11 +71,14 @@ func newTaskListCmd() *cobra.Command {
 				return nil
 			}
 			renderTaskList(out, tasks)
-			renderTaskListNextActions(out, tasks, len(all))
+			projFilter, allowUnassigned := resolveEffectiveProjectFilter(opts.project, opts.allProjects)
+			scopedPool := task.FilterTasksByProject(all, projFilter, allowUnassigned)
+			renderTaskListNextActions(out, tasks, len(scopedPool))
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&opts.project, flagNameProject, "", "Filter tasks by repository project identifier")
+	cmd.Flags().StringVar(&opts.project, flagNameProject, "", "Filter tasks by repository project identifier (defaults to active repo)")
+	cmd.Flags().BoolVarP(&opts.allProjects, flagNameAllProjects, "A", false, "Include tasks across all repositories on workstation")
 	cmd.Flags().StringVarP(&opts.status, flagNameStatus, "s", "", "Filter by status (TODO, PLAN, EDIT, REVIEW, DONE, ABORTED; comma-separated)")
 	cmd.Flags().BoolVar(&opts.pending, flagNamePending, false, "Show only unfinished tasks (excludes DONE and ABORTED)")
 	cmd.Flags().StringVarP(&opts.plane, flagNamePlane, "p", "", "Filter tasks by plane (intent or substrate)")
@@ -146,7 +149,8 @@ func newTaskDAGCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&opts.project, flagNameProject, "", "Filter wavefront candidates by repository project identifier")
+	cmd.Flags().StringVar(&opts.project, flagNameProject, "", "Filter wavefront candidates by repository project identifier (defaults to active repo)")
+	cmd.Flags().BoolVarP(&opts.allProjects, flagNameAllProjects, "A", false, "Include wavefront candidates across all repositories on workstation")
 	cmd.Flags().StringVarP(&opts.plane, flagNamePlane, "p", "", "Filter wavefront candidates by plane (intent or substrate)")
 	cmd.Flags().StringVarP(&opts.tier, flagNameTier, "t", "", "Filter wavefront candidates by cognitive tier (T1 or T2)")
 	cmd.Flags().IntVarP(&opts.limit, flagNameLimit, "n", 0, "Maximum wavefront candidates to display (0 = all)")

@@ -1,11 +1,11 @@
 ---
 authors:
     - Mark Gantlett
-    - Sophia
+    - Nomos Open-Core Substrate
 category: taxonomy
 classification: public
 date: "2026-09-27"
-last_updated: "2026-10-15"
+last_updated: "2026-11-03"
 phases:
     - IDLE
     - PLAN
@@ -19,7 +19,7 @@ status: active
 summary: "Authoritative index, taxonomy specification, and authoring guidelines for Intent lifecycle and JIT directives."
 title: "Intent Directives Index & Taxonomy Guide"
 type: index
-version: 3.0.0
+version: 4.0.0
 ---
 
 # Intent Directives Index & Taxonomy Guide
@@ -27,7 +27,7 @@ version: 3.0.0
 ## 1. Executive Overview & Problem Statement
 The Intent Plane maintains the living Single Source of Truth (SSoT) for Tier 1 coding agent behavior, architectural invariants, and terminology. Canonical directives embedded within the Substrate engine are dynamically indexed during session bootup (`nomos handshake`) and injected Just-In-Time (JIT) during phase state transitions.
 
-Historically, directives relied on fragmented phase enumerations (`triage`, `audit`, `all`), legacy repository names (`vault-intent`, `gsi-int-sov`), and vague gate counts. In strict compliance with **Law 4 (SSoT)** and **Law 6 (Canonical Singularity)**, this guide formalizes the directive taxonomy, binding all directives to the canonical 6-phase state machine and The Seven Laws & 21 Invariant Cells Suite (42 Definition of Done Quality Gates).
+Historically, early directives relied on fragmented phase enumerations (`triage`, `audit`, `all`) and unanchored prose checklists. In strict compliance with **Law 4 (SSoT)** and **Law 6 (Canonical Singularity)**, this guide formalizes the directive taxonomy, binding all directives to the canonical 6-phase state machine and The Seven Laws & 21 Invariant Cells Suite (42 Definition of Done Quality Gates).
 
 ```mermaid
 graph LR
@@ -63,7 +63,7 @@ Directives are mapped deterministically to agent reasoning phases via their fron
 | **Handshake** | `handshake_*.md` | `[IDLE, PLAN]` | Workspace topology, dynamic path discovery, worktree boundaries. |
 | **Planning** | `plan_*.md` | `[PLAN]` | Task sizing, DAG dependencies, 2-plane singularity (`INT-*` / `SUB-*`). |
 | **Mutation** | `edit_*.md` | `[EDIT]` | Hermetic worktree mutations, refactoring disciplines, deprecated terms, Go & JSON Schema synthesis. |
-| **Verification** | `review_*.md` | `[REVIEW]` | The Seven Laws & 21 Invariant Cells Suite across 3 Defense Rings (37 Sensor Probes), AST anti-shim inspection, non-verbal proof enforcement. |
+| **Verification** | `review_*.md` | `[REVIEW]` | The Seven Laws & 21 Invariant Cells Suite across 3 Defense Rings (42 Definition of Done Quality Gates), AST anti-shim inspection, non-verbal proof enforcement. |
 | **Synchronization** | `sync_*.md` | `[SYNC]` | 2PC atomic release, Living Ledger synchronization, git notes receipts. |
 | **Distillation** | `learn_*.md` | `[LEARN]` | Cognitive reflection, Knowledge Item (KI) generation, memory distillation (`nomos mem save`). |
 
@@ -115,5 +115,5 @@ The following table-driven test vectors validate directive parsing and JIT phase
 | **VEC-DIR-04** | `edit_01_deprecated_terms.md` | `[EDIT]` | `EDIT` | `INJECT` | Mutation phase injects deprecated terminology rules |
 | **VEC-DIR-05** | `malformed_directive.md` | `["TRIAGE"]` | `PLAN` | `FAIL` | Law 6: Non-canonical phase `TRIAGE` rejected at pre-flight |
 | **VEC-DIR-06** | `missing_phase.md` | `[]` | `IDLE` | `FAIL` | Law 7: Empty phases array rejected at pre-flight |
-| **VEC-DIR-07** | `broken_link.md` | `[REVIEW]` | `REVIEW` | `FAIL` | Gate 14: Non-existent markdown target fails verification |
+| **VEC-DIR-07** | `broken_link.md` | `[REVIEW]` | `REVIEW` | `FAIL` | Cell (4, 1) (`BrokenWireGate`): Non-existent markdown target fails verification |
 

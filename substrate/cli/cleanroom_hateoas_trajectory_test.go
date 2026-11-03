@@ -107,17 +107,20 @@ func verifyAllPhasesDirectiveResolutionAndZeroLeaks(t *testing.T) {
 	}
 
 	all, lErr := handshake.ListEmbeddedDirectives()
-	if lErr != nil || len(all) < 17 {
-		t.Fatalf("CDV-HAT-02: expected at least 17 embedded directives, got %d (err=%v)", len(all), lErr)
+	if lErr != nil || len(all) < 16 {
+		t.Fatalf("CDV-HAT-02: expected at least 16 embedded Markdown directives, got %d (err=%v)", len(all), lErr)
 	}
 	for _, d := range all {
+		if !strings.HasSuffix(d, ".md") {
+			t.Fatalf("CDV-HAT-02: non-Markdown asset leaked into embedded directive catalog: %s", d)
+		}
 		body, err := handshake.GetEmbeddedDirective(d)
 		if err != nil {
 			t.Fatalf("CDV-HAT-02: failed reading %s: %v", d, err)
 		}
-		for _, leak := range []string{"worktrees/nomos-", "intent/architecture/specs", "substrate/src/", "cmd/nomos"} {
+		for _, leak := range []string{"worktrees/nomos-", "intent/architecture/specs", "substrate/src/", "cmd/nomos", "Sophia", "gsi-sov", "gsi-open", "vault-intent"} {
 			if strings.Contains(string(body), leak) {
-				t.Fatalf("CDV-HAT-02: embedded directive %s leaked dogfood path %q", d, leak)
+				t.Fatalf("CDV-HAT-02: embedded directive %s leaked dogfood or foundry lore %q", d, leak)
 			}
 		}
 	}

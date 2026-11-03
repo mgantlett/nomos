@@ -144,14 +144,13 @@ func recordFailedReportTraps(repoRoot, worktreePath, taskKey string, report *ver
 		return
 	}
 	modified := verify.ListModifiedWorktreeFiles(worktreePath, taskKey)
-	scope := mem.DeriveDirectoryScope(worktreePath, modified)
 	var traps []mem.GateTrapEntry
 	for _, res := range report.GateResults {
 		if !res.Passed {
 			traps = append(traps, mem.GateTrapEntry{
 				GateName: res.GateName,
 				Message:  res.Message,
-				Scope:    scope,
+				Scope:    mem.DeriveTrapScope(worktreePath, res.Message, modified),
 			})
 		}
 	}

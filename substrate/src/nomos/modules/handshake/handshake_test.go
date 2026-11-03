@@ -52,8 +52,13 @@ func TestEmbeddedDirectives_ListAndGet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error listing embedded directives: %v", err)
 	}
-	if len(names) < 17 {
-		t.Errorf("expected at least 17 embedded directives, got %d: %v", len(names), names)
+	if len(names) < 16 {
+		t.Errorf("expected at least 16 embedded Markdown directives, got %d: %v", len(names), names)
+	}
+	for _, n := range names {
+		if !strings.HasSuffix(n, ".md") {
+			t.Errorf("expected only .md directives in embedded list, got %q", n)
+		}
 	}
 
 	// Test exact match
@@ -121,8 +126,13 @@ func TestListDirectives_Metadata(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error listing directives: %v", err)
 	}
-	if len(list) < 17 {
-		t.Errorf("expected at least 17 directives in list, got %d", len(list))
+	if len(list) < 16 {
+		t.Errorf("expected at least 16 directives in list, got %d", len(list))
+	}
+	for _, d := range list {
+		if !strings.HasSuffix(d.Name, ".md") || strings.TrimSpace(d.Summary) == "" {
+			t.Errorf("expected .md directive with non-empty summary, got %+v", d)
+		}
 	}
 
 	foundTaxonomy := false

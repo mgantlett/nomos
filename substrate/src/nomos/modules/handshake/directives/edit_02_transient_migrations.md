@@ -1,7 +1,7 @@
 ---
 authors:
     - Mark Gantlett
-    - Sophia
+    - Nomos Open-Core Substrate
 category: runtime
 classification: public
 date: "2026-09-27"
@@ -14,7 +14,7 @@ status: active
 summary: "Active runtime protocols governing transient task worktrees, CapBAC capability budgets, and zero-touch phase transitions."
 title: "Active Transient Protocols & Multi-Agent Concurrency"
 type: directive
-version: 3.0.0
+version: 4.0.0
 ---
 
 # Active Transient Protocols & Multi-Agent Concurrency

@@ -30,6 +30,7 @@ axioms, and architectural decisions with deterministic vector recall.`,
 	cmd.AddCommand(newMemSaveCmd())
 	cmd.AddCommand(newMemRecallCmd())
 	cmd.AddCommand(newMemListCmd())
+	cmd.AddCommand(newMemDismissCmd())
 	return cmd
 }
 

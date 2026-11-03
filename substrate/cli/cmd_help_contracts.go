@@ -3,13 +3,14 @@
 package cli
 
 const (
-	flagNameJSON    = "json"
-	flagNameProject = "project"
-	flagNamePlane   = "plane"
-	flagNameTier    = "tier"
-	flagNameStatus  = "status"
-	flagNamePending = "pending"
-	flagNameLimit   = "limit"
+	flagNameJSON        = "json"
+	flagNameProject     = "project"
+	flagNameAllProjects = "all-projects"
+	flagNamePlane       = "plane"
+	flagNameTier        = "tier"
+	flagNameStatus      = "status"
+	flagNamePending     = "pending"
+	flagNameLimit       = "limit"
 )
 
 const (
@@ -25,6 +26,7 @@ chains ambient lifecycle hooks, and installs Git pre-commit/commit-msg/pre-push 
   nomos init --dir ./my-service`
 
 	helpStatusExample = `  nomos status
+  nomos status --all-projects
   nomos status --json`
 
 	helpVerifyExample = `  nomos verify
@@ -72,7 +74,8 @@ syntax and budget radar checks on modified source files.`
 
 	helpMemExample = `  nomos mem recall "worktree"
   nomos mem list --limit 10
-  nomos mem save --kind reflection --topic cli "Keep leaf commands self-documenting"`
+  nomos mem save --kind reflection --topic cli "Keep leaf commands self-documenting"
+  nomos mem dismiss 42`
 
 	helpMemSaveLong = `Persist an advisory reflection, architectural axiom, or decision record into
 Nomos Mneme SQLite storage partitioned to the active repository scope.`
@@ -89,6 +92,11 @@ and verified patterns filtered by repository, task key, memory kind, or topic.`
 	helpMemListExample = `  nomos mem list
   nomos mem list --kind pattern --limit 10
   nomos mem list --all --json`
+
+	helpMemDismissLong = `Transition one or more Nomos Mneme memory records to tombstoned status once a
+recurring pitfall has been promoted into nomos.yaml or a record is obsolete.`
+	helpMemDismissExample = `  nomos mem dismiss 42
+  nomos mem dismiss 42 43 --json`
 
 	helpSessionExample = `  nomos session list
   nomos session show

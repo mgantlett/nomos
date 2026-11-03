@@ -135,7 +135,7 @@ func resolveOrAllocateCreateKey(store task.TaskStore, plane, customKey string) (
 }
 
 func newTaskStartCmd() *cobra.Command {
-	var autoEdit bool
+	var autoEdit, forceProject bool
 	cmd := &cobra.Command{
 		Use:     "start <key>",
 		Short:   "Provision transient worktree and CapBAC lease for task",
@@ -143,14 +143,19 @@ func newTaskStartCmd() *cobra.Command {
 		Example: helpTaskStartExample,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTaskStart(args[0], autoEdit)
+			return runTaskStartWithOpts(args[0], autoEdit, forceProject)
 		},
 	}
 	cmd.Flags().BoolVarP(&autoEdit, "edit", "e", false, "Immediately transition worktree into EDIT phase")
+	cmd.Flags().BoolVar(&forceProject, "force-project", false, "Allow starting a task stamped with a different repository project")
 	return cmd
 }
 
 func runTaskStart(rawKey string, autoEdit bool) error {
+	return runTaskStartWithOpts(rawKey, autoEdit, false)
+}
+
+func runTaskStartWithOpts(rawKey string, autoEdit, forceProject bool) error {
 	key := strings.ToUpper(strings.TrimSpace(rawKey))
 	if err := task.ValidateTaskKey(key); err != nil {
 		return err
@@ -166,6 +171,13 @@ func runTaskStart(rawKey string, autoEdit bool) error {
 	mgr, err := workspace.NewManager("")
 	if err != nil {
 		return err
+	}
+	activeProj := resolveRepoProjectName(mgr.RepoRoot)
+	if !forceProject && !task.MatchesProject(t.Project, activeProj, true) {
+		return types.NewNomosError(types.ErrCodeValidationFailed,
+			"task %s belongs to project %q, cannot start inside repository %q", key, t.Project, activeProj).
+			WithRemedy(fmt.Sprintf("switch to the %q repository, run 'nomos task dag' for %q tasks, or run 'nomos task project %s %s' to reassign",
+				t.Project, activeProj, activeProj, key))
 	}
 	wtPath, err := mgr.CreateWorktree(key)
 	if err != nil {
@@ -266,14 +278,10 @@ func updateActiveLeasePhase(taskKey, phase string) {
 	if err != nil {
 		return
 	}
-	defer func() {
-		if cErr := db.Close(); cErr != nil {
-			return
-		}
-	}()
+	defer func() { _ = db.Close() }()
 	if leaseID, _, budget, used, lErr := storage.GetActiveLease(db, taskKey); lErr == nil {
 		if sErr := storage.SaveLease(db, leaseID, taskKey, phase, budget, used); sErr != nil {
-			return
+			fmt.Fprintf(os.Stderr, "⚠️  Warning: failed to update lease phase: %v\n", sErr)
 		}
 	}
 }

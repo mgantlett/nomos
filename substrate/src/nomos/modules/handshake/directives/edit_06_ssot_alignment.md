@@ -1,7 +1,7 @@
 ---
 authors:
     - Mark Gantlett
-    - Sophia
+    - Nomos Open-Core Substrate
 category: architecture
 classification: public
 date: "2026-09-29"
@@ -16,7 +16,7 @@ status: active
 summary: "Intent SSoT alignment, AST reflection reconciliation, and The Seven Laws DoD harmonization."
 title: "Intent SSoT Alignment & Reconciliation"
 type: directive
-version: 3.0.0
+version: 4.0.0
 ---
 
 # Intent SSoT Alignment & Reconciliation
@@ -24,7 +24,7 @@ version: 3.0.0
 ## 1. Executive Summary & Problem Statement
 Over successive development waves, the Intent Plane and Substrate Plane risk architectural drift: exported symbols change without Intent updates, deprecated terms linger in comments, or ADR task linkages become orphaned.
 
-This directive codifies the **SSoT Reconciliation Protocol**, which deterministically restores cross-plane parity between living Markdown specifications and the compiled Go Substrate. Governed by **Law 4 (The Single Source of Truth Law)**, this protocol ensures zero drift across schemas, AST symbols, and The Seven Laws & 21 Invariant Cells Suite (37 Sensor Probes).
+This directive codifies the **SSoT Reconciliation Protocol**, which deterministically restores cross-plane parity between living Markdown specifications and the compiled Go Substrate. Governed by **Law 4 (The Single Source of Truth Law)**, this protocol ensures zero drift across schemas, AST symbols, and The Seven Laws & 21 Invariant Cells Suite (42 Definition of Done Quality Gates).
 
 ```mermaid
 flowchart LR
@@ -54,7 +54,7 @@ flowchart LR
 | **1. Schema Verification** | `nomos verify` | Validate frontmatter, dates, and balanced code fences. | Assert zero `nomos.schema.json` drift against Go SSoT. | Cell (4, 1) & Cell (4, 2) |
 | **2. AST Tag Scan** | `nomos verify` | Ensure every `INT-<N>` spec contains required symbol headers. | Verify all `// @intent` AST annotations resolve. | Cell (4, 3) (Traceability) |
 | **3. Ledger Sync** | `nomos task list` | Ensure active tasks link to Living Ledger wavefront. | Verify branch states and task DAG dependencies. | Cell (6, 1) (Singularity) |
-| **4. Term Alignment**| `nomos verify` | Replace deprecated terms per `edit_01_deprecated_terms.md`. | Scan AST literals for blacklisted strings. | Cell (3, 1) (Forbidden Literals) |
+| **4. Term Alignment**| `nomos verify` | Replace deprecated terms per `edit_01_deprecated_terms.md`. | Scan AST literals for blacklisted strings. | Cell (5, 1) (`ForbiddenLiteralsGate`) |
 | **5. Full Verification**| `nomos verify` | Assert all documentation links resolve. | Execute all unit tests and 21 Invariant Cells. | The Seven Laws (Exit 0) |
 
 ---
@@ -74,6 +74,6 @@ flowchart LR
 | **VEC-REC-01** | `nomos.schema.json` | In byte parity with `EcosystemConfig` | `PASS` (0 violations) | Law 4: Byte parity verified |
 | **VEC-REC-02** | Go function tagged with missing INT | `// @intent INT-999` | `FAIL` (Cell (4, 3) violation) | Cell (4, 3): Unanchored AST tag |
 | **VEC-REC-03** | Broken markdown link | `target: nonexistent.md` | `FAIL` (Cell (2, 2) violation) | Cell (2, 2): Broken wire detected |
-| **VEC-REC-04** | Deprecated term in comment | `// gsi-open foundation` | `FAIL` (Cell (3, 1) violation) | Cell (3, 1): Deprecated term rejected |
+| **VEC-REC-04** | Forbidden literal in comment | `// /Users/local/hardcoded/path` | `FAIL` (Cell (5, 1) violation) | Cell (5, 1): Forbidden literal rejected |
 | **VEC-REC-05** | Workspace fully harmonized | All specs and code aligned | `PASS` (Exit 0) | Full 7 Laws verification green |
 

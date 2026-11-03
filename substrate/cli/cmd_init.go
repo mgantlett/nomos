@@ -51,7 +51,9 @@ func executeInit(dir string) error {
 		return types.NewNomosError(types.ErrCodeBoundary, "failed resolving absolute path for %s: %v", dir, err)
 	}
 
-	scaffoldAllGovernanceFiles(absDir)
+	if err := scaffoldAllGovernanceFiles(absDir); err != nil {
+		return err
+	}
 
 	isGitRepo, createdBaselineCommit := initializeGitGovernance(absDir)
 
@@ -64,23 +66,26 @@ func executeInit(dir string) error {
 	return nil
 }
 
-func scaffoldAllGovernanceFiles(absDir string) {
-	if err := scaffoldNomosBoundaries(absDir); err != nil {
-		fmt.Printf("⚠️ failed scaffolding workspace boundaries: %v\n", err)
+func scaffoldAllGovernanceFiles(absDir string) error {
+	steps := []struct {
+		label string
+		fn    func(string) error
+	}{
+		{"workspace boundaries", scaffoldNomosBoundaries},
+		{"nomos.yaml", scaffoldNomosConfig},
+		{"AGENTS.md", scaffoldAgentsConfig},
+		{"CLAUDE.md", scaffoldClaudeConfig},
 	}
-	if err := scaffoldNomosConfig(absDir); err != nil {
-		fmt.Printf("⚠️ failed scaffolding nomos.yaml: %v\n", err)
-	}
-	if err := scaffoldAgentsConfig(absDir); err != nil {
-		fmt.Printf("⚠️ failed scaffolding AGENTS.md: %v\n", err)
-	}
-	if err := scaffoldClaudeConfig(absDir); err != nil {
-		fmt.Printf("⚠️ failed scaffolding CLAUDE.md: %v\n", err)
+	for _, s := range steps {
+		if err := s.fn(absDir); err != nil {
+			return types.NewNomosError(types.ErrCodeSubstrate, "failed scaffolding %s: %v", s.label, err)
+		}
 	}
 	pruneLegacyWorkflows(absDir)
 	if err := scaffoldAmbientHooks(absDir); err != nil {
-		fmt.Printf("⚠️ failed scaffolding ambient lifecycle hooks: %v\n", err)
+		return types.NewNomosError(types.ErrCodeSubstrate, "failed scaffolding ambient lifecycle hooks: %v", err)
 	}
+	return nil
 }
 
 func initializeGitGovernance(absDir string) (bool, bool) {

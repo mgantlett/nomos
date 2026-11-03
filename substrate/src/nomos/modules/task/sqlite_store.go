@@ -198,7 +198,7 @@ func (s *SQLiteTaskStore) GetWavefront() ([]WavefrontCandidate, error) {
 
 	var wavefront []WavefrontCandidate
 	for _, t := range allTasks {
-		if t.Status == StatusDone || t.Status == StatusAborted {
+		if IsTerminalStatus(t.Status) {
 			continue
 		}
 		if isTaskUnblocked(t, allMap) {

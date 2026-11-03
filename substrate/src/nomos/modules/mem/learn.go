@@ -24,27 +24,6 @@ func trapBufferPath(repoRoot, taskKey string) string {
 	return filepath.Join(repoRoot, ".tmp", "active_traps_"+cleanKey+".json")
 }
 
-// DeriveDirectoryScope computes a concise directory scope label from modified paths (@intent: #Memory).
-func DeriveDirectoryScope(repoRoot string, touchedFiles []string) string {
-	for _, f := range touchedFiles {
-		clean := filepath.ToSlash(strings.TrimSpace(f))
-		if clean == "" {
-			continue
-		}
-		if repoRoot != "" && filepath.IsAbs(f) {
-			if rel, err := filepath.Rel(repoRoot, f); err == nil {
-				clean = filepath.ToSlash(rel)
-			}
-		}
-		dir := filepath.ToSlash(filepath.Dir(clean))
-		if dir == "." || dir == "/" || dir == "" {
-			return "root"
-		}
-		return dir
-	}
-	return "workspace"
-}
-
 // RecordGateTrap buffers active DoD gate failures for episodic distillation upon sync (@intent: #Memory).
 func RecordGateTrap(repoRoot, taskKey string, touchedFiles []string, traps []GateTrapEntry) error {
 	if strings.TrimSpace(repoRoot) == "" || strings.TrimSpace(taskKey) == "" || len(traps) == 0 {
@@ -56,10 +35,9 @@ func RecordGateTrap(repoRoot, taskKey string, touchedFiles []string, traps []Gat
 	}
 
 	existing := loadTrapBuffer(bufPath)
-	defaultScope := DeriveDirectoryScope(repoRoot, touchedFiles)
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	merged := mergeTrapEntries(existing, traps, defaultScope, now)
+	merged := mergeTrapEntries(repoRoot, touchedFiles, existing, traps, now)
 	data, err := json.MarshalIndent(merged, "", "  ")
 	if err != nil {
 		return err
@@ -79,12 +57,12 @@ func loadTrapBuffer(path string) []GateTrapEntry {
 	return entries
 }
 
-func mergeTrapEntries(existing, incoming []GateTrapEntry, defaultScope, now string) []GateTrapEntry {
+func mergeTrapEntries(repoRoot string, touchedFiles []string, existing, incoming []GateTrapEntry, now string) []GateTrapEntry {
 	byKey := make(map[string]GateTrapEntry, len(existing)+len(incoming))
 	var order []string
 	add := func(e GateTrapEntry) {
 		if strings.TrimSpace(e.Scope) == "" {
-			e.Scope = defaultScope
+			e.Scope = DeriveTrapScope(repoRoot, e.Message, touchedFiles)
 		}
 		if strings.TrimSpace(e.Timestamp) == "" {
 			e.Timestamp = now
@@ -130,9 +108,8 @@ func DistillTaskLearnings(repoRoot, taskKey, walkthrough string, touchedFiles []
 	}()
 
 	repoID := filepath.Base(filepath.Clean(repoRoot))
-	scopeFallback := DeriveDirectoryScope(repoRoot, touchedFiles)
 	fixSummary := summarizeWalkthroughFix(walkthrough)
-	saved := persistDistilledTraps(store, entries, repoID, scopeFallback, taskKey, fixSummary)
+	saved := persistDistilledTraps(store, entries, repoRoot, repoID, touchedFiles, taskKey, fixSummary)
 
 	if rErr := os.Remove(bufPath); rErr != nil && !os.IsNotExist(rErr) {
 		return saved, rErr
@@ -140,7 +117,7 @@ func DistillTaskLearnings(repoRoot, taskKey, walkthrough string, touchedFiles []
 	return saved, nil
 }
 
-func persistDistilledTraps(store *Store, entries []GateTrapEntry, repoID, scopeFallback, taskKey, fixSummary string) int {
+func persistDistilledTraps(store *Store, entries []GateTrapEntry, repoRoot, repoID string, touchedFiles []string, taskKey, fixSummary string) int {
 	saved := 0
 	seenTrapSig := make(map[string]bool)
 	upperTask := strings.ToUpper(taskKey)
@@ -150,8 +127,8 @@ func persistDistilledTraps(store *Store, entries []GateTrapEntry, repoID, scopeF
 			break
 		}
 		scope := entry.Scope
-		if scope == "" || scope == "workspace" {
-			scope = scopeFallback
+		if scope == "" || scope == workspaceScopeLabel {
+			scope = DeriveTrapScope(repoRoot, entry.Message, touchedFiles)
 		}
 		salient := compactLine(entry.Message, 140)
 		sigKey := strings.ToLower(strings.TrimSpace(scope + "|" + salient))
@@ -186,8 +163,17 @@ func (s *Store) supersedeOlderTopicPitfalls(repoID, topic string, newestID int) 
 	}
 }
 
-// RecallRepoPitfalls retrieves active distilled pitfalls strictly partitioned to repoRoot (@intent: #Memory).
+// RecallRepoPitfalls retrieves active distilled pitfalls strictly partitioned to repoRoot and records active task access (@intent: #Memory).
 func RecallRepoPitfalls(repoRoot string, touchedFiles []string, limit int) []string {
+	return recallRepoPitfalls(repoRoot, touchedFiles, limit, true)
+}
+
+// RecallRepoPitfallsReadOnly retrieves active distilled pitfalls without incrementing reinforcement counts (@intent: #Memory).
+func RecallRepoPitfallsReadOnly(repoRoot string, touchedFiles []string, limit int) []string {
+	return recallRepoPitfalls(repoRoot, touchedFiles, limit, false)
+}
+
+func recallRepoPitfalls(repoRoot string, touchedFiles []string, limit int, recordAccess bool) []string {
 	if strings.TrimSpace(repoRoot) == "" {
 		return nil
 	}
@@ -221,8 +207,10 @@ func RecallRepoPitfalls(repoRoot string, touchedFiles []string, limit int) []str
 	}
 	out := make([]string, 0, len(candidates))
 	for _, c := range candidates {
-		if aErr := store.RecordAccess(c.ID); aErr != nil {
-			// best effort
+		if recordAccess {
+			if aErr := store.RecordAccess(c.ID); aErr != nil {
+				// best effort
+			}
 		}
 		out = append(out, c.Content)
 	}

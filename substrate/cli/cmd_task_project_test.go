@@ -140,3 +140,71 @@ func TestTaskCmd_ProjectAutoStampWorktreeAndReassign(t *testing.T) {
 		t.Fatalf("expected all 3 tasks under gsi-sov, got %d (%s)", len(filtered), string(rawJSON))
 	}
 }
+
+func TestMultiRepoLedgerIsolation_ListDAGStatusAndStartGuard(t *testing.T) {
+	_ = setupTaskTestDB(t)
+
+	repoA := workspace.InitHermeticGitRepo(t)
+	if err := os.WriteFile(filepath.Join(repoA, "nomos.yaml"), []byte("version: \"1.0\"\nproject: \"alpha-svc\"\ndefault_branch: \"main\"\n"), 0644); err != nil {
+		t.Fatalf("write alpha nomos.yaml: %v", err)
+	}
+
+	origWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origWD) })
+	if err := os.Chdir(repoA); err != nil {
+		t.Fatalf("chdir repoA: %v", err)
+	}
+
+	cAlpha := newTaskCreateCmd()
+	cAlpha.SetArgs(validCardArgs("Alpha Local Feature", "substrate"))
+	if err := cAlpha.Execute(); err != nil {
+		t.Fatalf("create alpha task: %v", err)
+	}
+	cBeta := newTaskCreateCmd()
+	cBeta.SetArgs(append(validCardArgs("Beta Foreign Feature", "substrate"), "--project", "beta-svc"))
+	if err := cBeta.Execute(); err != nil {
+		t.Fatalf("create beta task: %v", err)
+	}
+
+	// Default 'nomos task list --json' inside alpha-svc sees only SUB-1 (alpha-svc), excluding SUB-2 (beta-svc)
+	listScoped := newTaskListCmd()
+	listBuf := new(bytes.Buffer)
+	listScoped.SetOut(listBuf)
+	listScoped.SetArgs([]string{"--json"})
+	if err := listScoped.Execute(); err != nil {
+		t.Fatalf("scoped task list: %v", err)
+	}
+	var scopedTasks []task.TaskRecord
+	_ = json.Unmarshal(listBuf.Bytes(), &scopedTasks)
+	if len(scopedTasks) != 1 || scopedTasks[0].Key != "SUB-1" {
+		t.Fatalf("expected default list to isolate [SUB-1], got %+v", scopedTasks)
+	}
+
+	// '-A / --all-projects' includes both SUB-1 and SUB-2
+	listAll := newTaskListCmd()
+	listAllBuf := new(bytes.Buffer)
+	listAll.SetOut(listAllBuf)
+	listAll.SetArgs([]string{"--all-projects", "--json"})
+	if err := listAll.Execute(); err != nil {
+		t.Fatalf("all-projects task list: %v", err)
+	}
+	var allTasks []task.TaskRecord
+	_ = json.Unmarshal(listAllBuf.Bytes(), &allTasks)
+	if len(allTasks) != 2 {
+		t.Fatalf("expected --all-projects to return 2 tasks, got %d", len(allTasks))
+	}
+
+	// Default 'nomos status' isolates ledger counts to alpha-svc (1 total, 1 wavefront)
+	rep := collectStatusReport()
+	if rep.Project != "alpha-svc" || rep.TotalTasks != 1 || rep.WavefrontCount != 1 || rep.ActiveTasks != 0 {
+		t.Fatalf("expected isolated status report for alpha-svc (total=1, wf=1, active=0), got %+v", rep)
+	}
+
+	// Cross-project start guard fails closed when attempting to start beta-svc SUB-2 inside alpha-svc
+	if sErr := runTaskStart("SUB-2", true); sErr == nil || !strings.Contains(sErr.Error(), "beta-svc") {
+		t.Fatalf("expected cross-project start of SUB-2 inside alpha-svc to fail closed, got: %v", sErr)
+	}
+}

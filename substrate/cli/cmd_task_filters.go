@@ -12,21 +12,33 @@ import (
 )
 
 type taskListFilterOpts struct {
-	project string
-	status  string
-	plane   string
-	tier    string
-	pending bool
-	limit   int
-	jsonOut bool
+	project     string
+	allProjects bool
+	status      string
+	plane       string
+	tier        string
+	pending     bool
+	limit       int
+	jsonOut     bool
 }
 
 type taskDAGFilterOpts struct {
-	project string
-	plane   string
-	tier    string
-	limit   int
-	jsonOut bool
+	project     string
+	allProjects bool
+	plane       string
+	tier        string
+	limit       int
+	jsonOut     bool
+}
+
+func resolveEffectiveProjectFilter(explicit string, allProjects bool) (string, bool) {
+	if clean := strings.TrimSpace(explicit); clean != "" {
+		return clean, false
+	}
+	if allProjects {
+		return "", true
+	}
+	return resolveActiveTaskProject(""), true
 }
 
 func applyTaskListFilters(all []task.TaskRecord, opts taskListFilterOpts) ([]task.TaskRecord, error) {
@@ -43,7 +55,8 @@ func applyTaskListFilters(all []task.TaskRecord, opts taskListFilterOpts) ([]tas
 		return nil, err
 	}
 
-	filtered := filterTasksByProject(all, opts.project)
+	projFilter, allowUnassigned := resolveEffectiveProjectFilter(opts.project, opts.allProjects)
+	filtered := task.FilterTasksByProject(all, projFilter, allowUnassigned)
 	out := make([]task.TaskRecord, 0, len(filtered))
 	for _, t := range filtered {
 		if !matchesTaskRecordFilters(t, opts.pending, statusSet, planeNorm, tierNorm) {
@@ -59,7 +72,7 @@ func applyTaskListFilters(all []task.TaskRecord, opts taskListFilterOpts) ([]tas
 
 func matchesTaskRecordFilters(t task.TaskRecord, pending bool, statusSet map[string]bool, planeNorm, tierNorm string) bool {
 	st := strings.ToUpper(strings.TrimSpace(string(t.Status)))
-	if pending && (st == string(task.StatusDone) || st == string(task.StatusAborted)) {
+	if pending && task.IsTerminalStatus(t.Status) {
 		return false
 	}
 	if len(statusSet) > 0 && !statusSet[st] {
@@ -83,7 +96,7 @@ func applyWavefrontFilters(wf []task.WavefrontCandidate, store task.TaskStore, o
 	if err != nil {
 		return nil, err
 	}
-	projClean := strings.TrimSpace(opts.project)
+	projClean, allowUnassigned := resolveEffectiveProjectFilter(opts.project, opts.allProjects)
 
 	var projIndex map[string]string
 	if projClean != "" && store != nil {
@@ -92,13 +105,7 @@ func applyWavefrontFilters(wf []task.WavefrontCandidate, store task.TaskStore, o
 
 	out := make([]task.WavefrontCandidate, 0, len(wf))
 	for _, c := range wf {
-		if projClean != "" && !strings.EqualFold(projIndex[strings.ToUpper(strings.TrimSpace(c.Key))], projClean) {
-			continue
-		}
-		if planeNorm != "" && !strings.EqualFold(strings.TrimSpace(c.Plane), planeNorm) {
-			continue
-		}
-		if tierNorm != "" && !strings.EqualFold(strings.TrimSpace(string(c.Tier)), tierNorm) {
+		if !matchesWavefrontCandidate(c, projClean, allowUnassigned, projIndex, planeNorm, tierNorm) {
 			continue
 		}
 		out = append(out, c)
@@ -107,6 +114,25 @@ func applyWavefrontFilters(wf []task.WavefrontCandidate, store task.TaskStore, o
 		}
 	}
 	return out, nil
+}
+
+func matchesWavefrontCandidate(c task.WavefrontCandidate, projClean string, allowUnassigned bool, projIndex map[string]string, planeNorm, tierNorm string) bool {
+	if projClean != "" {
+		candProj := strings.TrimSpace(c.Project)
+		if candProj == "" && projIndex != nil {
+			candProj = projIndex[strings.ToUpper(strings.TrimSpace(c.Key))]
+		}
+		if !task.MatchesProject(candProj, projClean, allowUnassigned) {
+			return false
+		}
+	}
+	if planeNorm != "" && !strings.EqualFold(strings.TrimSpace(c.Plane), planeNorm) {
+		return false
+	}
+	if tierNorm != "" && !strings.EqualFold(strings.TrimSpace(string(c.Tier)), tierNorm) {
+		return false
+	}
+	return true
 }
 
 func buildTaskProjectIndex(tasks []task.TaskRecord) map[string]string {
