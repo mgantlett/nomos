@@ -58,7 +58,7 @@ func evaluateSharedGoSuite(ctx *VerifyContext, root, targetDir string) *Toolchai
 		return diskHit
 	}
 
-	rec := executeGoTestWithCoverage(targetDir, snapshotKey)
+	rec := executeGoTestWithCoverage(ctx, root, targetDir, snapshotKey)
 	storeContextReceipt(ctx, rec)
 	trySaveDiskReceipt(ctx, snapshotKey, rec)
 	return rec
@@ -109,17 +109,14 @@ func canUseToolchainReceiptCache(ctx *VerifyContext) bool {
 	return true
 }
 
-func executeGoTestWithCoverage(targetDir, snapshotKey string) *ToolchainSuiteReceipt {
+func executeGoTestWithCoverage(ctx *VerifyContext, root, targetDir, snapshotKey string) *ToolchainSuiteReceipt {
 	cmdCtx, cancel := context.WithTimeout(context.Background(), goToolchainTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(cmdCtx, "go", "test", "-cover", "./...")
+	args := append([]string{"test", "-cover"}, resolveGoTestPackages(ctx, root, targetDir)...)
+	cmd := exec.CommandContext(cmdCtx, "go", args...)
 	cmd.Dir = targetDir
-	env := os.Environ()
-	if val := os.Getenv("GOWORK"); val != "" {
-		env = append(env, "GOWORK="+val)
-	}
-	cmd.Env = append(env, envInToolchainGate+"=1")
+	cmd.Env = buildGoToolchainEnv(root, targetDir)
 	out, err := cmd.CombinedOutput()
 	outStr := string(out)
 
@@ -138,6 +135,62 @@ func executeGoTestWithCoverage(targetDir, snapshotKey string) *ToolchainSuiteRec
 		AvgCoverage:    parseAverageCoverage(outStr),
 		TimestampUTC:   time.Now().UTC().Format(time.RFC3339),
 	}
+}
+
+func buildGoToolchainEnv(root, targetDir string) []string {
+	env := os.Environ()
+	if val := os.Getenv("GOWORK"); val != "" {
+		env = append(env, "GOWORK="+val)
+	} else if !hasLocalGoWork(root, targetDir) {
+		env = append(env, "GOWORK=off")
+	}
+	if os.Getenv("GOTOOLCHAIN") == "" {
+		env = append(env, "GOTOOLCHAIN=auto")
+	}
+	return append(env, envInToolchainGate+"=1")
+}
+
+func hasLocalGoWork(root, targetDir string) bool {
+	for _, d := range []string{targetDir, root} {
+		if d == "" {
+			continue
+		}
+		if fi, err := os.Stat(filepath.Join(d, "go.work")); err == nil && !fi.IsDir() {
+			return true
+		}
+	}
+	return false
+}
+
+func resolveGoTestPackages(ctx *VerifyContext, root, targetDir string) []string {
+	cfg := resolveVerifyConfig(ctx)
+	if cfg == nil || cfg.Governance.QualityGates.StrictMode || len(cfg.Governance.QualityGates.SubstrateSourceRoots) == 0 {
+		return []string{"./..."}
+	}
+	var pkgs []string
+	for _, sr := range cfg.Governance.QualityGates.SubstrateSourceRoots {
+		candidate := sr
+		if !filepath.IsAbs(candidate) {
+			candidate = filepath.Join(root, filepath.Clean(sr))
+		}
+		fi, err := os.Stat(candidate)
+		if err != nil || !fi.IsDir() {
+			continue
+		}
+		rel, rErr := filepath.Rel(targetDir, candidate)
+		if rErr != nil || strings.HasPrefix(rel, "..") {
+			continue
+		}
+		relSlash := filepath.ToSlash(rel)
+		if relSlash == "." || relSlash == "" {
+			return []string{"./..."}
+		}
+		pkgs = append(pkgs, "./"+relSlash+"/...")
+	}
+	if len(pkgs) == 0 {
+		return []string{"./..."}
+	}
+	return pkgs
 }
 
 func parseAverageCoverage(output string) float64 {

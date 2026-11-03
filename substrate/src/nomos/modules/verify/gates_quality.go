@@ -30,15 +30,15 @@ func (g *TDDGate) Name() string { return "TDD Test Pair Invariant" }
 // Evaluate verifies that all implementation packages possess at least one test suite.
 func (g *TDDGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	root := resolveQualityRoot(ctx)
-	targetDir := findSubstrateSrc(root)
-	if targetDir == "" {
+	targetDirs, explicitRoots := resolveSubstrateTargetDirs(ctx, root)
+	if len(targetDirs) == 0 {
 		return &GateResult{
 			GateName: g.Name(), ProbeID: "tdd", Law: 2, Ring: RingSyntactic,
 			Passed: true, Message: "no substrate source directory detected; skipping",
 		}, nil
 	}
 
-	untested, err := findUntestedPackages(targetDir)
+	untested, err := findUntestedPackagesScoped(ctx, root, targetDirs, explicitRoots)
 	if err != nil {
 		return nil, err
 	}
@@ -54,28 +54,6 @@ func (g *TDDGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		GateName: g.Name(), ProbeID: "tdd", Law: 2, Ring: RingSyntactic,
 		Passed: true, Message: "100% of implementation packages possess valid unit test suites",
 	}, nil
-}
-
-func findUntestedPackages(srcDir string) ([]string, error) {
-	var untested []string
-	err := filepath.Walk(srcDir, func(path string, info os.FileInfo, walkErr error) error {
-		if walkErr != nil || !info.IsDir() {
-			return nil
-		}
-		if info.Name() == "cmd" || strings.HasPrefix(info.Name(), ".") {
-			return filepath.SkipDir
-		}
-		hasGo, hasTest := inspectPackageFiles(path)
-		if hasGo && !hasTest {
-			rel, rErr := filepath.Rel(srcDir, path)
-			if rErr != nil {
-				rel = path
-			}
-			untested = append(untested, rel)
-		}
-		return nil
-	})
-	return untested, err
 }
 
 func inspectPackageFiles(dir string) (bool, bool) {
@@ -163,15 +141,22 @@ func (g *DocstringDensityGate) Name() string { return "Docstring Density Invaria
 // Evaluate verifies exported functions possess docstrings and meet the density threshold.
 func (g *DocstringDensityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	root := resolveQualityRoot(ctx)
-	targetDir := findSubstrateSrc(root)
-	if targetDir == "" {
+	targetDirs := resolveSubstrateDirs(ctx, root)
+	if len(targetDirs) == 0 {
 		return &GateResult{
 			GateName: g.Name(), ProbeID: "docstrings", Law: 2, Ring: RingSyntactic,
 			Passed: true, Message: "no substrate source directory detected; skipping",
 		}, nil
 	}
 
-	total, documented, missing := countDocstrings(ctx, targetDir)
+	var total, documented int
+	var missing []string
+	for _, targetDir := range targetDirs {
+		tCount, dCount, mList := countDocstrings(ctx, targetDir)
+		total += tCount
+		documented += dCount
+		missing = append(missing, mList...)
+	}
 	if total == 0 {
 		return &GateResult{
 			GateName: g.Name(), ProbeID: "docstrings", Law: 2, Ring: RingSyntactic,

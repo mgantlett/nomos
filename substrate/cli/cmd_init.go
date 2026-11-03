@@ -196,65 +196,6 @@ func scaffoldNomosConfig(dir string) error {
 	return os.WriteFile(configPath, []byte(content), 0644)
 }
 
-func scaffoldNomosBoundaries(dir string) error {
-	boundaries := []string{"worktrees/", ".tmp/", ".vscode/", "go.work", "go.work.sum"}
-	gitIgnorePath := filepath.Join(dir, ".gitignore")
-	if err := appendMissingPatterns(gitIgnorePath, "# Nomos Operational Boundaries", boundaries); err != nil {
-		return err
-	}
-
-	gitExcludePath := filepath.Join(dir, ".git", "info", "exclude")
-	if fi, err := os.Stat(filepath.Dir(gitExcludePath)); err == nil && fi.IsDir() {
-		if aErr := appendMissingPatterns(gitExcludePath, "# Nomos Operational Boundaries", boundaries); aErr != nil {
-			return aErr
-		}
-	}
-	return EnsureIDEBoundarySettings(dir)
-}
-
-func appendMissingPatterns(filePath, header string, patterns []string) error {
-	existingBytes, err := os.ReadFile(filePath)
-	var existingContent string
-	if err == nil {
-		existingContent = string(existingBytes)
-	}
-
-	var toAdd []string
-	for _, p := range patterns {
-		if !strings.Contains(existingContent, p) {
-			toAdd = append(toAdd, p)
-		}
-	}
-	if len(toAdd) == 0 {
-		return nil
-	}
-
-	var sb strings.Builder
-	if len(existingContent) > 0 && !strings.HasSuffix(existingContent, "\n") {
-		sb.WriteString("\n")
-	}
-	sb.WriteString("\n")
-	sb.WriteString(header)
-	sb.WriteString("\n")
-	for _, p := range toAdd {
-		sb.WriteString(p)
-		sb.WriteString("\n")
-	}
-
-	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if cErr := f.Close(); cErr != nil {
-			// non-fatal close
-		}
-	}()
-
-	_, err = f.WriteString(sb.String())
-	return err
-}
-
 const (
 	protocolStartMarker = "<!-- NOMOS_OPEN_CORE_PROTOCOL_START -->"
 	protocolEndMarker   = "<!-- NOMOS_OPEN_CORE_PROTOCOL_END -->"
