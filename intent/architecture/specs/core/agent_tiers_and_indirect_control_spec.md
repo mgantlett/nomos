@@ -4,7 +4,7 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-03"
-last_updated: "2026-11-01"
+last_updated: "2026-11-03"
 plane: intent
 status: active
 title: "Agent Tiers & Indirect Control: The Open-Core Charter Architectural Specification"
@@ -192,7 +192,7 @@ These compiled subcommands replace fragile external shell, `jq`, and Python hook
 | Subcommand | Lifecycle Event | Core Responsibility | Output Contract |
 | :--- | :--- | :--- | :--- |
 | `nomos hook session-start` | `SessionStart` | Executes `nomos handshake` in the target workspace and formats the orientation payload. | JSON `injectSteps` or `hookSpecificOutput` on `stdout` |
-| `nomos hook pre-tool` | `PreToolUse` | Evaluates Law 3 boundary isolation, unexpanded variable guards, and Law 7 command safety. | JSON `{"decision": "allow"}` or `{"decision": "deny", "reason": "..."}` |
+| `nomos hook pre-tool` | `PreToolUse` | Enforces Law 3 boundary isolation, quote-aware clean-`IDLE`-`main` `go install` guards, Zero-Trust MCP IFC, `CapabilityFlowGraph` taint tracking, and Law 7 command safety. | JSON `{"decision": "allow"}` or `{"decision": "deny", "reason": "..."}` |
 | `nomos hook post-tool` | `PostToolUse` / `PostInvocation` | Runs zero-footprint in-memory AST, JSON, and JSONL syntax verification on mutated files. | Silent `{}` on valid edits; injects advisory context only on real syntax or radar violations |
 
 Every `nomos hook` subcommand accepts an optional `--hermetic-dir <path>` flag for container and sandbox environments.

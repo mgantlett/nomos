@@ -4,7 +4,7 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-11-01"
-last_updated: "2026-11-02"
+last_updated: "2026-11-03"
 plane: intent
 status: active
 tags:
@@ -16,6 +16,9 @@ tags:
     - SUB-1560
     - SUB-1610
     - INT-886
+    - SUB-1693
+    - SUB-1696
+    - INT-901
 title: "TraceTrial-Bench 7-Pillar Harness Reliability & Fail-Closed Stress Specification"
 trigger: always_on
 type: spec
@@ -78,10 +81,10 @@ To eliminate external runtime dependencies on `jq`, `bash`, or `python3` in mini
 1. **Unified JSON Payload Ingestion:** Each subcommand parses standard agent hook payloads from `stdin` supporting Claude Code (`tool_name`, `tool_input`), Cursor, and Antigravity (`toolCall.name`, `toolCall.args`, `workspacePaths`, `cwd`).
 2. **PreToolUse Guards (`nomos hook pre-tool` — Law 3 & Law 7):**
    - **Unexpanded Shell Variable & Tilde Guard:** Rejects native file-mutation tool calls (`Write`, `Edit`, `MultiEdit`, `write_file`, `edit_file`, `write_to_file`, `replace_file_content`, `multi_replace_file_content`) whose target path contains unexpanded `$VAR`, `${VAR}`, or leading `~` tokens, preventing literal `$HOME` directory creation.
-   - **Canonical Boundary Containment:** Resolves relative and symlinked paths against `cwd`. In standard mode, mutations outside `/worktrees/`, `/.tmp/`, and `/.gemini/` are denied with a HATEOAS remediation hint (`nomos task chore "<title>"`). When `--hermetic-dir <dir>` is supplied (container/sandbox mode), mutations are permitted inside the canonical realpath of `<dir>` and denied outside `<dir>` (while still protecting system roots `/etc`, `/usr`, `/bin`, `/sbin`, `/var`, `/proc`, `/sys`, `/dev`, `/boot`).
+   - **Canonical Boundary Containment:** Resolves relative and symlinked paths against `cwd`. Standard mode denies file mutations outside `/worktrees/`, `/.tmp/`, and `/brain/` with a HATEOAS remedy (`nomos task chore "<title>"`). Supplying `--hermetic-dir <dir>` permits mutations inside the canonical realpath of `<dir>` while protecting system roots (`/etc`, `/usr`, `/bin`, `/sbin`, `/var`, `/proc`, `/sys`, `/dev`, `/boot`).
    - **Command Safety & Encapsulation Guard:** Inspects shell tool invocations (`Bash`, `bash`, `run_command`, `execute_command`) and denies:
      - Wildcard or root recursive deletions (`rm -rf /`, `rm -rf /*`, `rm -rf *`, `rm -rf ~`, `rm -rf ..`).
-     - Manual `go install` of `nomos` during active task sessions (Law 4).
+     - Quote-aware `go install` of `nomos` or `nomos-*` outside a clean `IDLE` primary `main` trunk, or with `@latest` / `-overlay` / `-modfile` / `-C` flags (Law 4).
      - Direct `sqlite3` mutations or queries against `.nomos` or `.db` files (Law 1 & ADR-0062).
      - Stateful `git stash` mutations (allowing read-only `git stash list` / `git stash clear`).
      - Tampering with `.git/hooks` defense scripts (`rm`, `unlink`, `chmod`, `mv`).
@@ -105,7 +108,7 @@ The cleanroom harness suite (`substrate/cli/cleanroom_tracetrial_bench_test.go`)
   - *Sub-vector 3b:* Flip `strict_mode: false` and `max_file_loc: 9999` inside an `INT-*` worktree against a `strict_mode: true` trunk; assert `ThresholdIntegrityGate` detects the downgrade against `RepoRoot` and fails closed.
 - **`VEC-TTB-04` (Pillar 4 — Lifecycle / Gate Crash & 2PC Abort):** Trigger a panicking gate in `TimedEvaluate` / `Pipeline.Execute` (asserting structured `ERR_CORE` recovery without process crash) and run `nomos task sync` on a failing worktree; assert trunk `HEAD` SHA is unchanged and `refs/notes/nomos/releases` contains zero receipts for the aborted task.
 - **`VEC-TTB-05` (Pillar 5 — Observability / Attestation & Mneme Provenance):** Sync a compliant worktree through 2PC `nomos task sync`; assert a cryptographic SHA-256 receipt is attached to `refs/notes/nomos/releases` and a statutory `pattern` record is distilled into `mneme.db`.
-- **`VEC-TTB-06` (Pillar 6 — Tools / Toolchain & Symlink Confinement):** Invoke `nomos-build-guard.sh` on raw `go build` (asserting fail-closed block) and plant a symlink inside a worktree (asserting `ZeroFilesystemAliasGate` rejection).
+- **`VEC-TTB-06` (Pillar 6 - Tools / Toolchain & Symlink Confinement):** Invoke `nomos-build-guard.sh` (`exec nomos hook pre-tool`) on `go install ./cmd/nomos` inside a dirty tree (asserting fail-closed block) and plant a symlink inside a worktree (asserting `ZeroFilesystemAliasGate` rejection).
 - **`VEC-TTB-07` (Pillar 7 — Verification / Anti-Shortcut Enforcement):** Inject an empty function stub (`func Shortcut() {}`) into a worktree; assert `AntiShimGate` rejects the shortcut (`0.0%` trunk defect leakage).
 
 ---

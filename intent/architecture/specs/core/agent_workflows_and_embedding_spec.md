@@ -4,7 +4,7 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-05"
-last_updated: "2026-11-01"
+last_updated: "2026-11-03"
 plane: intent
 status: active
 title: "Invisible Harness Asset Embedding & Ambient Hook Parity Specification"
@@ -33,7 +33,7 @@ This specification codifies the **Zero-Ceremony Invisible Harness Asset Architec
 1. **Complete Excision of Workflows & Skill Walls:** `.agents/workflows/` is permanently retired, and zero conversational `.agents/skills/` are scaffolded by Nomos. Developers interact with their Tier 1 agent in natural prose with zero workflow friction.
 2. **Three-Layer Ambient Indirect Control:**
    - **Universal Always-On Protocol (`AGENTS.md` & `CLAUDE.md`):** Concise invariant card read natively at repository root by every Tier 1 coding agent.
-   - **Ambient IDE Lifecycle Hooks (`.agents/hooks.json` & `.agents/scripts/`):** `SessionStart` executes `nomos handshake` automatically prior to the first model turn, and `PreToolUse` guards (`worktree-guard.sh`, `nomos-build-guard.sh`) block out-of-band trunk mutations with actionable one-line CLI remedies.
+   - **Ambient IDE Lifecycle Hooks (`.agents/hooks.json` & `.agents/scripts/`):** Pure 16-line launchers invoke `exec nomos hook {session-start,pre-tool,post-tool}` with zero external `jq` fallback logic.
    - **Git CapBAC Defense Hooks (`pre-commit`, `commit-msg`, `pre-push`):** Deterministic substrate backstop guaranteeing invariant enforcement even in agent harnesses that do not support IDE lifecycle hooks.
 3. **Cryptographic Byte-Parity & Anti-Regression (`IntentParityGate`):** All scaffolded protocol files (`AGENTS.md`) and ambient hook assets (`.agents/hooks.json`, `.agents/scripts/*`) are embedded in `substrate/cli/templates/` via `//go:embed` and verified for SHA-256 byte parity on every `nomos verify` run, failing closed if drift or legacy `.agents/workflows/` directories appear.
 
@@ -61,11 +61,12 @@ nomos/
 ├── AGENTS.md                          # Universal Tier 1 agent protocol (AGY, Cursor, OpenCode, Aider)
 ├── CLAUDE.md                          # Claude Code protocol mirror (downstream scaffolding)
 ├── .agents/
-│   ├── hooks.json                     # Ambient SessionStart & PreToolUse lifecycle manifest
+│   ├── hooks.json                     # Ambient SessionStart, PreToolUse & PostToolUse manifest
 │   └── scripts/
-│       ├── session-start.sh           # Silent nomos handshake context injector on SessionStart
-│       ├── worktree-guard.sh          # PreToolUse Law 3 hermetic worktree boundary guard
-│       └── nomos-build-guard.sh       # PreToolUse Law 1/Law 4 DB & binary encapsulation guard
+│       ├── session-start.sh           # Pure exec launcher -> nomos hook session-start
+│       ├── worktree-guard.sh          # Pure exec launcher -> nomos hook pre-tool
+│       ├── nomos-build-guard.sh       # Pure exec launcher -> nomos hook pre-tool
+│       └── post-edit-radar.sh         # Pure exec launcher -> nomos hook post-tool
 ├── nomos.schema.json                  # Go-reflected Draft 2020-12 JSON Schema
 ├── intent/
 │   └── config/
@@ -80,7 +81,8 @@ nomos/
     │           └── scripts/
     │               ├── session-start.sh
     │               ├── worktree-guard.sh
-    │               └── nomos-build-guard.sh
+    │               ├── nomos-build-guard.sh
+    │               └── post-edit-radar.sh
     └── src/
         └── nomos/
             └── modules/

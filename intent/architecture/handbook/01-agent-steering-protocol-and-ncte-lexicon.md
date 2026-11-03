@@ -89,8 +89,10 @@ Nomos resolves this tension through **Asymmetric Hook Discipline** (`~4ms` compi
 1. **`nomos hook session-start`:** Auto-heals `.git/hooks` defense shims and injects a compact phase, active-task, and ready-wavefront orientation banner at session boot.
 2. **`nomos hook pre-tool`:** Intercepts mutating tool calls *before* disk I/O occurs:
    - Blocks direct edits on read-only `main` and instructs the agent to run `nomos task chore "<title>"` or `nomos task start <KEY> --edit`.
-   - Blocks unexpanded shell variables (`$HOME`, `~`) passed to native file tools that do not perform shell expansion.
+   - Blocks unexpanded shell variables (`$HOME`, `~`) on native file tools that omit shell expansion.
    - Blocks direct SQLite file tampering (`ADR-0062`), `git stash`, wildcard `rm`, and `.git/hooks` tampering.
+   - Tokenizes shell segments with quote awareness and allows local `./...` `go install` of `nomos` strictly on a clean `IDLE` primary `main` trunk (`Law 4`).
+   - Enforces Zero-Trust MCP server allow/block policies, secret payload guards, and `CapabilityFlowGraph` compositional taint tracking (`Law 7`).
    - **3-Strike Loop Circuit-Breaker (`Law 1`):** Hashes consecutive identical failing tool invocations and trips a hard circuit breaker on the third identical strike so a confused agent cannot burn budget in an infinite retry loop.
 3. **`nomos hook post-tool`:** Remains **100% silent (`0 bytes`)** on read-only and shell command channels so native OS exit codes and compiler diagnostics reach the model unadulterated, firing in-memory AST and LOC radar advisories strictly when an edited source file crosses structural thresholds.
 
