@@ -145,4 +145,3 @@ func TestCollectPolyglotStringLiterals_SvelteScriptScoping(t *testing.T) {
 		t.Fatalf("expected duplicated string literals inside <script> to be counted, got: %d", counts["ui"]["duplicate_script_magic"])
 	}
 }
-

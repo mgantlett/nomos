@@ -116,4 +116,3 @@ func TestZeroAliasTypeAliasAndOrphanChecks(t *testing.T) {
 		t.Errorf("expected DeadCodeGate failure on unimported internal package, got: %v, err: %v", resDead, errDead)
 	}
 }
-

@@ -376,4 +376,3 @@ func readDeclaredEnvVars(filePath string) (map[string]bool, error) {
 	}
 	return declared, scanner.Err()
 }
-

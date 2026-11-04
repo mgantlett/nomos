@@ -106,4 +106,3 @@ func scanLockedDependencyMutations(ctx *VerifyContext, root string, lockDeps boo
 	}
 	return violations
 }
-

@@ -331,6 +331,3 @@ func TestResolveIntentPath(t *testing.T) {
 		t.Errorf("expected empty string, got %s", nonExistent)
 	}
 }
-
-
-

@@ -117,4 +117,3 @@ func checkBudgetMetric(label string, val, limit int, res *FastFileRadarResult) {
 		res.Warnings = append(res.Warnings, fmt.Sprintf("%s %d/%d (%d%% budget)", label, val, limit, pct))
 	}
 }
-

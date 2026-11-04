@@ -358,7 +358,6 @@ func (g *ZeroFilesystemAliasGate) Evaluate(ctx *VerifyContext) (*GateResult, err
 	return &GateResult{GateName: g.Name(), Passed: true, Message: "zero filesystem aliases (symlinks) detected"}, nil
 }
 
-
 // PlaneSeparationGate enforces Law 7 by rejecting cross-plane mutations (SUB mutating intent, INT mutating substrate).
 type PlaneSeparationGate struct{}
 
@@ -392,4 +391,3 @@ func (g *PlaneSeparationGate) Evaluate(ctx *VerifyContext) (*GateResult, error) 
 	}
 	return &GateResult{GateName: g.Name(), Passed: true, Message: "plane separation intact: zero cross-plane mutations"}, nil
 }
-

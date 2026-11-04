@@ -247,4 +247,3 @@ func scanPolyglotAntiShim(path, relPath string) []string {
 	}
 	return violations
 }
-

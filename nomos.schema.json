@@ -200,6 +200,16 @@
                 "type": "string"
               }
             },
+            "intent_twin_mode": {
+              "description": "Cross-plane INT twin enforcement for SUB commits: off (default), feat (require INT twin on feat commits), or strict (require INT twin on all SUB commits).",
+              "type": "string",
+              "enum": [
+                "off",
+                "feat",
+                "strict"
+              ],
+              "default": "off"
+            },
             "polyglot_toolchains": {
               "description": "Enable automatic polyglot test/linter toolchain discovery.",
               "type": "boolean",

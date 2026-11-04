@@ -331,4 +331,3 @@ func EnrichComplexityViolations(root string, funcs []FunctionMetric, thresh Thre
 	}
 	return violations
 }
-

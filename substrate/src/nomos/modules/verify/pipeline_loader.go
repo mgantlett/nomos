@@ -81,4 +81,3 @@ func DefaultBaselineGates() []Gate {
 	}
 	return gates
 }
-

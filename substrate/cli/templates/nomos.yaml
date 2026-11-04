@@ -46,6 +46,10 @@ governance:
         # Set to false only when intentionally customizing brownfield baselines.
         strict_mode: true
 
+        # Optional: Require bound Intent (INT-N) twins on Substrate (SUB-N) commits.
+        # Options: "off" (default), "feat" (require INT twin on feat commits), "strict" (all SUB commits).
+        # intent_twin_mode: "off"
+
         # Automatically execute local polyglot syntax & test toolchains when present
         # (Python py_compile/pytest, TypeScript tsc --noEmit, Rust cargo check).
         polyglot_toolchains: true

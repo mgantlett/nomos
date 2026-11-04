@@ -30,4 +30,3 @@ func TestDefaultBaselineGates(t *testing.T) {
 		t.Fatalf("expected 42 baseline gates to be returned, got %d", len(gates))
 	}
 }
-

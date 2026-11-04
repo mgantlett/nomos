@@ -8,9 +8,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/task"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify"
 	"github.com/spf13/cobra"
 )
 
@@ -68,6 +70,9 @@ func runTaskCommitCmd(args []string, opts *commitCmdOptions) error {
 
 	ctx := buildCommitHydrationContext(taskKey, dir, opts)
 	msg := hydrateCommitMessage(ctx, opts)
+	if twinErr := enforcePreCommitIntentTwinMode(dir, taskKey, msg); twinErr != nil {
+		return twinErr
+	}
 
 	commitCmd := workspace.SafeGitCommand(dir, "commit", "-m", msg)
 	commitCmd.Env = append(commitCmd.Env, "NOMOS_COMMIT_IN_PROGRESS=1")
@@ -86,6 +91,27 @@ func runTaskCommitCmd(args []string, opts *commitCmdOptions) error {
 		styleTaskKey(taskKey))
 	fmt.Println(uiMutedStyle.Render(strings.TrimSpace(string(out))))
 	renderPhaseTransitionNextActions(os.Stdout, types.PhaseReview, taskKey, dir, "")
+	return nil
+}
+
+func enforcePreCommitIntentTwinMode(dir, taskKey, commitMsg string) error {
+	cfgTarget := dir
+	if pr, err := workspace.FindRepoRoot(dir); err == nil && pr != "" {
+		cfgTarget = pr
+	}
+	cfg, err := config.LoadConfig(cfgTarget)
+	if err != nil || cfg == nil {
+		return nil
+	}
+	mode := cfg.Governance.QualityGates.EffectiveIntentTwinMode()
+	if violation := verify.ValidateCommitIntentTwinMode(commitMsg, mode); violation != "" {
+		return types.NewNomosError(
+			types.ErrCodeBoundary,
+			"%s\n  Remedy: %s",
+			violation,
+			verify.IntentTwinModeRemedy(taskKey),
+		)
+	}
 	return nil
 }
 

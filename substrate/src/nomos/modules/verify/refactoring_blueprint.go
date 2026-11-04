@@ -303,7 +303,7 @@ func scanTSParamViolations(relPath string, src []byte, maxParams int) []string {
 		if name == "" || paramStr == "" {
 			continue
 		}
-		count := len( strings.Split(paramStr, ",") )
+		count := len(strings.Split(paramStr, ","))
 		if count > maxParams {
 			line := strings.Count(text[:m[0]], "\n") + 1
 			violations = append(violations, fmt.Sprintf("%s:%d (%s) parameter count %d exceeds max %d -> [SEAM: encapsulate parameters into an options interface/object]", relPath, line, name, count, maxParams))

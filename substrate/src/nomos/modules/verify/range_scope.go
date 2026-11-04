@@ -145,4 +145,3 @@ func collectRangePolyglotFiles(ctx *VerifyContext) map[string]bool {
 	}
 	return modified
 }
-

@@ -285,6 +285,9 @@ func checkWorktreeGovernanceDowngrade(ctx *VerifyContext, wtCfg *config.Ecosyste
 	if trunkCfg.Governance.Boundary.LockDependencies && !wtCfg.Governance.Boundary.LockDependencies {
 		return "worktree nomos.yaml illegally downgrades governance.boundary.lock_dependencies from trunk baseline (true -> false)"
 	}
+	if twinIssue := checkIntentTwinModeDowngrade(trunkCfg, wtCfg); twinIssue != "" {
+		return twinIssue
+	}
 	return ""
 }
 

@@ -197,4 +197,3 @@ func TestPhaseDisciplineGate_RejectsInvalidPhase(t *testing.T) {
 		t.Fatalf("expected invalid phase MUTATED_BOGUS to fail closed, got %+v (%v)", resInvalid, err)
 	}
 }
-

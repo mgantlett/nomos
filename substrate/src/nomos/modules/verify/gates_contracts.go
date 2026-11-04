@@ -30,8 +30,8 @@ type FunctionMetric struct {
 // Thresholds captures the numerical quality bounds for gates (#Thresholds).
 type Thresholds struct {
 	MinCoverage               float64 `json:"min_coverage"`
-	MinDocstringDensity        int     `json:"min_docstring_density"`
-	MinTraceabilityDensity     int     `json:"min_traceability_density"`
+	MinDocstringDensity       int     `json:"min_docstring_density"`
+	MinTraceabilityDensity    int     `json:"min_traceability_density"`
 	MaxCDS                    int     `json:"max_cds"`
 	MaxComplexity             int     `json:"max_complexity"`
 	MaxFuncLOC                int     `json:"max_func_loc"`
@@ -182,7 +182,6 @@ func EvaluateDocstringViolations(density, minDensity, documented, total int, mis
 	return nil
 }
 
-
 // EvaluateComplexityViolations checks cyclomatic complexity and function LOC.
 func EvaluateComplexityViolations(funcs []FunctionMetric, maxComplexity, maxFuncLOC int) []string {
 	var violations []string
@@ -272,5 +271,3 @@ func PlaneSeparationRemedy(taskKey string) string {
 		"  3. Execute and sync the twin task in its isolated worktree: nomos task start <KEY>",
 		targetPlane, oppPlane, oppPlane)
 }
-
-

@@ -58,13 +58,14 @@ func (g *CommitSchemaGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		}, nil
 	}
 
+	mode := resolveIntentTwinMode(ctx)
 	commits := collectBranchCommitsForSchemaAudit(root)
 	if len(commits) == 0 {
-		return evaluateSingleHeadCommit(g.Name(), root)
+		return evaluateSingleHeadCommitWithMode(g.Name(), root, mode)
 	}
 
 	for _, entry := range commits {
-		res, err := checkCommitCompliance(g.Name(), entry.body)
+		res, err := checkCommitComplianceWithMode(g.Name(), entry.body, mode)
 		if err != nil || !res.Passed {
 			if res != nil && entry.shortSHA != "" {
 				res.Message = fmt.Sprintf("commit %s: %s", entry.shortSHA, res.Message)
@@ -81,6 +82,10 @@ func (g *CommitSchemaGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 }
 
 func evaluateSingleHeadCommit(gateName, root string) (*GateResult, error) {
+	return evaluateSingleHeadCommitWithMode(gateName, root, "")
+}
+
+func evaluateSingleHeadCommitWithMode(gateName, root, mode string) (*GateResult, error) {
 	cmd := workspace.SafeGitCommand(root, "log", "-1", "--format=%B")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -90,7 +95,7 @@ func evaluateSingleHeadCommit(gateName, root string) (*GateResult, error) {
 	if commitMsg == "" {
 		return &GateResult{GateName: gateName, Passed: false, Message: "HEAD commit message is empty", Remedy: remedyAmendCommit}, nil
 	}
-	return checkCommitCompliance(gateName, commitMsg)
+	return checkCommitComplianceWithMode(gateName, commitMsg, mode)
 }
 
 type auditedCommitEntry struct {
@@ -179,6 +184,10 @@ func isPreCommitExempt(worktreePath string) bool {
 }
 
 func checkCommitCompliance(gateName, commitMsg string) (*GateResult, error) {
+	return checkCommitComplianceWithMode(gateName, commitMsg, "")
+}
+
+func checkCommitComplianceWithMode(gateName, commitMsg, mode string) (*GateResult, error) {
 	trimmedMsg := strings.TrimSpace(commitMsg)
 	if trimmedMsg == "" {
 		return &GateResult{GateName: gateName, Passed: false, Message: "commit message is empty", Remedy: remedyAmendCommit}, nil
@@ -198,6 +207,9 @@ func checkCommitCompliance(gateName, commitMsg string) (*GateResult, error) {
 	}
 	if violation := validateBodyAndTrailers(lines[1:], subjectKey); violation != "" {
 		return &GateResult{GateName: gateName, Passed: false, Message: violation, Remedy: remedyAmendCommit}, nil
+	}
+	if violation := ValidateCommitIntentTwinMode(trimmedMsg, mode); violation != "" {
+		return &GateResult{GateName: gateName, Passed: false, Message: violation, Remedy: IntentTwinModeRemedy(subjectKey)}, nil
 	}
 
 	return &GateResult{GateName: gateName, Passed: true, Message: "HEAD commit schema satisfies Golden Commit + Task trailer invariant"}, nil

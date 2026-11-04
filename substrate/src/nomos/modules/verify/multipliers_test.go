@@ -109,4 +109,3 @@ func TestComputeWorkspaceImpactAndDependencyLock(t *testing.T) {
 		t.Fatalf("expected package.json locked dependency violation, got: %v", locked)
 	}
 }
-

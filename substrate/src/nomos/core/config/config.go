@@ -5,9 +5,19 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/constants"
 	"gopkg.in/yaml.v3"
+)
+
+const (
+	// IntentTwinModeOff disables mandatory INT twin trailers on SUB commits (default).
+	IntentTwinModeOff = "off"
+	// IntentTwinModeFeat requires a Twin: INT-<N> trailer on SUB feat(...) commits.
+	IntentTwinModeFeat = "feat"
+	// IntentTwinModeStrict requires a Twin: INT-<N> trailer on all SUB commits.
+	IntentTwinModeStrict = "strict"
 )
 
 // BoundaryConfig declares architectural package and CLI command boundary protections.
@@ -74,6 +84,7 @@ type QualityGatesConfig struct {
 	HasForbiddenLiteralsOverride bool                     `yaml:"-" json:"-"`
 	ForbiddenShims               []string                 `yaml:"forbidden_shims,omitempty" json:"forbidden_shims,omitempty"`
 	StrictMode                   bool                     `yaml:"strict_mode" json:"strict_mode"`
+	IntentTwinMode               string                   `yaml:"intent_twin_mode,omitempty" json:"intent_twin_mode,omitempty"`
 	PolyglotToolchains           *bool                    `yaml:"polyglot_toolchains,omitempty" json:"polyglot_toolchains,omitempty"`
 	Exclude                      []string                 `yaml:"exclude,omitempty" json:"exclude,omitempty"`
 	IntentSourceRoots            []string                 `yaml:"intent_source_roots,omitempty" json:"intent_source_roots,omitempty"`
@@ -88,6 +99,32 @@ func (q *QualityGatesConfig) IsPolyglotToolchainsEnabled() bool {
 		return true
 	}
 	return *q.PolyglotToolchains
+}
+
+// EffectiveIntentTwinMode returns normalized intent_twin_mode, defaulting to "off" (@intent: #QualityGatesConfig).
+func (q *QualityGatesConfig) EffectiveIntentTwinMode() string {
+	if q == nil {
+		return IntentTwinModeOff
+	}
+	norm := strings.ToLower(strings.TrimSpace(q.IntentTwinMode))
+	if norm == "" {
+		return IntentTwinModeOff
+	}
+	return norm
+}
+
+// IntentTwinModeRank returns the strictness rank (0=off, 1=feat, 2=strict) and validity (@intent: #QualityGatesConfig).
+func IntentTwinModeRank(mode string) (int, bool) {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "", IntentTwinModeOff:
+		return 0, true
+	case IntentTwinModeFeat:
+		return 1, true
+	case IntentTwinModeStrict:
+		return 2, true
+	default:
+		return -1, false
+	}
 }
 
 // GetContractsBoundary returns active contract boundary config.
@@ -220,6 +257,9 @@ func ValidateConfig(cfg *EcosystemConfig) error {
 	}
 	if thresholds.MaxFuncLOC <= 0 {
 		return fmt.Errorf("max_func_loc must be greater than zero, got %d", thresholds.MaxFuncLOC)
+	}
+	if _, ok := IntentTwinModeRank(cfg.Governance.QualityGates.IntentTwinMode); !ok {
+		return fmt.Errorf("intent_twin_mode must be off, feat, or strict, got %q", cfg.Governance.QualityGates.IntentTwinMode)
 	}
 	return nil
 }

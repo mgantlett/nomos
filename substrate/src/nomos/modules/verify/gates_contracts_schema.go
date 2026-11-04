@@ -112,4 +112,3 @@ func collectSchemaPropertyKeys(node *config.JSONSchemaNode, out map[string]bool)
 		collectSchemaPropertyKeys(node.Items, out)
 	}
 }
-

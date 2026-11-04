@@ -240,6 +240,3 @@ func countPolyglotFiles(root string, dirs []string) (int, error) {
 	}
 	return total, nil
 }
-
-
-

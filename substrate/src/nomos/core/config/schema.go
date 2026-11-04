@@ -24,6 +24,7 @@ type JSONSchemaNode struct {
 	Title                string                     `json:"title,omitempty"`
 	Description          string                     `json:"description,omitempty"`
 	Type                 string                     `json:"type,omitempty"`
+	Enum                 []string                   `json:"enum,omitempty"`
 	Default              any                        `json:"default,omitempty"`
 	Minimum              *int                       `json:"minimum,omitempty"`
 	Maximum              *int                       `json:"maximum,omitempty"`
@@ -47,6 +48,7 @@ var configFieldDescriptions = map[string]string{
 	"forbidden_literals":           "Hardcoded string or path literals rejected by Law 5.",
 	"forbidden_shims":              "Stub or placeholder patterns rejected by the Anti-Shim Gate.",
 	"strict_mode":                  "Enforce statutory baseline thresholds without relaxation.",
+	"intent_twin_mode":             "Cross-plane INT twin enforcement for SUB commits: off (default), feat (require INT twin on feat commits), or strict (require INT twin on all SUB commits).",
 	"polyglot_toolchains":          "Enable automatic polyglot test/linter toolchain discovery.",
 	"exclude":                      "Workspace-relative glob patterns excluded from AST gates.",
 	"intent_source_roots":          "Directories classified under the Intent plane (Law 7).",
@@ -129,6 +131,10 @@ func reflectStructSchema(t reflect.Type, defVal reflect.Value) *JSONSchemaNode {
 		propNode := reflectFieldSchema(field.Type, fieldDef, name)
 		if desc, ok := configFieldDescriptions[name]; ok && propNode.Description == "" {
 			propNode.Description = desc
+		}
+		if name == "intent_twin_mode" {
+			propNode.Enum = []string{IntentTwinModeOff, IntentTwinModeFeat, IntentTwinModeStrict}
+			propNode.Default = IntentTwinModeOff
 		}
 		applyNumericBounds(name, propNode)
 		props[name] = propNode

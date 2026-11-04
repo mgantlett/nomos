@@ -288,5 +288,3 @@ func TestIntentTraceabilityGate_GoTypeAndSpecAnchorResolution(t *testing.T) {
 		t.Fatalf("expected IntentTraceabilityGate to fail closed on #GhostSchema, got: %+v", resFail)
 	}
 }
-
-
