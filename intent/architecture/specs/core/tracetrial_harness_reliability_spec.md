@@ -21,6 +21,8 @@ tags:
     - INT-901
     - INT-907
     - SUB-1708
+    - INT-908
+    - SUB-1710
 title: "TraceTrial-Bench 7-Pillar Harness Reliability & Fail-Closed Stress Specification"
 trigger: always_on
 type: spec
@@ -69,6 +71,7 @@ When `nomos verify` executes inside an isolated task worktree (`ctx.WorktreePath
 2. **Intent Plane Downgrade Rejection:** Even within an `INT-*` worktree permitted to edit intent/governance artifacts, `ThresholdIntegrityGate` loads the canonical trunk configuration from `ctx.RepoRoot`.
    - If trunk `nomos.yaml` enforces `governance.quality_gates.strict_mode: true` and the worktree `nomos.yaml` downgrades `strict_mode: false`, `ThresholdIntegrityGate` **must** return `Passed: false`.
    - If trunk `nomos.yaml` enforces `governance.boundary.enforce: true` and the worktree `nomos.yaml` downgrades `boundary.enforce: false`, `ThresholdIntegrityGate` **must** return `Passed: false`.
+   - If trunk `nomos.yaml` sets `governance.quality_gates.intent_twin_mode` to `"strict"` or `"feat"` and the worktree `nomos.yaml` lowers that rank (for example `"feat"` to `"off"`), `ThresholdIntegrityGate` **must** return `Passed: false`.
    - Any threshold relaxation violating statutory ceilings (`max_file_loc > 400`, `max_func_loc > 60`, `max_complexity > 15`, `min_coverage < 50.0`) continues to fail closed.
 3. **Brownfield Root Compatibility:** When evaluating directly on a brownfield repository root (`ctx.WorktreePath == ""`) where the repository owner explicitly configured `strict_mode: false` on trunk, `ThresholdIntegrityGate` honors the root baseline.
 

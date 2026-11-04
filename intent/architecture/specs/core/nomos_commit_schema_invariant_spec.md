@@ -16,6 +16,8 @@ tags:
     - INT-903
     - INT-904
     - SUB-1703
+    - INT-908
+    - SUB-1710
 ssot_repository: nomos
 ---
 
@@ -76,6 +78,7 @@ Twin: <INT|SUB-M>
 3. **Trailer-Safe Divider (`___`)**: Uses CommonMark `___` rather than `---` (`git-mailinfo` patch scissors) so `git interpret-trailers --parse` preserves all trailers.
 4. **Anti-Dump & Anti-Shim Guard**: Rejects legacy Dual-Layer headers (`**Blast Radius & Contracts:**`), raw `- M path/file.go` diff dumps, truncation filler, and canned shims.
 5. **RFC 822 Git Trailers**: Requires an end-of-message trailer block whose `Task: <KEY>` value matches the `[<KEY>]` subject prefix (plus optional `Twin:` keys).
+6. **Configurable Cross-Plane Twin Policy (`intent_twin_mode`)**: Reads `governance.quality_gates.intent_twin_mode` (`"off"` default, `"feat"`, or `"strict"`). When set to `"feat"`, every `SUB-*` `feat(...)` commit must include a `Twin: INT-<N>` trailer; when set to `"strict"`, every `SUB-*` commit must include a `Twin: INT-<N>` trailer.
 
 ## 5. Table-Driven Verification Vectors (Law 2)
 
@@ -86,8 +89,9 @@ Twin: <INT|SUB-M>
 | `TC-CMT-003` | `[SUB-1703] feat(verify): mismatch\n\nKeep history concise.\n\n___\n\nTask: SUB-999` | Subject/trailer key mismatch | Fails closed (`Passed: false`). Enforces `[KEY]` == `Task: <KEY>` parity. | PASS |
 | `TC-CMT-004` | `[SUB-1703] feat(verify): scissors\n\nRationale prose.\n\n---\n\nTask: SUB-1703` | `---` patch-scissors line | Fails closed (`Passed: false`). Directs caller to use `___` divider. | PASS |
 | `TC-CMT-005` | Commit A (`--no-verify` rogue) + Commit B (valid `HEAD`) | Multi-commit revision audit | Detects intermediate rogue Commit A and blocks release. | PASS |
+| `TC-CMT-006` | `[SUB-42] feat(cli): add mode` without `Twin: INT-<N>` under `intent_twin_mode: feat` | Cross-plane twin policy | Fails closed (`Passed: false`) with HATEOAS twin-creation remedy; allows `fix`/`test`/`refactor` under `feat` mode. | PASS |
 
 ## 6. Cross-Plane Traceability Matrix
-- **Intent Plane**: `INT-380`, `INT-874`, `INT-903`, `INT-904`
-- **Substrate Plane**: `SUB-1700`, `SUB-1703` (`substrate/src/nomos/modules/verify/commit_schema_gate.go`, `substrate/cli/commit_hydration.go`)
+- **Intent Plane**: `INT-380`, `INT-874`, `INT-903`, `INT-904`, `INT-908`
+- **Substrate Plane**: `SUB-1700`, `SUB-1703`, `SUB-1710` (`substrate/src/nomos/modules/verify/commit_schema_gate.go`, `substrate/src/nomos/modules/verify/intent_twin_mode.go`, `substrate/cli/commit_hydration.go`)
 - **DoD Gates**: Cell 6.1 (`commit_schema`), Cell 6.3 (`canonical_singularity`)

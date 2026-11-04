@@ -29,6 +29,7 @@ governance:
             - '"/var/home/'
             - '"/workstations/'
         strict_mode: true
+        intent_twin_mode: feat
         exclude: []
         intent_source_roots:
             - "intent"
