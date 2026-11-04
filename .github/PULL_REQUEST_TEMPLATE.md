@@ -32,3 +32,4 @@ Every Pull Request must satisfy the **7 Laws of Nomos** before trunk integration
 - [ ] **Law 5 (Zero-Hardcoded-Path)**: Zero hardcoded absolute paths, home directories, or workspace structures in source.
 - [ ] **Law 6 (Canonical Singularity)**: Zero aliases, redundant flags, or duplicate schemas introduced.
 - [ ] **Law 7 (Fail-Closed Pre-Flight)**: Pure 2-plane singularity observed (INT does not touch substrate; SUB does not touch intent).
+- [ ] **Provenance (DCO & Apache 2.0 §5)**: Commits include a `Signed-off-by:` trailer certifying right to contribute under the Apache License, Version 2.0.

@@ -54,6 +54,12 @@ Every contribution is verified deterministically against the 7 core architectura
    ```
    Locally on trunk, maintainers merge via atomic Two-Phase Commit (`nomos task sync <KEY> -F .tmp/walkthrough-<KEY>.md`); external contributors can push their `feature/<KEY>` branch and open a Pull Request.
 
-## Pull Requests
+## Pull Requests & Contributor Provenance (DCO)
 
 All Pull Requests run the full Go unit/cleanroom test suite and `nomos verify --all --strict` (`42/42` Definition of Done quality gates) in GitHub Actions CI. Please include table-driven unit tests alongside all behavioral changes.
+
+Contributions are governed inbound-equals-outbound under Section 5 of the [Apache License, Version 2.0](LICENSE) (no separate Contributor License Agreement is required). External contributors must certify provenance under the [Developer Certificate of Origin (DCO 1.1)](https://developercertificate.org/) by signing off commits (`git commit -s`), adding:
+
+```text
+Signed-off-by: Your Name <your.email@example.com>
+```

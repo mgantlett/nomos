@@ -39,6 +39,11 @@ archives:
       - goos: windows
         formats:
           - zip
+    files:
+      - LICENSE
+      - NOTICE
+      - THIRD_PARTY_NOTICES.md
+      - README.md
 
 checksum:
   name_template: 'checksums.txt'

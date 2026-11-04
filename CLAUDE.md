@@ -1,21 +1,6 @@
 <!-- NOMOS_OPEN_CORE_PROTOCOL_START -->
 <!-- ⚠️ NOMOS OPEN-CORE PROTOCOL BELOW. DO NOT EDIT THIS SECTION. ⚠️ -->
 
----
-authors:
-    - Mark Gantlett
-    - Nomos Open-Core Substrate
-classification: public
-date: "2026-10-01"
-last_updated: "2026-10-31"
-plane: intent
-status: active
-title: AGENTS.md - Nomos Open-Core Protocol (Deterministic Engineering Substrate)
-trigger: always_on
-type: research
-version: 4.0.0
----
-
 # AGENTS.md - Nomos Open-Core Protocol (Deterministic Substrate)
 
 **Role:** Tier 1 Coding Agent Operating Under Deterministic Indirect Control  
@@ -61,10 +46,10 @@ version: 4.0.0
 | `TC-AGT-03` | Direct internal database file tampering | Law 1 & ADR-0062 (Encapsulation) | ForbiddenCommandGate | Fail Closed (`ERR_DIRECT_DB_ACCESS_FORBIDDEN`) |
 | `TC-AGT-04` | Execute `nomos verify` | Law 2 (Non-Verbal Proof) | 42 Quality Gates | Pass (Exit 0) |
 | `TC-AGT-05` | Symlink creation in repository | Law 6 (Canonical Singularity) | ZeroFilesystemAliasGate | Fail Closed (`ERR_SYMLINK_FORBIDDEN`) |
-| `TC-AGT-06` | Cross-plane commit (`INT-*` modifying `substrate/`) | Law 7 (Plane Separation) | PlaneSeparationGate | Fail Closed (`ERR_CROSS_PLANE_MUTATION`) |
-| `TC-AGT-07` | Gate returns trivial constant literal | Law 2 (Non-Verbal Proof) | AntiShimGate | Fail Closed (`ERR_TRIVIAL_PASS_SHIM`) |
+| `TC-AGT-06` | Cross-plane commit (`INT-*` modifying code roots) | Law 7 (Plane Separation) | PlaneSeparationGate | Fail Closed (`ERR_CROSS_PLANE_MUTATION`) |
+| `TC-AGT-07` | Function returns hollow stub or skips test | Law 2 (Non-Verbal Proof) | AntiShimGate | Fail Closed (`ERR_TRIVIAL_PASS_SHIM`) |
 | `TC-AGT-08` | Hardcoded forbidden path literal in source | Law 5 (Zero-Hardcoded-Path) | ForbiddenLiteralsGate | Fail Closed (`ERR_FORBIDDEN_LITERAL`) |
-| `TC-AGT-09` | Zero assets discovered during parity check | Law 4 (SSoT) | ParityGate / CheckBilateralParity | Fail Closed (`ERR_ZERO_ASSETS_DISCOVERED`) |
+| `TC-AGT-09` | Configuration or contract drifts from Go SSoT | Law 4 (SSoT) | ContractParityGate / IntentParityGate | Fail Closed (`ERR_CONTRACT_DRIFT`) |
 
 <!-- NOMOS_OPEN_CORE_PROTOCOL_END -->
 

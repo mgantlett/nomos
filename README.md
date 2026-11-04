@@ -168,7 +168,7 @@ Nomos Community Edition is **100% open-source under Apache 2.0** with zero telem
 
 ## 📄 License
 
-Licensed under the **Apache License, Version 2.0**. See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE) for full text and attribution terms.
+Licensed under the **Apache License, Version 2.0**. See [`LICENSE`](LICENSE), [`NOTICE`](NOTICE), and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for full text and attribution terms.
 
 <div align="center">
   <sub>Built with deterministic rigor by <a href="https://sophialabs.ca"><b>SophiaLabs</b></a> · Governed by Nomos</sub>

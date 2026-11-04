@@ -75,7 +75,7 @@ func verifyBrownfieldMarkerParityAndCleanTemplate(t *testing.T, repoDir string) 
 			t.Fatalf("CDV-HAT-01: expected AGENTS.md to surface %q", want)
 		}
 	}
-	for _, leak := range []string{"worktrees/nomos-", "intent/architecture/specs", "cmd/nomos", "Maintain and advance the `nomos`"} {
+	for _, leak := range []string{"worktrees/nomos-", "intent/architecture/specs", "cmd/nomos", "Maintain and advance the `nomos`", "authors:", "CheckBilateralParity", "modifying `substrate/`"} {
 		if strings.Contains(agents, leak) {
 			t.Fatalf("CDV-HAT-01: downstream AGENTS.md leaked Foundry-internal string %q", leak)
 		}
