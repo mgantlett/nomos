@@ -136,7 +136,7 @@ Query this compiled registry anytime from the terminal via `nomos directive --le
 | **`Pair`** | Verb | Allocate linked `INT-<N>` and `SUB-<N>` twin tasks atomically. | bundle, couple | `nomos task pair` |
 | **`Chore`** | Noun | Single-step `burden: 1` task provisioned directly into `EDIT`. | quickfix, hotfix | `nomos task chore` |
 | **`Start`** | Verb | Provision an isolated task worktree and mint a CapBAC lease. | spin up, kick off | `nomos task start` |
-| **`Commit`** | Verb | Record a Dual-Layer worktree snapshot on `feature/<KEY>`. | checkpoint, snapshot | `nomos task commit` |
+| **`Commit`** | Verb | Record a Golden Conventional Commit with `Task:` trailer on `feature/<KEY>`. | checkpoint, snapshot | `nomos task commit` |
 | **`Review`** | Verb | Lock edits and evaluate all 42 Definition of Done gates. | eyeball, double-check | `nomos task review` |
 | **`Sync`** | Verb | Execute atomic 2PC fast-forward merge to trunk with receipt. | ship, land, push to prod | `nomos task sync` |
 | **`Abort`** | Verb | Revoke active CapBAC lease and remove unmerged worktree. | abandon, scrap | `nomos task abort` |

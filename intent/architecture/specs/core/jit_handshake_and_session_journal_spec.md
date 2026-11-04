@@ -90,7 +90,7 @@ The handshake dynamically filters and loads statutory directives from compiled s
 | **`PLAN`** | NCTE technical English, sizing & DAG planning, architectural synthesis. | Plan files only. Code files immutable. |
 | **`EDIT`** | Traceability anchors, SSOT alignment, schema synthesis, refactoring rules. | Mutations strictly in `worktrees/<repo>-<task>`. |
 | **`REVIEW`**| Definition of Done (DoD) quality gates, adversarial verification, anti-shim. | Mutations locked pending audit. |
-| **`SYNC`**  | Atomic 2PC release, Git Notes receipts, Dual-Layer commit formatting. | Commit & fast-forward merge execution. |
+| **`SYNC`**  | Atomic 2PC release, Git Notes receipts, Golden Commit + `Task:` trailer hygiene. | Commit & fast-forward merge execution. |
 | **`LEARN`** | Nomos Mneme episodic memory reflection, session distillation. | Release receipt & reflection persistence. |
 
 ---

@@ -4,35 +4,36 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-08"
-last_updated: "2026-11-01"
+last_updated: "2026-11-03"
 plane: intent
 status: active
 title: Commit Schema Invariant Gate Specification
 type: spec
-version: "4.1.0"
+version: "4.4.0"
 tags:
     - INT-380
     - INT-874
-    - SUB-1582
+    - INT-903
+    - SUB-1700
 ssot_repository: nomos
 ---
 
 # Commit Schema Invariant Gate Specification
 
 ## CommitSchemaGate
-The `CommitSchemaGate` enforces the Dual-Layer Hybrid AI schema and Canonical Singularity Law on task commits before permitting release.
+The `CommitSchemaGate` enforces Golden Conventional Commits, anti-dump hygiene, and RFC 822 Git Trailers on branch commits before release.
 
 ## 1. Executive Summary & Problem Statement
-The Nomos Substrate enforces rigorous execution standards, including mandatory dual-layer formatting for Git commit messages. Previously, commit format compliance was enforced solely by client-side Git hooks (`.git/hooks/commit-msg`). However, developers and autonomous agents can trivially bypass Git hooks using the `--no-verify` flag.
+Client-side Git hooks (`.git/hooks/commit-msg`) alone cannot guarantee commit quality because callers can bypass hooks with `--no-verify`. Earlier Nomos releases also prepended `[SUB-<N>]` to commit subjects and dumped `git diff --name-status` file lists into commit bodies. Those file-list dumps duplicated Git's native tree diff while crowding out high-signal architectural rationale.
 
-To definitively close this loophole and uphold the **Fail-Closed Pre-Flight Law** (Law 7) and **Canonical Singularity Law** (Law 6), the Substrate gatekeeper implements **Gate 5: Commit Schema Invariant Gate** (`CommitSchemaGate`) within `nomos verify`. This gate programmatically parses all commits across the active task branch before permitting a Two-Phase Commit release (`nomos task sync`).
+To uphold **Law 4 (SSoT)**, **Law 6 (Canonical Singularity)**, and **Law 7 (Fail-Closed Pre-Flight)**, `CommitSchemaGate` audits every unmerged commit on `trunk..HEAD`. Each commit must pair a clean Conventional Commit subject with substantive rationale prose and a canonical `Task:` Git trailer.
 
 ## 2. Axiomatic Invariants & Laws Codified
-- **Law 2: The Non-Verbal Proof Law**: Commit schema validation is programmatic, deterministic, and machine-verified via Go AST and git revision analysis, eliminating reliance on human memory or client-side hook discipline.
-- **Law 4: The Single Source of Truth Law**: Commit prefix invariants strictly mirror compiled `task.ValidateTaskKey` (`^(INT|SUB)-[0-9]+(-[a-z0-9-]+)?$`) and `cli/commit_hydration.go`.
-- **Law 5: The Zero-Hardcoded-Path Law**: Repository roots, git worktree boundaries, and revision logs resolve dynamically via workspace discovery (`workspace.SafeGitCommand`).
-- **Law 6: The Canonical Singularity Law**: Deprecates all non-canonical prefixes (such as `ARC-`, `TASK-`, or alphanumeric variant suffixes). Commit remediation must instruct users to execute canonical CLI workflows (`nomos task commit`), eliminating raw git workarounds.
-- **Law 7: The Fail-Closed Pre-Flight Law**: Multi-commit revision range evaluation: Rather than inspecting only `HEAD`, the gate audits all commits between the task branch and trunk divergence (`origin/main..HEAD`). If any intermediate commit bypassed hooks, the gate fails closed, blocking release.
+- **Law 2 (The Non-Verbal Proof Law)**: Rejects canned placeholder shims and trivial one-word bodies through deterministic revision-range inspection.
+- **Law 4 (The Single Source of Truth Law)**: Prohibits `git diff --name-status` file dumps inside commit prose because Git's tree object already owns file manifests.
+- **Law 5 (The Zero-Hardcoded-Path Law)**: Resolves repository roots, worktree boundaries, and trunk divergence SHAs dynamically through `workspace.SafeGitCommand`.
+- **Law 6 (The Canonical Singularity Law)**: Enforces pure Conventional Commit subjects without leading or trailing `[KEY]` tokens and binds lineage via `Task: <INT|SUB-N>` trailers.
+- **Law 7 (The Fail-Closed Pre-Flight Law)**: Evaluates every commit across `trunk..HEAD` so intermediate `--no-verify` commits fail closed before `nomos task sync`.
 
 ## 3. Compiled Go Gate Contract
 The Go Single Source of Truth resides in `substrate/src/nomos/modules/verify/commit_schema_gate.go`.
@@ -40,144 +41,50 @@ The Go Single Source of Truth resides in `substrate/src/nomos/modules/verify/com
 ```go
 package verify
 
-import (
-	"fmt"
-	"regexp"
-	"strings"
-	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
-)
-
-const RemedyAmendCommit = "re-commit via `nomos task commit` to enforce dual-layer schema compliance"
-
-// CommitSchemaGate enforces the Dual-Layer Hybrid AI schema and Canonical Singularity Law.
-// @intent INT-380
+// CommitSchemaGate enforces the Golden Conventional Commit schema, anti-dump hygiene,
+// and canonical RFC 822 Git Trailers across all unmerged branch commits.
+// @intent nomos_commit_schema_invariant_spec.md #CommitSchemaGate
 type CommitSchemaGate struct{}
 
-// Name returns the canonical name of the Commit Schema quality gate.
-func (g *CommitSchemaGate) Name() string { return "Commit Schema Invariant Gate" }
-
-// Evaluate parses task branch commits to ensure format compliance.
-func (g *CommitSchemaGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
-	// Evaluates the revision range between trunk and branch HEAD
-	cmd := workspace.SafeGitCommand(ctx.WorktreePath, "log", "-1", "--format=%B")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return &GateResult{GateName: g.Name(), Passed: true, Message: "no commit history to evaluate"}, nil
-	}
-
-	commitMsg := strings.TrimSpace(string(out))
-	if commitMsg == "" {
-		return &GateResult{GateName: g.Name(), Passed: false, Message: "commit message is empty", Remedy: RemedyAmendCommit}, nil
-	}
-
-	return checkCommitCompliance(g.Name(), commitMsg)
+func (g *CommitSchemaGate) Name() string {
+	return "Commit Schema Invariant Gate"
 }
 
-func checkCommitCompliance(gateName, commitMsg string) (*GateResult, error) {
-	lines := strings.Split(commitMsg, "\n")
-	firstLine := lines[0]
-
-	if isMergeCommit(firstLine) {
-		return &GateResult{GateName: gateName, Passed: true, Message: "merge commit is exempt from task ID prefix invariant"}, nil
-	}
-
-	// Canonical 2-Plane Singularity: strictly INT-N or SUB-N
-	prefixRegex := regexp.MustCompile(`^\[(INT|SUB)-[1-9][0-9]*(-[a-z0-9\-]+)?\]`)
-	if !prefixRegex.MatchString(firstLine) {
-		return &GateResult{
-			GateName: gateName,
-			Passed:   false,
-			Message:  fmt.Sprintf("commit message missing canonical [TaskID] prefix on first line: %q", firstLine),
-			Remedy:   RemedyAmendCommit,
-		}, nil
-	}
-
-	lowerMsg := strings.ToLower(commitMsg)
-	hasBlastRadius := strings.Contains(lowerMsg, "**blast radius & contracts:**")
-	hasResolution := strings.Contains(lowerMsg, "**resolution mechanics:**")
-
-	if !hasBlastRadius && !hasResolution {
-		return &GateResult{
-			GateName: gateName,
-			Passed:   false,
-			Message:  "commit message missing dual-layer headings (**Blast Radius & Contracts:** or **Resolution Mechanics:**)",
-			Remedy:   RemedyAmendCommit,
-		}, nil
-	}
-
-	return &GateResult{GateName: gateName, Passed: true, Message: "HEAD commit schema is properly formatted"}, nil
-}
-
-func isMergeCommit(firstLine string) bool {
-	return strings.HasPrefix(firstLine, "Merge pull request ") ||
-		strings.HasPrefix(firstLine, "Merge branch ") ||
-		strings.HasPrefix(firstLine, "Merge remote-tracking branch ")
-}
+func (g *CommitSchemaGate) Evaluate(ctx *VerifyContext) (*GateResult, error)
 ```
 
-## 4. Commit Hydration & Validation DTO Contract
-The commit hydration structures reside in `substrate/cli/commit_hydration.go` and `substrate/src/nomos/modules/verify/commit_schema_gate.go`:
-
-```go
-package cli
-
-// CommitHydrationInput captures structured overrides and task context for Dual-Layer commits.
-type CommitHydrationInput struct {
-	TaskKey         string
-	Subject         string
-	Rationale       string
-	BlastRadius     string
-	Mechanics       string
-	WalkthroughPath string
-}
-
-// HydratedCommitSections holds the resolved Dual-Layer body sections.
-type HydratedCommitSections struct {
-	Subject     string `json:"subject"`
-	Rationale   string `json:"rationale"`
-	BlastRadius string `json:"blast_radius"`
-	Mechanics   string `json:"mechanics"`
-}
-```
-
-## 5. Dual-Layer Hybrid AI Commit Specification
-Every non-merge commit must satisfy the Dual-Layer specification:
+## 4. Golden Conventional Commit & Git Trailer Specification
+Every non-merge branch commit must satisfy the Golden Commit structure:
 
 ```text
-[<TASK_KEY>] <type>(<scope>): <concise human-readable imperative summary>
+<feat|fix|docs|chore|refactor|test>(<scope>): <imperative summary>
 
-**Architectural Rationale:**
-<Detailed description of the problem context, rationale, and intent links>
+<72-column plain-text rationale explaining the problem, constraint, or design>
 
-**Blast Radius & Contracts:**
-- List of modified files, interfaces, schemas, or exported Go types.
+- Optional concise bullets capturing key mechanisms when distinct from paragraph 1.
 
-**Resolution Mechanics:**
-- Concrete algorithmic implementation steps or verified walkthrough summary.
+Task: <INT|SUB-N>
+Twin: <INT|SUB-M>
 ```
 
-### 5.1 Verification Protocol
-1. **First-Line Structure**: Starts with `[INT-<N>]` or `[SUB-<N>]` (or slugged `[INT-<N>-slug]`), followed by a space and conventional commit type (`feat`, `fix`, `docs`, `chore`, `refactor`, `test`) with optional `(<scope>):`, and contains no duplicate trailing `[<TASK_KEY>]` or `(<TASK_KEY>)` suffix.
-2. **Body Requirement**: Contains Dual-Layer bold headers (`**Architectural Rationale:**`, `**Blast Radius & Contracts:**`, `**Resolution Mechanics:**`) with non-empty substantive content beneath each present header.
-3. **Anti-Shim Rejection (`INT-874`)**: Any commit body containing generic placeholder strings (such as `"satisfy <KEY> deterministic execution requirements"`, `"scoped strictly to <KEY> implementation files"`, or `"implemented and verified via deterministic quality gates for <KEY>"`) fails closed.
-4. **Branch Revision Range Audit**: Across active task branches (`trunk..HEAD`), every unmerged commit is validated; an intermediate `--no-verify` bypass commit cannot be masked by a compliant `HEAD` commit.
+### 4.1 Verification Protocol
+1. **Pure Conventional Subject**: Matches `^(feat|fix|docs|chore|refactor|test)(\([a-z0-9_,/-]+\))?:\s+\S+`, targets `<= 72` runes (`100`-rune hard ceiling), and forbids `[KEY]` prefixes or suffixes.
+2. **Substantive Plain-Text Body**: Requires a blank line after the subject and at least `12` runes of plain-text rationale above the trailer block.
+3. **Anti-Dump & Anti-Shim Guard**: Rejects legacy Dual-Layer bold headers (`**Blast Radius & Contracts:**`), raw `- M path/file.go` diff dumps, truncation filler, and canned shims.
+4. **RFC 822 Git Trailers**: Requires an end-of-message trailer block containing exactly one `Task: <INT|SUB-N>` trailer (and validates optional `Twin:` keys).
+5. **Branch Revision Range Audit**: Validates every unmerged commit on `trunk..HEAD` so compliant `HEAD` commits cannot mask earlier rogue commits.
 
-## 6. Table-Driven Verification Vectors (Law 2)
+## 5. Table-Driven Verification Vectors (Law 2)
 
-| Test Vector ID | Commit Message Subject & Body | Evaluated State | Expected Gate Outcome | Status |
+| Test Vector ID | Commit Message Sample | Evaluated State | Expected Gate Outcome | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| `TC-CMT-001` | `[SUB-747] feat(verify): implement gate\n\n**Blast Radius & Contracts:**\nTouches pipeline` | Valid prefix and body | Passes gate (`Passed: true`). | PASS |
-| `TC-CMT-002` | `feat(verify): implement gate without task prefix\n\n**Resolution Mechanics:**\nDone` | Missing `[TaskID]` prefix | Fails closed (`Passed: false`). Emits `missing canonical [TaskID] prefix`. | PASS |
-| `TC-CMT-003` | `[ARC-9] feat: non-canonical arc prefix\n\n**Resolution Mechanics:**\nDone` | Invalid non-canonical prefix | Fails closed (`Passed: false`). Rejects non-canonical `ARC-` key. | PASS |
-| `TC-CMT-004` | `[INT-599] fix: valid prefix but no body` | Missing dual-layer headers | Fails closed (`Passed: false`). Emits `missing dual-layer headings`. | PASS |
-| `TC-CMT-005` | Commit A (invalid `--no-verify`) + Commit B (valid `HEAD`) | Multi-commit revision audit | Detects intermediate invalid Commit A; fails closed before merge. | PASS |
+| `TC-CMT-001` | `feat(verify): enforce Task trailer\n\nKeep commit history concise.\n\nTask: SUB-1700` | Valid Golden Commit + trailer | Passes gate (`Passed: true`). | PASS |
+| `TC-CMT-002` | `[SUB-1700] feat(verify): legacy prefix\n\nKeep history concise.\n\nTask: SUB-1700` | Leading `[KEY]` subject prefix | Fails closed (`Passed: false`). Rejects leading `[TaskID]` prefix. | PASS |
+| `TC-CMT-003` | `feat(verify): missing trailer\n\nKeep commit history concise.` | Missing `Task:` trailer | Fails closed (`Passed: false`). Emits missing `Task:` trailer error. | PASS |
+| `TC-CMT-004` | `feat(verify): dump files\n\nRationale.\n\n- M cli/root.go\n\nTask: SUB-1700` | Raw staged diff dump | Fails closed (`Passed: false`). Rejects raw file-list dump (Law 4). | PASS |
+| `TC-CMT-005` | Commit A (`--no-verify` rogue) + Commit B (valid `HEAD`) | Multi-commit revision audit | Detects intermediate rogue Commit A and blocks release. | PASS |
 
-## 7. Cross-Plane Traceability Matrix
-- **Intent Plane**: `INT-380` (Commit Schema Invariant)
-- **Substrate Plane**: `SUB-380` (`substrate/src/nomos/modules/verify/commit_schema_gate.go`)
-- **DoD Gates**: Gate 5 (`Commit Schema Invariant Gate`), Gate 4 (`Canonical Singularity`)
-
-## 8. Rigor & Verification Boundary
-Continuous compliance is audited by:
-1. `nomos verify` evaluating Go SSoT contract schema parity and AST traceability.
-2. `nomos verify` executing Gate 5 across all automated DoD quality gates.
+## 6. Cross-Plane Traceability Matrix
+- **Intent Plane**: `INT-380`, `INT-874`, `INT-903`
+- **Substrate Plane**: `SUB-1700` (`substrate/src/nomos/modules/verify/commit_schema_gate.go`, `substrate/cli/commit_hydration.go`)
+- **DoD Gates**: Cell 6.1 (`commit_schema`), Cell 6.3 (`canonical_singularity`)

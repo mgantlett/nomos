@@ -4,17 +4,18 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-23"
-last_updated: "2026-11-01"
+last_updated: "2026-11-03"
 plane: intent
 status: active
 title: "Hermetic Git Hooks, Task Commit, and Staged Boundary Enforcement Specification"
 type: spec
-version: "4.1.0"
+version: "4.4.0"
 tags:
     - INT-734
     - SUB-1212
     - INT-874
-    - SUB-1582
+    - INT-903
+    - SUB-1700
 ssot_repository: nomos
 ---
 
@@ -22,15 +23,15 @@ ssot_repository: nomos
 
 ## 1. Executive Summary & Problem Statement
 
-Under **Law 1 (The Dual-Core Inversion Law)** and **Law 3 (The Hermetic Worktree Law)**, the substrate Go core governs state and execution while the Tier 1 coding agent operates strictly inside isolated task worktrees under indirect control.
+Under **Law 1 (The Dual-Core Inversion Law)** and **Law 3 (The Hermetic Worktree Law)**, the Go substrate governs execution while Tier 1 coding agents edit inside isolated worktrees.
 
 In uncontained development environments, agents or developers may inadvertently:
 1. Attempt raw `git commit` on protected trunk branches (`main`), corrupting canonical history.
-2. Introduce un-sanitized `exec.Command("git", ...)` invocations that inherit host environment variables (`GIT_DIR`, `GIT_WORK_TREE`), causing cross-worktree state leakage.
-3. Write transient files (e.g., walkthroughs or scratch logs) directly to the repository root instead of the repository-local `.tmp/` containment boundary.
-4. Omit Dual-Layer commit metadata required by downstream cognitive consumers and release receipts.
+2. Invoke unsanitized `exec.Command("git", ...)` calls that inherit host `GIT_DIR` or `GIT_WORK_TREE` variables across worktrees.
+3. Write scratch walkthroughs directly to the repository root instead of the `.tmp/` containment boundary.
+4. Pollute Git history with redundant file-list dumps or omit canonical `Task:` Git trailers needed by release tooling.
 
-This specification unifies the **Hermetic Git Hooks Lifecycle**, the canonical **`nomos task commit`** CLI command, and the activation of three statutory sensor probes: **`staged_boundaries`**, **`git_hygiene`**, and **`commit_schema`**.
+This specification defines the **Hermetic Git Hooks Lifecycle**, the **`nomos task commit`** CLI contract, and three statutory probes: **`staged_boundaries`**, **`git_hygiene`**, and **`commit_schema`**.
 
 ---
 
@@ -38,34 +39,34 @@ This specification unifies the **Hermetic Git Hooks Lifecycle**, the canonical *
 
 | Law # | Law Name | Architectural Invariant | Machine Enforcement Mechanism |
 | :---: | :--- | :--- | :--- |
-| **1** | **The Dual-Core Inversion Law** | Substrate Go core governs execution; agents commit via canonical CLI rather than unmediated git. | `nomos task commit`, `git_hygiene` AST probe |
-| **2** | **The Non-Verbal Proof Law** | Zero trust in conversational commit messages; Dual-Layer schema is verified before merge. | `commit_schema` gate, table-driven tests |
-| **3** | **The Hermetic Worktree Law** | Mutations occur strictly in transient worktrees; repository root is immutable. | `pre-commit` hook, `staged_boundaries` gate |
-| **4** | **The Single Source of Truth Law** | Commit schema format and hook scripts have one compiled Go SSoT. | `substrate/src/nomos/modules/verify/commit_schema_gate.go`, `substrate/src/nomos/core/workspace/hooks.go` |
-| **5** | **The Zero-Hardcoded-Path Law** | Dynamic resolution of worktrees, hooks, and repository roots. | `config.ResolveWorktreeDir()`, `FindRepoRoot()` |
-| **6** | **The Canonical Singularity Law** | Single canonical commit workflow: `nomos task commit`. Raw git commits are intercepted and blocked. | Zero-Alias pre-commit discipline |
-| **7** | **The Fail-Closed Pre-Flight Law** | Boundary escapes, missing commit headers, or un-sanitized git calls fail closed. | Gate pipeline exit code 1 |
+| **1** | **The Dual-Core Inversion Law** | Substrate Go core governs execution; agents commit through canonical CLI commands. | `nomos task commit`, `git_hygiene` AST probe |
+| **2** | **The Non-Verbal Proof Law** | Commit rationale prose and anti-shim rules are machine-verified before merge. | `commit_schema` gate, table-driven tests |
+| **3** | **The Hermetic Worktree Law** | Mutations execute strictly inside transient worktrees while trunk stays read-only. | `pre-commit` hook, `staged_boundaries` gate |
+| **4** | **The Single Source of Truth Law** | Git's tree diff owns file manifests; hook scripts and commit gates share Go SSoT. | `commit_schema_gate.go`, `workspace/hooks.go` |
+| **5** | **The Zero-Hardcoded-Path Law** | Worktrees, hooks, and repository roots resolve dynamically at runtime. | `config.ResolveWorktreeDir()`, `FindRepoRoot()` |
+| **6** | **The Canonical Singularity Law** | One commit CLI (`nomos task commit`) emits Conventional Commits with `Task:` trailers. | Zero-Alias CLI gate, `commit-msg` hook |
+| **7** | **The Fail-Closed Pre-Flight Law** | Boundary escapes, missing `Task:` trailers, or unsanitized git calls fail closed. | Gate pipeline exit code 1 |
 
 ---
 
 ## 3. The Live Git Hooks Architecture
 
-Nomos installs and maintains three hermetic client-side hooks within `.git/hooks/`:
+Nomos installs and self-heals three hermetic client-side hooks inside `.git/hooks/`:
 
 ### 3.1 `pre-commit`
-- **Root Protection**: Rejects direct commits if the active branch is a protected trunk branch (`main`, `master`, `intent`, `substrate`).
-- **Worktree Boundary Enforcement**: Verifies that the current working directory is inside `worktrees/nomos-<KEY>`.
-- **Boundary Escape Audit**: Inspects `git diff --cached --name-only` to ensure no staged files escape to the repository root or parent directories (`..`).
-- **Workflow Enforcement**: Fails closed unless the `NOMOS_COMMIT_IN_PROGRESS=1` environment variable is exported by `nomos task commit`.
-- **Pre-Flight DoD Verification**: Executes `nomos verify` across active gates.
+- **Root Protection**: Rejects direct commits on protected trunk branches (`main`, `master`, `intent`, `substrate`, `develop`).
+- **Worktree Boundary Enforcement**: Verifies that the working directory resides inside `worktrees/<repo>-<KEY>`.
+- **Boundary Escape Audit**: Inspects `git diff --cached --name-only` so staged paths never escape via `..` or absolute paths.
+- **Workflow Enforcement**: Fails closed unless `nomos task commit` exports `NOMOS_COMMIT_IN_PROGRESS=1`.
+- **Pre-Flight DoD Verification**: Executes `nomos verify` across all active quality gates.
 
 ### 3.2 `commit-msg`
-- **First-Line Format**: Validates that line 1 matches `^\[(INT|SUB)-[1-9][0-9]*(-[a-z0-9\-]+)?\]\s+(feat|fix|docs|chore|refactor|test)(\([a-z0-9_,/-]+\))?:\s+\S+` and rejects duplicate trailing `[KEY]` or `(KEY)` tokens.
-- **Dual-Layer Sections & Anti-Shim Guard**: Requires the markdown section headers `**Architectural Rationale:**`, `**Blast Radius & Contracts:**`, and `**Resolution Mechanics:**` with substantive content, explicitly rejecting canned boilerplate placeholder lines.
-- **Rejection**: Fails with clear remediation instructions directing the agent to `nomos task commit` or `nomos task sync -F <walkthrough>`.
+- **Conventional Subject**: Enforces `^(feat|fix|docs|chore|refactor|test)(\([a-z0-9_,/-]+\))?:\s+\S+` (`<= 100` chars) and blocks `[KEY]` prefixes or suffixes.
+- **Anti-Dump & Anti-Shim Guard**: Rejects legacy Dual-Layer headers (`**Blast Radius & Contracts:**`), raw `- M file` diff dumps, and canned boilerplate shims.
+- **Rationale & Trailer Check**: Requires substantive plain-text rationale prose and a canonical `Task: <INT|SUB-N>` RFC 822 Git trailer.
 
 ### 3.3 `pre-push`
-- **Trunk Push Defense**: Prevents pushing incomplete task branches directly to remote trunk without prior 2PC atomic release (`nomos task sync`).
+- **Trunk Push Defense**: Blocks pushing non-trunk branches directly to remote trunk and runs `nomos verify --range` before trunk pushes.
 
 ---
 
@@ -76,28 +77,22 @@ Usage:
   nomos task commit [TASK_KEY] [flags]
 
 Flags:
-  -m, --message string        Commit summary line (normalized to Conventional Commit format)
-      --rationale string      Architectural rationale (overrides Living Ledger Scope & Context)
-      --blast-radius string   Blast radius & affected contracts (overrides staged file manifest)
-      --mechanics string      Resolution mechanics (overrides walkthrough / Acceptance Criteria)
-  -F, --file string           Optional walkthrough markdown file to hydrate commit sections
-  -a, --all                   Automatically stage modified tracked files (default: true)
-  -d, --dir string            Worktree working directory (default: current directory)
+  -m, --message string     Commit summary line (normalized to <=72-rune Conventional Commit subject)
+      --rationale string   Problem context and architectural rationale (defaults to Scope & Context)
+      --mechanics string   Optional key design mechanics (defaults to deduplicated walkthrough bullets)
+  -F, --file string        Optional walkthrough markdown file to hydrate commit prose
+  -a, --all                Automatically stage all modified files (default: true)
+  -d, --dir string         Working directory (default: current directory or resolved task worktree)
 ```
 
-### 4.1 Deterministic Commit Context Hydration & Subject Normalization (`INT-874`)
-Static canned placeholder bodies (such as `"satisfy <KEY> deterministic execution requirements"` or `"scoped strictly to <KEY> implementation files"`) are strictly prohibited under **Law 2 (The Non-Verbal Proof Law)**.
-
-1. **Task Key Resolution**: If `TASK_KEY` is omitted, the command extracts the canonical `INT-<N>` or `SUB-<N>` key from the active worktree directory or `feature/<KEY>` branch.
-2. **Subject Normalization**:
-   - Strips redundant leading `[<KEY>]` or trailing `(<KEY>)` / `[<KEY>]` tokens from `--message` (or falls back to the Living Ledger task `Title`).
-   - Preserves explicit `feat|fix|docs|chore|refactor|test` prefixes, or deterministically synthesizes `<type>(<scope>): <summary>` from plane/verb/staged package paths when a plain imperative title is provided.
-3. **Three-Section Priority Cascade (Zero Shims)**:
-   - **`**Architectural Rationale:**`**: Explicit `--rationale` $\rightarrow$ Living Ledger 3-section card `## Scope & Context` $\rightarrow$ walkthrough summary $\rightarrow$ concrete chore title and package context.
-   - **`**Blast Radius & Contracts:**`**: Explicit `--blast-radius` $\rightarrow$ staged Git path manifest (`git diff --cached --name-status`) highlighting touched schemas, specs, and packages.
-   - **`**Resolution Mechanics:**`**: Explicit `--mechanics` $\rightarrow$ walkthrough release notes (`-F` or `.tmp/walkthrough-<KEY>.md`) $\rightarrow$ Living Ledger card `## Acceptance Criteria` deliverables $\rightarrow$ staged per-file diffstat (`git diff --cached --numstat`).
-4. **Dirty Worktree Sync Parity**: When `nomos task sync <KEY> -F <walkthrough>` auto-commits uncommitted worktree edits, `autoCommitDirtyWorktree` forwards both the `TaskRecord` and `walkthroughPath` into the hydration pipeline so trunk commits always carry real rationale, file blast radius, and walkthrough mechanics.
-5. **Hermetic Execution**: Sets `NOMOS_COMMIT_IN_PROGRESS=1`, stages modified files if `--all` is set, and commits via `workspace.SafeGitCommand`.
+### 4.1 Deterministic Golden Commit Hydration (`INT-874`, `INT-903`)
+1. **Task Key Resolution**: Resolves `INT-<N>` or `SUB-<N>` from `TASK_KEY`, the active worktree directory name, or `feature/<KEY>`.
+2. **72-Rune Subject Normalization**: Strips redundant `[KEY]` tokens, infers `<type>(<scope>):` from staged paths when needed, and lowercases plain English leading verbs while preserving acronyms (`AST`, `CapBAC`, `MCP`, `CLI`, `Go`).
+3. **Deduplicated 72-Column Body**:
+   - **Paragraph 1 (Rationale)**: Hydrates from `--rationale`, Living Ledger `## Scope & Context`, walkthrough lead prose, or concise module intent wrapped at `72` columns.
+   - **Optional Mechanics Bullets**: Hydrates from `--mechanics`, deduplicated walkthrough bullets, or `## Acceptance Criteria` without repeating Paragraph 1 or dumping staged file lists.
+4. **RFC 822 Git Trailers**: Appends `Task: <KEY>` and automatically appends `Twin: <TWIN_KEY>` whenever `TaskRecord.TwinKey` is bound.
+5. **Dirty Worktree Sync Parity**: `nomos task sync <KEY> -F <walkthrough>` routes uncommitted edits through the identical Golden Commit pipeline.
 
 ---
 
@@ -105,19 +100,15 @@ Static canned placeholder bodies (such as `"satisfy <KEY> deterministic executio
 
 ### 5.1 `staged_boundaries` (Cell 3.1 - Syntactic / Law 3)
 - **Sensor**: `StagedBoundariesGate`
-- **Target**: Staged files via `git status --porcelain`.
-- **Invariant**: No files outside `worktrees/` may be staged on protected branches; scratch files and walkthroughs must reside strictly in repository-local `.tmp/`.
+- **Invariant**: Blocks staged root scratch files outside `.tmp/` and enforces transient worktree containment.
 
 ### 5.2 `git_hygiene` (Cell 3.2 - Dynamic / Law 3 & Law 1)
 - **Sensor**: `GitSubprocessHygieneGate`
-- **Target**: Go AST across all packages in `substrate/`.
-- **Invariant**: All git executions must use `workspace.SafeGitCommand` or `workspace.RunSafeGit`. Any direct call to `exec.Command("git", ...)` or `exec.CommandContext(..., "git", ...)` fails closed.
-- **Exemptions**: `substrate/src/nomos/core/workspace/git.go` (the canonical implementation itself).
+- **Invariant**: Requires `workspace.SafeGitCommand` or `workspace.RunSafeGit` for every Go `git` subprocess outside `core/workspace/git.go`.
 
 ### 5.3 `commit_schema` (Cell 6.1 - Syntactic / Law 6)
 - **Sensor**: `CommitSchemaGate`
-- **Target**: `HEAD` commit message via `git log -1 --format=%B`.
-- **Invariant**: Validates canonical `[INT-N]` or `[SUB-N]` prefix and required Dual-Layer section headers.
+- **Invariant**: Validates Conventional Commit subjects, plain-text rationale prose, zero diff dumps, and canonical `Task:` / `Twin:` Git trailers across `trunk..HEAD`.
 
 ---
 
@@ -125,14 +116,10 @@ Static canned placeholder bodies (such as `"satisfy <KEY> deterministic executio
 
 | Vector ID | Evaluation Subject | Condition | Expected Outcome |
 | :--- | :--- | :--- | :--- |
-| `TC-HOOK-01` | Raw `git commit` in worktree | `NOMOS_COMMIT_IN_PROGRESS` unset | Blocked with exit code 1; remediation: use `nomos task commit`. |
-| `TC-HOOK-02` | `nomos task commit` | Valid message and headers | Success; pre-commit hook passes and commit is recorded. |
-| `TC-GATE-01` | `staged_boundaries` | `walkthrough.md` staged at repo root | Fails closed: scratch files must reside in `.tmp/`. |
-| `TC-GATE-02` | `git_hygiene` | AST contains `exec.Command("git", "status")` | Fails closed with file path and line number violation. |
-| `TC-GATE-03` | `git_hygiene` | AST uses `workspace.SafeGitCommand(dir, "status")` | Passes with clean certification. |
-| `TC-GATE-04` | `commit_schema` | Commit subject missing `[TASK_KEY]` | Fails closed: missing canonical prefix. |
-| `TC-GATE-05` | `commit_schema` | Commit message with valid prefix and headers | Passes with clean certification. |
-| `TC-HYD-01` | `nomos task commit` without body flags | Backlog task has 3-section card + staged diff | Hydrates Rationale from `Scope & Context`, Blast Radius from staged paths, and Mechanics from `Acceptance Criteria` / walkthrough (zero canned shims). |
-| `TC-HYD-02` | `nomos task sync -F walkthrough.md` | Dirty worktree auto-commit | Hydrates Mechanics from `walkthrough.md`, Rationale from task card, and Blast Radius from staged files. |
-| `TC-HYD-03` | Subject normalization | `-m "[SUB-9] docs(readme): update [SUB-9]"` | Deduplicates key tokens to `[SUB-9] docs(readme): update`. |
-| `TC-HYD-04` | `commit_schema` & `commit-msg` | Commit contains canned boilerplate shim text | Fails closed (`Anti-Shim Commit Guard`). |
+| `TC-HOOK-01` | Raw `git commit` in worktree | `NOMOS_COMMIT_IN_PROGRESS` unset | Blocked (exit 1); directs caller to `nomos task commit`. |
+| `TC-HOOK-02` | `nomos task commit` | Valid rationale and `Task:` trailer | Passes `pre-commit` and `commit-msg`; records Golden Commit. |
+| `TC-GATE-01` | `staged_boundaries` | `walkthrough.md` staged at repo root | Fails closed; scratch files belong inside `.tmp/`. |
+| `TC-GATE-02` | `git_hygiene` | AST contains `exec.Command("git", "status")` | Fails closed with exact file path and line number. |
+| `TC-GATE-03` | `commit_schema` | Commit missing `Task:` trailer or carrying `[KEY]` subject | Fails closed with `nomos task commit` remedy. |
+| `TC-HYD-01` | `nomos task commit` without flags | Task has 3-section card, twin, and walkthrough | Emits `<=72`-rune subject, deduplicated 72-col prose, `Task:`, and `Twin:` trailers. |
+| `TC-HYD-02` | `commit_schema` & `commit-msg` | Commit contains `- M file.go` dump or canned shim | Fails closed under Law 2 and Law 4. |
