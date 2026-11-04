@@ -39,6 +39,12 @@ execution_frontier:
     - key: "SUB-1708"
       plane: "substrate"
       summary: "Implement --container-sandbox anti-reward-hacking hook mode in substrate/cli"
+    - key: "INT-914"
+      plane: "intent"
+      summary: "Codify Gemini CLI BeforeTool and AfterTool hook protocol parity alongside Claude Code"
+    - key: "SUB-1720"
+      plane: "substrate"
+      summary: "Implement Gemini CLI BeforeTool/AfterTool event discrimination and dir_path extraction in substrate/cli"
 ssot_repository: nomos
 ---
 
@@ -198,8 +204,8 @@ These compiled subcommands replace fragile external shell, `jq`, and Python hook
 | Subcommand | Lifecycle Event | Core Responsibility | Output Contract |
 | :--- | :--- | :--- | :--- |
 | `nomos hook session-start` | `SessionStart` | Executes `nomos handshake` in the target workspace and formats the orientation payload. | JSON `injectSteps` or `hookSpecificOutput` on `stdout` |
-| `nomos hook pre-tool` | `PreToolUse` | Enforces Law 3 boundary isolation, quote-aware clean-`IDLE`-`main` `go install` guards, Zero-Trust MCP IFC, `CapabilityFlowGraph` taint tracking, and Law 7 command safety. | JSON `{"decision": "allow"}` or `{"decision": "deny", "reason": "..."}` |
-| `nomos hook post-tool` | `PostToolUse` / `PostInvocation` | Runs zero-footprint in-memory AST, JSON, and JSONL syntax verification on mutated files. | Silent `{}` on valid edits; injects advisory context only on real syntax or radar violations |
+| `nomos hook pre-tool` | `PreToolUse` / `BeforeTool` | Enforces Law 3 boundary isolation, quote-aware clean-`IDLE`-`main` `go install` guards, Zero-Trust MCP IFC, `CapabilityFlowGraph` taint tracking, and Law 7 command safety. | Claude `hookSpecificOutput` (`permissionDecision`) or Gemini/generic `{"decision": "allow" \| "deny", "reason": "..."}` |
+| `nomos hook post-tool` | `PostToolUse` / `AfterTool` / `PostInvocation` | Runs zero-footprint in-memory AST, JSON, and JSONL syntax verification on mutated files. | Silent `{}` on valid edits; injects `additionalContext` or `ephemeralMessage` only on real syntax or radar violations |
 
 Every `nomos hook` subcommand accepts an optional `--hermetic-dir <path>` flag or a `--container-sandbox` flag for container and sandbox environments.
 When `--hermetic-dir <path>` is active, `nomos hook pre-tool` confines file mutations and shell paths to the canonical realpath of `<path>` without requiring a transient `worktrees/` subdirectory.
