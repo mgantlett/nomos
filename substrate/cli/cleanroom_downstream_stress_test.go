@@ -274,6 +274,7 @@ func verifyConcurrentHandshakeWALBurst(t *testing.T, repoDir string) {
 }
 
 func TestCleanroomDownstreamVectors_RogueNoVerifySymlinkCrossPlaneAndCrashRecovery(t *testing.T) {
+	useCompiledNomosInPath(t)
 	t.Setenv("NOMOS_HOME", t.TempDir())
 	repoDir := filepath.Join(t.TempDir(), "cdv-adversarial-repo")
 	seedCleanroomDualPlaneRepo(t, repoDir)

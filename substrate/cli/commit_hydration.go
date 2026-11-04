@@ -7,18 +7,16 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/task"
 )
 
-const maxManifestEntries = 8
-
-type stagedDiffSnapshot struct {
-	files        []string
-	statusLines  []string
-	numstatLines []string
-}
+const (
+	commitBodyWrapColumns = 72
+	maxMechanicsBullets   = 5
+)
 
 type commitHydrationContext struct {
 	taskKey         string
@@ -26,7 +24,7 @@ type commitHydrationContext struct {
 	repoRoot        string
 	taskRecord      *task.TaskRecord
 	walkthroughText string
-	diff            stagedDiffSnapshot
+	stagedFiles     []string
 }
 
 func buildCommitHydrationContext(taskKey, dir string, opts *commitCmdOptions) commitHydrationContext {
@@ -36,13 +34,14 @@ func buildCommitHydrationContext(taskKey, dir string, opts *commitCmdOptions) co
 			repoRoot = r
 		}
 	}
-	rec := opts.taskRecord
-	if rec == nil && taskKey != "" {
-		rec = lookupTaskRecordBestEffort(taskKey)
-	}
+	var rec *task.TaskRecord
 	var walkPath string
 	if opts != nil {
+		rec = opts.taskRecord
 		walkPath = opts.walkthroughFile
+	}
+	if rec == nil && taskKey != "" {
+		rec = lookupTaskRecordBestEffort(taskKey)
 	}
 	return commitHydrationContext{
 		taskKey:         taskKey,
@@ -50,7 +49,7 @@ func buildCommitHydrationContext(taskKey, dir string, opts *commitCmdOptions) co
 		repoRoot:        repoRoot,
 		taskRecord:      rec,
 		walkthroughText: resolveWalkthroughText(taskKey, dir, repoRoot, walkPath),
-		diff:            collectStagedDiffSnapshot(dir),
+		stagedFiles:     collectStagedFiles(dir),
 	}
 }
 
@@ -60,7 +59,9 @@ func lookupTaskRecordBestEffort(taskKey string) *task.TaskRecord {
 		return nil
 	}
 	defer func() {
-		_ = store.Close()
+		if cErr := store.Close(); cErr != nil {
+			// best-effort read-only lookup close
+		}
 	}()
 	rec, gErr := store.GetTask(taskKey)
 	if gErr != nil {
@@ -69,34 +70,21 @@ func lookupTaskRecordBestEffort(taskKey string) *task.TaskRecord {
 	return rec
 }
 
-func collectStagedDiffSnapshot(dir string) stagedDiffSnapshot {
+func collectStagedFiles(dir string) []string {
 	if strings.TrimSpace(dir) == "" {
-		return stagedDiffSnapshot{}
+		return nil
 	}
-	var snap stagedDiffSnapshot
-	if out, err := workspace.SafeGitCommand(dir, "diff", "--cached", "--name-status").Output(); err == nil {
-		for _, raw := range strings.Split(string(out), "\n") {
-			fields := strings.Fields(raw)
-			if len(fields) >= 2 {
-				path := fields[len(fields)-1]
-				snap.files = append(snap.files, path)
-				snap.statusLines = append(snap.statusLines, fmt.Sprintf("%s %s", fields[0], path))
-			}
+	out, err := workspace.SafeGitCommand(dir, "diff", "--cached", "--name-only").Output()
+	if err != nil {
+		return nil
+	}
+	var files []string
+	for _, raw := range strings.Split(string(out), "\n") {
+		if p := strings.TrimSpace(raw); p != "" {
+			files = append(files, p)
 		}
 	}
-	if out, err := workspace.SafeGitCommand(dir, "diff", "--cached", "--numstat").Output(); err == nil {
-		for _, raw := range strings.Split(string(out), "\n") {
-			fields := strings.Fields(raw)
-			if len(fields) >= 3 {
-				if fields[0] == "-" && fields[1] == "-" {
-					snap.numstatLines = append(snap.numstatLines, fmt.Sprintf("%s (binary asset)", fields[2]))
-				} else {
-					snap.numstatLines = append(snap.numstatLines, fmt.Sprintf("%s (+%s/-%s lines)", fields[2], fields[0], fields[1]))
-				}
-			}
-		}
-	}
-	return snap
+	return files
 }
 
 func resolveWalkthroughText(taskKey, wtDir, repoRoot, explicitFile string) string {
@@ -124,33 +112,38 @@ func resolveWalkthroughText(taskKey, wtDir, repoRoot, explicitFile string) strin
 	return ""
 }
 
-// hydrateCommitMessage synthesizes a complete Dual-Layer commit message from explicit flags,
-// Living Ledger 3-section cards, walkthrough release notes, and staged Git diff telemetry.
+// hydrateCommitMessage synthesizes a Golden Conventional Commit with 72-column rationale prose,
+// optional deduplicated mechanics bullets, and RFC 822 Git Trailers (Task: and Twin:).
 // @intent nomos_commit_schema_invariant_spec.md
 func hydrateCommitMessage(ctx commitHydrationContext, opts *commitCmdOptions) string {
-	var rawSummary, expRationale, expBlast, expMechanics string
+	var rawSummary, expRationale, expMechanics string
 	if opts != nil {
 		rawSummary = opts.summary
 		expRationale = strings.TrimSpace(opts.rationale)
-		expBlast = strings.TrimSpace(opts.blastRadius)
 		expMechanics = strings.TrimSpace(opts.mechanics)
 	}
 
-	subject := normalizeCommitSubject(ctx.taskKey, rawSummary, ctx.taskRecord, ctx.diff.files)
+	subject := normalizeCommitSubject(ctx.taskKey, rawSummary, ctx.taskRecord, ctx.stagedFiles)
 	var card task.ParsedTaskCard
 	if ctx.taskRecord != nil {
 		card = task.ExtractTaskCardSections(ctx.taskRecord.Description)
 	}
 
-	rationale := resolveCommitRationale(ctx, subject, expRationale, card)
-	blast := resolveCommitBlastRadius(ctx, subject, expBlast, card)
-	mechanics := resolveCommitMechanics(ctx, subject, expMechanics, card)
+	rationale := wrapCommitBlock(resolveCommitRationale(ctx, subject, expRationale, card), commitBodyWrapColumns)
+	mechanics := resolveCommitMechanics(ctx, expMechanics, card, rationale)
+	trailers := formatCommitTrailers(ctx.taskKey, ctx.taskRecord)
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("[%s] %s\n\n", ctx.taskKey, subject))
-	sb.WriteString(fmt.Sprintf("**Architectural Rationale:**\n%s\n\n", rationale))
-	sb.WriteString(fmt.Sprintf("**Blast Radius & Contracts:**\n%s\n\n", blast))
-	sb.WriteString(fmt.Sprintf("**Resolution Mechanics:**\n%s\n", mechanics))
+	sb.WriteString(subject)
+	sb.WriteString("\n\n")
+	sb.WriteString(rationale)
+	sb.WriteString("\n\n")
+	if mechanics != "" {
+		sb.WriteString(mechanics)
+		sb.WriteString("\n\n")
+	}
+	sb.WriteString(trailers)
+	sb.WriteString("\n")
 	return sb.String()
 }
 
@@ -164,90 +157,146 @@ func resolveCommitRationale(ctx commitHydrationContext, subject, explicit string
 	if wtSummary := extractWalkthroughLead(ctx.walkthroughText); wtSummary != "" {
 		return wtSummary
 	}
-	title := subject
+	title := stripConventionalPrefix(subject)
 	if ctx.taskRecord != nil && strings.TrimSpace(ctx.taskRecord.Title) != "" {
 		title = stripRedundantTaskKeys(ctx.taskRecord.Title)
 	}
-	if len(ctx.diff.files) > 0 {
-		scope := derivePrimaryScope(ctx.taskKey, ctx.diff.files)
-		if scope != "" {
-			return fmt.Sprintf("Execute %q across %s (%d staged file(s)) in isolated %s worktree.", title, scope, len(ctx.diff.files), ctx.taskKey)
+	action := strings.TrimRight(lowercaseImperativeStart(title), ".")
+	if scope := derivePrimaryScope(ctx.taskKey, ctx.stagedFiles); scope != "" {
+		return fmt.Sprintf("Update %s to %s.", scope, action)
+	}
+	return fmt.Sprintf("Apply %s on isolated feature branch.", action)
+}
+
+func resolveCommitMechanics(ctx commitHydrationContext, explicit string, card task.ParsedTaskCard, rationale string) string {
+	if explicit != "" {
+		return wrapCommitBlock(explicit, commitBodyWrapColumns)
+	}
+	if wtBullets := deduplicateMechanics(extractWalkthroughItems(ctx.walkthroughText), rationale); len(wtBullets) > 0 {
+		return formatMechanicsBullets(wtBullets)
+	}
+	if acBullets := deduplicateMechanics(card.AcceptanceCriteria, rationale); len(acBullets) > 0 {
+		return formatMechanicsBullets(acBullets)
+	}
+	return ""
+}
+
+func deduplicateMechanics(items []string, rationale string) []string {
+	normRationale := normalizeComparableProse(rationale)
+	seen := map[string]bool{normRationale: true}
+	var out []string
+	for _, raw := range items {
+		cleaned := cleanBulletLine(raw)
+		norm := normalizeComparableProse(cleaned)
+		if cleaned == "" || seen[norm] {
+			continue
 		}
-		return fmt.Sprintf("Execute %q (%d staged file(s)) in isolated %s worktree.", title, len(ctx.diff.files), ctx.taskKey)
+		seen[norm] = true
+		out = append(out, cleaned)
+		if len(out) >= maxMechanicsBullets {
+			break
+		}
 	}
-	return fmt.Sprintf("Execute %q in isolated %s task branch.", title, ctx.taskKey)
+	return out
 }
 
-func resolveCommitBlastRadius(ctx commitHydrationContext, subject, explicit string, card task.ParsedTaskCard) string {
-	if explicit != "" {
-		return explicit
+func formatMechanicsBullets(items []string) string {
+	lines := make([]string, 0, len(items))
+	for _, item := range items {
+		lines = append(lines, wrapBulletItem(item, commitBodyWrapColumns))
 	}
-	if len(ctx.diff.statusLines) > 0 {
-		return formatBoundedBulletList(ctx.diff.statusLines, maxManifestEntries, "staged file(s)")
-	}
-	if card.Scope != "" {
-		return "- " + collapseSingleLine(card.Scope)
-	}
-	return "- Target changeset for " + subject
+	return strings.Join(lines, "\n")
 }
 
-func resolveCommitMechanics(ctx commitHydrationContext, subject, explicit string, card task.ParsedTaskCard) string {
-	if explicit != "" {
-		return explicit
+func formatCommitTrailers(taskKey string, rec *task.TaskRecord) string {
+	lines := []string{fmt.Sprintf("Task: %s", strings.ToUpper(strings.TrimSpace(taskKey)))}
+	if rec != nil {
+		if twin := strings.ToUpper(strings.TrimSpace(rec.TwinKey)); twin != "" {
+			lines = append(lines, fmt.Sprintf("Twin: %s", twin))
+		}
 	}
-	if wtBullets := extractWalkthroughMechanics(ctx.walkthroughText); len(wtBullets) > 0 {
-		return formatBoundedBulletList(wtBullets, maxManifestEntries, "walkthrough item(s)")
-	}
-	if len(card.AcceptanceCriteria) > 0 {
-		return formatBoundedBulletList(card.AcceptanceCriteria, maxManifestEntries, "acceptance item(s)")
-	}
-	if len(ctx.diff.numstatLines) > 0 {
-		return formatBoundedBulletList(ctx.diff.numstatLines, maxManifestEntries, "modified file(s)")
-	}
-	return "- Applied " + subject
+	return strings.Join(lines, "\n")
 }
 
 func extractWalkthroughLead(walkthrough string) string {
-	for _, raw := range strings.Split(walkthrough, "\n") {
-		line := strings.TrimSpace(raw)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		line = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(line, "- "), "* "))
-		if len(line) >= 12 {
-			return line
+	for _, item := range extractWalkthroughItems(walkthrough) {
+		if utf8.RuneCountInString(item) >= 12 {
+			return item
 		}
 	}
 	return ""
 }
 
-func extractWalkthroughMechanics(walkthrough string) []string {
+func extractWalkthroughItems(walkthrough string) []string {
 	if strings.TrimSpace(walkthrough) == "" {
 		return nil
 	}
 	var items []string
 	for _, raw := range strings.Split(walkthrough, "\n") {
 		line := strings.TrimSpace(raw)
-		if line == "" || strings.HasPrefix(line, "#") {
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "```") {
 			continue
 		}
-		line = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(line, "- "), "* "))
-		if line != "" {
-			items = append(items, line)
+		if cleaned := cleanBulletLine(line); cleaned != "" {
+			items = append(items, cleaned)
 		}
 	}
 	return items
 }
 
-func formatBoundedBulletList(items []string, limit int, noun string) string {
-	var lines []string
-	for i, item := range items {
-		if i >= limit {
-			lines = append(lines, fmt.Sprintf("- ... (+%d additional %s)", len(items)-limit, noun))
-			break
+func cleanBulletLine(s string) string {
+	trimmed := strings.TrimSpace(s)
+	trimmed = strings.TrimPrefix(trimmed, "- ")
+	trimmed = strings.TrimPrefix(trimmed, "* ")
+	return strings.TrimSpace(trimmed)
+}
+
+func normalizeComparableProse(s string) string {
+	return strings.ToLower(strings.TrimRight(collapseSingleLine(s), "."))
+}
+
+func wrapCommitBlock(text string, width int) string {
+	paragraphs := strings.Split(strings.TrimSpace(strings.ReplaceAll(text, "\r\n", "\n")), "\n\n")
+	wrapped := make([]string, 0, len(paragraphs))
+	for _, p := range paragraphs {
+		if strings.TrimSpace(p) == "" {
+			continue
 		}
-		cleaned := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(item, "- "), "* "))
-		lines = append(lines, "- "+cleaned)
+		wrapped = append(wrapped, wrapParagraphLines(p, width))
 	}
+	return strings.Join(wrapped, "\n\n")
+}
+
+func wrapParagraphLines(paragraph string, width int) string {
+	lines := strings.Split(strings.TrimSpace(paragraph), "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") || strings.HasPrefix(line, "  ") {
+			return strings.TrimSpace(paragraph)
+		}
+	}
+	return wrapPlainWords(collapseSingleLine(paragraph), "", "", width)
+}
+
+func wrapBulletItem(item string, width int) string {
+	return wrapPlainWords(collapseSingleLine(item), "- ", "  ", width)
+}
+
+func wrapPlainWords(text, firstIndent, nextIndent string, width int) string {
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return ""
+	}
+	var lines []string
+	cur := firstIndent + words[0]
+	for _, w := range words[1:] {
+		if utf8.RuneCountInString(cur)+1+utf8.RuneCountInString(w) <= width {
+			cur += " " + w
+			continue
+		}
+		lines = append(lines, cur)
+		cur = nextIndent + w
+	}
+	lines = append(lines, cur)
 	return strings.Join(lines, "\n")
 }

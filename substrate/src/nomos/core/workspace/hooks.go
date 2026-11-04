@@ -78,43 +78,66 @@ export NOMOS_IN_GIT_HOOK=1
 
 const CommitMsgHookScript = `#!/usr/bin/env bash
 {
-    echo "🛡️ Nomos Dual-Layer Commit Verification Check"
+    echo "🛡️ Nomos Golden Commit Verification Check"
 
     # Allow initial repository setup if repository has zero commits (unborn HEAD) or during nomos init
     if [[ "${NOMOS_INIT_IN_PROGRESS:-0}" == "1" ]] || ! git rev-parse --verify HEAD >/dev/null 2>&1; then
         exit 0
     fi
 
-    FIRST_LINE=$(head -n 1 "$1")
+    FIRST_LINE=$(head -n 1 "$1" | tr -d '\r')
 
     # Allow standard Git merge commits
     if printf '%s\n' "$FIRST_LINE" | grep -qE '^Merge (branch|pull request|remote-tracking branch) '; then
         exit 0
     fi
 
-    # 1. Enforce canonical [INT-N] or [SUB-N] prefix + Conventional Commit type
-    if ! printf '%s\n' "$FIRST_LINE" | grep -qE '^\[(INT|SUB)-[1-9][0-9]*(-[a-z0-9-]+)?\][[:space:]]+(feat|fix|docs|chore|refactor|test)(\([a-z0-9_,/-]+\))?:[[:space:]]+[^[:space:]]'; then
-        echo -e "\n\e[31m❌ Commit Blocked: Subject must match '[<INT|SUB-N>] <feat|fix|docs|chore|refactor|test>(<scope>): <summary>'.\e[0m"
-        echo "Please use 'nomos task commit' or 'nomos task sync -F <walkthrough>' to generate compliant commits."
+    # 1. Reject legacy [INT-N]/[SUB-N] subject prefixes and trailing task key tokens
+    if printf '%s\n' "$FIRST_LINE" | grep -qiE '^\[([[:space:]]*task[[:space:]]+)?(int|sub|arc)-[0-9]+'; then
+        echo -e "\n\e[31m❌ Commit Blocked: Subject must not include a leading [TaskID] prefix; record 'Task: <KEY>' in Git trailers.\e[0m"
+        exit 1
+    fi
+    if printf '%s\n' "$FIRST_LINE" | grep -qiE '(\[(task[[:space:]]+)?(int|sub|arc)-[0-9]+[a-z]?(-[a-z0-9-]+)?\]|\((int|sub|arc)-[0-9]+[a-z]?(-[a-z0-9-]+)?\))[[:space:]]*$'; then
+        echo -e "\n\e[31m❌ Commit Blocked: Subject contains a trailing task key token; record 'Task: <KEY>' in Git trailers.\e[0m"
         exit 1
     fi
 
-    # 2. Reject duplicate trailing task key tokens on subject line
-    if printf '%s\n' "$FIRST_LINE" | grep -qiE '(\[(task[[:space:]]+)?(int|sub|arc)-[0-9]+[a-z]?\]|\((int|sub|arc)-[0-9]+[a-z]?\))[[:space:]]*$'; then
-        echo -e "\n\e[31m❌ Commit Blocked: Subject contains a duplicate trailing task key token.\e[0m"
+    # 2. Enforce pure Conventional Commit subject line (<= 100 chars ceiling, <= 72 target)
+    if ! printf '%s\n' "$FIRST_LINE" | grep -qE '^(feat|fix|docs|chore|refactor|test)(\([a-z0-9_,/-]+\))?:[[:space:]]+[^[:space:]]'; then
+        echo -e "\n\e[31m❌ Commit Blocked: Subject must match '<feat|fix|docs|chore|refactor|test>(<scope>): <summary>'.\e[0m"
+        echo "Please use 'nomos task commit' or 'nomos task sync -F <walkthrough>' to generate compliant Golden Commits."
+        exit 1
+    fi
+    if [[ "${#FIRST_LINE}" -gt 100 ]]; then
+        echo -e "\n\e[31m❌ Commit Blocked: Subject exceeds 100 characters (${#FIRST_LINE}); keep subject <= 72 characters.\e[0m"
         exit 1
     fi
 
-    # 3. Ensure the commit message contains required bolded Dual-Layer headings
-    if ! grep -qiE '\*\*(architectural rationale|blast radius & contracts|resolution mechanics):\*\*' "$1"; then
-        echo -e "\n\e[31m❌ Commit Blocked: Commit message must follow the Dual-Layer Hybrid AI-to-AI schema (missing '**Architectural Rationale:**', '**Blast Radius & Contracts:**', or '**Resolution Mechanics:**').\e[0m"
+    # 3. Reject legacy Dual-Layer headers, raw git diff file dumps, truncation filler, and canned shims
+    if grep -qiE '^\*\*(architectural rationale|blast radius & contracts|resolution mechanics):\*\*' "$1"; then
+        echo -e "\n\e[31m❌ Commit Blocked: Legacy Dual-Layer bold headers ('**Blast Radius & Contracts:**', etc.) are prohibited.\e[0m"
+        echo "Write plain-text 72-column rationale prose followed by a 'Task: <INT|SUB-N>' Git trailer."
         exit 1
     fi
-
-    # 4. Reject canned boilerplate commit body shims (Law 2 Non-Verbal Proof)
+    if grep -qE '^[-*][[:space:]]+[MADRCU][0-9]*[[:space:]]+[^[:space:]]|^[-*][[:space:]]+\.\.\.[[:space:]]+\(\+[0-9]+[[:space:]]+additional[[:space:]]+' "$1"; then
+        echo -e "\n\e[31m❌ Commit Blocked: Raw git diff file-list dumps and truncation filler are prohibited (Law 4 SSoT).\e[0m"
+        exit 1
+    fi
     if grep -qiE 'satisfy (int|sub)-[0-9]+ deterministic execution requirements|scoped strictly to (int|sub)-[0-9]+ implementation files|implemented and verified via deterministic quality gates for (int|sub)-[0-9]+' "$1"; then
         echo -e "\n\e[31m❌ Commit Blocked: Canned boilerplate commit body shims are prohibited (Law 2).\e[0m"
-        echo "Provide real rationale/mechanics or let 'nomos task commit' hydrate from your Living Ledger card and walkthrough."
+        echo "Provide concrete rationale prose or let 'nomos task commit' hydrate from your Living Ledger card and walkthrough."
+        exit 1
+    fi
+
+    # 4. Require substantive rationale prose and a canonical 'Task: <INT|SUB-N>' Git trailer
+    if ! grep -qE '^Task:[[:space:]]+(INT|SUB)-[1-9][0-9]*(-[a-z0-9-]+)?[[:space:]]*$' "$1"; then
+        echo -e "\n\e[31m❌ Commit Blocked: Missing canonical 'Task: <INT|SUB-N>' Git trailer.\e[0m"
+        echo "Please use 'nomos task commit' or append 'Task: <INT|SUB-N>' in the commit trailer block."
+        exit 1
+    fi
+    BODY_PROSE=$(tail -n +2 "$1" | grep -vE '^[[:space:]]*#' | grep -vE '^[A-Za-z][A-Za-z0-9-]*:[[:space:]]+' | tr -d '[:space:]')
+    if [[ "${#BODY_PROSE}" -lt 10 ]]; then
+        echo -e "\n\e[31m❌ Commit Blocked: Commit body requires substantive rationale prose above the 'Task:' trailer.\e[0m"
         exit 1
     fi
 }

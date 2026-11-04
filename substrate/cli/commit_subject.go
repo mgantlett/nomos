@@ -6,19 +6,21 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/task"
 )
 
 const (
-	maxCommitSummaryRunes = 110
-	commitTypeFeat        = "feat"
-	commitTypeFix         = "fix"
-	commitTypeDocs        = "docs"
-	commitTypeChore       = "chore"
-	commitTypeRefactor    = "refactor"
-	commitTypeTest        = "test"
+	targetSubjectLineRunes = 72
+	minSummaryDescRunes    = 24
+	commitTypeFeat         = "feat"
+	commitTypeFix          = "fix"
+	commitTypeDocs         = "docs"
+	commitTypeChore        = "chore"
+	commitTypeRefactor     = "refactor"
+	commitTypeTest         = "test"
 )
 
 var (
@@ -50,7 +52,7 @@ var verbToCommitType = map[string]string{
 	"preserve": commitTypeFix, "prevent": commitTypeFix, "restore": commitTypeFix,
 	commitTypeRefactor: commitTypeRefactor, "extract": commitTypeRefactor, "deduplicate": commitTypeRefactor,
 	"dedup": commitTypeRefactor, "split": commitTypeRefactor, "consolidate": commitTypeRefactor,
-	"unify": commitTypeRefactor, "simplify": commitTypeRefactor,
+	"unify": commitTypeRefactor, "simplify": commitTypeRefactor, "evolve": commitTypeRefactor,
 	commitTypeTest: commitTypeTest, "tests": commitTypeTest,
 	commitTypeChore: commitTypeChore, "prune": commitTypeChore, "remove": commitTypeChore,
 	"delete": commitTypeChore, "bump": commitTypeChore, "clean": commitTypeChore, "sweep": commitTypeChore,
@@ -58,7 +60,7 @@ var verbToCommitType = map[string]string{
 	"codify": commitTypeDocs, "specify": commitTypeDocs, "spec": commitTypeDocs,
 }
 
-// normalizeCommitSubject strips redundant task key tokens and ensures Conventional Commit alignment.
+// normalizeCommitSubject strips redundant task key tokens and emits a <=72-rune Conventional Commit subject.
 // @intent nomos_commit_schema_invariant_spec.md
 func normalizeCommitSubject(taskKey, rawSummary string, rec *task.TaskRecord, stagedFiles []string) string {
 	candidate := resolveCandidateSummary(taskKey, rawSummary, rec, stagedFiles)
@@ -67,11 +69,25 @@ func normalizeCommitSubject(taskKey, rawSummary string, rec *task.TaskRecord, st
 	}
 	commitType := inferCommitType(taskKey, candidate, stagedFiles)
 	scope := derivePrimaryScope(taskKey, stagedFiles)
-	desc := truncateRunesClean(candidate, maxCommitSummaryRunes)
+	prefix := formatConventionalPrefix(commitType, scope)
+	desc := fitSubjectDescription(lowercaseImperativeStart(candidate), prefix)
+	return prefix + desc
+}
+
+func formatConventionalPrefix(commitType, scope string) string {
 	if scope != "" {
-		return fmt.Sprintf("%s(%s): %s", commitType, scope, desc)
+		return fmt.Sprintf("%s(%s): ", commitType, scope)
 	}
-	return fmt.Sprintf("%s: %s", commitType, desc)
+	return fmt.Sprintf("%s: ", commitType)
+}
+
+func fitSubjectDescription(desc, prefix string) string {
+	cleaned := strings.TrimRight(strings.TrimSpace(desc), ".")
+	budget := targetSubjectLineRunes - utf8.RuneCountInString(prefix)
+	if budget < minSummaryDescRunes {
+		budget = minSummaryDescRunes
+	}
+	return truncateRunesClean(cleaned, budget)
 }
 
 func resolveCandidateSummary(taskKey, rawSummary string, rec *task.TaskRecord, stagedFiles []string) string {
@@ -99,11 +115,49 @@ func normalizeExistingConventionalSubject(candidate string) (string, bool) {
 		return "", false
 	}
 	scopePart := strings.ToLower(m[2])
-	if mapped == "chore" && strings.EqualFold(m[1], "release") && scopePart == "" {
+	if mapped == commitTypeChore && strings.EqualFold(m[1], "release") && scopePart == "" {
 		scopePart = "(release)"
 	}
-	desc := truncateRunesClean(stripRedundantTaskKeys(m[3]), maxCommitSummaryRunes)
-	return fmt.Sprintf("%s%s: %s", mapped, scopePart, desc), true
+	prefix := fmt.Sprintf("%s%s: ", mapped, scopePart)
+	desc := fitSubjectDescription(lowercaseImperativeStart(stripRedundantTaskKeys(m[3])), prefix)
+	return prefix + desc, true
+}
+
+func lowercaseImperativeStart(s string) string {
+	trimmed := strings.TrimSpace(s)
+	if trimmed == "" {
+		return ""
+	}
+	word := strings.Trim(firstToken(trimmed), "\"'`")
+	if !isPlainTitleCaseWord(word) {
+		return trimmed
+	}
+	runes := []rune(trimmed)
+	runes[0] = unicode.ToLower(runes[0])
+	return string(runes)
+}
+
+func isPlainTitleCaseWord(word string) bool {
+	if word == "" || word == "Go" {
+		return false
+	}
+	runes := []rune(word)
+	if len(runes) < 2 || !unicode.IsUpper(runes[0]) {
+		return false
+	}
+	for _, r := range runes[1:] {
+		if r < 'a' || r > 'z' {
+			return false
+		}
+	}
+	return true
+}
+
+func stripConventionalPrefix(subject string) string {
+	if m := conventionalSubjectRe.FindStringSubmatch(strings.TrimSpace(subject)); m != nil {
+		return strings.TrimSpace(m[3])
+	}
+	return strings.TrimSpace(subject)
 }
 
 func stripRedundantTaskKeys(s string) string {
@@ -124,9 +178,9 @@ func inferCommitType(taskKey, summary string, stagedFiles []string) string {
 		return mapped
 	}
 	if strings.HasPrefix(strings.ToUpper(taskKey), "INT-") || allMarkdownFiles(stagedFiles) {
-		return "docs"
+		return commitTypeDocs
 	}
-	return "feat"
+	return commitTypeFeat
 }
 
 func firstToken(s string) string {

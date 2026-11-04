@@ -13,6 +13,7 @@ import (
 )
 
 func TestCleanroomDownstreamVectors_BrownfieldLifecycleAndSubdirContext(t *testing.T) {
+	useCompiledNomosInPath(t)
 	nomosHome := t.TempDir()
 	t.Setenv("NOMOS_HOME", nomosHome)
 
@@ -205,11 +206,10 @@ func verifyAdversarialShimRejectedAndRootTaskCommit(t *testing.T, repoDir, wtPat
 
 	// Execute nomos task commit from repoRoot (without -d) to verify automatic worktree resolution
 	opts := &commitCmdOptions{
-		summary:     "Implement refund processor",
-		rationale:   "Support idempotent customer refunds",
-		blastRadius: "substrate/src/refunds.py",
-		mechanics:   "Added process_refund with positive cents guard",
-		autoStage:   true,
+		summary:   "Implement refund processor",
+		rationale: "Support idempotent customer refunds without duplicate settlement charges.",
+		mechanics: "- Added process_refund with positive cents guard.",
+		autoStage: true,
 	}
 	if err := runTaskCommitCmd([]string{"SUB-1"}, opts); err != nil {
 		t.Fatalf("Vector 5 failed: expected runTaskCommitCmd from repoRoot to auto-resolve worktree and succeed, got: %v", err)

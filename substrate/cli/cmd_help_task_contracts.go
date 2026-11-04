@@ -61,8 +61,8 @@ trunk, mint an active CapBAC capability lease, and transition into PLAN or EDIT 
 into EDIT phase so source mutations can proceed inside the isolated worktree.`
 	helpTaskEditExample = `  nomos task edit SUB-101`
 
-	helpTaskCommitLong = `Stage worktree modifications and create a Dual-Layer Hybrid AI commit formatted
-with canonical [KEY] type(scope) headers and hydrated rationale/blast-radius sections.`
+	helpTaskCommitLong = `Stage worktree modifications and create a Golden Conventional Commit formatted
+with a <=72-rune type(scope) subject, 72-column rationale prose, and RFC 822 Task/Twin Git trailers.`
 	helpTaskCommitExample = `  nomos task commit SUB-101 -m "feat(cli): add status filter to task list"
   nomos task commit -F .tmp/walkthrough-SUB-101.md`
 

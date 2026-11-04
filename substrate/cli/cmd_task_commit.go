@@ -17,7 +17,6 @@ import (
 type commitCmdOptions struct {
 	summary         string
 	rationale       string
-	blastRadius     string
 	mechanics       string
 	walkthroughFile string
 	dir             string
@@ -30,7 +29,7 @@ func newTaskCommitCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "commit [TASK_KEY]",
-		Short:   "Execute context-hydrated Dual-Layer Hybrid AI commit adhering to commit defense hook",
+		Short:   "Record a Golden Conventional Commit with hydrated rationale and Task trailer",
 		Long:    helpTaskCommitLong,
 		Example: helpTaskCommitExample,
 		Args:    cobra.MaximumNArgs(1),
@@ -39,11 +38,10 @@ func newTaskCommitCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&opts.summary, "message", "m", "", "Commit summary line (normalized to Conventional Commit format)")
-	cmd.Flags().StringVar(&opts.rationale, "rationale", "", "Architectural Rationale (defaults to Living Ledger Scope & Context)")
-	cmd.Flags().StringVar(&opts.blastRadius, "blast-radius", "", "Blast Radius & Contracts (defaults to staged file manifest)")
-	cmd.Flags().StringVar(&opts.mechanics, "mechanics", "", "Resolution Mechanics (defaults to walkthrough or Acceptance Criteria)")
-	cmd.Flags().StringVarP(&opts.walkthroughFile, "file", "F", "", "Optional walkthrough markdown file to hydrate commit sections")
+	cmd.Flags().StringVarP(&opts.summary, "message", "m", "", "Commit summary line (normalized to <=72-rune Conventional Commit subject)")
+	cmd.Flags().StringVar(&opts.rationale, "rationale", "", "Problem context and architectural rationale (defaults to Living Ledger Scope & Context)")
+	cmd.Flags().StringVar(&opts.mechanics, "mechanics", "", "Optional key design mechanics (defaults to deduplicated walkthrough or Acceptance Criteria)")
+	cmd.Flags().StringVarP(&opts.walkthroughFile, "file", "F", "", "Optional walkthrough markdown file to hydrate commit prose")
 	cmd.Flags().StringVarP(&opts.dir, "dir", "d", "", "Working directory")
 	cmd.Flags().BoolVarP(&opts.autoStage, "all", "a", true, "Automatically stage all modified files")
 
@@ -84,7 +82,7 @@ func runTaskCommitCmd(args []string, opts *commitCmdOptions) error {
 	}
 
 	fmt.Printf("✅ %s %s\n",
-		uiSuccessStyle.Render("Dual-Layer Hybrid Commit Successful for"),
+		uiSuccessStyle.Render("Golden Commit recorded for"),
 		styleTaskKey(taskKey))
 	fmt.Println(uiMutedStyle.Render(strings.TrimSpace(string(out))))
 	renderPhaseTransitionNextActions(os.Stdout, types.PhaseReview, taskKey, dir, "")

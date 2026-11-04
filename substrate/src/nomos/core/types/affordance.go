@@ -106,7 +106,7 @@ func buildEditAffordances(key, wt string) []ActionAffordance {
 	actions = append(actions,
 		ActionAffordance{
 			Command: fmt.Sprintf(`nomos task commit %s -m "<type(scope): summary>"`, key),
-			Summary: "Stage and commit worktree changes (auto-hydrates Dual-Layer card/diff sections, or pass --rationale/--blast-radius/--mechanics)",
+			Summary: "Stage and commit worktree changes (hydrates Golden Commit rationale and Task/Twin trailers)",
 			Phase:   PhaseEdit,
 		},
 		ActionAffordance{

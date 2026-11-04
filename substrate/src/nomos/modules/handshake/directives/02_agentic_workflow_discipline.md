@@ -53,7 +53,7 @@ graph LR
 ## 3. Standard Operating Procedure (The 5-Step Flow)
 
 ### Step 0: Session Bootup & Git Hook Auto-Installation (`nomos handshake`)
-On session boot, running `nomos handshake` self-audits `.git/hooks/` and automatically installs the canonical `pre-commit` and `commit-msg` hooks if absent or drifting. Raw `git commit` invocations lacking CapBAC tokens or Dual-Layer schema formatting are rejected fail-closed at the Git level.
+On session boot, running `nomos handshake` self-audits `.git/hooks/` and automatically installs the canonical `pre-commit` and `commit-msg` hooks if absent or drifting. Raw `git commit` invocations lacking CapBAC tokens or Golden Commit + `Task:` trailer formatting are rejected fail-closed at the Git level.
 
 ### Step 1: Establish State (`nomos task create`)
 ```bash
@@ -69,12 +69,12 @@ nomos task start <KEY>
 ### Step 3: Hermetic Mutation (`EDIT` Phase)
 Execute all file edits strictly within the designated worktree `worktrees/<repo>-<KEY>`. Never modify the repository root.
 
-### Step 4: Schema-Compliant Commit (`nomos task commit`)
+### Step 4: Golden Conventional Commit (`nomos task commit`)
 ```bash
 git add .
-nomos task commit <KEY> -m "<Summary>" --rationale "<Why>" --blast-radius "<What>" --mechanics "<How>"
+nomos task commit <KEY> -m "<type(scope): summary>" --rationale "<Why>" --mechanics "<How>"
 ```
-*Effect:* Generates machine-verifiable Dual-Layer commit schema enforced by `CommitSchemaGate`, injects short-lived CapBAC commit token, and executes git commit.
+*Effect:* Generates a machine-verifiable Golden Conventional Commit (`<=72`-rune subject, 72-column rationale prose, zero redundant file dumps, and RFC 822 `Task:`/`Twin:` Git trailers) enforced by `CommitSchemaGate`, injects short-lived CapBAC commit token, and executes git commit.
 
 ### Step 5: 2PC Atomic Release (`nomos task sync`)
 From the repository root (outside the worktree):

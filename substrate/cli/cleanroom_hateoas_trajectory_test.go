@@ -17,6 +17,7 @@ import (
 )
 
 func TestCleanroomDownstreamVectors_ZeroSourceHATEOASTrajectory(t *testing.T) {
+	useCompiledNomosInPath(t)
 	t.Setenv("NOMOS_HOME", t.TempDir())
 	t.Setenv("NOMOS_IN_TOOLCHAIN_GATE", "")
 

@@ -57,6 +57,12 @@ func ensureCompiledHookTestEnv(t *testing.T) []string {
 	return append(out, "PATH="+compiledHookTestBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 
+func useCompiledNomosInPath(t *testing.T) {
+	t.Helper()
+	_ = ensureCompiledHookTestEnv(t)
+	t.Setenv("PATH", compiledHookTestBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
 func TestExecuteInit(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "nomos-init-test-*")
 	if err != nil {
