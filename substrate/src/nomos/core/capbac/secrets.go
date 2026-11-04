@@ -11,10 +11,10 @@ type secretTokenRule struct {
 
 var canonicalSecretRules = []secretTokenRule{
 	{label: "PEM private key", re: regexp.MustCompile(`-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----`)},
-	{label: "AWS access key", re: regexp.MustCompile(`AKIA[0-9A-Z]{16}`)},
+	{label: "AWS access key", re: regexp.MustCompile(`\bAKIA[0-9A-Z]{16}\b`)},
 	{label: "OpenAI API key", re: regexp.MustCompile(`sk-(?:proj|svcacct)-[A-Za-z0-9_-]{20,}`)},
 	{label: "Anthropic API key", re: regexp.MustCompile(`sk-ant-api03-[A-Za-z0-9_-]{20,}`)},
-	{label: "Google API key", re: regexp.MustCompile(`AIzaSy[A-Za-z0-9_-]{33}`)},
+	{label: "Google API key", re: regexp.MustCompile(`\bAIzaSy[A-Za-z0-9_-]{33}\b`)},
 	{label: "GitHub token", re: regexp.MustCompile(`(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}`)},
 	{label: "GitLab token", re: regexp.MustCompile(`glpat-[A-Za-z0-9_-]{20,}`)},
 	{label: "Stripe live key", re: regexp.MustCompile(`(?:sk|rk)_live_[0-9a-zA-Z]{20,}`)},

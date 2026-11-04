@@ -66,7 +66,7 @@ func scanSecrets(root string) ([]string, error) {
 			return nil
 		}
 		if d.IsDir() {
-			if isSkippableSecurityDir(d.Name()) && path != root {
+			if shouldSkipSecurityDir(root, path, d.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -89,12 +89,28 @@ func scanSecrets(root string) ([]string, error) {
 	return leaks, err
 }
 
+func shouldSkipSecurityDir(root, path, name string) bool {
+	if path == root {
+		return false
+	}
+	return isSkippableSecurityDir(name) || isGitIgnoredBuildDir(root, path, name)
+}
+
 func isSkippableSecurityDir(name string) bool {
 	skip := map[string]bool{
 		".git": true, "node_modules": true, ".tmp": true, "worktrees": true,
 		"vendor": true, ".venv": true, "dist": true, "__pycache__": true,
+		".svelte-kit": true, ".next": true, ".nuxt": true, ".output": true,
+		".turbo": true, ".parcel-cache": true, ".vitepress": true,
 	}
 	return skip[name]
+}
+
+func isGitIgnoredBuildDir(root, path, name string) bool {
+	ambiguous := map[string]bool{
+		"build": true, "out": true, "coverage": true, "target": true,
+	}
+	return ambiguous[name] && isGitIgnoredPath(root, path)
 }
 
 func isIgnoredSecretFile(path string) bool {
@@ -155,7 +171,7 @@ func scanIPLeaks(root string) ([]string, error) {
 			return nil
 		}
 		if d.IsDir() {
-			if isSkippableSecurityDir(d.Name()) && path != root {
+			if shouldSkipSecurityDir(root, path, d.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -229,7 +245,7 @@ func scanBrokenLinks(root string) ([]string, error) {
 			return nil
 		}
 		if d.IsDir() {
-			if isSkippableSecurityDir(d.Name()) && path != root {
+			if shouldSkipSecurityDir(root, path, d.Name()) {
 				return filepath.SkipDir
 			}
 			return nil

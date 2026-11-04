@@ -2,6 +2,7 @@ package verify
 
 import (
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -30,17 +31,17 @@ func TestHasLocalGoWorkAndBuildEnv_AncestorMembership(t *testing.T) {
 	if !hasLocalGoWork(enrolledRepo, enrolledSub) {
 		t.Fatalf("expected enrolled module %s to resolve active ancestor go.work", enrolledSub)
 	}
-	enrolledEnv := strings.Join(buildGoToolchainEnv(enrolledRepo, enrolledSub), "\n")
-	if strings.Contains(enrolledEnv, "GOWORK=off") {
-		t.Errorf("expected GOWORK=off to be omitted for enrolled ancestor go.work member, got:\n%s", enrolledEnv)
+	enrolledEnv := buildGoToolchainEnv(enrolledRepo, enrolledSub)
+	if slices.Contains(enrolledEnv, "GOWORK=off") {
+		t.Errorf("expected GOWORK=off to be omitted for enrolled ancestor go.work member, got:\n%s", strings.Join(enrolledEnv, "\n"))
 	}
 
 	if hasLocalGoWork(brownfieldRepo, brownfieldRepo) {
 		t.Fatalf("expected non-enrolled brownfield repo %s to stay isolated from parent go.work", brownfieldRepo)
 	}
-	brownfieldEnv := strings.Join(buildGoToolchainEnv(brownfieldRepo, brownfieldRepo), "\n")
-	if !strings.Contains(brownfieldEnv, "GOWORK=off") {
-		t.Errorf("expected GOWORK=off for non-enrolled brownfield repo under parent go.work, got:\n%s", brownfieldEnv)
+	brownfieldEnv := buildGoToolchainEnv(brownfieldRepo, brownfieldRepo)
+	if !slices.Contains(brownfieldEnv, "GOWORK=off") {
+		t.Errorf("expected GOWORK=off for non-enrolled brownfield repo under parent go.work, got:\n%s", strings.Join(brownfieldEnv, "\n"))
 	}
 }
 
