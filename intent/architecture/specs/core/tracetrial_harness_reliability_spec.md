@@ -4,7 +4,7 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-11-01"
-last_updated: "2026-11-03"
+last_updated: "2026-11-04"
 plane: intent
 status: active
 tags:
@@ -23,43 +23,44 @@ tags:
     - SUB-1708
     - INT-908
     - SUB-1710
+    - INT-922
 title: "TraceTrial-Bench 7-Pillar Harness Reliability & Fail-Closed Stress Specification"
 trigger: always_on
 type: spec
-version: "4.1.0"
+version: "4.1.1"
 ssot_repository: nomos
 ---
 
 # TraceTrial-Bench 7-Pillar Harness Reliability & Fail-Closed Stress Specification
 
 **Role:** Autonomous Open-Core Software Architect  
-**Objective:** Codify the empirical 7-pillar harness reliability evaluation framework aligned with *TraceTrial-Bench* (`arXiv:2610.32285`) and harden three critical fail-closed adversarial boundary invariants across worktree isolation, statutory configuration pinning, and gate crash recovery.
+**Objective:** Codify the 7-pillar harness reliability framework aligned with [TraceTrial-Bench](https://github.com/TraceLite-AI/TraceTrial-Bench) ([arXiv:2610.32285](https://arxiv.org/abs/2610.32285)) and harden fail-closed isolation, configuration pinning, and crash recovery.
 
 ---
 
 ## 1. Context & Epistemology
 
-Contemporary agent benchmarks evaluate model code generation in isolation while holding the orchestration harness constant. Empirical evaluation in *TraceTrial-Bench* (`arXiv:2610.32285`) demonstrates that enterprise coding agents succeed or fail across **seven orthogonal harness pillars**: *Context*, *Execution*, *Governance*, *Lifecycle*, *Observability*, *Tools*, and *Verification*.
+Contemporary agent benchmarks evaluate model generation in isolation while holding the orchestration harness constant. *Trial by Trace* ([arXiv:2610.32285](https://arxiv.org/abs/2610.32285)) shows coding agents succeed or collapse across **seven pillars**: *Context*, *Execution*, *Governance*, *Lifecycle*, *Observability*, *Tools*, and *Verification*.
 
-In Nomos, prompts are advisory while the compiled Go substrate is statutory. A governance harness is only statutory if it **fails closed** under adversarial mutation, boundary escape attempts, and runtime probe failures:
+In Nomos, prompts remain advisory while the compiled Go substrate remains statutory. A statutory harness rejects execution fail-closed under adversarial mutation, boundary escape attempts, and runtime probe panics:
 
-1. **Worktree Boundary Escape (Law 3):** An agent must be physically blocked from mutating files outside `worktrees/<repo>-<task>/` or committing directly to protected trunk.
-2. **Statutory Configuration Tampering (Law 4 & Law 7):** An agent inside a task worktree must be incapable of relaxing gate thresholds, disabling `strict_mode`, or disabling `boundary.enforce` relative to the trunk baseline (`nomos.yaml`).
-3. **Gate Crash / Panic Abort (Law 2 & Law 5):** If any verification gate panics, errors, or fails during evaluation, the 2-Phase Commit (2PC) release engine (`nomos task sync`) must deterministically recover, abort the merge transaction, emit zero cryptographic release receipts, and leave trunk (`main`) untouched.
+1. **Worktree Boundary Escape (Law 3):** Git hooks and `nomos hook pre-tool` block writes outside `worktrees/<repo>-<task>/` and block commits on trunk.
+2. **Statutory Configuration Tampering (Law 4 & Law 7):** Task worktrees cannot relax gate thresholds, disable `strict_mode`, or disable `boundary.enforce` relative to trunk `nomos.yaml`.
+3. **Gate Panic Abort (Law 2 & Law 5):** `TimedEvaluate` catches gate panics and `nomos task sync` aborts before merging or writing release receipts.
 
 ---
 
 ## 2. Seven-Pillar Statutory Mapping
 
-| Pillar | TraceTrial-Bench Dimension | Nomos Statutory Law & Enforcement Seam |
+| Pillar | Benchmark Dimension | Nomos Enforcement Seam |
 | :--- | :--- | :--- |
-| **1. Context** | Bounded, repository-scoped orientation without cross-repo leakage | **Law 1 & Law 6:** `SynthesizeDynamicHandshake` (`nomos handshake`) injects repository-scoped wavefronts, directives, and verified Mneme patterns (`mneme.db`). |
-| **2. Execution** | Hermetic filesystem isolation and path-traversal confinement | **Law 3:** `nomos hook pre-tool` (`worktree-guard.sh` delegator) and Git `pre-commit` hooks reject writes outside `worktrees/<repo>-<task>/` (or `--hermetic-dir`) and block `..` traversal. |
-| **3. Governance** | Immutability of grading rubrics, plane separation, and config pinning | **Law 4 & Law 7:** `PlaneSeparationGate` blocks `SUB-*` config mutations; `ThresholdIntegrityGate` pins `strict_mode` and `boundary.enforce` to trunk `RepoRoot`. |
-| **4. Lifecycle** | Atomic 2PC state transitions and crash-safe abort semantics | **Law 5:** `TimedEvaluate` recovers runtime gate panics into `ERR_CORE` fail-closed errors; `nomos task sync` aborts before rebase/FF-merge on any non-zero exit. |
-| **5. Observability** | Cryptographic release provenance and empirical pattern distillation | **Law 2:** `nomos task sync` stamps SHA-256 receipts onto `refs/notes/nomos/releases` and distills verified positive-path patterns into `mneme.db`. |
-| **6. Tools** | Sanctioned toolchain wrappers and zero filesystem aliasing | **Law 3 & Law 4:** `nomos hook pre-tool` intercepts raw `go install`, direct `sqlite3`, destructive `rm -rf`, and unexpanded `$`/`~` file paths; `ZeroFilesystemAliasGate` rejects symlinks. |
-| **7. Verification** | Multi-gate AST anti-shortcut enforcement (`0.0%` trunk defect rate) | **Law 2 & Law 4:** 42 DoD gates (`AntiShimGate`, `SecretScanGate`, `UncheckedErrorsGate`, `GateIntegrityProofGate`) and `nomos hook post-tool` reject shortcuts fail-closed. |
+| **1. Context** | Repository-scoped orientation | `SynthesizeDynamicHandshake` injects scoped wavefronts, directives, and `mneme.db` patterns. |
+| **2. Execution** | Hermetic filesystem confinement | `nomos hook pre-tool` and `pre-commit` block path escapes. |
+| **3. Governance** | Rubric immutability and plane separation | `PlaneSeparationGate` and `ThresholdIntegrityGate` pin `nomos.yaml` to trunk. |
+| **4. Lifecycle** | Crash-safe 2PC state transitions | `TimedEvaluate` catches panics; `nomos task sync` aborts cleanly. |
+| **5. Observability** | Cryptographic provenance and distillation | `nomos task sync` seals `refs/notes/nomos/releases` and distills patterns. |
+| **6. Tools** | Sanctioned wrappers and zero symlinks | `nomos hook pre-tool` and `ZeroFilesystemAliasGate` block unsafe calls. |
+| **7. Verification** | Multi-gate AST shortcut rejection | `AntiShimGate`, `SecretGate`, and `GateIntegrityProofGate` reject shortcuts. |
 
 ---
 
@@ -68,59 +69,59 @@ In Nomos, prompts are advisory while the compiled Go substrate is statutory. A g
 ### 3.1 Trunk Statutory Baseline Pinning (`ThresholdIntegrityGate`)
 When `nomos verify` executes inside an isolated task worktree (`ctx.WorktreePath != ""` and `filepath.Clean(ctx.WorktreePath) != filepath.Clean(ctx.RepoRoot)`):
 1. **Substrate Plane Rejection:** `PlaneSeparationGate` rejects any modification to root `nomos.yaml` or `intent/` files within a `SUB-*` task (`ERR_CROSS_PLANE_MUTATION`).
-2. **Intent Plane Downgrade Rejection:** Even within an `INT-*` worktree permitted to edit intent/governance artifacts, `ThresholdIntegrityGate` loads the canonical trunk configuration from `ctx.RepoRoot`.
-   - If trunk `nomos.yaml` enforces `governance.quality_gates.strict_mode: true` and the worktree `nomos.yaml` downgrades `strict_mode: false`, `ThresholdIntegrityGate` **must** return `Passed: false`.
-   - If trunk `nomos.yaml` enforces `governance.boundary.enforce: true` and the worktree `nomos.yaml` downgrades `boundary.enforce: false`, `ThresholdIntegrityGate` **must** return `Passed: false`.
-   - If trunk `nomos.yaml` sets `governance.quality_gates.intent_twin_mode` to `"strict"` or `"feat"` and the worktree `nomos.yaml` lowers that rank (for example `"feat"` to `"off"`), `ThresholdIntegrityGate` **must** return `Passed: false`.
-   - Any threshold relaxation violating statutory ceilings (`max_file_loc > 400`, `max_func_loc > 60`, `max_complexity > 15`, `min_coverage < 50.0`) continues to fail closed.
-3. **Brownfield Root Compatibility:** When evaluating directly on a brownfield repository root (`ctx.WorktreePath == ""`) where the repository owner explicitly configured `strict_mode: false` on trunk, `ThresholdIntegrityGate` honors the root baseline.
+2. **Intent Plane Downgrade Rejection:** Inside an `INT-*` worktree, `ThresholdIntegrityGate` loads the canonical trunk configuration from `ctx.RepoRoot`:
+   - Downgrading `governance.quality_gates.strict_mode` from `true` to `false` returns `Passed: false`.
+   - Downgrading `governance.boundary.enforce` from `true` to `false` returns `Passed: false`.
+   - Lowering `governance.quality_gates.intent_twin_mode` rank (for example `"feat"` to `"off"`) returns `Passed: false`.
+   - Relaxing statutory ceilings (`max_file_loc > 400`, `max_func_loc > 60`, `max_complexity > 15`, `min_coverage < 50.0`) rejects verification.
+3. **Brownfield Root Compatibility:** Evaluating directly on a brownfield root (`ctx.WorktreePath == ""`) honors the repository owner's trunk `strict_mode` baseline.
 
 ### 3.2 Gate Runtime Panic Recovery (`TimedEvaluate`)
 In `substrate/src/nomos/modules/verify/gate.go`, `TimedEvaluate(g Gate, ctx *VerifyContext)` wraps `g.Evaluate(ctx)` in a `defer recover()` boundary:
-- Any runtime panic `r` inside a gate probe is caught and converted into a structured `NomosError` (`ERR_CORE`: `"gate <Name> panicked during evaluation (fail-closed abort): <r>"`) with `res = nil`.
-- `Pipeline.Execute` treats any non-nil `err` from `TimedEvaluate` as an immediate pipeline abort, ensuring `nomos verify` and `nomos task sync` never fail open or leave half-committed state.
+- A runtime panic `r` converts into a typed `NomosError` (`ERR_CORE`: `"gate <Name> panicked during evaluation (fail-closed abort): <r>"`).
+- `Pipeline.Execute` treats any non-nil `err` from `TimedEvaluate` as an immediate abort, leaving trunk untouched.
 
-### 3.3 Native Compiled `nomos hook` Subcommands & Zero-Footprint Container Mode (`INT-863` / `SUB-1546`)
-To eliminate external runtime dependencies on `jq`, `bash`, or `python3` in minimalist container and workstation environments, Nomos provides compiled Go hook subcommands (`nomos hook session-start`, `nomos hook pre-tool`, `nomos hook post-tool`):
+### 3.3 Native Compiled `nomos hook` Subcommands & Container Mode (`INT-863` / `SUB-1546`)
+Nomos ships zero-dependency Go subcommands (`nomos hook session-start`, `nomos hook pre-tool`, `nomos hook post-tool`) removing external `jq`, `bash`, or `python3` requirements:
 
-1. **Unified JSON Payload Ingestion:** Each subcommand parses standard agent hook payloads from `stdin` supporting Claude Code (`tool_name`, `tool_input`), Cursor, and Antigravity (`toolCall.name`, `toolCall.args`, `workspacePaths`, `cwd`).
+1. **Unified JSON Payload Ingestion:** Each subcommand parses standard `stdin` hook payloads from Claude Code (`tool_name`, `tool_input`), Cursor, and Antigravity (`toolCall.name`, `toolCall.args`, `cwd`).
 2. **PreToolUse Guards (`nomos hook pre-tool` — Law 3 & Law 7):**
-   - **Unexpanded Shell Variable & Tilde Guard:** Rejects native file-mutation tool calls (`Write`, `Edit`, `MultiEdit`, `write_file`, `edit_file`, `write_to_file`, `replace_file_content`, `multi_replace_file_content`) whose target path contains unexpanded `$VAR`, `${VAR}`, or leading `~` tokens, preventing literal `$HOME` directory creation.
-   - **Canonical Boundary Containment:** Resolves relative and symlinked paths against `cwd`. Standard mode denies file mutations outside `/worktrees/`, `/.tmp/`, and `/brain/` with a HATEOAS remedy (`nomos task chore "<title>"`). Supplying `--hermetic-dir <dir>` permits mutations inside the canonical realpath of `<dir>` while protecting system roots (`/etc`, `/usr`, `/bin`, `/sbin`, `/var`, `/proc`, `/sys`, `/dev`, `/boot`). Supplying `--container-sandbox` (for full-container benchmarks such as Harbor) permits container operating-system paths (`/etc`, `/tmp`, `/var`, task `sqlite3` databases) while denying file or shell access to protected verifier and oracle roots (`/logs/verifier`, `/solution`, `/tests`).
+   - **Unexpanded Variable Guard:** Rejects native file-edit tool calls whose target path contains unexpanded `$VAR`, `${VAR}`, or leading `~` tokens.
+   - **Boundary Containment:** Standard mode rejects writes outside `/worktrees/`, `/.tmp/`, and `/brain/` with a HATEOAS remedy (`nomos task chore "<title>"`). Passing `--hermetic-dir <dir>` confines writes to `<dir>` while protecting OS roots (`/etc`, `/usr`, `/bin`, `/var`, `/proc`, `/sys`, `/dev`, `/boot`). Passing `--container-sandbox` permits container OS paths while blocking verifier and oracle roots (`/logs/verifier`, `/solution`, `/tests`).
    - **Command Safety & Encapsulation Guard:** Inspects shell tool invocations (`Bash`, `bash`, `run_command`, `execute_command`) and denies:
      - Wildcard or root recursive deletions (`rm -rf /`, `rm -rf /*`, `rm -rf *`, `rm -rf ~`, `rm -rf ..`).
      - Quote-aware `go install` of `nomos` or `nomos-*` outside a clean `IDLE` primary `main` trunk, or with `@latest` / `-overlay` / `-modfile` / `-C` flags (Law 4).
      - Direct `sqlite3` mutations or queries against `.nomos` or `.db` files (Law 1 & ADR-0062).
      - Stateful `git stash` mutations (allowing read-only `git stash list` / `git stash clear`).
      - Tampering with `.git/hooks` defense scripts (`rm`, `unlink`, `chmod`, `mv`).
-3. **PostToolUse Channel Purity & Zero-Footprint Verification (`nomos hook post-tool` — Law 4):**
-   - **100% Silent on Non-Edit Channels:** Emits `{}` immediately when invoked for `Bash`, `Read`, or `MCP` tools so native operating system errors (`EACCES`, `ENOENT`) are never masked by hook output.
-   - **In-Memory Syntax & Radar Verification:** Validates edited `.go`, `.py`, `.json`, `.jsonl`, `.yaml`, and source files directly without writing `.tmp/nomos_radar_alert.txt` files into the workspace, preserving a zero-footprint working tree (and skipping repository LOC budget warnings in `--container-sandbox` mode when `nomos.yaml` is absent).
-4. **Additive Workspace Hook Chaining & 3-Strike Loop Circuit-Breaker (`INT-868` / `SUB-1560`):**
-   - **Additive Settings & Hook Chaining:** When a target workspace contains an existing `.claude/settings.json` with task-local `PreToolUse`, `PostToolUse`, or `SessionStart` hooks or plugins, `nomos init` and `nomos hook` preserve and chain the existing workspace hooks rather than overwriting them, eliminating TraceTrial `O` (Observability) and `T` (Tooling) overlay contention.
-   - **3-Strike Identical-Failure Circuit-Breaker:** `nomos hook pre-tool` computes a deterministic call fingerprint `(tool_name, sha256(canonical_args), workspace_mtime_digest)`. When the same fingerprint fails or repeats `>= 3` consecutive times without a workspace state change (`workspace_mtime_digest` unchanged), `nomos hook pre-tool` denies the 3rd identical invocation with a 1-line state-change remediation directive so the agent alters its parameters or inspects workspace state instead of looping.
+3. **PostToolUse Channel Purity (`nomos hook post-tool` — Law 4):**
+   - **Silent Non-Edit Channels:** Emits `{}` immediately for `Bash`, `Read`, and `MCP` calls so native OS errors (`EACCES`, `ENOENT`) remain unmasked.
+   - **In-Memory Syntax & Radar Verification:** Validates edited `.go`, `.py`, `.json`, `.jsonl`, and `.yaml` files in memory without writing `.tmp/` scratch files.
+4. **Additive Hook Chaining & 3-Strike Circuit-Breaker (`INT-868` / `SUB-1560`):**
+   - **Additive Hook Chaining:** `nomos init` and `nomos hook` chain existing `.claude/settings.json` hooks additively instead of shadowing task-local `O` and `T` plugins.
+   - **3-Strike Loop Breaker:** `nomos hook pre-tool` hashes `(tool_name, sha256(canonical_args), workspace_mtime_digest)`. Three identical consecutive calls without a `workspace_mtime_digest` mutation trigger a 1-line remediation directive halting the retry loop.
 
 ---
 
 ## 4. Deterministic Verification Vectors (`VEC-TTB-01` .. `VEC-TTB-07`)
 
-The cleanroom harness suite (`substrate/cli/cleanroom_tracetrial_bench_test.go`) and unit hardening tests (`substrate/src/nomos/modules/verify/tracetrial_hardening_test.go`) execute seven deterministic end-to-end vectors:
+The cleanroom suite (`substrate/cli/cleanroom_tracetrial_bench_test.go`) and unit suite (`substrate/src/nomos/modules/verify/tracetrial_hardening_test.go`) execute seven end-to-end vectors:
 
-- **`VEC-TTB-01` (Pillar 1 — Context):** Provision cleanroom workspace, seed Mneme records across two repo scopes, execute `SynthesizeDynamicHandshake`, and assert strict repository isolation plus active wavefront orientation.
-- **`VEC-TTB-02` (Pillar 2 — Execution / Worktree Escape):** Invoke `worktree-guard.sh` against root trunk paths and `worktrees/repo-SUB-1/../../trunk.go` path traversal, plus attempt a direct commit on `main`; assert non-zero fail-closed denial across all vectors.
+- **`VEC-TTB-01` (Pillar 1 — Context):** Seed two repo scopes in Mneme, run `SynthesizeDynamicHandshake`, and verify strict repository isolation plus wavefront orientation.
+- **`VEC-TTB-02` (Pillar 2 — Execution / Worktree Escape):** Run `worktree-guard.sh` against trunk paths, `../../trunk.go` traversal, and direct `main` commits; verify non-zero rejection.
 - **`VEC-TTB-03` (Pillar 3 — Governance / Config Tampering):**
-  - *Sub-vector 3a:* Mutate `nomos.yaml` inside a `SUB-*` worktree; assert `PlaneSeparationGate` fails closed.
-  - *Sub-vector 3b:* Flip `strict_mode: false` and `max_file_loc: 9999` inside an `INT-*` worktree against a `strict_mode: true` trunk; assert `ThresholdIntegrityGate` detects the downgrade against `RepoRoot` and fails closed.
-- **`VEC-TTB-04` (Pillar 4 — Lifecycle / Gate Crash & 2PC Abort):** Trigger a panicking gate in `TimedEvaluate` / `Pipeline.Execute` (asserting structured `ERR_CORE` recovery without process crash) and run `nomos task sync` on a failing worktree; assert trunk `HEAD` SHA is unchanged and `refs/notes/nomos/releases` contains zero receipts for the aborted task.
-- **`VEC-TTB-05` (Pillar 5 — Observability / Attestation & Mneme Provenance):** Sync a compliant worktree through 2PC `nomos task sync`; assert a cryptographic SHA-256 receipt is attached to `refs/notes/nomos/releases` and a statutory `pattern` record is distilled into `mneme.db`.
-- **`VEC-TTB-06` (Pillar 6 - Tools / Toolchain & Symlink Confinement):** Invoke `nomos-build-guard.sh` (`exec nomos hook pre-tool`) on `go install ./cmd/nomos` inside a dirty tree (asserting fail-closed block) and plant a symlink inside a worktree (asserting `ZeroFilesystemAliasGate` rejection).
-- **`VEC-TTB-07` (Pillar 7 — Verification / Anti-Shortcut Enforcement):** Inject an empty function stub (`func Shortcut() {}`) into a worktree; assert `AntiShimGate` rejects the shortcut (`0.0%` trunk defect leakage).
+  - *Sub-vector 3a:* Mutate `nomos.yaml` inside a `SUB-*` worktree; verify `PlaneSeparationGate` rejects the edit.
+  - *Sub-vector 3b:* Flip `strict_mode: false` and `max_file_loc: 9999` inside an `INT-*` worktree; verify `ThresholdIntegrityGate` rejects the downgrade.
+- **`VEC-TTB-04` (Pillar 4 — Lifecycle / Panic & 2PC Abort):** Trigger a panicking gate in `TimedEvaluate` and verify `nomos task sync` leaves trunk `HEAD` and `refs/notes/nomos/releases` untouched.
+- **`VEC-TTB-05` (Pillar 5 — Observability / Receipts & Mneme):** Sync a compliant worktree and verify both the `refs/notes/nomos/releases` SHA-256 receipt and `mneme.db` pattern record.
+- **`VEC-TTB-06` (Pillar 6 — Tools / Build & Symlink Guards):** Run `nomos-build-guard.sh` on a dirty tree and plant a worktree symlink; verify both reject execution.
+- **`VEC-TTB-07` (Pillar 7 — Verification / Anti-Shortcut):** Inject an empty function stub (`func Shortcut() {}`) into a worktree; verify `AntiShimGate` rejects the stub.
 
 ---
 
 ## 5. External Containerized Paired Evaluation (`v4.1.0`, `n = 95`)
 
-`TraceTrial-Bench` (`arXiv:2610.32285`) separates **harness reliability** from **model capability** across 95 containerized tasks (`190` paired Docker runs across 7 pillars). Both arms run identical `Claude Code v2.1.220` against fixed `gemini-2.5-flash-lite` (scored by `gemini-3.5-flash-lite`), comparing stock Control against `nomos-claudecode:4.1.0`:
+[TraceTrial-Bench](https://github.com/TraceLite-AI/TraceTrial-Bench) ([arXiv:2610.32285](https://arxiv.org/abs/2610.32285)) separates **harness reliability** from **model capability** across 95 containerized tasks (`190` paired Docker runs). Both arms run `Claude Code v2.1.220` with `gemini-2.5-flash-lite` (scored by `gemini-3.5-flash-lite`), comparing stock Control against `nomos-claudecode:4.1.0`:
 
 | Pillar / Cohort (`n = 95`, `0` errors) | Control Overall | Nomos `v4.1.0` | Overall Δ | Agent Deliverable Axis (`0–100`) | Harness Reliability Axis (`0–100`) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
@@ -142,7 +143,7 @@ The cleanroom harness suite (`substrate/cli/cleanroom_tracetrial_bench_test.go`)
 
 ## 6. Empirical Engineering Takeaways
 
-1. **Majority of Agent Failures Originate in the Harness (`57.9%` Baseline):** In stock `Claude Code`, `55 / 95` failures trace to harness mechanics rather than model intelligence. Deterministic compiled guardrails lift budget-model deliverable output by **`+15.2%`** (`+78.3%` in Context & Continuity) without changing weights.
-2. **Governance Overlays Must Chain Additively, Never Shadow (`O` `+10.39` & `T` `+5.92` Recovery):** Passing CLI `--settings` overrides shadows workspace-local hooks and degrades plugin/audit reliability (`-6.51` in `v4.0.0`). Merging compiled `nomos hook` entries additively into configuration preserves existing hooks and flips Observability positive (`+4.17` over stock).
-3. **Zero-Noise Channel Purity Beats Verbose Prompt Coaching:** Injecting synthetic coaching prose into `PostToolUse` outputs masked native OS `EACCES` errors and degraded guardrail attribution by `-39.3%`. Emitting `{}` on allow and firing only on deterministic syntax or boundary violations preserves native error provenance.
-4. **Input-Channel Hygiene & Stateful Loop Breakers Multiply Continuity (`+42.8%` on `C`):** Budget models routinely pass unexpanded `$WORKSPACE`/`~` literals to `Read`/`Write` tools and repeat identical failing calls (`700+` turns). Blocking unexpanded shell tokens pre-flight and enforcing a 3-strike identical-failure circuit-breaker (with async status-polling exemptions) prevents context collapse.
+1. **Majority of Agent Failures Originate in the Harness (`57.9%` Baseline):** In stock `Claude Code`, `55 / 95` failures trace to harness mechanics rather than model intelligence. Deterministic compiled gates lift budget-model deliverable output by **`+15.2%`** (`+78.3%` in Context & Continuity) without changing weights.
+2. **Governance Overlays Must Chain Additively (`O` `+10.39` & `T` `+5.92` Recovery):** CLI `--settings` overrides shadow workspace hooks (`-6.51` in `v4.0.0`). Additive `nomos hook` merging flips Observability positive (`+4.17` over stock).
+3. **Zero-Noise Channel Purity Beats Verbose Coaching:** Synthetic `PostToolUse` coaching prose masked native `EACCES` errors (`-39.3%` on `G`). Emitting `{}` on allow preserves native error provenance.
+4. **Input Hygiene & Loop Breakers Multiply Continuity (`+42.8%` on `C`):** Budget models pass unexpanded `$WORKSPACE`/`~` paths and repeat broken calls (`700+` turns). Pre-flight variable guards and 3-strike circuit-breakers prevent context collapse.
