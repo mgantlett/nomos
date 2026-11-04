@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	commitBodyWrapColumns = 72
-	maxMechanicsBullets   = 5
+	maxMechanicsBullets      = 5
+	commitSectionDividerLine = "___"
 )
 
 type commitHydrationContext struct {
@@ -112,8 +112,8 @@ func resolveWalkthroughText(taskKey, wtDir, repoRoot, explicitFile string) strin
 	return ""
 }
 
-// hydrateCommitMessage synthesizes a Golden Conventional Commit with 72-column rationale prose,
-// optional deduplicated mechanics bullets, and RFC 822 Git Trailers (Task: and Twin:).
+// hydrateCommitMessage synthesizes a Golden Conventional Commit with a canonical [<KEY>] subject prefix,
+// flowing unwrapped CommonMark paragraphs/bullets, a git-interpret-trailers-safe ___ divider, and Task/Twin trailers.
 // @intent nomos_commit_schema_invariant_spec.md
 func hydrateCommitMessage(ctx commitHydrationContext, opts *commitCmdOptions) string {
 	var rawSummary, expRationale, expMechanics string
@@ -123,25 +123,27 @@ func hydrateCommitMessage(ctx commitHydrationContext, opts *commitCmdOptions) st
 		expMechanics = strings.TrimSpace(opts.mechanics)
 	}
 
-	subject := normalizeCommitSubject(ctx.taskKey, rawSummary, ctx.taskRecord, ctx.stagedFiles)
+	canonicalKey := strings.ToUpper(strings.TrimSpace(ctx.taskKey))
+	subject := normalizeCommitSubject(canonicalKey, rawSummary, ctx.taskRecord, ctx.stagedFiles)
 	var card task.ParsedTaskCard
 	if ctx.taskRecord != nil {
 		card = task.ExtractTaskCardSections(ctx.taskRecord.Description)
 	}
 
-	rationale := wrapCommitBlock(resolveCommitRationale(ctx, subject, expRationale, card), commitBodyWrapColumns)
+	rationale := normalizeFlowingBlock(resolveCommitRationale(ctx, subject, expRationale, card))
 	mechanics := resolveCommitMechanics(ctx, expMechanics, card, rationale)
-	trailers := formatCommitTrailers(ctx.taskKey, ctx.taskRecord)
+	trailers := formatCommitTrailers(canonicalKey, ctx.taskRecord)
 
 	var sb strings.Builder
-	sb.WriteString(subject)
-	sb.WriteString("\n\n")
+	sb.WriteString(fmt.Sprintf("[%s] %s\n\n", canonicalKey, subject))
 	sb.WriteString(rationale)
 	sb.WriteString("\n\n")
 	if mechanics != "" {
 		sb.WriteString(mechanics)
 		sb.WriteString("\n\n")
 	}
+	sb.WriteString(commitSectionDividerLine)
+	sb.WriteString("\n\n")
 	sb.WriteString(trailers)
 	sb.WriteString("\n")
 	return sb.String()
@@ -170,7 +172,7 @@ func resolveCommitRationale(ctx commitHydrationContext, subject, explicit string
 
 func resolveCommitMechanics(ctx commitHydrationContext, explicit string, card task.ParsedTaskCard, rationale string) string {
 	if explicit != "" {
-		return wrapCommitBlock(explicit, commitBodyWrapColumns)
+		return normalizeFlowingBlock(explicit)
 	}
 	if wtBullets := deduplicateMechanics(extractWalkthroughItems(ctx.walkthroughText), rationale); len(wtBullets) > 0 {
 		return formatMechanicsBullets(wtBullets)
@@ -186,7 +188,7 @@ func deduplicateMechanics(items []string, rationale string) []string {
 	seen := map[string]bool{normRationale: true}
 	var out []string
 	for _, raw := range items {
-		cleaned := cleanBulletLine(raw)
+		cleaned := collapseSingleLine(cleanBulletLine(raw))
 		norm := normalizeComparableProse(cleaned)
 		if cleaned == "" || seen[norm] {
 			continue
@@ -203,13 +205,13 @@ func deduplicateMechanics(items []string, rationale string) []string {
 func formatMechanicsBullets(items []string) string {
 	lines := make([]string, 0, len(items))
 	for _, item := range items {
-		lines = append(lines, wrapBulletItem(item, commitBodyWrapColumns))
+		lines = append(lines, "- "+collapseSingleLine(item))
 	}
 	return strings.Join(lines, "\n")
 }
 
 func formatCommitTrailers(taskKey string, rec *task.TaskRecord) string {
-	lines := []string{fmt.Sprintf("Task: %s", strings.ToUpper(strings.TrimSpace(taskKey)))}
+	lines := []string{fmt.Sprintf("Task: %s", taskKey)}
 	if rec != nil {
 		if twin := strings.ToUpper(strings.TrimSpace(rec.TwinKey)); twin != "" {
 			lines = append(lines, fmt.Sprintf("Twin: %s", twin))
@@ -232,9 +234,22 @@ func extractWalkthroughItems(walkthrough string) []string {
 		return nil
 	}
 	var items []string
+	skipSection := false
+	inFence := false
 	for _, raw := range strings.Split(walkthrough, "\n") {
 		line := strings.TrimSpace(raw)
-		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "```") {
+		if strings.HasPrefix(line, "```") {
+			inFence = !inFence
+			continue
+		}
+		if inFence || line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "#") {
+			skipSection = isVerificationHeading(line)
+			continue
+		}
+		if skipSection {
 			continue
 		}
 		if cleaned := cleanBulletLine(line); cleaned != "" {
@@ -242,6 +257,14 @@ func extractWalkthroughItems(walkthrough string) []string {
 		}
 	}
 	return items
+}
+
+func isVerificationHeading(headingLine string) bool {
+	title := strings.ToLower(strings.TrimSpace(strings.TrimLeft(headingLine, "#")))
+	return strings.HasPrefix(title, "verification") ||
+		strings.HasPrefix(title, "test") ||
+		strings.HasPrefix(title, "quality gate") ||
+		strings.HasPrefix(title, "gates")
 }
 
 func cleanBulletLine(s string) string {
@@ -255,48 +278,44 @@ func normalizeComparableProse(s string) string {
 	return strings.ToLower(strings.TrimRight(collapseSingleLine(s), "."))
 }
 
-func wrapCommitBlock(text string, width int) string {
+func normalizeFlowingBlock(text string) string {
 	paragraphs := strings.Split(strings.TrimSpace(strings.ReplaceAll(text, "\r\n", "\n")), "\n\n")
-	wrapped := make([]string, 0, len(paragraphs))
+	out := make([]string, 0, len(paragraphs))
 	for _, p := range paragraphs {
 		if strings.TrimSpace(p) == "" {
 			continue
 		}
-		wrapped = append(wrapped, wrapParagraphLines(p, width))
+		out = append(out, normalizeParagraphOrList(p))
 	}
-	return strings.Join(wrapped, "\n\n")
+	return strings.Join(out, "\n\n")
 }
 
-func wrapParagraphLines(paragraph string, width int) string {
+func normalizeParagraphOrList(paragraph string) string {
 	lines := strings.Split(strings.TrimSpace(paragraph), "\n")
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") || strings.HasPrefix(line, "  ") {
-			return strings.TrimSpace(paragraph)
+	hasBullets := false
+	for _, l := range lines {
+		t := strings.TrimSpace(l)
+		if strings.HasPrefix(t, "- ") || strings.HasPrefix(t, "* ") {
+			hasBullets = true
+			break
 		}
 	}
-	return wrapPlainWords(collapseSingleLine(paragraph), "", "", width)
-}
-
-func wrapBulletItem(item string, width int) string {
-	return wrapPlainWords(collapseSingleLine(item), "- ", "  ", width)
-}
-
-func wrapPlainWords(text, firstIndent, nextIndent string, width int) string {
-	words := strings.Fields(text)
-	if len(words) == 0 {
-		return ""
+	if !hasBullets {
+		return collapseSingleLine(paragraph)
 	}
-	var lines []string
-	cur := firstIndent + words[0]
-	for _, w := range words[1:] {
-		if utf8.RuneCountInString(cur)+1+utf8.RuneCountInString(w) <= width {
-			cur += " " + w
+	var bullets []string
+	for _, l := range lines {
+		t := strings.TrimSpace(l)
+		if t == "" {
 			continue
 		}
-		lines = append(lines, cur)
-		cur = nextIndent + w
+		if strings.HasPrefix(t, "- ") || strings.HasPrefix(t, "* ") {
+			bullets = append(bullets, "- "+collapseSingleLine(cleanBulletLine(t)))
+		} else if len(bullets) > 0 {
+			bullets[len(bullets)-1] += " " + collapseSingleLine(t)
+		} else {
+			bullets = append(bullets, collapseSingleLine(t))
+		}
 	}
-	lines = append(lines, cur)
-	return strings.Join(lines, "\n")
+	return strings.Join(bullets, "\n")
 }

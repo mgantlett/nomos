@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,34 +12,43 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/task"
 )
 
-func TestFormatCommitMessage_ExplicitFlagsAndTwinTrailer(t *testing.T) {
+func TestFormatCommitMessage_ExplicitFlagsDividerAndGitTrailers(t *testing.T) {
 	opts := &commitCmdOptions{
 		summary:    "feat(verify): activate git trailer gate",
-		rationale:  "Enforce Law 1 and Law 6 with standard RFC 822 Task trailers instead of file-list noise.",
+		rationale:  "Enforce Law 1 and Law 6 with standard RFC 822 Task trailers while preserving [KEY] hemisphere visibility.",
 		mechanics:  "- Parse trailing Task and Twin Git trailers.\n- Reject raw git diff file dumps.",
 		taskRecord: &task.TaskRecord{Key: "SUB-1212", TwinKey: "INT-734"},
 	}
 
 	msg := formatCommitMessage("SUB-1212", opts)
 
-	if !strings.HasPrefix(msg, "feat(verify): activate git trailer gate\n\n") {
-		t.Errorf("unexpected subject line: %s", msg)
+	if !strings.HasPrefix(msg, "[SUB-1212] feat(verify): activate git trailer gate\n\n") {
+		t.Errorf("unexpected subject line:\n%s", msg)
 	}
-	if strings.Contains(msg, "[SUB-1212]") || strings.Contains(msg, "**Blast Radius") || strings.Contains(msg, "**Architectural Rationale") {
-		t.Errorf("expected zero legacy prefixes or Dual-Layer bold headers, got:\n%s", msg)
+	if strings.Contains(msg, "**Blast Radius") || strings.Contains(msg, "**Architectural Rationale") {
+		t.Errorf("expected zero legacy Dual-Layer bold headers, got:\n%s", msg)
 	}
-	if !strings.Contains(msg, "Enforce Law 1 and Law 6 with standard RFC 822 Task trailers") {
-		t.Errorf("missing rationale prose in:\n%s", msg)
+	if !strings.Contains(msg, "Enforce Law 1 and Law 6 with standard RFC 822 Task trailers while preserving [KEY] hemisphere visibility.\n\n") {
+		t.Errorf("expected flowing unwrapped single-line rationale paragraph, got:\n%s", msg)
 	}
-	if !strings.Contains(msg, "- Parse trailing Task and Twin Git trailers.") {
-		t.Errorf("missing mechanics bullets in:\n%s", msg)
+	if !strings.HasSuffix(msg, "\n\n___\n\nTask: SUB-1212\nTwin: INT-734\n") {
+		t.Errorf("expected ___ divider + RFC 822 Task and Twin trailers at bottom, got:\n%s", msg)
 	}
-	if !strings.HasSuffix(msg, "\n\nTask: SUB-1212\nTwin: INT-734\n") {
-		t.Errorf("expected RFC 822 Task and Twin trailers at bottom, got:\n%s", msg)
+
+	// Prove native `git interpret-trailers --parse` parses Task and Twin cleanly below `___`.
+	cmd := workspace.SafeGitCommand("", "interpret-trailers", "--parse")
+	cmd.Stdin = bytes.NewBufferString(msg)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git interpret-trailers --parse failed: %v (%s)", err, string(out))
+	}
+	parsed := strings.TrimSpace(string(out))
+	if parsed != "Task: SUB-1212\nTwin: INT-734" {
+		t.Errorf("git interpret-trailers --parse = %q, want Task & Twin trailers", parsed)
 	}
 }
 
-func TestNormalizeCommitSubject_DeduplicationCasingAnd72RuneBudget(t *testing.T) {
+func TestNormalizeCommitSubject_DeduplicationCasingAnd80RuneBudget(t *testing.T) {
 	cases := []struct {
 		name        string
 		taskKey     string
@@ -83,7 +93,7 @@ func TestNormalizeCommitSubject_DeduplicationCasingAnd72RuneBudget(t *testing.T)
 			want:        "feat(verify): add ledger balance verification",
 		},
 		{
-			name:        "preserves leading acronym tokens like AST and CapBAC",
+			name:        "preserves leading acronym tokens like CapBAC",
 			taskKey:     "SUB-11",
 			raw:         "CapBAC flow taint enforcement across MCP tools",
 			stagedFiles: []string{"substrate/src/nomos/core/capbac/flow.go"},
@@ -98,8 +108,8 @@ func TestNormalizeCommitSubject_DeduplicationCasingAnd72RuneBudget(t *testing.T)
 			want:        "docs(specs): codify commit hydration contract",
 		},
 		{
-			name:        "truncates verbose subject cleanly within 72-rune target",
-			taskKey:     "SUB-99",
+			name:        "truncates verbose subject cleanly within 80-rune full-line target",
+			taskKey:     "SUB-1703",
 			raw:         "Implement comprehensive multi-stage cryptographic attestation across every nested workspace boundary",
 			stagedFiles: []string{"substrate/src/nomos/modules/verify/gates_standard.go"},
 			want:        "feat(verify): implement comprehensive multi-stage cryptographic...",
@@ -112,14 +122,15 @@ func TestNormalizeCommitSubject_DeduplicationCasingAnd72RuneBudget(t *testing.T)
 			if got != tc.want {
 				t.Errorf("normalizeCommitSubject() = %q, want %q", got, tc.want)
 			}
-			if n := utf8.RuneCountInString(got); n > targetSubjectLineRunes {
-				t.Errorf("subject exceeded %d runes (%d): %q", targetSubjectLineRunes, n, got)
+			fullLine := "[" + tc.taskKey + "] " + got
+			if n := utf8.RuneCountInString(fullLine); n > targetSubjectLineRunes {
+				t.Errorf("full subject exceeded %d runes (%d): %q", targetSubjectLineRunes, n, fullLine)
 			}
 		})
 	}
 }
 
-func TestHydrateCommitMessage_DeduplicatesWalkthroughAndOmitsFileDump(t *testing.T) {
+func TestHydrateCommitMessage_SkipsVerificationSectionAndFlowsProse(t *testing.T) {
 	repoDir := workspace.InitHermeticGitRepo(t)
 	targetFile := filepath.Join(repoDir, "substrate", "cli", "widget.go")
 	if err := os.MkdirAll(filepath.Dir(targetFile), 0755); err != nil {
@@ -133,7 +144,7 @@ func TestHydrateCommitMessage_DeduplicatesWalkthroughAndOmitsFileDump(t *testing
 	}
 
 	cardDesc, err := task.RenderTaskCardBody(task.TaskCardInput{
-		Scope:              "Wire deterministic widget helper into substrate/cli/widget.go without placeholder shims.",
+		Scope:              "Wire deterministic widget helper into substrate/cli/widget.go without placeholder shims so hover tooltips wrap naturally.",
 		AcceptanceCriteria: []string{"Implement Widget helper", "Verify zero boilerplate commit shims"},
 		Verification:       "go test ./cli/...",
 	})
@@ -145,7 +156,7 @@ func TestHydrateCommitMessage_DeduplicatesWalkthroughAndOmitsFileDump(t *testing
 	if err := os.MkdirAll(filepath.Dir(walkPath), 0755); err != nil {
 		t.Fatalf("mkdir .tmp: %v", err)
 	}
-	walkContent := "# Walkthrough SUB-88\n\n## Summary\n- Wire deterministic widget helper into substrate/cli/widget.go without placeholder shims.\n- Added `Widget()` in `substrate/cli/widget.go` returning deterministic status.\n- Verified CLI commit hydration from walkthrough and task card.\n"
+	walkContent := "# Walkthrough SUB-88\n\n## Summary\n- Wire deterministic widget helper into substrate/cli/widget.go without placeholder shims so hover tooltips wrap naturally.\n- Added `Widget()` in `substrate/cli/widget.go` returning deterministic status.\n\n## Verification\n- `nomos verify` (`42/42` Definition of Done quality gates passing).\n"
 	if err := os.WriteFile(walkPath, []byte(walkContent), 0644); err != nil {
 		t.Fatalf("write walkthrough: %v", err)
 	}
@@ -162,20 +173,20 @@ func TestHydrateCommitMessage_DeduplicatesWalkthroughAndOmitsFileDump(t *testing
 	}
 
 	msg := formatCommitMessage("SUB-88", opts)
-	if !strings.HasPrefix(msg, "feat(cli): implement CLI widget helper\n\n") {
+	if !strings.HasPrefix(msg, "[SUB-88] feat(cli): implement CLI widget helper\n\n") {
 		t.Errorf("unexpected hydrated subject:\n%s", msg)
 	}
-	if strings.Contains(msg, "- A substrate/cli/widget.go") || strings.Contains(msg, "Blast Radius") {
-		t.Errorf("hydrated commit must never dump staged file-status lists:\n%s", msg)
+	if !strings.Contains(msg, "without placeholder shims so hover tooltips wrap naturally.\n\n") {
+		t.Errorf("expected flowing unwrapped rationale paragraph, got:\n%s", msg)
 	}
-	if strings.Count(collapseSingleLine(msg), "without placeholder shims") != 1 {
-		t.Errorf("expected walkthrough bullet identical to rationale to be deduplicated once, got:\n%s", msg)
+	if strings.Count(msg, "without placeholder shims") != 1 {
+		t.Errorf("expected duplicate walkthrough lead bullet to be deduplicated, got:\n%s", msg)
 	}
-	if !strings.Contains(msg, "- Added `Widget()` in `substrate/cli/widget.go`") {
-		t.Errorf("expected distinct walkthrough mechanics bullet in:\n%s", msg)
+	if strings.Contains(msg, "42/42") || strings.Contains(msg, "Definition of Done quality gates") {
+		t.Errorf("expected ## Verification section bullets to be excluded from commit body, got:\n%s", msg)
 	}
-	if !strings.HasSuffix(msg, "\n\nTask: SUB-88\nTwin: INT-44\n") {
-		t.Errorf("expected Task and Twin trailers at end, got:\n%s", msg)
+	if !strings.HasSuffix(msg, "\n\n___\n\nTask: SUB-88\nTwin: INT-44\n") {
+		t.Errorf("expected ___ divider + Task/Twin trailers at end, got:\n%s", msg)
 	}
 }
 

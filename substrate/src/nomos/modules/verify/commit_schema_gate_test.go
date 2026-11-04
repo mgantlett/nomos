@@ -23,139 +23,143 @@ func TestCheckCommitCompliance(t *testing.T) {
 		wantPassed bool
 	}{
 		{
-			name: "valid golden commit with Task and Twin trailers",
-			msg: `feat(verify): enforce RFC 822 Task trailer on branch commits
+			name: "valid golden commit with [KEY] prefix, ___ divider, and Task/Twin trailers",
+			msg: `[SUB-1703] feat(verify): enforce [KEY] prefix and flowing section spacing
 
-Replace noisy Blast Radius file-list dumps with 72-column rationale prose
-and machine-parsable Git trailers so git log --oneline stays high-signal.
+Replace ragged 72-column hard line breaks with flowing CommonMark paragraphs so IDE hover cards render crisp inter-section whitespace while preserving instant 2-plane visibility in Source Control graphs.
 
-- Reject raw staged diff dumps and legacy bold section headers.
-- Validate canonical INT-<N> and SUB-<N> keys in Task and Twin trailers.
+- Enforce subject-to-trailer Task key parity across unmerged branch commits.
+- Separate RFC 822 Task and Twin trailers beneath a git-interpret-trailers-safe ___ divider.
 
-Task: SUB-1700
-Twin: INT-903`,
+___
+
+Task: SUB-1703
+Twin: INT-904`,
 			wantPassed: true,
 		},
 		{
-			name: "valid single-paragraph golden commit",
-			msg: `fix(cli): preserve Go directive version when scaffolding task worktrees
+			name: "valid single-paragraph golden commit without bullets",
+			msg: `[SUB-1698] fix(cli): preserve Go directive version when scaffolding task worktrees
 
-Read the workspace go.mod version dynamically instead of emitting a static
-toolchain string that breaks older downstream repositories.
+Read the workspace go.mod version dynamically instead of emitting a static toolchain string that breaks older downstream repositories.
+
+___
 
 Task: SUB-1698`,
 			wantPassed: true,
 		},
 		{
-			name: "legacy leading bracketed TaskID prefix rejected",
+			name: "missing leading [KEY] prefix rejected",
+			msg: `feat(core): implement feature
+
+Provide deterministic state validation across worktree boundaries.
+
+___
+
+Task: SUB-101`,
+			wantPassed: false,
+		},
+		{
+			name: "non-canonical [ARC-9] prefix rejected",
+			msg: `[ARC-9] feat(core): implement feature
+
+Provide deterministic state validation across worktree boundaries.
+
+___
+
+Task: SUB-101`,
+			wantPassed: false,
+		},
+		{
+			name: "subject key mismatching Task trailer rejected",
 			msg: `[SUB-101] feat(core): implement feature
 
 Provide deterministic state validation across worktree boundaries.
 
-Task: SUB-101`,
+___
+
+Task: SUB-202`,
 			wantPassed: false,
 		},
 		{
-			name: "trailing bracketed task key rejected",
-			msg: `docs(readme): update benchmark summary [SUB-101]
+			name: "duplicate trailing bracketed key rejected",
+			msg: `[SUB-101] docs(readme): update benchmark summary [SUB-101]
 
 Clarify cold-start verification latency figures in benchmark table.
 
+___
+
 Task: SUB-101`,
 			wantPassed: false,
 		},
 		{
-			name: "trailing parenthesized task key rejected",
-			msg: `fix(cli): normalize worktree path resolution (SUB-101)
+			name: "mailinfo --- scissors divider rejected in favor of ___",
+			msg: `[SUB-101] feat(core): implement feature
 
-Resolve nested subdirectory invocations back to the worktree root.
+Provide deterministic state validation across worktree boundaries.
+
+---
 
 Task: SUB-101`,
 			wantPassed: false,
 		},
 		{
 			name: "missing conventional commit type rejected",
-			msg: `Implement feature without conventional prefix
+			msg: `[SUB-101] Implement feature without conventional prefix
 
 Provide deterministic state validation across worktree boundaries.
 
-Task: SUB-101`,
-			wantPassed: false,
-		},
-		{
-			name: "subject exceeding 100 runes rejected",
-			msg: `feat(verify): implement an excessively verbose subject line that stretches well past one hundred runes in length for no good reason
-
-Provide deterministic state validation across worktree boundaries.
+___
 
 Task: SUB-101`,
 			wantPassed: false,
 		},
 		{
 			name: "missing Task trailer rejected",
-			msg: `feat(core): implement feature
+			msg: `[SUB-101] feat(core): implement feature
 
 Provide deterministic state validation across worktree boundaries.`,
 			wantPassed: false,
 		},
 		{
-			name: "non-canonical ARC Task trailer rejected",
-			msg: `feat(core): implement feature
+			name: "missing rationale prose above divider and Task trailer rejected",
+			msg: `[SUB-101] feat(core): implement feature
 
-Provide deterministic state validation across worktree boundaries.
-
-Task: ARC-99`,
-			wantPassed: false,
-		},
-		{
-			name: "missing rationale prose above Task trailer rejected",
-			msg: `feat(core): implement feature
+___
 
 Task: SUB-101`,
 			wantPassed: false,
 		},
 		{
 			name: "legacy Dual-Layer bold headers rejected",
-			msg: `feat(core): implement feature
+			msg: `[SUB-101] feat(core): implement feature
 
 **Architectural Rationale:**
 Provide deterministic state validation across worktree boundaries.
-
-**Blast Radius & Contracts:**
-- M substrate/cli/cmd_task_commit.go
 
 Task: SUB-101`,
 			wantPassed: false,
 		},
 		{
 			name: "raw git diff name-status file dump rejected",
-			msg: `feat(core): implement feature
+			msg: `[SUB-101] feat(core): implement feature
 
 Provide deterministic state validation across worktree boundaries.
 
 - M substrate/cli/cmd_task_commit.go
-- A substrate/cli/commit_hydration.go
 
-Task: SUB-101`,
-			wantPassed: false,
-		},
-		{
-			name: "truncation filler bullet rejected",
-			msg: `feat(core): implement feature
-
-Provide deterministic state validation across worktree boundaries.
-
-- Updated CLI flags
-- ... (+4 additional staged file(s))
+___
 
 Task: SUB-101`,
 			wantPassed: false,
 		},
 		{
 			name: "canned boilerplate shim rejected",
-			msg: `feat(core): implement feature
+			msg: `[SUB-101] feat(core): implement feature
 
 satisfy SUB-101 deterministic execution requirements
+
+___
 
 Task: SUB-101`,
 			wantPassed: false,
@@ -204,7 +208,7 @@ func TestCommitSchemaGate_DetectsIntermediateRogueBranchCommit(t *testing.T) {
 	if err := workspace.SafeGitCommand(repoDir, "add", "b.txt").Run(); err != nil {
 		t.Fatalf("git add b.txt: %v", err)
 	}
-	validHead := "feat(core): add deterministic state file\n\nPersist state snapshot atomically across worktree verification runs.\n\nTask: SUB-77\n"
+	validHead := "[SUB-77] feat(core): add deterministic state file\n\nPersist state snapshot atomically across worktree verification runs.\n\n___\n\nTask: SUB-77\n"
 	if err := workspace.SafeGitCommand(repoDir, "commit", "-m", validHead).Run(); err != nil {
 		t.Fatalf("git commit b.txt: %v", err)
 	}

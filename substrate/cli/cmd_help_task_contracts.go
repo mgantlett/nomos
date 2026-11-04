@@ -62,7 +62,7 @@ into EDIT phase so source mutations can proceed inside the isolated worktree.`
 	helpTaskEditExample = `  nomos task edit SUB-101`
 
 	helpTaskCommitLong = `Stage worktree modifications and create a Golden Conventional Commit formatted
-with a <=72-rune type(scope) subject, 72-column rationale prose, and RFC 822 Task/Twin Git trailers.`
+with a canonical [KEY] type(scope) subject, flowing rationale prose, and RFC 822 Task/Twin Git trailers.`
 	helpTaskCommitExample = `  nomos task commit SUB-101 -m "feat(cli): add status filter to task list"
   nomos task commit -F .tmp/walkthrough-SUB-101.md`
 

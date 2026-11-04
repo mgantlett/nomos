@@ -12,24 +12,26 @@ import (
 
 const (
 	remedyAmendCommit   = "re-commit via `nomos task commit` to enforce Golden Commit + Task trailer compliance"
-	maxSubjectLineRunes = 100
+	maxSubjectLineRunes = 110
 	minBodyProseRunes   = 12
 )
 
 var (
-	leadingTaskKeyPrefixRegex  = regexp.MustCompile(`(?i)^\[(?:task\s+)?(?:int|sub|arc)-[0-9]+`)
-	goldenSubjectSchema        = regexp.MustCompile(`^(feat|fix|docs|chore|refactor|test)(\([a-z0-9_,/-]+\))?:\s+\S+`)
+	prefixKeyExtractRegex      = regexp.MustCompile(`^\[((?:INT|SUB)-[1-9][0-9]*(?:-[a-z0-9-]+)?)\]`)
+	goldenSubjectSchema        = regexp.MustCompile(`^\[((?:INT|SUB)-[1-9][0-9]*(?:-[a-z0-9-]+)?)\]\s+(feat|fix|docs|chore|refactor|test)(\([a-z0-9_,/-]+\))?:\s+\S+`)
 	trailingDupTaskKeyRegex    = regexp.MustCompile(`(?i)(\[(?:task\s+)?(?:int|sub|arc)-[0-9]+[a-z]?(?:-[a-z0-9-]+)?\]|\((?:int|sub|arc)-[0-9]+[a-z]?(?:-[a-z0-9-]+)?\))\s*$`)
 	canonicalTaskTrailerValRe  = regexp.MustCompile(`^(INT|SUB)-[1-9][0-9]*(-[a-z0-9-]+)?$`)
 	gitTrailerLineRegex        = regexp.MustCompile(`^([A-Za-z][A-Za-z0-9-]*):\s+(\S.*)$`)
+	mailinfoScissorsLineRegex  = regexp.MustCompile(`(?m)^---\s*$`)
+	commonMarkDividerLineRegex = regexp.MustCompile(`^(?:___+|\*\s*\*\s*\*+)$`)
 	legacyDualLayerHeaderRegex = regexp.MustCompile(`(?im)^\*\*(architectural rationale|blast radius & contracts|resolution mechanics):\*\*`)
 	rawDiffDumpLineRegex       = regexp.MustCompile(`(?m)^[-*]\s+[MADRCU][0-9]*\s+\S+`)
 	truncationFillerRegex      = regexp.MustCompile(`(?m)^[-*]\s+\.\.\.\s+\(\+[0-9]+\s+additional\s+`)
 	cannedCommitShimRegex      = regexp.MustCompile(`(?i)(satisfy (int|sub)-[0-9]+ deterministic execution requirements|scoped strictly to (int|sub)-[0-9]+ implementation files|implemented and verified via deterministic quality gates for (int|sub)-[0-9]+)`)
 )
 
-// CommitSchemaGate enforces the Golden Conventional Commit schema, anti-dump hygiene,
-// and canonical RFC 822 Git Trailers across all unmerged branch commits.
+// CommitSchemaGate enforces the Golden Conventional Commit schema ([KEY] subject prefix,
+// flowing rationale prose, anti-dump hygiene, and RFC 822 Git Trailers) across branch commits.
 // @intent nomos_commit_schema_invariant_spec.md #CommitSchemaGate
 type CommitSchemaGate struct{}
 
@@ -187,41 +189,46 @@ func checkCommitCompliance(gateName, commitMsg string) (*GateResult, error) {
 	if isMergeCommit(firstLine) {
 		return &GateResult{GateName: gateName, Passed: true, Message: "merge commit is exempt from Golden Commit trailer invariant"}, nil
 	}
-	if violation := validateSubjectLine(firstLine); violation != "" {
+	subjectKey, violation := validateSubjectLine(firstLine)
+	if violation != "" {
 		return &GateResult{GateName: gateName, Passed: false, Message: violation, Remedy: remedyAmendCommit}, nil
 	}
 	if violation := validateAntiShimAndAntiDump(trimmedMsg); violation != "" {
 		return &GateResult{GateName: gateName, Passed: false, Message: violation, Remedy: remedyAmendCommit}, nil
 	}
-	if violation := validateBodyAndTrailers(lines[1:]); violation != "" {
+	if violation := validateBodyAndTrailers(lines[1:], subjectKey); violation != "" {
 		return &GateResult{GateName: gateName, Passed: false, Message: violation, Remedy: remedyAmendCommit}, nil
 	}
 
 	return &GateResult{GateName: gateName, Passed: true, Message: "HEAD commit schema satisfies Golden Commit + Task trailer invariant"}, nil
 }
 
-func validateSubjectLine(firstLine string) string {
-	if leadingTaskKeyPrefixRegex.MatchString(firstLine) {
-		return fmt.Sprintf("commit subject must not include leading [TaskID] prefix; record Task: <KEY> in Git trailers: %q", firstLine)
+func validateSubjectLine(firstLine string) (string, string) {
+	m := prefixKeyExtractRegex.FindStringSubmatch(firstLine)
+	if m == nil {
+		return "", fmt.Sprintf("commit subject missing canonical [INT-N] or [SUB-N] prefix on first line: %q", firstLine)
 	}
 	if trailingDupTaskKeyRegex.MatchString(firstLine) {
-		return fmt.Sprintf("commit subject must not include trailing task key token; record Task: <KEY> in Git trailers: %q", firstLine)
+		return "", fmt.Sprintf("commit subject contains duplicate trailing task key token: %q", firstLine)
 	}
 	if !goldenSubjectSchema.MatchString(firstLine) {
-		return fmt.Sprintf("commit subject must match Conventional Commit '<feat|fix|docs|chore|refactor|test>(<scope>): <summary>': %q", firstLine)
+		return "", fmt.Sprintf("commit subject must match '[<INT|SUB-N>] <feat|fix|docs|chore|refactor|test>(<scope>): <summary>': %q", firstLine)
 	}
 	if n := utf8.RuneCountInString(firstLine); n > maxSubjectLineRunes {
-		return fmt.Sprintf("commit subject exceeds %d-rune ceiling (%d runes); target <= 72 runes: %q", maxSubjectLineRunes, n, firstLine)
+		return "", fmt.Sprintf("commit subject exceeds %d-rune ceiling (%d runes); target <= 80 runes: %q", maxSubjectLineRunes, n, firstLine)
 	}
-	return ""
+	return m[1], ""
 }
 
 func validateAntiShimAndAntiDump(commitMsg string) string {
 	if cannedCommitShimRegex.MatchString(commitMsg) {
 		return "commit message contains prohibited canned boilerplate shim (Law 2 Anti-Shim)"
 	}
+	if mailinfoScissorsLineRegex.MatchString(commitMsg) {
+		return "commit message uses '---' patch-scissors line which truncates git interpret-trailers; use '___' divider instead"
+	}
 	if legacyDualLayerHeaderRegex.MatchString(commitMsg) {
-		return "commit message contains legacy Dual-Layer bold header; write plain-text rationale prose with Task: trailer"
+		return "commit message contains legacy Dual-Layer bold header; write flowing plain-text rationale prose"
 	}
 	if rawDiffDumpLineRegex.MatchString(commitMsg) || truncationFillerRegex.MatchString(commitMsg) {
 		return "commit message contains raw git diff file-list dump or truncation filler (Law 4 SSoT: Git tree diff owns file manifests)"
@@ -229,7 +236,7 @@ func validateAntiShimAndAntiDump(commitMsg string) string {
 	return ""
 }
 
-func validateBodyAndTrailers(rest []string) string {
+func validateBodyAndTrailers(rest []string, subjectKey string) string {
 	if len(rest) == 0 || strings.TrimSpace(rest[0]) != "" {
 		return "commit message requires a blank line after subject followed by rationale prose and Git trailers"
 	}
@@ -237,10 +244,10 @@ func validateBodyAndTrailers(rest []string) string {
 	if errMsg != "" {
 		return errMsg
 	}
-	if utf8.RuneCountInString(strings.TrimSpace(prose)) < minBodyProseRunes {
+	if utf8.RuneCountInString(prose) < minBodyProseRunes {
 		return "commit message requires substantive rationale prose (>= 12 chars) above the Git trailer block"
 	}
-	return validateRequiredTrailers(trailers)
+	return validateRequiredTrailers(trailers, subjectKey)
 }
 
 func splitBodyAndGitTrailers(lines []string) (string, map[string][]string, string) {
@@ -267,11 +274,19 @@ func splitBodyAndGitTrailers(lines []string) (string, map[string][]string, strin
 	if trailerStart <= 0 {
 		return "", trailers, ""
 	}
-	prose := strings.TrimSpace(strings.Join(lines[:trailerStart], "\n"))
+	var proseLines []string
+	for _, raw := range lines[:trailerStart] {
+		trimmed := strings.TrimSpace(raw)
+		if commonMarkDividerLineRegex.MatchString(trimmed) {
+			continue
+		}
+		proseLines = append(proseLines, raw)
+	}
+	prose := strings.TrimSpace(strings.Join(proseLines, "\n"))
 	return prose, trailers, ""
 }
 
-func validateRequiredTrailers(trailers map[string][]string) string {
+func validateRequiredTrailers(trailers map[string][]string, subjectKey string) string {
 	tasks := trailers["Task"]
 	if len(tasks) == 0 {
 		return "commit message missing mandatory 'Task: <INT|SUB-N>' Git trailer"
@@ -281,6 +296,9 @@ func validateRequiredTrailers(trailers map[string][]string) string {
 	}
 	if !canonicalTaskTrailerValRe.MatchString(tasks[0]) {
 		return fmt.Sprintf("invalid 'Task:' trailer %q; must match ^(INT|SUB)-[1-9][0-9]*(-[a-z0-9-]+)?$", tasks[0])
+	}
+	if subjectKey != "" && tasks[0] != subjectKey {
+		return fmt.Sprintf("subject key [%s] does not match 'Task: %s' trailer", subjectKey, tasks[0])
 	}
 	for _, twin := range trailers["Twin"] {
 		if !canonicalTaskTrailerValRe.MatchString(twin) {

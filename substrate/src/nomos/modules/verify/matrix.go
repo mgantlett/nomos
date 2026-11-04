@@ -249,7 +249,7 @@ func law6Cells() []InvariantCellSpec {
 		{
 			ID: "cell_6_1", Name: "Commit Schema Invariant", Law: 6, Ring: RingSyntactic,
 			Domain: "Action Space & Surface", Phase: "REVIEW", Enabled: true,
-			Remedy:   "format commit messages as Golden Conventional Commits (<type>(<scope>): <summary>) with rationale prose and Task: <KEY> trailer (Law 6)",
+			Remedy:   "format commit messages as [<KEY>] <type>(<scope>): <summary> with flowing rationale prose and Task: <KEY> trailer (Law 6)",
 			ProbeIDs: []string{"commit_schema"},
 		},
 		{

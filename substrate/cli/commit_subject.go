@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	targetSubjectLineRunes = 72
+	targetSubjectLineRunes = 80
 	minSummaryDescRunes    = 24
 	commitTypeFeat         = "feat"
 	commitTypeFix          = "fix"
@@ -60,18 +60,28 @@ var verbToCommitType = map[string]string{
 	"codify": commitTypeDocs, "specify": commitTypeDocs, "spec": commitTypeDocs,
 }
 
-// normalizeCommitSubject strips redundant task key tokens and emits a <=72-rune Conventional Commit subject.
+// normalizeCommitSubject strips redundant task key tokens and emits a Conventional Commit clause
+// budgeted so '[<KEY>] <type>(<scope>): <summary>' stays within targetSubjectLineRunes.
 // @intent nomos_commit_schema_invariant_spec.md
 func normalizeCommitSubject(taskKey, rawSummary string, rec *task.TaskRecord, stagedFiles []string) string {
+	keyOverhead := taskKeyPrefixLen(taskKey)
 	candidate := resolveCandidateSummary(taskKey, rawSummary, rec, stagedFiles)
-	if formatted, ok := normalizeExistingConventionalSubject(candidate); ok {
+	if formatted, ok := normalizeExistingConventionalSubject(candidate, keyOverhead); ok {
 		return formatted
 	}
 	commitType := inferCommitType(taskKey, candidate, stagedFiles)
 	scope := derivePrimaryScope(taskKey, stagedFiles)
 	prefix := formatConventionalPrefix(commitType, scope)
-	desc := fitSubjectDescription(lowercaseImperativeStart(candidate), prefix)
+	desc := fitSubjectDescription(lowercaseImperativeStart(candidate), prefix, keyOverhead)
 	return prefix + desc
+}
+
+func taskKeyPrefixLen(taskKey string) int {
+	trimmed := strings.TrimSpace(taskKey)
+	if trimmed == "" {
+		return 0
+	}
+	return utf8.RuneCountInString(trimmed) + 3 // "[<KEY>] "
 }
 
 func formatConventionalPrefix(commitType, scope string) string {
@@ -81,9 +91,9 @@ func formatConventionalPrefix(commitType, scope string) string {
 	return fmt.Sprintf("%s: ", commitType)
 }
 
-func fitSubjectDescription(desc, prefix string) string {
+func fitSubjectDescription(desc, prefix string, keyOverhead int) string {
 	cleaned := strings.TrimRight(strings.TrimSpace(desc), ".")
-	budget := targetSubjectLineRunes - utf8.RuneCountInString(prefix)
+	budget := targetSubjectLineRunes - keyOverhead - utf8.RuneCountInString(prefix)
 	if budget < minSummaryDescRunes {
 		budget = minSummaryDescRunes
 	}
@@ -105,7 +115,7 @@ func resolveCandidateSummary(taskKey, rawSummary string, rec *task.TaskRecord, s
 	return "update task implementation"
 }
 
-func normalizeExistingConventionalSubject(candidate string) (string, bool) {
+func normalizeExistingConventionalSubject(candidate string, keyOverhead int) (string, bool) {
 	m := conventionalSubjectRe.FindStringSubmatch(candidate)
 	if m == nil {
 		return "", false
@@ -119,7 +129,7 @@ func normalizeExistingConventionalSubject(candidate string) (string, bool) {
 		scopePart = "(release)"
 	}
 	prefix := fmt.Sprintf("%s%s: ", mapped, scopePart)
-	desc := fitSubjectDescription(lowercaseImperativeStart(stripRedundantTaskKeys(m[3])), prefix)
+	desc := fitSubjectDescription(lowercaseImperativeStart(stripRedundantTaskKeys(m[3])), prefix, keyOverhead)
 	return prefix + desc, true
 }
 

@@ -74,7 +74,7 @@ Execute all file edits strictly within the designated worktree `worktrees/<repo>
 git add .
 nomos task commit <KEY> -m "<type(scope): summary>" --rationale "<Why>" --mechanics "<How>"
 ```
-*Effect:* Generates a machine-verifiable Golden Conventional Commit (`<=72`-rune subject, 72-column rationale prose, zero redundant file dumps, and RFC 822 `Task:`/`Twin:` Git trailers) enforced by `CommitSchemaGate`, injects short-lived CapBAC commit token, and executes git commit.
+*Effect:* Generates a machine-verifiable Golden Conventional Commit (`[<KEY>] <type>(<scope>): <summary>`, flowing CommonMark rationale prose, zero redundant file dumps, `___` visual divider, and RFC 822 `Task:`/`Twin:` Git trailers) enforced by `CommitSchemaGate`, injects short-lived CapBAC commit token, and executes git commit.
 
 ### Step 5: 2PC Atomic Release (`nomos task sync`)
 From the repository root (outside the worktree):
