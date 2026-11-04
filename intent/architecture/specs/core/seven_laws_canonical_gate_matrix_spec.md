@@ -4,12 +4,13 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-16"
-last_updated: "2026-11-01"
+last_updated: "2026-11-04"
 plane: intent
 status: active
 tags:
     - INT-610
     - INT-614
+    - INT-917
 title: The Seven Laws of Deterministic Engineering and the 7x3 Canonical Gate Matrix Specification
 trigger: always_on
 type: spec
@@ -56,7 +57,7 @@ Ring 1: SYNTACTIC                Ring 2: DYNAMIC                 Ring 3: CRYPTOG
    - Evaluates active runtime behaviors, state machine transitions, compilation exit codes, test execution suites, and live bilateral drift transduction.
    - *Time Budget*: $< 5\text{s}$.
 3. **Ring 3: Cryptographic Provenance (Attestation Space)**:
-   - Evaluates non-repudiable cryptographic artifacts, SHA-256 byte parity, CapBAC capability leases, git note release receipts, and sovereign adversarial critic attestations.
+   - Evaluates non-repudiable cryptographic artifacts, SHA-256 byte parity, CapBAC capability leases, git note release receipts, and mathematical gate mutation proofs.
    - *Time Budget*: $< 500\text{ms}$.
 
 ---
@@ -69,7 +70,7 @@ $$\mathcal{M}_{7 \times 3} = \{ \mathcal{C}(L_i, R_j) \mid i \in [1, 7], j \in [
 | Law # | Law & Domain | Ring 1: Syntactic AST Gate | Ring 2: Dynamic Execution Gate | Ring 3: Cryptographic Provenance Gate |
 | :---: | :--- | :--- | :--- | :--- |
 | **1** | **Dual-Core Inversion** *(Governance & Control)* | **Cell (1, 1)**: Cognitive Debt & Complexity AST (CDS $\le 45$, cyclomatic $\le 15$, LOC $\le 60$) | **Cell (1, 2)**: Phase Discipline State Machine Transition Validation | **Cell (1, 3)**: CapBAC Active Task Lease Authorization Verification |
-| **2** | **Non-Verbal Proof** *(Epistemology & Verification)* | **Cell (2, 1)**: AST Anti-Shim, Dead-Code Reachability & Docstring Density Scanner | **Cell (2, 2)**: Polyglot Test Runner & Coverage Engine (`go test ./...` exit 0, cov $\ge 55\%$) | **Cell (2, 3)**: Adversarial Review Receipt & Gate Mathematical Integrity Proof (score $\ge 80.0$) |
+| **2** | **Non-Verbal Proof** *(Epistemology & Verification)* | **Cell (2, 1)**: AST Anti-Shim, Dead-Code Reachability & Docstring Density Scanner | **Cell (2, 2)**: Polyglot Test Runner & Coverage Engine (`go test ./...` exit 0, cov $\ge 55\%$) | **Cell (2, 3)**: Gate Mathematical Integrity & 2PC Receipt Proof (100% mutant kill, 0% FPR) |
 | **3** | **Hermetic Worktree** *(State & Isolation)* | **Cell (3, 1)**: Worktree Boundary AST & Staged Path Invariant Scanner | **Cell (3, 2)**: Safe Git Subprocess Isolation (`workspace.SafeGitCommand`) | **Cell (3, 3)**: Two-Phase Commit (2PC) Release Certificate in Git Notes (`refs/notes/nomos/releases`) |
 | **4** | **Single Source of Truth** *(Contracts & Schemas)* | **Cell (4, 1)**: Markdown Broken Link, Frontmatter & AST Traceability Gate | **Cell (4, 2)**: Universal Contract & Schema Parity Gate (`nomos.schema.json`, $\Delta(t) = 0$) | **Cell (4, 3)**: Cryptographic SHA-256 Byte-Parity Audit Gate (`AGENTS.md`, ambient hooks, directives) |
 | **5** | **Zero-Hardcoded-Path** *(Portability & Environment)* | **Cell (5, 1)**: AST Path Literal, IP Leak & Magic String Invariant Scanner | **Cell (5, 2)**: Dynamic Workspace Discovery & Environment Ingress Engine | **Cell (5, 3)**: Multi-Seat Topology & Port Ingress Cryptographic Audit |
