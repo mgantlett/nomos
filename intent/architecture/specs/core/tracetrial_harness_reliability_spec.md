@@ -19,6 +19,8 @@ tags:
     - SUB-1693
     - SUB-1696
     - INT-901
+    - INT-907
+    - SUB-1708
 title: "TraceTrial-Bench 7-Pillar Harness Reliability & Fail-Closed Stress Specification"
 trigger: always_on
 type: spec
@@ -81,7 +83,7 @@ To eliminate external runtime dependencies on `jq`, `bash`, or `python3` in mini
 1. **Unified JSON Payload Ingestion:** Each subcommand parses standard agent hook payloads from `stdin` supporting Claude Code (`tool_name`, `tool_input`), Cursor, and Antigravity (`toolCall.name`, `toolCall.args`, `workspacePaths`, `cwd`).
 2. **PreToolUse Guards (`nomos hook pre-tool` — Law 3 & Law 7):**
    - **Unexpanded Shell Variable & Tilde Guard:** Rejects native file-mutation tool calls (`Write`, `Edit`, `MultiEdit`, `write_file`, `edit_file`, `write_to_file`, `replace_file_content`, `multi_replace_file_content`) whose target path contains unexpanded `$VAR`, `${VAR}`, or leading `~` tokens, preventing literal `$HOME` directory creation.
-   - **Canonical Boundary Containment:** Resolves relative and symlinked paths against `cwd`. Standard mode denies file mutations outside `/worktrees/`, `/.tmp/`, and `/brain/` with a HATEOAS remedy (`nomos task chore "<title>"`). Supplying `--hermetic-dir <dir>` permits mutations inside the canonical realpath of `<dir>` while protecting system roots (`/etc`, `/usr`, `/bin`, `/sbin`, `/var`, `/proc`, `/sys`, `/dev`, `/boot`).
+   - **Canonical Boundary Containment:** Resolves relative and symlinked paths against `cwd`. Standard mode denies file mutations outside `/worktrees/`, `/.tmp/`, and `/brain/` with a HATEOAS remedy (`nomos task chore "<title>"`). Supplying `--hermetic-dir <dir>` permits mutations inside the canonical realpath of `<dir>` while protecting system roots (`/etc`, `/usr`, `/bin`, `/sbin`, `/var`, `/proc`, `/sys`, `/dev`, `/boot`). Supplying `--container-sandbox` (for full-container benchmarks such as Harbor) permits container operating-system paths (`/etc`, `/tmp`, `/var`, task `sqlite3` databases) while denying file or shell access to protected verifier and oracle roots (`/logs/verifier`, `/solution`, `/tests`).
    - **Command Safety & Encapsulation Guard:** Inspects shell tool invocations (`Bash`, `bash`, `run_command`, `execute_command`) and denies:
      - Wildcard or root recursive deletions (`rm -rf /`, `rm -rf /*`, `rm -rf *`, `rm -rf ~`, `rm -rf ..`).
      - Quote-aware `go install` of `nomos` or `nomos-*` outside a clean `IDLE` primary `main` trunk, or with `@latest` / `-overlay` / `-modfile` / `-C` flags (Law 4).
@@ -90,7 +92,7 @@ To eliminate external runtime dependencies on `jq`, `bash`, or `python3` in mini
      - Tampering with `.git/hooks` defense scripts (`rm`, `unlink`, `chmod`, `mv`).
 3. **PostToolUse Channel Purity & Zero-Footprint Verification (`nomos hook post-tool` — Law 4):**
    - **100% Silent on Non-Edit Channels:** Emits `{}` immediately when invoked for `Bash`, `Read`, or `MCP` tools so native operating system errors (`EACCES`, `ENOENT`) are never masked by hook output.
-   - **In-Memory Syntax & Radar Verification:** Validates edited `.json`, `.jsonl`, `.yaml`, and source files directly without writing `.tmp/nomos_radar_alert.txt` files into the workspace, preserving a zero-footprint working tree.
+   - **In-Memory Syntax & Radar Verification:** Validates edited `.go`, `.py`, `.json`, `.jsonl`, `.yaml`, and source files directly without writing `.tmp/nomos_radar_alert.txt` files into the workspace, preserving a zero-footprint working tree (and skipping repository LOC budget warnings in `--container-sandbox` mode when `nomos.yaml` is absent).
 4. **Additive Workspace Hook Chaining & 3-Strike Loop Circuit-Breaker (`INT-868` / `SUB-1560`):**
    - **Additive Settings & Hook Chaining:** When a target workspace contains an existing `.claude/settings.json` with task-local `PreToolUse`, `PostToolUse`, or `SessionStart` hooks or plugins, `nomos init` and `nomos hook` preserve and chain the existing workspace hooks rather than overwriting them, eliminating TraceTrial `O` (Observability) and `T` (Tooling) overlay contention.
    - **3-Strike Identical-Failure Circuit-Breaker:** `nomos hook pre-tool` computes a deterministic call fingerprint `(tool_name, sha256(canonical_args), workspace_mtime_digest)`. When the same fingerprint fails or repeats `>= 3` consecutive times without a workspace state change (`workspace_mtime_digest` unchanged), `nomos hook pre-tool` denies the 3rd identical invocation with a 1-line state-change remediation directive so the agent alters its parameters or inspects workspace state instead of looping.

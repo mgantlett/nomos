@@ -33,6 +33,12 @@ execution_frontier:
     - key: "SUB-1560"
       plane: "substrate"
       summary: "Implement additive workspace hook chaining and 3-strike identical-failure loop circuit-breaker"
+    - key: "INT-907"
+      plane: "intent"
+      summary: "Codify --container-sandbox disposable benchmark container mode alongside --hermetic-dir"
+    - key: "SUB-1708"
+      plane: "substrate"
+      summary: "Implement --container-sandbox anti-reward-hacking hook mode in substrate/cli"
 ssot_repository: nomos
 ---
 
@@ -177,7 +183,7 @@ The boundary engine enforces clean-room separation between public open-core and 
 ### Open-Core Whitelist (Public Substrate)
 - Phase discipline state machine and session handshake.
 - Native compiled `nomos hook` lifecycle interceptors (`session-start`, `pre-tool`, `post-tool`) with zero external shell/jq/python dependencies.
-- Hermetic worktree management, `--hermetic-dir` container sandbox mode, and Git hygiene interceptors.
+- Hermetic worktree management, `--hermetic-dir` and `--container-sandbox` container modes, and Git hygiene interceptors.
 - Definition of Done gatekeeper (`nomos verify`) and cognitive debt profilers.
 - Two-Phase Commit release synchronization (`nomos task sync`) and Git Notes receipts.
 - Living Ledger task engine, causal DAG topology, and scaffold wizards.
@@ -195,9 +201,11 @@ These compiled subcommands replace fragile external shell, `jq`, and Python hook
 | `nomos hook pre-tool` | `PreToolUse` | Enforces Law 3 boundary isolation, quote-aware clean-`IDLE`-`main` `go install` guards, Zero-Trust MCP IFC, `CapabilityFlowGraph` taint tracking, and Law 7 command safety. | JSON `{"decision": "allow"}` or `{"decision": "deny", "reason": "..."}` |
 | `nomos hook post-tool` | `PostToolUse` / `PostInvocation` | Runs zero-footprint in-memory AST, JSON, and JSONL syntax verification on mutated files. | Silent `{}` on valid edits; injects advisory context only on real syntax or radar violations |
 
-Every `nomos hook` subcommand accepts an optional `--hermetic-dir <path>` flag for container and sandbox environments.
+Every `nomos hook` subcommand accepts an optional `--hermetic-dir <path>` flag or a `--container-sandbox` flag for container and sandbox environments.
 When `--hermetic-dir <path>` is active, `nomos hook pre-tool` confines file mutations and shell paths to the canonical realpath of `<path>` without requiring a transient `worktrees/` subdirectory.
-When `--hermetic-dir` is omitted in a standard Nomos repository, `nomos hook pre-tool` enforces the Law 3 hermetic worktree boundary.
+When `--container-sandbox` is active (without `--hermetic-dir`), `nomos hook pre-tool` permits legitimate container operating-system paths (`/etc`, `/tmp`, `/var`, task `sqlite3` files) while blocking access to benchmark verifier and oracle roots (`/logs/verifier`, `/solution`, `/tests`), wildcard deletions, and 3-strike retry loops.
+In `--container-sandbox` mode, `nomos hook post-tool` validates edited `.go`, `.py`, `.json`, and `.jsonl` files in memory and runs `EvaluateFastFileRadar` only when the target repository declares `nomos.yaml`.
+When both flags are omitted in a standard Nomos repository, `nomos hook pre-tool` enforces the Law 3 hermetic worktree boundary.
 In addition, `nomos init` and `nomos hook` preserve and chain pre-existing `.claude/settings.json` hook entries, and `nomos hook pre-tool` enforces a 3-strike identical-call circuit-breaker keyed on `(tool_name, canonical_args_hash, workspace_mtime_digest)` to halt non-progressing tool loops.
 
 ### Sovereign Deny-List (Prohibited in Open-Core)
