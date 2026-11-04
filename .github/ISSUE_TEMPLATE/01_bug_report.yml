@@ -16,7 +16,7 @@ body:
       options:
         - "Substrate CLI (cmd/nomos)"
         - "DoD Quality Gates (nomos verify)"
-        - "Bilateral Parity Engine (nomos parity)"
+        - "Ambient Hooks & Capabilities (nomos hook / nomos capabilities)"
         - "Gate Integrity Proofs (nomos verify proof)"
         - "CapBAC Leases & Worktrees (nomos task)"
         - "Memory & Reflection Engine (nomos mem)"
@@ -34,6 +34,7 @@ body:
         - "Cursor"
         - "Google Antigravity (AGY)"
         - "OpenCode"
+        - "Windsurf"
         - "Aider"
         - "None / Manual Human Developer"
     validations:
@@ -43,7 +44,7 @@ body:
     attributes:
       label: Environment & Version
       description: Operating system, architecture, and output of `nomos version`.
-      placeholder: "e.g., Linux amd64, Go 1.26, Nomos v4.0.0"
+      placeholder: "e.g., Linux amd64, Go 1.26, Nomos v4.5.1"
     validations:
       required: true
   - type: textarea

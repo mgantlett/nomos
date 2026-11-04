@@ -4,7 +4,7 @@ project_name: nomos
 
 before:
   hooks:
-    - go -C substrate mod tidy
+    - go -C substrate mod verify
 
 builds:
   - id: nomos

@@ -22,20 +22,24 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: 'stable'
+          go-version-file: 'substrate/go.mod'
+
+      - name: Verify Go Module Checksums
+        run: |
+          go -C substrate mod verify
 
       - name: Build Substrate CLI
         run: |
-          go -C substrate build -o ../bin/nomos ./cmd/nomos
-          echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
+          CGO_ENABLED=0 go -C substrate build -o "$RUNNER_TEMP/nomos" ./cmd/nomos
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
       - name: Run Substrate Test Suite
         run: |
-          cd substrate && go test -v ./...
+          go -C substrate test -v ./...
 
       - name: Verify 42 Definition of Done Quality Gates
         run: |
-          nomos verify
+          nomos verify --all --strict
 
       - name: Attest Gate Integrity & Sensitivity Proof
         run: |

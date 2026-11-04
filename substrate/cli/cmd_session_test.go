@@ -40,7 +40,7 @@ func TestSessionCmd_ListAndVisualAndShow(t *testing.T) {
 	cmdName := NewSessionCmd()
 	bufName := new(bytes.Buffer)
 	cmdName.SetOut(bufName)
-	cmdName.SetArgs([]string{"name", "Cockpit Mission Lead", "--id", sessID, "--brain", tempBrain, "--json"})
+	cmdName.SetArgs([]string{"name", "Release Architecture Lead", "--id", sessID, "--brain", tempBrain, "--json"})
 	if err := cmdName.Execute(); err != nil {
 		t.Fatalf("session name failed: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestSessionCmd_ListAndVisualAndShow(t *testing.T) {
 	var meta struct {
 		Name string `json:"name"`
 	}
-	if err := json.Unmarshal(metaBytes, &meta); err != nil || meta.Name != "Cockpit Mission Lead" {
-		t.Errorf("expected session name %q, got %q", "Cockpit Mission Lead", meta.Name)
+	if err := json.Unmarshal(metaBytes, &meta); err != nil || meta.Name != "Release Architecture Lead" {
+		t.Errorf("expected session name %q, got %q", "Release Architecture Lead", meta.Name)
 	}
 }

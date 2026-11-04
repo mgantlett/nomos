@@ -78,9 +78,6 @@ func selectSubstrateScope(parts []string) string {
 	if len(parts) < 2 {
 		return "substrate"
 	}
-	if parts[1] == "cockpit-ui" {
-		return "cockpit"
-	}
 	if parts[1] == "pkg" && len(parts) >= 4 {
 		return parts[3]
 	}

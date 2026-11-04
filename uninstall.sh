@@ -8,7 +8,8 @@ set -euo pipefail
 #
 # Environment Overrides:
 #   NOMOS_INSTALL_DIR : Custom installation directory to remove nomos from
-#   NOMOS_PURGE_DATA  : Set to 1 to also remove global XDG state (nomos_global.db, mneme.db)
+#   NOMOS_HOME        : Custom global state directory (defaults to ~/.nomos)
+#   NOMOS_PURGE_DATA  : Set to 1 to also remove global state (nomos_global.db, mneme.db)
 # ==============================================================================
 
 echo "🧹 Uninstalling Nomos Deterministic Engineering Substrate..."
@@ -60,7 +61,7 @@ if [ "$REMOVED_COUNT" -eq 0 ]; then
     echo "ℹ️  No installed nomos binary found in standard PATH/GOBIN locations."
 fi
 
-DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/nomos"
+DATA_DIR="${NOMOS_HOME:-$HOME/.nomos}"
 if [ "${NOMOS_PURGE_DATA:-0}" = "1" ]; then
     if [ -d "$DATA_DIR" ]; then
         rm -rf "$DATA_DIR"

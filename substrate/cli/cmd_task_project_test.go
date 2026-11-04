@@ -23,15 +23,15 @@ func TestResolveRepoProjectName(t *testing.T) {
 	}
 
 	// 2. Explicit nomos.yaml project overrides directory basename
-	sovDir := filepath.Join(t.TempDir(), "workstation-checkout")
-	if err := os.MkdirAll(sovDir, 0755); err != nil {
-		t.Fatalf("mkdir sovDir: %v", err)
+	acmeDir := filepath.Join(t.TempDir(), "workstation-checkout")
+	if err := os.MkdirAll(acmeDir, 0755); err != nil {
+		t.Fatalf("mkdir acmeDir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(sovDir, "nomos.yaml"), []byte("project: \"gsi-sov\"\ndefault_branch: \"main\"\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(acmeDir, "nomos.yaml"), []byte("project: \"acme-core\"\ndefault_branch: \"main\"\n"), 0644); err != nil {
 		t.Fatalf("write nomos.yaml: %v", err)
 	}
-	if got := resolveRepoProjectName(sovDir); got != "gsi-sov" {
-		t.Fatalf("expected configured project 'gsi-sov', got %q", got)
+	if got := resolveRepoProjectName(acmeDir); got != "acme-core" {
+		t.Fatalf("expected configured project 'acme-core', got %q", got)
 	}
 }
 
@@ -39,7 +39,7 @@ func TestTaskCmd_ProjectAutoStampWorktreeAndReassign(t *testing.T) {
 	_ = setupTaskTestDB(t)
 
 	repoDir := workspace.InitHermeticGitRepo(t)
-	if err := os.WriteFile(filepath.Join(repoDir, "nomos.yaml"), []byte("project: \"gsi-sov\"\ndefault_branch: \"main\"\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(repoDir, "nomos.yaml"), []byte("project: \"acme-core\"\ndefault_branch: \"main\"\n"), 0644); err != nil {
 		t.Fatalf("write nomos.yaml: %v", err)
 	}
 	mgr, err := workspace.NewManager(repoDir)
@@ -64,11 +64,11 @@ func TestTaskCmd_ProjectAutoStampWorktreeAndReassign(t *testing.T) {
 		t.Fatalf("chdir worktree: %v", err)
 	}
 
-	// Creating a pair from inside a transient worktree still stamps parent repo project ("gsi-sov")
+	// Creating a pair from inside a transient worktree still stamps parent repo project ("acme-core")
 	pairCmd := newTaskPairCmd()
 	pairCmd.SetArgs([]string{
-		"Automate Ship Release Subcommand",
-		"--scope", "Implement nomos ship release in gsi-sov plugin.",
+		"Automate Release Verification Subcommand",
+		"--scope", "Implement verification pre-flight in acme-core module.",
 		"--ac", "Cut annotated semver tag",
 		"--verify", "nomos verify",
 	})
@@ -94,8 +94,8 @@ func TestTaskCmd_ProjectAutoStampWorktreeAndReassign(t *testing.T) {
 	}()
 
 	tInt, err := store.GetTask("INT-1")
-	if err != nil || tInt.Project != "gsi-sov" {
-		t.Fatalf("expected INT-1 project 'gsi-sov', got %+v (err=%v)", tInt, err)
+	if err != nil || tInt.Project != "acme-core" {
+		t.Fatalf("expected INT-1 project 'acme-core', got %+v (err=%v)", tInt, err)
 	}
 	tSub2, err := store.GetTask("SUB-2")
 	if err != nil || tSub2.Project != "nomos" {
@@ -119,25 +119,25 @@ func TestTaskCmd_ProjectAutoStampWorktreeAndReassign(t *testing.T) {
 	projCmd := newTaskProjectCmd()
 	projBuf := new(bytes.Buffer)
 	projCmd.SetOut(projBuf)
-	projCmd.SetArgs([]string{"gsi-sov", "SUB-2"})
+	projCmd.SetArgs([]string{"acme-core", "SUB-2"})
 	if err := projCmd.Execute(); err != nil {
 		t.Fatalf("task project reassign failed: %v", err)
 	}
-	if !strings.Contains(projBuf.String(), "gsi-sov") {
-		t.Errorf("expected confirmation output mentioning gsi-sov, got %q", projBuf.String())
+	if !strings.Contains(projBuf.String(), "acme-core") {
+		t.Errorf("expected confirmation output mentioning acme-core, got %q", projBuf.String())
 	}
 
-	// Filter via 'nomos task list --project gsi-sov --json'
+	// Filter via 'nomos task list --project acme-core --json'
 	listCmd := newTaskListCmd()
-	listCmd.SetArgs([]string{"--project", "gsi-sov", "--json"})
+	listCmd.SetArgs([]string{"--project", "acme-core", "--json"})
 	// Capture stdout isn't wired to SetOut in list, just verify non-error and check store
 	if err := listCmd.Execute(); err != nil {
 		t.Fatalf("task list --project failed: %v", err)
 	}
-	filtered := filterTasksByProject(store.ListTasks(), "gsi-sov")
+	filtered := filterTasksByProject(store.ListTasks(), "acme-core")
 	rawJSON, _ := json.Marshal(filtered)
-	if len(filtered) != 3 || !strings.Contains(string(rawJSON), `"project":"gsi-sov"`) {
-		t.Fatalf("expected all 3 tasks under gsi-sov, got %d (%s)", len(filtered), string(rawJSON))
+	if len(filtered) != 3 || !strings.Contains(string(rawJSON), `"project":"acme-core"`) {
+		t.Fatalf("expected all 3 tasks under acme-core, got %d (%s)", len(filtered), string(rawJSON))
 	}
 }
 

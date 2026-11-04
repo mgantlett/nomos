@@ -5,20 +5,19 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/constants"
 )
 
-func TestOpenCoreLegalAndReleaseContracts(t *testing.T) {
-	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
-	if err != nil {
-		t.Fatalf("resolve repo root: %v", err)
-	}
+type repoContractCase struct {
+	name     string
+	relPath  string
+	mustHave []string
+	forbid   []string
+}
 
-	cases := []struct {
-		name     string
-		relPath  string
-		mustHave []string
-		forbid   []string
-	}{
+func legalContractCases() []repoContractCase {
+	return []repoContractCase{
 		{
 			name:    "TC-REL-001 verbatim SPDX Apache-2.0 LICENSE with Appendix",
 			relPath: "LICENSE",
@@ -41,11 +40,7 @@ func TestOpenCoreLegalAndReleaseContracts(t *testing.T) {
 				"nomos_logo.png",
 				"excluded from the copyright license",
 			},
-			forbid: []string{
-				"Patent Pending",
-				"patent pending",
-				"USPTO",
-			},
+			forbid: []string{"Patent Pending", "patent pending", "USPTO"},
 		},
 		{
 			name:    "TC-REL-005 THIRD_PARTY_NOTICES covers direct Go dependencies",
@@ -61,35 +56,82 @@ func TestOpenCoreLegalAndReleaseContracts(t *testing.T) {
 			},
 		},
 		{
-			name:    "TC-REL-005 GoReleaser archive includes LICENSE NOTICE and THIRD_PARTY_NOTICES",
+			name:     "TC-REL-007 CONTRIBUTING and PR template codify DCO provenance",
+			relPath:  "CONTRIBUTING.md",
+			mustHave: []string{"Developer Certificate of Origin", "Signed-off-by:", "Section 5"},
+		},
+		{
+			name:     "TC-REL-007 PR template includes DCO provenance check",
+			relPath:  filepath.Join(".github", "PULL_REQUEST_TEMPLATE.md"),
+			mustHave: []string{"Signed-off-by:", "DCO"},
+		},
+	}
+}
+
+func operationalSurfaceContractCases() []repoContractCase {
+	return []repoContractCase{
+		{
+			name:    "TC-REL-005 GoReleaser archive bundles notices and verifies modules read-only",
 			relPath: ".goreleaser.yaml",
 			mustHave: []string{
+				"go -C substrate mod verify",
 				"- LICENSE",
 				"- NOTICE",
 				"- THIRD_PARTY_NOTICES.md",
 				"- README.md",
 			},
+			forbid: []string{"mod tidy"},
 		},
 		{
-			name:    "TC-REL-007 CONTRIBUTING codifies DCO Signed-off-by provenance",
-			relPath: "CONTRIBUTING.md",
+			name:    "TC-REL-009 release workflow runs tests and 42 DoD gates before GoReleaser",
+			relPath: filepath.Join(".github", "workflows", "release.yaml"),
 			mustHave: []string{
-				"Developer Certificate of Origin",
-				"Signed-off-by:",
-				"Section 5",
+				"go-version-file: 'substrate/go.mod'",
+				"go -C substrate test ./...",
+				"verify --all --strict",
+				"verify proof",
+			},
+			forbid: []string{"go-version: 'stable'"},
+		},
+		{
+			name:    "TC-REL-010 uninstall script purges canonical NOMOS_HOME directory",
+			relPath: "uninstall.sh",
+			mustHave: []string{
+				"NOMOS_HOME:-$HOME/" + constants.DirNomosHome,
+			},
+			forbid: []string{"XDG_DATA_HOME"},
+		},
+		{
+			name:    "TC-REL-011 bug report template excludes sovereign plugins and includes Windsurf",
+			relPath: filepath.Join(".github", "ISSUE_TEMPLATE", "01_bug_report.yml"),
+			mustHave: []string{"Windsurf", "nomos hook / nomos capabilities"},
+			forbid:   []string{"nomos parity", "Nomos v4.0.0"},
+		},
+		{
+			name:    "TC-REL-012 README links arXiv:2610.32285 and deterministic @main go install",
+			relPath: "README.md",
+			mustHave: []string{
+				"CGO_ENABLED=0 go install github.com/mgantlett/nomos/substrate/cmd/nomos@main",
+				"https://arxiv.org/abs/2610.32285",
+				"https://github.com/TraceLite-AI/TraceTrial-Bench",
 			},
 		},
 		{
-			name:    "TC-REL-007 PR template includes DCO provenance check",
-			relPath: filepath.Join(".github", "PULL_REQUEST_TEMPLATE.md"),
-			mustHave: []string{
-				"Signed-off-by:",
-				"DCO",
-			},
+			name:    "TC-REL-013 commit_scope contains zero sovereign UI directory special-cases",
+			relPath: filepath.Join("substrate", "cli", "commit_scope.go"),
+			forbid:  []string{"cockpit-ui", "cockpit"},
 		},
 	}
+}
 
-	for _, tc := range cases {
+func TestOpenCoreLegalAndReleaseContracts(t *testing.T) {
+	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("resolve repo root: %v", err)
+	}
+
+	all := append(legalContractCases(), operationalSurfaceContractCases()...)
+	for _, tc := range all {
 		t.Run(tc.name, func(t *testing.T) {
 			raw, readErr := os.ReadFile(filepath.Join(repoRoot, tc.relPath))
 			if readErr != nil {

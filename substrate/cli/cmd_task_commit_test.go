@@ -67,9 +67,9 @@ func TestNormalizeCommitSubject_DeduplicationCasingAnd80RuneBudget(t *testing.T)
 		{
 			name:        "strips trailing parenthesized key",
 			taskKey:     "SUB-1576",
-			raw:         "fix(cockpit): move no-store header to server load (SUB-1576)",
-			stagedFiles: []string{"substrate/cockpit-ui/src/routes/+page.server.ts"},
-			want:        "fix(cockpit): move no-store header to server load",
+			raw:         "fix(cli): move status header to terminal renderer (SUB-1576)",
+			stagedFiles: []string{"substrate/cli/cmd_status.go"},
+			want:        "fix(cli): move status header to terminal renderer",
 		},
 		{
 			name:        "maps spec prefix to canonical docs",

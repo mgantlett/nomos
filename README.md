@@ -46,10 +46,10 @@ Just as **PostgreSQL placed ACID transactions** between concurrent applications 
 curl -fsSL https://sophialabs.ca/install | bash
 ```
 
-Installs directly to standard Go binary paths (`$GOBIN` / `$(go env GOPATH)/bin` / `~/go/bin`). Or build directly via the Go toolchain:
+Installs the SHA-256-verified release binary directly to standard Go binary paths (`$GOBIN` / `$(go env GOPATH)/bin` / `~/go/bin`; pass `NOMOS_VERSION=v4.5.1` to pin a specific release tag). Or build directly from `main` via the Go toolchain (`substrate/` subdirectory module):
 
 ```bash
-go install github.com/mgantlett/nomos/substrate/cmd/nomos@latest
+CGO_ENABLED=0 go install github.com/mgantlett/nomos/substrate/cmd/nomos@main
 ```
 
 To cleanly uninstall at any time:
@@ -145,9 +145,9 @@ Nomos is engineered so deterministic governance adds sub-second overhead on ever
 | **Nomos Mneme Hybrid Memory Recall** | **`< 50 ms` local query** | 64-dim vector + lexical SQLite recall (`mneme.db`); promotes `pattern` blueprints only after verified 2PC `Git Notes` release |
 | **Open-Core Automated Test Suite** | **`285` tests + `6` cleanroom suites** | Pure Apache 2.0 local test execution with zero cloud or telemetry dependencies |
 
-### External Harness Reliability (`TraceTrial-Bench` · `arXiv:2610.32285`)
+### External Harness Reliability ([`TraceTrial-Bench`](https://github.com/TraceLite-AI/TraceTrial-Bench) · [`arXiv:2610.32285`](https://arxiv.org/abs/2610.32285))
 
-Across all 95 containerized tasks in `TraceTrial-Bench` (`190` paired Docker runs holding `Claude Code v2.1.220` and `Gemini 2.5 Flash-Lite` fixed), adding compiled `~4ms` `nomos hook` governance lifted **Agent deliverables by `+15.2%`** (`+78.3%` in Context & Continuity), lifted **Harness reliability by `+2.51`** (`44.89` → **`48.78`** Overall, `36W / 30T / 29L`), and cut **`harness_caused` failures by `-18.2%`** (`55` → `45`). See the full 7-pillar paired scorecard and engineering takeaways in [`tracetrial_harness_reliability_spec.md`](intent/architecture/specs/core/tracetrial_harness_reliability_spec.md#5-external-containerized-paired-evaluation-v410-n--95).
+Across all 95 containerized tasks in [*Trial by Trace* (`TraceTrial-Bench`, `arXiv:2610.32285`)](https://arxiv.org/abs/2610.32285) (`190` paired Docker runs holding `Claude Code v2.1.220` and `Gemini 2.5 Flash-Lite` fixed), adding compiled `~4ms` `nomos hook` governance lifted **Agent deliverables by `+15.2%`** (`+78.3%` in Context & Continuity), lifted **Harness reliability by `+2.51`** (`44.89` → **`48.78`** Overall, `36W / 30T / 29L`), and cut **`harness_caused` failures by `-18.2%`** (`55` → `45`). See the full 7-pillar paired scorecard and engineering takeaways in [`tracetrial_harness_reliability_spec.md`](intent/architecture/specs/core/tracetrial_harness_reliability_spec.md#5-external-containerized-paired-evaluation-v410-n--95).
 
 ---
 
