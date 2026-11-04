@@ -36,7 +36,7 @@ This directive defines the quality gate verification and cryptographic release p
 Nomos evaluates mutations deterministically across The Seven Laws and 21 Invariant Cells in `nomos verify`:
 1. *Ring 1: Syntactic Defense Ring (AST & Static Constraints)*: Code veracity, cognitive budget, hermetic worktree boundaries, SSoT schema validity, portability, and key singularity.
 2. *Ring 2: Dynamic Defense Ring (Runtime & Phase Discipline)*: Phase discipline, test execution ($\ge 55\%$ coverage), git subprocess hygiene, contract parity, and runtime ingress.
-3. *Ring 3: Cryptographic Defense Ring (Byte Parity & Receipts)*: CapBAC lease auth, release receipts in Git Notes, adversarial review receipts ($\ge 80.0$), byte parity, and secret scanning.
+3. *Ring 3: Cryptographic Defense Ring (Byte Parity & Receipts)*: CapBAC lease auth, release receipts in Git Notes, mathematical gate mutation integrity + 2PC walkthrough receipts, byte parity, and secret scanning.
 
 ### Non-Verbal Proof Law (Law 2)
 Zero trust in conversational claims. Code correctness requires full compilation exit code 0 and deterministic satisfaction across all 21 Invariant Cells (42 DoD Quality Gates).

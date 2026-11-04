@@ -167,9 +167,9 @@ func law2Cells() []InvariantCellSpec {
 			ProbeIDs: []string{"go_toolchain", "coverage", "visual_regression"},
 		},
 		{
-			ID: "cell_2_3", Name: "Adversarial Critic Attestation Invariant", Law: 2, Ring: RingCryptographic,
+			ID: "cell_2_3", Name: "Gate Mathematical Integrity & 2PC Receipt Invariant", Law: 2, Ring: RingCryptographic,
 			Domain: "Epistemology & Verification", Phase: "REVIEW", Enabled: true,
-			Remedy:   "index an authentic adversarial review receipt with score >= 80.0 and verify mathematical gate integrity (Law 2)",
+			Remedy:   "verify mathematical gate mutation integrity (100% mutant kill, 0% FPR) and 2PC walkthrough receipt (Law 2)",
 			ProbeIDs: []string{"review_receipt", "gate_integrity_proof"},
 		},
 	}

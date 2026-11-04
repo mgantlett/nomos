@@ -61,3 +61,15 @@ func TestDefaultBaselineCells(t *testing.T) {
 		t.Errorf("expected 7 cryptographic cells, got %d", ringCounts[RingCryptographic])
 	}
 }
+
+func TestCell2_3_DeterministicGateIntegrityAndReceipt(t *testing.T) {
+	for _, c := range DefaultBaselineCells() {
+		if c.ID == "cell_2_3" {
+			if c.Name != "Gate Mathematical Integrity & 2PC Receipt Invariant" {
+				t.Fatalf("unexpected cell_2_3 name: %q", c.Name)
+			}
+			return
+		}
+	}
+	t.Fatal("cell_2_3 not found in DefaultBaselineCells")
+}
