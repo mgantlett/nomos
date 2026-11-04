@@ -323,5 +323,3 @@ func TestHookPreTool_ClaudeV2SchemaReadVarGlobRmAndPollExemption(t *testing.T) {
 		}
 	}
 }
-
-

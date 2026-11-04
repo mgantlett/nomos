@@ -23,10 +23,10 @@ func seedCleanNomosTrunkRepo(t *testing.T) (string, string) {
 		}
 	}
 	files := map[string]string{
-		filepath.Join(repoDir, ".gitignore"):           "worktrees/\n",
-		filepath.Join(subDir, "go.mod"):                "module github.com/mgantlett/nomos/substrate\n\ngo 1.24\n",
-		filepath.Join(cmdNomos, "main.go"):             "package main\n\nfunc main() {}\n",
-		filepath.Join(cmdPlugin, "main.go"):            "package main\n\nfunc main() {}\n",
+		filepath.Join(repoDir, ".gitignore"): "worktrees/\n",
+		filepath.Join(subDir, "go.mod"):      "module github.com/mgantlett/nomos/substrate\n\ngo 1.24\n",
+		filepath.Join(cmdNomos, "main.go"):   "package main\n\nfunc main() {}\n",
+		filepath.Join(cmdPlugin, "main.go"):  "package main\n\nfunc main() {}\n",
 	}
 	for path, body := range files {
 		if err := os.WriteFile(path, []byte(body), 0644); err != nil {

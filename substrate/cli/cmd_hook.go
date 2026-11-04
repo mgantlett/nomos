@@ -23,6 +23,7 @@ type HookDecision struct {
 // NewHookCmd constructs the canonical 'nomos hook' command group.
 func NewHookCmd() *cobra.Command {
 	var hermeticDir string
+	var containerSandbox bool
 
 	cmd := &cobra.Command{
 		Use:   "hook",
@@ -33,11 +34,12 @@ Reads JSON hook payloads from stdin with zero external jq/bash/python dependenci
 	}
 
 	cmd.PersistentFlags().StringVar(&hermeticDir, "hermetic-dir", "", "Confine file mutations and shell paths to a container/sandbox root directory")
+	cmd.PersistentFlags().BoolVar(&containerSandbox, "container-sandbox", false, "Enable disposable benchmark container governance (blocks verifier/solution tampering while permitting OS-wide task paths)")
 
 	cmd.AddCommand(
 		newHookSessionStartCmd(&hermeticDir),
-		newHookPreToolCmd(&hermeticDir),
-		newHookPostToolCmd(&hermeticDir),
+		newHookPreToolCmd(&hermeticDir, &containerSandbox),
+		newHookPostToolCmd(&hermeticDir, &containerSandbox),
 	)
 	return cmd
 }
@@ -78,7 +80,7 @@ func newHookSessionStartCmd(hermeticDir *string) *cobra.Command {
 	}
 }
 
-func newHookPreToolCmd(hermeticDir *string) *cobra.Command {
+func newHookPreToolCmd(hermeticDir *string, containerSandbox *bool) *cobra.Command {
 	return &cobra.Command{
 		Use:     "pre-tool",
 		Short:   "Evaluate Law 3 boundary isolation and Law 7 command safety on PreToolUse payload",
@@ -90,13 +92,13 @@ func newHookPreToolCmd(hermeticDir *string) *cobra.Command {
 				return writeHookDecision(cmd.OutOrStdout(), HookDecision{Decision: "allow"})
 			}
 			payload := parseHookPayload(raw)
-			dec := EvaluatePreToolHook(payload, *hermeticDir)
+			dec := dispatchPreToolHook(payload, *hermeticDir, *containerSandbox)
 			return writePreToolResponse(cmd.OutOrStdout(), payload, dec)
 		},
 	}
 }
 
-func newHookPostToolCmd(hermeticDir *string) *cobra.Command {
+func newHookPostToolCmd(hermeticDir *string, containerSandbox *bool) *cobra.Command {
 	return &cobra.Command{
 		Use:     "post-tool",
 		Short:   "Evaluate Law 4 zero-footprint in-memory AST and syntax radar on PostToolUse payload",
@@ -108,13 +110,27 @@ func newHookPostToolCmd(hermeticDir *string) *cobra.Command {
 				return writeEmptyJSON(cmd.OutOrStdout())
 			}
 			payload := parseHookPayload(raw)
-			msg := EvaluatePostToolHook(payload, *hermeticDir)
+			msg := dispatchPostToolHook(payload, *hermeticDir, *containerSandbox)
 			if msg == "" {
 				return writeEmptyJSON(cmd.OutOrStdout())
 			}
 			return writePostToolAdvisory(cmd.OutOrStdout(), payload, msg)
 		},
 	}
+}
+
+func dispatchPreToolHook(payload *HookPayload, hermeticDir string, containerSandbox bool) HookDecision {
+	if containerSandbox && hermeticDir == "" {
+		return EvaluateContainerPreToolHook(payload)
+	}
+	return EvaluatePreToolHook(payload, hermeticDir)
+}
+
+func dispatchPostToolHook(payload *HookPayload, hermeticDir string, containerSandbox bool) string {
+	if containerSandbox && hermeticDir == "" {
+		return EvaluateContainerPostToolHook(payload)
+	}
+	return EvaluatePostToolHook(payload, hermeticDir)
 }
 
 func writeEmptyJSON(w io.Writer) error {

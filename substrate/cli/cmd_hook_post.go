@@ -185,4 +185,3 @@ func evaluateFastRadarInMemory(resolved, baseCwd string) string {
 	}
 	return strings.Join(lines, "\n")
 }
-
