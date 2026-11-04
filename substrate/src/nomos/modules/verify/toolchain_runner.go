@@ -150,18 +150,6 @@ func buildGoToolchainEnv(root, targetDir string) []string {
 	return append(env, envInToolchainGate+"=1")
 }
 
-func hasLocalGoWork(root, targetDir string) bool {
-	for _, d := range []string{targetDir, root} {
-		if d == "" {
-			continue
-		}
-		if fi, err := os.Stat(filepath.Join(d, "go.work")); err == nil && !fi.IsDir() {
-			return true
-		}
-	}
-	return false
-}
-
 func resolveGoTestPackages(ctx *VerifyContext, root, targetDir string) []string {
 	cfg := resolveVerifyConfig(ctx)
 	if cfg == nil || cfg.Governance.QualityGates.StrictMode || len(cfg.Governance.QualityGates.SubstrateSourceRoots) == 0 {
