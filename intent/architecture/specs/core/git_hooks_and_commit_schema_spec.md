@@ -61,9 +61,9 @@ Nomos installs and self-heals three hermetic client-side hooks inside `.git/hook
 - **Pre-Flight DoD Verification**: Executes `nomos verify` across all active quality gates.
 
 ### 3.2 `commit-msg`
-- **Conventional Subject**: Enforces `^(feat|fix|docs|chore|refactor|test)(\([a-z0-9_,/-]+\))?:\s+\S+` (`<= 100` chars) and blocks `[KEY]` prefixes or suffixes.
-- **Anti-Dump & Anti-Shim Guard**: Rejects legacy Dual-Layer headers (`**Blast Radius & Contracts:**`), raw `- M file` diff dumps, and canned boilerplate shims.
-- **Rationale & Trailer Check**: Requires substantive plain-text rationale prose and a canonical `Task: <INT|SUB-N>` RFC 822 Git trailer.
+- **Prefixed Conventional Subject**: Enforces `^\[(INT|SUB)-[1-9][0-9]*(-[a-z0-9-]+)?\]\s+(feat|fix|docs|chore|refactor|test)(\([a-z0-9_,/-]+\))?:\s+\S+` (`<= 110` chars) and blocks trailing `[KEY]` duplicates.
+- **Anti-Dump, Anti-Scissors & Anti-Shim Guard**: Rejects `---` patch-scissors lines (in favor of `___`), legacy Dual-Layer headers, raw `- M file` diff dumps, and canned boilerplate shims.
+- **Rationale & Trailer Parity Check**: Requires substantive plain-text rationale prose and a `Task: <KEY>` RFC 822 Git trailer matching the `[<KEY>]` subject prefix.
 
 ### 3.3 `pre-push`
 - **Trunk Push Defense**: Blocks pushing non-trunk branches directly to remote trunk and runs `nomos verify --range` before trunk pushes.
@@ -85,13 +85,13 @@ Flags:
   -d, --dir string         Working directory (default: current directory or resolved task worktree)
 ```
 
-### 4.1 Deterministic Golden Commit Hydration (`INT-874`, `INT-903`)
+### 4.1 Deterministic Golden Commit Hydration (`INT-874`, `INT-903`, `INT-904`)
 1. **Task Key Resolution**: Resolves `INT-<N>` or `SUB-<N>` from `TASK_KEY`, the active worktree directory name, or `feature/<KEY>`.
-2. **72-Rune Subject Normalization**: Strips redundant `[KEY]` tokens, infers `<type>(<scope>):` from staged paths when needed, and lowercases plain English leading verbs while preserving acronyms (`AST`, `CapBAC`, `MCP`, `CLI`, `Go`).
-3. **Deduplicated 72-Column Body**:
-   - **Paragraph 1 (Rationale)**: Hydrates from `--rationale`, Living Ledger `## Scope & Context`, walkthrough lead prose, or concise module intent wrapped at `72` columns.
-   - **Optional Mechanics Bullets**: Hydrates from `--mechanics`, deduplicated walkthrough bullets, or `## Acceptance Criteria` without repeating Paragraph 1 or dumping staged file lists.
-4. **RFC 822 Git Trailers**: Appends `Task: <KEY>` and automatically appends `Twin: <TWIN_KEY>` whenever `TaskRecord.TwinKey` is bound.
+2. **80-Rune Prefixed Subject Normalization**: Emits `[<KEY>] <type>(<scope>): <summary>` within an `80`-rune target budget, stripping duplicate key tokens and lowercasing plain English verbs while preserving acronyms (`AST`, `CapBAC`, `MCP`, `CLI`, `Go`).
+3. **Flowing Unwrapped CommonMark Body**:
+   - **Paragraph 1 (Rationale)**: Hydrates a smooth unwrapped paragraph from `--rationale`, Living Ledger `## Scope & Context`, walkthrough lead prose, or concise module intent so IDE hover cards wrap naturally.
+   - **Optional Mechanics Bullets**: Hydrates flowing bullets from `--mechanics`, deduplicated walkthrough summary items (excluding `## Verification` / `## Test` sections), or `## Acceptance Criteria` without repeating Paragraph 1 or dumping staged file lists.
+4. **Divider & RFC 822 Git Trailers**: Emits a `git interpret-trailers`-safe `___` CommonMark divider followed by `Task: <KEY>` and automatic `Twin: <TWIN_KEY>` whenever `TaskRecord.TwinKey` is bound.
 5. **Dirty Worktree Sync Parity**: `nomos task sync <KEY> -F <walkthrough>` routes uncommitted edits through the identical Golden Commit pipeline.
 
 ---

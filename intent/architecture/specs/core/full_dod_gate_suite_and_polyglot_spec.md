@@ -119,7 +119,7 @@ The Nomos DoD verification engine binds 42 statutory sensor probes across 7 Laws
 
 #### Law 6: Canonical Singularity (Action Space & Surface)
 - **Cell 6.1 (Syntactic)**:
-  - `commit_schema`: Enforces Golden Conventional Commits (`<type>(<scope>): <summary>`), rationale prose, zero diff dumps, and `Task:` Git trailers.
+  - `commit_schema`: Enforces Golden Conventional Commits (`[<KEY>] <type>(<scope>): <summary>`), flowing rationale prose, zero diff dumps, and `Task:` Git trailers.
 - **Cell 6.2 (Dynamic)**:
   - `zero_alias`: Validates that CLI commands and API endpoints possess zero hidden aliases, duplicates, or convenience wrappers.
   - `zero_filesystem_alias`: Rejects all filesystem symlinks in repository source.
