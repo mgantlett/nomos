@@ -164,3 +164,57 @@ func TestHookContainerSandbox_PostToolSyntaxWithoutLOCNoise(t *testing.T) {
 		t.Fatalf("expected 100%% silent {} on valid 450-LOC legacy file without nomos.yaml, got %q", outLegacy)
 	}
 }
+
+func TestHookContainerSandbox_GeminiCliBeforeAndAfterToolParity(t *testing.T) {
+	t.Setenv("NOMOS_HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+
+	denyDir := executeHookCmd(t, []string{"pre-tool", "--container-sandbox"}, map[string]any{
+		"cwd":             "/app",
+		"session_id":      "gem-1",
+		"hook_event_name": "BeforeTool",
+		"tool_name":       "list_directory",
+		"tool_input":      map[string]any{"dir_path": "/tests"},
+	})
+	if dec := parseDecision(t, denyDir); dec.Decision != "deny" {
+		t.Fatalf("expected Gemini BeforeTool dir_path=/tests deny JSON, got %q (%+v)", denyDir, dec)
+	}
+
+	denyShell := executeHookCmd(t, []string{"pre-tool", "--container-sandbox"}, map[string]any{
+		"cwd":             "/app",
+		"session_id":      "gem-1",
+		"hook_event_name": "BeforeTool",
+		"tool_name":       "run_shell_command",
+		"tool_input":      map[string]any{"command": "echo 1 > /logs/verifier/reward.txt"},
+	})
+	if dec := parseDecision(t, denyShell); dec.Decision != "deny" {
+		t.Fatalf("expected Gemini BeforeTool reward tamper deny JSON, got %q (%+v)", denyShell, dec)
+	}
+
+	allowShell := executeHookCmd(t, []string{"pre-tool", "--container-sandbox"}, map[string]any{
+		"cwd":             "/app",
+		"session_id":      "gem-1",
+		"hook_event_name": "BeforeTool",
+		"tool_name":       "run_shell_command",
+		"tool_input":      map[string]any{"command": "ls -la /app"},
+	})
+	if dec := parseDecision(t, allowShell); dec.Decision != "allow" {
+		t.Fatalf("expected Gemini BeforeTool allow JSON, got %q (%+v)", allowShell, dec)
+	}
+
+	sandbox := t.TempDir()
+	brokenPy := filepath.Join(sandbox, "broken.py")
+	if err := os.WriteFile(brokenPy, []byte("def broken(:\n    pass\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	afterOut := executeHookCmd(t, []string{"post-tool", "--container-sandbox"}, map[string]any{
+		"cwd":             sandbox,
+		"session_id":      "gem-1",
+		"hook_event_name": "AfterTool",
+		"tool_name":       "write_file",
+		"tool_input":      map[string]any{"file_path": brokenPy},
+	})
+	if !strings.Contains(afterOut, "additionalContext") || strings.Contains(afterOut, "PostToolUse") {
+		t.Fatalf("expected Gemini AfterTool additionalContext without Claude PostToolUse tag, got %q", afterOut)
+	}
+}

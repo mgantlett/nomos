@@ -189,25 +189,29 @@ func writeSessionStartInjection(w io.Writer, msg string) error {
 }
 
 func writePostToolAdvisory(w io.Writer, payload *HookPayload, msg string) error {
-	if payload.HasToolInput {
-		out := map[string]any{
+	if payload != nil && payload.IsGeminiEvent {
+		return writeJSONMap(w, map[string]any{
+			"hookSpecificOutput": map[string]string{
+				"additionalContext": msg,
+			},
+		})
+	}
+	if payload != nil && payload.HasToolInput {
+		return writeJSONMap(w, map[string]any{
 			"hookSpecificOutput": map[string]string{
 				"hookEventName":     "PostToolUse",
 				"additionalContext": msg,
 			},
-		}
-		data, err := json.Marshal(out)
-		if err != nil {
-			return writeEmptyJSON(w)
-		}
-		_, wErr := fmt.Fprintln(w, string(data))
-		return wErr
+		})
 	}
-	out := map[string]any{
+	return writeJSONMap(w, map[string]any{
 		"injectSteps": []map[string]string{
 			{"ephemeralMessage": msg},
 		},
-	}
+	})
+}
+
+func writeJSONMap(w io.Writer, out map[string]any) error {
 	data, err := json.Marshal(out)
 	if err != nil {
 		return writeEmptyJSON(w)
