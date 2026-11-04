@@ -22,7 +22,7 @@ The deterministic runtime between any coding agent and Git: causal INT/SUB spec-
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			if cmd != nil && cmd.Name() != "" {
+			if shouldRecordCommandTelemetry(cmd) {
 				telemetry.RecordInvocationSafe("", "cli-"+cmd.Name())
 			}
 		},
@@ -31,6 +31,21 @@ The deterministic runtime between any coding agent and Git: causal INT/SUB spec-
 
 	registerSubcommands(rootCmd)
 	return rootCmd
+}
+
+func shouldRecordCommandTelemetry(cmd *cobra.Command) bool {
+	if cmd == nil || cmd.Name() == "" {
+		return false
+	}
+	if cmd.Name() == "version" || cmd.Name() == "hook" {
+		return false
+	}
+	for parent := cmd.Parent(); parent != nil; parent = parent.Parent() {
+		if parent.Name() == "hook" {
+			return false
+		}
+	}
+	return true
 }
 
 // Execute parses command-line arguments and runs the root command.
@@ -71,4 +86,3 @@ func addCommandWithGroup(root *cobra.Command, cmd *cobra.Command, groupID string
 	cmd.GroupID = groupID
 	root.AddCommand(cmd)
 }
-

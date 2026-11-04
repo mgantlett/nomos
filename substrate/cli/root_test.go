@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"os"
 	"strings"
 	"testing"
 
@@ -89,17 +90,17 @@ func TestRootCmd_HelpOutput(t *testing.T) {
 func TestRootCmd_CommandGroups(t *testing.T) {
 	root := cli.NewRootCmd()
 	expectedCommandGroups := map[string]string{
-		"init":      "lifecycle",
-		"status":    "lifecycle",
-		"task":      "lifecycle",
-		"verify":    "quality",
+		"init":         "lifecycle",
+		"status":       "lifecycle",
+		"task":         "lifecycle",
+		"verify":       "quality",
 		"handshake":    "agent",
 		"directive":    "agent",
 		"capabilities": "agent",
 		"mem":          "agent",
-		"session":   "agent",
-		"issue":     "diagnostics",
-		"version":   "diagnostics",
+		"session":      "agent",
+		"issue":        "diagnostics",
+		"version":      "diagnostics",
 	}
 
 	for cmdName, expectedGroup := range expectedCommandGroups {
@@ -131,3 +132,32 @@ func TestRootCmd_StatusExecution(t *testing.T) {
 	}
 }
 
+func TestRootCmd_ZeroFootprintForVersionAndHook(t *testing.T) {
+	tmpHome := t.TempDir()
+	tmpXDG := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+	t.Setenv("XDG_CACHE_HOME", tmpXDG)
+
+	verCmd := cli.NewRootCmd()
+	verCmd.SetOut(new(bytes.Buffer))
+	verCmd.SetArgs([]string{"version"})
+	if err := verCmd.Execute(); err != nil {
+		t.Fatalf("version failed: %v", err)
+	}
+
+	hookCmd := cli.NewRootCmd()
+	hookCmd.SetIn(strings.NewReader(`{"tool_name":"Bash","tool_input":{"command":"ls -la"}}`))
+	hookCmd.SetOut(new(bytes.Buffer))
+	hookCmd.SetArgs([]string{"hook", "pre-tool", "--container-sandbox"})
+	if err := hookCmd.Execute(); err != nil {
+		t.Fatalf("hook pre-tool failed: %v", err)
+	}
+
+	homeEntries, err := os.ReadDir(tmpHome)
+	if err != nil {
+		t.Fatalf("ReadDir(tmpHome) failed: %v", err)
+	}
+	if len(homeEntries) != 0 {
+		t.Fatalf("expected zero HOME files for version and hook commands, found %d", len(homeEntries))
+	}
+}
