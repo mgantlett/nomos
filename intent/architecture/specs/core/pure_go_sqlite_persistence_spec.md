@@ -20,7 +20,7 @@ ssot_repository: nomos
 # Pure-Go SQLite Persistence and Task State Store Specification
 
 **Role:** Autonomous Open-Core Software Architect  
-**Objective:** Codify architectural contracts and formal data schemas for the deterministic pure-Go SQLite persistence layer in Nomos v4, governing global task lifecycles, CapBAC capability leases, and session journals without CGO dependencies.
+**Objective:** Codify architectural contracts and formal data schemas for the deterministic pure-Go SQLite persistence layer in Nomos v4, governing global task lifecycles, CapBAC capability leases, and local capability utilization telemetry without CGO dependencies.
 
 ---
 
