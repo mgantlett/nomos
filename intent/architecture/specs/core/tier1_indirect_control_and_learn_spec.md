@@ -4,12 +4,12 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-30"
-last_updated: "2026-11-03"
+last_updated: "2026-11-05"
 plane: intent
 status: active
 title: "Tier 1 Indirect-Control Multipliers & Nomos Learn: Episodic Trap Distillation Specification"
 type: spec
-version: "4.3.0"
+version: "4.4.0"
 execution_frontier:
   tasks:
     - key: "INT-821"
@@ -21,6 +21,9 @@ execution_frontier:
     - key: "INT-899"
       plane: "intent"
       summary: "Codify Read-Only IDLE Recall, Failing-File Trap Attribution, Pitfall-Only Graduation, and Mneme Dismiss"
+    - key: "INT-929"
+      plane: "intent"
+      summary: "Codify Verified Host Tool-Health Snapshot in PostToolUse Hooks and Graceful Receipt-Trace Parity"
 ssot_repository: nomos
 ---
 
@@ -115,6 +118,11 @@ Rather than proliferating duplicate security gates, the canonical `SecretGate` (
 - Detection of PEM private keys, AWS access keys (`AKIA...`), OpenAI project/service keys (`sk-proj-...`), Anthropic keys (`sk-ant-...`), Google API keys (`AIzaSy...`), GitHub tokens (`ghp_`, `github_pat_`, `gho_`), GitLab tokens (`glpat-`), Stripe live keys (`sk_live_`, `rk_live_`), Slack tokens (`xoxb-`), HuggingFace tokens (`hf_`), and xAI keys (`xai-`).
 - Rejection of tracked or unignored `.env` credential files (`.env`, `.env.local`, `.env.production`, `.env.staging`) while permitting sanitized templates (`.env.example`, `.env.sample`, `.env.template`, `.env.test`).
 
+### 5.3 Verified Host & Tool-Health Snapshot (`nomos hook post-tool`)
+To eliminate operational blindness without adding chatter to healthy tool calls (`arXiv:2611.05391`):
+- `PostToolUse` (`AfterTool`) remains 100% silent (`{}`) on clean `Bash`, `Read`, and `MCP` tool executions.
+- When `tool_response` carries a verified environmental fault (DNS/egress unreachable, archived Debian `apt` repository 404, read-only filesystem `EROFS`, disk/memory exhaustion `ENOSPC`/OOM, or missing shell executable `exit 127`), `nomos hook post-tool` records the fault class in the session budget/health state file and emits a single deduplicated 1-line `[Nomos Verified Host State]` advisory so the Tier 1 agent pivots immediately instead of repeating blind retries into the 3-strike loop breaker.
+
 ---
 
 ## 6. Table-Driven Verification Vectors (`CDV-LEARN-SHIELD`)
@@ -131,6 +139,7 @@ Rather than proliferating duplicate security gates, the canonical `SecretGate` (
 | **TV-LRN-08** | `nomos mem save "spoofed" --kind pattern` or `--kind pitfall` | Statutory write provenance guard | **FAIL** (`ERR_VALIDATION_FAILED` blocks manual statutory minting) |
 | **TV-LRN-09** | Statutory `pitfall` recalled $\ge 3$ times across active tasks (`pattern` excluded) | Tier A $\to$ Tier B graduation surfacing | **PASS** (Surfaced in `HandshakeEvent.graduation_candidates`) |
 | **TV-LRN-10** | Repeated `IDLE` `nomos handshake` followed by `nomos mem dismiss <id>` | Read-only passive `IDLE` recall & lifecycle dismissal | **PASS** (`IDLE` preserves `access_count`; `dismiss` transitions to `tombstoned`) |
+| **TV-LRN-11** | `PostToolUse` observes verified DNS/egress, archived `apt`, `EROFS`, or missing-binary fault | Deduplicated Verified Host State snapshot | **PASS** (Emits once on first fault; silent `{}` on repeat and clean calls) |
 
 ---
 

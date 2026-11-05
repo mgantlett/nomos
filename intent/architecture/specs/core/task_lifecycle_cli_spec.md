@@ -4,7 +4,7 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-23"
-last_updated: "2026-11-03"
+last_updated: "2026-11-05"
 plane: intent
 status: active
 tags:
@@ -20,10 +20,12 @@ tags:
     - SUB-1623
     - INT-899
     - SUB-1680
+    - INT-929
+    - SUB-1776
 title: Task Lifecycle CLI and Workspace State Transition Specification
 trigger: always_on
 type: spec
-version: "4.3.0"
+version: "4.4.0"
 ssot_repository: nomos
 ---
 
@@ -129,7 +131,7 @@ stateDiagram-v2
 
 ### 4.6 `nomos task sync`
 * **Syntax**: `nomos task sync <KEY> -F <walkthrough_path>`
-* **Semantics**: Validates walkthrough file; evaluates DoD gates (fails closed if any fail); merges `feature/<KEY>` into `main` via `--ff-only`; records Git Note receipt; unconditionally removes the worktree directory (including gitignored build caches such as `.svelte-kit/` or `.tmp/`) and deletes the merged `feature/<KEY>` branch; resets phase to `IDLE`.
+* **Semantics**: Validates walkthrough file and deterministic **Receipt-Trace Parity** (`arXiv:2611.06116`) against git diff `touchedFiles` and any recorded `nomos hook` worktree session trace (rejecting explicit no-mutation claims when files changed, false single-file exclusivity claims when multiple files changed, or fabricated test-runner execution claims when an active hook session trace recorded zero test commands, while degrading gracefully with zero false failures when no hook session log is present); evaluates DoD gates (fails closed if any fail); merges `feature/<KEY>` into `main` via `--ff-only`; records Git Note receipt; unconditionally removes the worktree directory (including gitignored build caches such as `.svelte-kit/` or `.tmp/`) and deletes the merged `feature/<KEY>` branch; resets phase to `IDLE`.
 
 ### 4.7 `nomos task abort`
 * **Syntax**: `nomos task abort <KEY>`
@@ -177,4 +179,5 @@ stateDiagram-v2
 | `TC-TSK-14` | Law 7 (Fail-Closed Filter) | `nomos task list --status BOGUS` | Rejects unknown status (`ERR_VALIDATION_FAILED`) with remedial command; exit 1 |
 | `TC-TSK-15` | Law 4 (Multi-Repo Ledger Isolation) | `nomos task list` vs `nomos task list -A` | Default scopes strictly to active repo `project`; `-A` opts into global workstation view; exit 0 |
 | `TC-TSK-16` | Law 7 (Cross-Project Start Guard) | `nomos task start SUB-99` (foreign `project`) | Rejects foreign-repo task (`ERR_VALIDATION_FAILED`) unless `--force-project` is passed; exit 1 |
+| `TC-TSK-17` | Law 2 (Receipt-Trace Parity) | `nomos task sync SUB-99 -F walkthrough.md` (contradicts diff or hook trace) | Fails closed on walkthrough vs diff/trace contradiction; degrades gracefully when no hook log exists |
 
