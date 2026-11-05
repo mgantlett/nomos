@@ -153,8 +153,8 @@ func recallMnemeHandshakeContext(primaryRoot, activeTask string, modifiedFiles [
 		patterns = mem.RecallRepoPatternsReadOnly(primaryRoot, "", modifiedFiles, 3)
 	} else {
 		taskTitle := resolveActiveTaskTitle(activeTask)
-		pitfalls = mem.RecallRepoPitfalls(primaryRoot, modifiedFiles, 3)
-		patterns = mem.RecallRepoPatterns(primaryRoot, taskTitle, modifiedFiles, 3)
+		pitfalls = mem.RecallRepoPitfallsForTask(primaryRoot, activeTask, modifiedFiles, 3)
+		patterns = mem.RecallRepoPatternsForTask(primaryRoot, activeTask, taskTitle, modifiedFiles, 3)
 	}
 	graduations := mem.RecallGraduationCandidates(primaryRoot, 3)
 	return pitfalls, patterns, graduations

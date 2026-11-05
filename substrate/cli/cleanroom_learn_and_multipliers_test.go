@@ -133,20 +133,32 @@ func verifyHandshakeRecallsDistilledPitfallAndImpact(t *testing.T, repoDir strin
 		}
 	}
 
-	// TV-LRN-09: Active worktree recalls >= 3 surface recurring pitfall in GraduationCandidates, while passive trunk boots do not inflate counts
+	// TV-LRN-09: Repeated handshakes inside the SAME task (SUB-2) must deduplicate reinforcement and NOT falsely trigger graduation
 	_, _ = handshake.SynthesizeDynamicHandshake(wt2)
+	evSameTask, _ := handshake.SynthesizeDynamicHandshake(wt2)
+	if len(evSameTask.GraduationCandidates) != 0 {
+		t.Fatalf("TV-LRN-09a: expected same-task duplicate handshakes not to inflate GraduationCandidates, got: %v", evSameTask.GraduationCandidates)
+	}
+
+	// True recurrence across 2 distinct tasks (SUB-1 + SUB-2 hitting the same scope trap) surfaces GraduationCandidates
+	_ = os.WriteFile(pyTarget, []byte("def broken_again(\n"), 0644)
+	_, _ = executeGateCheckForTask("SUB-2")
+	_ = os.WriteFile(pyTarget, []byte(updatedPy), 0644)
 	syncCleanroomTask(t, repoDir, "SUB-2", "Clamped reconciliation delta cleanly")
 
 	evGrad, gErr := handshake.SynthesizeDynamicHandshake(repoDir)
-	if gErr != nil || len(evGrad.GraduationCandidates) == 0 || !strings.Contains(evGrad.GraduationCandidates[0], "pitfall:") {
-		t.Fatalf("TV-LRN-09: expected recurring statutory pitfall to surface in GraduationCandidates, got err=%v cands=%v", gErr, evGrad.GraduationCandidates)
+	if gErr != nil || len(evGrad.GraduationCandidates) == 0 || !strings.Contains(evGrad.GraduationCandidates[0], "recurred 2x") {
+		t.Fatalf("TV-LRN-09: expected recurring statutory pitfall (recurred 2x) to surface in GraduationCandidates, got err=%v cands=%v", gErr, evGrad.GraduationCandidates)
 	}
 
-	// Dismissing the graduated pitfall via 'nomos mem dismiss' clears it from GraduationCandidates
+	// Dismissing the graduated pitfall via 'nomos mem dismiss <id>' clears it from GraduationCandidates
+	gradLine := evGrad.GraduationCandidates[0]
+	hashIdx := strings.Index(gradLine, "#")
+	restID := strings.Fields(gradLine[hashIdx+1:])[0]
 	dismissCmd := NewMemCmd()
-	dismissCmd.SetArgs([]string{"dismiss", "1"})
+	dismissCmd.SetArgs([]string{"dismiss", restID})
 	if dErr := dismissCmd.Execute(); dErr != nil {
-		t.Fatalf("TV-LRN-09b: expected 'nomos mem dismiss 1' to succeed, got: %v", dErr)
+		t.Fatalf("TV-LRN-09b: expected 'nomos mem dismiss %s' to succeed, got: %v", restID, dErr)
 	}
 	evAfterDismiss, _ := handshake.SynthesizeDynamicHandshake(repoDir)
 	if len(evAfterDismiss.GraduationCandidates) != 0 {

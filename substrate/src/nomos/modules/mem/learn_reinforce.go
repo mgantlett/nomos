@@ -1,0 +1,174 @@
+// Package mem implements per-task reinforcement deduplication and symbol-delta pitfall synthesis.
+package mem
+
+import (
+	"encoding/json"
+	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+)
+
+const recallLedgerPrefix = "mneme_recalled_"
+
+var pyOrTSSymbolPattern = regexp.MustCompile(`(?m)^(?:\s*(?:async\s+)?function|(?:export\s+)?(?:async\s+)?function|def|class)\s+([A-Za-z_][A-Za-z0-9_]*)`)
+
+func recallLedgerPath(repoRoot, taskKey string) string {
+	cleanKey := strings.ToUpper(strings.TrimSpace(taskKey))
+	return filepath.Join(repoRoot, ".tmp", recallLedgerPrefix+cleanKey+".json")
+}
+
+func shouldRecordTaskAccess(repoRoot, taskKey string, memID int) bool {
+	if memID <= 0 {
+		return false
+	}
+	if strings.TrimSpace(taskKey) == "" || strings.TrimSpace(repoRoot) == "" {
+		return true
+	}
+	ledgerFile := recallLedgerPath(repoRoot, taskKey)
+	seen := loadRecalledIDSet(ledgerFile)
+	if seen[memID] {
+		return false
+	}
+	seen[memID] = true
+	saveRecalledIDSet(ledgerFile, seen)
+	return true
+}
+
+func loadRecalledIDSet(path string) map[int]bool {
+	out := make(map[int]bool)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return out
+	}
+	var ids []int
+	if uErr := json.Unmarshal(data, &ids); uErr != nil {
+		return out
+	}
+	for _, id := range ids {
+		out[id] = true
+	}
+	return out
+}
+
+func saveRecalledIDSet(path string, seen map[int]bool) {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return
+	}
+	ids := make([]int, 0, len(seen))
+	for id := range seen {
+		ids = append(ids, id)
+	}
+	data, err := json.Marshal(ids)
+	if err != nil {
+		return
+	}
+	if wErr := os.WriteFile(path, data, 0644); wErr != nil {
+		// best-effort transient task ledger
+	}
+}
+
+func removeTaskRecallLedger(repoRoot, taskKey string) {
+	if strings.TrimSpace(repoRoot) == "" || strings.TrimSpace(taskKey) == "" {
+		return
+	}
+	if err := os.Remove(recallLedgerPath(repoRoot, taskKey)); err != nil {
+		// transient file may not exist
+	}
+}
+
+// RecallRepoPitfallsForTask retrieves active pitfalls for repoRoot and reinforces each memory at most once per taskKey (@intent: #Memory).
+func RecallRepoPitfallsForTask(repoRoot, taskKey string, touchedFiles []string, limit int) []string {
+	return recallRepoPitfallsWithTask(repoRoot, taskKey, touchedFiles, limit, true)
+}
+
+// RecallRepoPatternsForTask retrieves active structural blueprints and reinforces each memory at most once per taskKey (@intent: #Memory).
+func RecallRepoPatternsForTask(repoRoot, taskKey, queryHint string, touchedFiles []string, limit int) []string {
+	return recallRepoPatternsWithTask(repoRoot, taskKey, queryHint, touchedFiles, limit, true)
+}
+
+func collectRecalledContents(store *Store, repoRoot, taskKey string, candidates []*Memory, recordAccess bool) []string {
+	out := make([]string, 0, len(candidates))
+	for _, c := range candidates {
+		if recordAccess && shouldRecordTaskAccess(repoRoot, taskKey, c.ID) {
+			if aErr := store.RecordAccess(c.ID); aErr != nil {
+				// best effort
+			}
+		}
+		out = append(out, c.Content)
+	}
+	return out
+}
+
+func synthesizeTrapResolution(repoRoot string, entry GateTrapEntry, touchedFiles []string, fallbackSummary string) string {
+	relFile := locateTrappedRepoFile(repoRoot, entry.Message, touchedFiles)
+	if relFile == "" {
+		return fallbackSummary
+	}
+	absPath := filepath.Join(repoRoot, filepath.FromSlash(relFile))
+	data, err := os.ReadFile(absPath)
+	if err != nil {
+		return fallbackSummary
+	}
+	symbols := extractAllFileSymbols(absPath, data)
+	base := filepath.Base(relFile)
+	if len(symbols) == 0 {
+		return fmt.Sprintf("Refactored %s - %s", base, fallbackSummary)
+	}
+	return fmt.Sprintf("Refactored %s [%s] - %s", base, strings.Join(symbols, ", "), fallbackSummary)
+}
+
+func locateTrappedRepoFile(repoRoot, message string, touchedFiles []string) string {
+	for _, m := range trapRelPathPattern.FindAllStringSubmatch(message, 6) {
+		if len(m) > 1 {
+			cand := strings.TrimPrefix(filepath.ToSlash(strings.TrimSpace(m[1])), "./")
+			if isRecognizedRepoFile(repoRoot, cand, touchedFiles) {
+				return cand
+			}
+		}
+	}
+	for _, m := range trapBaseLinePattern.FindAllStringSubmatch(message, 6) {
+		if len(m) > 1 {
+			for _, tf := range touchedFiles {
+				norm := normalizePatternPath(repoRoot, tf)
+				if filepath.Base(norm) == m[1] {
+					return norm
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func extractAllFileSymbols(absPath string, data []byte) []string {
+	if strings.HasSuffix(strings.ToLower(absPath), ".go") {
+		return extractGoFuncAndTypeNames(absPath, data)
+	}
+	matches := pyOrTSSymbolPattern.FindAllStringSubmatch(string(data), maxBlueprintItems)
+	var names []string
+	for _, m := range matches {
+		if len(m) > 1 {
+			names = appendUniqueBounded(names, m[1], maxBlueprintItems)
+		}
+	}
+	return names
+}
+
+func extractGoFuncAndTypeNames(absPath string, data []byte) []string {
+	fset := token.NewFileSet()
+	fileNode, err := parser.ParseFile(fset, absPath, data, 0)
+	if err != nil {
+		return nil
+	}
+	var names []string
+	for _, decl := range fileNode.Decls {
+		if fn, ok := decl.(*ast.FuncDecl); ok && fn.Name != nil {
+			names = appendUniqueBounded(names, fn.Name.Name, maxBlueprintItems)
+		}
+	}
+	return names
+}

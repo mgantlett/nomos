@@ -110,6 +110,7 @@ func DistillTaskLearnings(repoRoot, taskKey, walkthrough string, touchedFiles []
 	repoID := filepath.Base(filepath.Clean(repoRoot))
 	fixSummary := summarizeWalkthroughFix(walkthrough)
 	saved := persistDistilledTraps(store, entries, repoRoot, repoID, touchedFiles, taskKey, fixSummary)
+	removeTaskRecallLedger(repoRoot, taskKey)
 
 	if rErr := os.Remove(bufPath); rErr != nil && !os.IsNotExist(rErr) {
 		return saved, rErr
@@ -137,11 +138,12 @@ func persistDistilledTraps(store *Store, entries []GateTrapEntry, repoRoot, repo
 		}
 		seenTrapSig[sigKey] = true
 		topic := formatPitfallTopic(entry.GateName, scope)
+		resolvedFix := synthesizeTrapResolution(repoRoot, entry, touchedFiles, fixSummary)
 		rec := &Memory{
 			RepoID:  repoID,
 			Kind:    KindPitfall,
 			Topic:   topic,
-			Content: fmt.Sprintf("[%s in %s] Trap: %s -> Verified Fix (%s): %s", entry.GateName, scope, salient, upperTask, fixSummary),
+			Content: fmt.Sprintf("[%s in %s] Trap: %s -> Verified Fix (%s): %s", entry.GateName, scope, salient, upperTask, resolvedFix),
 			TaskID:  upperTask,
 			Status:  StatusActive,
 		}
@@ -165,15 +167,15 @@ func (s *Store) supersedeOlderTopicPitfalls(repoID, topic string, newestID int) 
 
 // RecallRepoPitfalls retrieves active distilled pitfalls strictly partitioned to repoRoot and records active task access (@intent: #Memory).
 func RecallRepoPitfalls(repoRoot string, touchedFiles []string, limit int) []string {
-	return recallRepoPitfalls(repoRoot, touchedFiles, limit, true)
+	return recallRepoPitfallsWithTask(repoRoot, "", touchedFiles, limit, true)
 }
 
 // RecallRepoPitfallsReadOnly retrieves active distilled pitfalls without incrementing reinforcement counts (@intent: #Memory).
 func RecallRepoPitfallsReadOnly(repoRoot string, touchedFiles []string, limit int) []string {
-	return recallRepoPitfalls(repoRoot, touchedFiles, limit, false)
+	return recallRepoPitfallsWithTask(repoRoot, "", touchedFiles, limit, false)
 }
 
-func recallRepoPitfalls(repoRoot string, touchedFiles []string, limit int, recordAccess bool) []string {
+func recallRepoPitfallsWithTask(repoRoot, taskKey string, touchedFiles []string, limit int, recordAccess bool) []string {
 	if strings.TrimSpace(repoRoot) == "" {
 		return nil
 	}
@@ -205,16 +207,7 @@ func recallRepoPitfalls(repoRoot string, touchedFiles []string, limit int, recor
 	if len(candidates) > limit {
 		candidates = candidates[:limit]
 	}
-	out := make([]string, 0, len(candidates))
-	for _, c := range candidates {
-		if recordAccess {
-			if aErr := store.RecordAccess(c.ID); aErr != nil {
-				// best effort
-			}
-		}
-		out = append(out, c.Content)
-	}
-	return out
+	return collectRecalledContents(store, repoRoot, taskKey, candidates, recordAccess)
 }
 
 func filterActiveRepoPitfalls(all []*Memory, repoID string) []*Memory {

@@ -151,18 +151,27 @@ func TestRecallGraduationCandidates_ThresholdAndDecay(t *testing.T) {
 		t.Fatalf("TC-MEM-08: expected 0 graduation candidates from read-only or positive pattern recalls, got %v", cands)
 	}
 
-	// Active pitfall recalls 1 & 2 keep access_count < 3 -> 0 graduation candidates
+	// Single-occurrence built-in AST gate (Cognitive Complexity) passively recalled 3x must NOT nag nomos.yaml graduation
+	_ = RecallRepoPitfalls(repo, touched, 3)
 	_ = RecallRepoPitfalls(repo, touched, 3)
 	_ = RecallRepoPitfalls(repo, touched, 3)
 	if cands := RecallGraduationCandidates(repo, 3); len(cands) != 0 {
-		t.Fatalf("TC-MEM-08: expected 0 graduation candidates below threshold 3, got %v", cands)
+		t.Fatalf("TC-MEM-08: expected 0 graduation candidates for 1x built-in AST gate despite 3x views, got %v", cands)
 	}
 
-	// Active pitfall recall 3 crosses GraduationAccessThreshold (3) -> surfaces statutory pitfall candidate scoped to substrate/src
-	_ = RecallRepoPitfalls(repo, touched, 3)
+	// Second distinct task hitting Cognitive Complexity in substrate/src (recurred 2x) surfaces Tier A->Axiom candidate
+	if err := RecordGateTrap(repo, "SUB-9", touched, []GateTrapEntry{{
+		GateName: "Cognitive Complexity Invariant",
+		Message:  "- substrate/src/worker.py:48 (run_worker) has cyclomatic complexity 17 (exceeds max 15)",
+	}}); err != nil {
+		t.Fatalf("second RecordGateTrap: %v", err)
+	}
+	if _, err := DistillTaskLearnings(repo, "SUB-9", "- Split run_worker into pure helpers", touched); err != nil {
+		t.Fatalf("second DistillTaskLearnings: %v", err)
+	}
 	cands := RecallGraduationCandidates(repo, 3)
-	if len(cands) != 1 || !strings.Contains(cands[0], "3x recalled") || !strings.Contains(cands[0], "pitfall:cognitive_complexity_invariant:substrate/src") {
-		t.Fatalf("TC-MEM-08: expected 1 pitfall Tier A->B graduation candidate at 3x recall scoped to substrate/src, got %v", cands)
+	if len(cands) != 1 || !strings.Contains(cands[0], "recurred 2x") || !strings.Contains(cands[0], "pitfall:cognitive_complexity_invariant:substrate/src") {
+		t.Fatalf("TC-MEM-08: expected 1 recurring structural graduation candidate at recurred 2x scoped to substrate/src, got %v", cands)
 	}
 
 	// Dismissing the graduated pitfall transitions it to tombstoned and clears it from GraduationCandidates

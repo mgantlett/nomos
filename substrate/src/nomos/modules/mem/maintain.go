@@ -207,6 +207,14 @@ func RemoveTaskTrapBuffer(repoRoot, taskKey string) {
 		return
 	}
 	_ = os.Remove(trapBufferPath(repoRoot, taskKey))
+	removeTaskRecallLedger(repoRoot, taskKey)
+}
+
+func isTransientTaskMemFile(name string) bool {
+	if !strings.HasSuffix(name, ".json") {
+		return false
+	}
+	return strings.HasPrefix(name, trapFilePrefix) || strings.HasPrefix(name, recallLedgerPrefix)
 }
 
 // SweepStaleTrapBuffers removes orphaned transient gate-trap JSON files older than maxAge.
@@ -225,7 +233,7 @@ func SweepStaleTrapBuffers(repoRoot string, maxAge time.Duration) int {
 	cutoff := time.Now().Add(-maxAge)
 	removed := 0
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasPrefix(e.Name(), trapFilePrefix) || !strings.HasSuffix(e.Name(), ".json") {
+		if e.IsDir() || !isTransientTaskMemFile(e.Name()) {
 			continue
 		}
 		if fi, iErr := e.Info(); iErr == nil && fi.ModTime().Before(cutoff) {

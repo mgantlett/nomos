@@ -123,6 +123,7 @@ func runMemRecall(query string, r recallArgs) error {
 		Topic:            r.topic,
 		RepoID:           repoID,
 		IncludeCrossRepo: r.crossRepo,
+		ReadOnly:         true,
 	}
 	results, err := store.SearchWithOptions(query, opts)
 	if err != nil {

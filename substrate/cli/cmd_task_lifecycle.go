@@ -195,7 +195,7 @@ func runTaskStartWithOpts(rawKey string, autoEdit, forceProject bool) error {
 		return err
 	}
 	renderTaskStartedBanner(key, wtPath, string(targetPhase))
-	renderLearnedPitfallsBriefing(mgr.RepoRoot)
+	renderLearnedPitfallsBriefing(mgr.RepoRoot, key)
 	renderPhaseTransitionNextActions(os.Stdout, targetPhase, key, wtPath, mgr.RepoRoot)
 	return nil
 }

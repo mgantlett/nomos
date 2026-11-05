@@ -23,6 +23,7 @@ type SearchOptions struct {
 	RepoID           string
 	IncludeCrossRepo bool
 	IncludeInactive  bool
+	ReadOnly         bool
 }
 
 // Search queries memories and returns results ordered by descending relevance.
@@ -80,9 +81,11 @@ func (s *Store) SearchWithOptions(query string, opts SearchOptions) ([]*SearchRe
 		results = results[:limit]
 	}
 
-	for _, res := range results {
-		if rErr := s.RecordAccess(res.Memory.ID); rErr != nil {
-			continue
+	if !opts.ReadOnly {
+		for _, res := range results {
+			if rErr := s.RecordAccess(res.Memory.ID); rErr != nil {
+				continue
+			}
 		}
 	}
 
