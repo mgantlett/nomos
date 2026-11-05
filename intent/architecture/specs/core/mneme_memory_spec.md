@@ -9,7 +9,7 @@ plane: intent
 status: active
 title: "Nomos Mneme Episodic and Semantic Memory Subsystem Specification"
 type: spec
-version: "4.4.0"
+version: "4.5.0"
 tags:
     - INT-735
     - SUB-1213
@@ -18,6 +18,7 @@ tags:
     - INT-899
     - SUB-1680
     - INT-926
+    - INT-927
 ssot_repository: nomos
 ---
 
@@ -103,6 +104,7 @@ $$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{Lexica
 - **Access Reinforcement & Per-Task Deduplication**: $1.0 + 0.05 \times \min(\text{access\_count}, 10)$, reinforcing wisdom injected during active task execution (`nomos task start`, `nomos task chore`, and active worktree `nomos handshake`) **at most once per distinct `(task_id, memory_id)`**. Passive `IDLE` trunk orientation (`nomos handshake`, `nomos status`, `nomos task status`) and interactive CLI `nomos mem recall` queries execute read-only (`SearchOptions.ReadOnly = true`) so inspecting memories never inflates `access_count`.
 - **Recurrence-Aware Graduation (`RecallGraduationCandidates`)**: Built-in compiled Tier-C structural AST gates (`Cognitive Complexity`, `Function Length`, `File Length`, `Docstring Density`, `Statement Coverage`) only surface as graduation candidates when **true topic recurrence $\ge 2$** (at least two distinct tasks tripped that gate in the same directory scope, measured via superseded topic chain depth), recommending a package-scoped Repo Axiom rather than redundant `nomos.yaml` thresholds. Policy-graduatable statutory pitfalls surface when topic recurrence $\ge 2$ or task-deduplicated `access_count >= 3`.
 - **Symbol-Delta Pitfall Distillation (`DistillTaskLearnings`)**: When a buffered gate trap references a concrete repository file, 2PC sync distillation inspects the verified post-fix file AST/symbols and prepends `Refactored <file> [<symbols>]` ahead of the walkthrough summary so downstream agents see the concrete structural resolution.
+- **Unscoped One-Off Pitfall Cooling (`RecallRepoPitfalls`)**: When a task starts with no modified files (`targetScope == "workspace"`), single-occurrence pitfalls (`recurrence == 1`) older than 14 days automatically cool out of unscoped `LearnedPitfalls` handshake injection so stale folder-specific traps never ride quiet repositories indefinitely without GUI supervision; pitfalls remain eligible whenever `modifiedFiles` matches their directory scope or topic recurrence is $\ge 2$.
 
 ---
 
@@ -126,8 +128,9 @@ $$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{Lexica
   - `--json`: Structured JSON output.
 
 ### 5.3 `nomos mem list`
-- Inspects recorded memories with table formatting.
+- Inspects recorded memories with table formatting, defaulting to `active` lifecycle status so dismissed or superseded records are hidden unless requested via `--status`.
 - Flags:
+  - `--status <status>`: Lifecycle filter (`active`, `superseded`, `tombstoned`, or `all`; default: `active`).
   - `-A, --all`: Show memories across all repositories.
   - `-p, --project <repo>`: Filter by repository.
   - `-n, --limit <int>`: Max results (default: 20).
@@ -155,3 +158,5 @@ $$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{Lexica
 | `TC-MEM-09` | Memory dismissal | `nomos mem dismiss <id>` | Transitions record to `tombstoned`; excluded from active recall and `graduation_candidates`. |
 | `TC-MEM-10` | Per-task reinforcement & read-only CLI recall | Repeated `RecallRepoPitfallsForTask` in same task + `SearchOptions{ReadOnly: true}` | Increments `access_count` at most `+1` per distinct task and `+0` on read-only CLI inspection. |
 | `TC-MEM-11` | Symbol-delta pitfall fix distillation | Gate trap cites a repository source file resolved at 2PC sync | `Verified Fix` records concrete refactored file and verified symbols ahead of walkthrough prose. |
+| `TC-MEM-12` | Unscoped one-off pitfall cooling | Single-occurrence pitfall (`recurrence == 1`) older than 14 days during unscoped handshake | Cooled out of unscoped `LearnedPitfalls` while remaining eligible when touched files match its directory scope or recurrence $\ge 2$. |
+| `TC-MEM-13` | Active-default `nomos mem list` | `nomos mem dismiss <id>` followed by `nomos mem list` vs `nomos mem list --status tombstoned` | Excluded from default `nomos mem list` output and visible under `--status tombstoned` or `--status all`. |
