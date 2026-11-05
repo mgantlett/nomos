@@ -138,3 +138,13 @@ func TestSharedGoSuite_DiffScopesNonGoEditsInWorktree(t *testing.T) {
 		t.Fatalf("expected --all flag to force full go test -cover execution, got err=%v res=%+v", err, resAll)
 	}
 }
+
+func TestTruncateToolchainOutput_AnchorsOnFailDiagnosticAfterLongStdout(t *testing.T) {
+	prefix := strings.Repeat("Initialized Nomos workspace in /tmp/cleanroom-test\n", 40)
+	tail := "--- FAIL: TestCleanroomLearn (0.04s)\n    learn_test.go:142: expected 0 graduation candidates\nFAIL\tgithub.com/mgantlett/nomos/substrate/cli\t0.81s"
+	got := truncateToolchainOutput(prefix + tail)
+	if !strings.HasPrefix(got, "--- FAIL: TestCleanroomLearn") {
+		t.Fatalf("expected truncateToolchainOutput to anchor on --- FAIL block, got %q", got)
+	}
+}
+

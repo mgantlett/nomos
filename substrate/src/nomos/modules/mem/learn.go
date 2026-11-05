@@ -265,11 +265,12 @@ func compactLine(s string, maxLen int) string {
 
 func selectSalientDiagnosticLine(lines []string) string {
 	for i, line := range lines {
-		if strings.HasPrefix(line, "--- FAIL:") {
+		if idx := strings.Index(line, "--- FAIL:"); idx >= 0 {
+			failLine := strings.TrimSpace(line[idx:])
 			if i+1 < len(lines) && !strings.HasPrefix(lines[i+1], "FAIL") {
-				return line + " (" + lines[i+1] + ")"
+				return failLine + " (" + lines[i+1] + ")"
 			}
-			return line
+			return failLine
 		}
 		if isCompilerOrPanicLine(line) {
 			return line

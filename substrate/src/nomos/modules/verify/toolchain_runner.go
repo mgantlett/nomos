@@ -197,10 +197,25 @@ func parseAverageCoverage(output string) float64 {
 
 func truncateToolchainOutput(raw string) string {
 	msg := strings.TrimSpace(raw)
-	if len(msg) > maxToolchainErrOutput {
-		return msg[:maxToolchainErrOutput] + "..."
+	if len(msg) <= maxToolchainErrOutput {
+		return msg
 	}
-	return msg
+	if anchor := findToolchainFailureOffset(msg); anchor > 0 {
+		msg = strings.TrimSpace(msg[anchor:])
+		if len(msg) <= maxToolchainErrOutput {
+			return msg
+		}
+	}
+	return msg[:maxToolchainErrOutput] + "..."
+}
+
+func findToolchainFailureOffset(msg string) int {
+	for _, marker := range []string{"\n--- FAIL:", "--- FAIL:", "\npanic:", "\nFAIL\t"} {
+		if idx := strings.Index(msg, marker); idx >= 0 {
+			return idx
+		}
+	}
+	return -1
 }
 
 func shouldSkipGoSuiteForNonGoDiff(ctx *VerifyContext, root string) bool {
