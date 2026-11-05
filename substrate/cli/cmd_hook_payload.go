@@ -11,6 +11,7 @@ import (
 
 // HookPayload normalizes incoming JSON hook events across Claude Code, Gemini CLI, Cursor, and Antigravity.
 type HookPayload struct {
+	SessionID      string
 	ToolName       string
 	TargetFile     string
 	CommandLine    string
@@ -49,6 +50,10 @@ func parseHookPayload(raw []byte) *HookPayload {
 	}
 	_, p.HasToolInput = m["tool_input"]
 	_, hasSessionID := m["session_id"]
+	p.SessionID = firstNonEmpty(
+		extractStringField(m, "session_id"),
+		extractStringField(m, "sessionId"),
+	)
 	_, p.IsPostInvoke = m["invocationNum"]
 	p.Cwd = extractStringField(m, "cwd")
 	p.WorkspacePaths = extractStringSlice(m, "workspacePaths")

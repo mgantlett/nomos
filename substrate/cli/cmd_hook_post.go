@@ -61,6 +61,11 @@ func evaluateCommandGuard(cmdLine, baseCwd, hermeticDir string) HookDecision {
 			Reason:   "❌ [NOMOS INTERCEPT] Hermetic Container Violation (Law 3): System directory access outside hermetic root is prohibited.",
 		}
 	}
+	if hermeticDir != "" {
+		if dec := evaluateInteractiveCommandGuard(cmdLine); dec.Decision == hookDecisionDeny {
+			return dec
+		}
+	}
 	return HookDecision{Decision: hookDecisionAllow}
 }
 

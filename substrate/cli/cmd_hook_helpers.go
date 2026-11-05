@@ -49,7 +49,7 @@ func evaluateTargetFilePreToolGuard(p *HookPayload, hermeticDir string) HookDeci
 	if !isReadOnlyTool(p.ToolName) {
 		return evaluateFileMutationGuard(p, hermeticDir)
 	}
-	return HookDecision{Decision: hookDecisionAllow}
+	return evaluateBinaryReadGuard(p, hermeticDir != "")
 }
 
 func evaluateMCPPreToolGuard(p *HookPayload, hermeticDir string) HookDecision {

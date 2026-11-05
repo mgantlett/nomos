@@ -24,6 +24,7 @@ type HookDecision struct {
 func NewHookCmd() *cobra.Command {
 	var hermeticDir string
 	var containerSandbox bool
+	var budgetSec int
 
 	cmd := &cobra.Command{
 		Use:   "hook",
@@ -35,16 +36,17 @@ Reads JSON hook payloads from stdin with zero external jq/bash/python dependenci
 
 	cmd.PersistentFlags().StringVar(&hermeticDir, "hermetic-dir", "", "Confine file mutations and shell paths to a container/sandbox root directory")
 	cmd.PersistentFlags().BoolVar(&containerSandbox, "container-sandbox", false, "Enable disposable benchmark container governance (blocks verifier/solution tampering while permitting OS-wide task paths)")
+	cmd.PersistentFlags().IntVar(&budgetSec, "budget-sec", 0, "Optional session wall-clock budget in seconds for 75%/90% PostToolUse checkpoint advisories")
 
 	cmd.AddCommand(
-		newHookSessionStartCmd(&hermeticDir),
-		newHookPreToolCmd(&hermeticDir, &containerSandbox),
-		newHookPostToolCmd(&hermeticDir, &containerSandbox),
+		newHookSessionStartCmd(&hermeticDir, &budgetSec),
+		newHookPreToolCmd(&hermeticDir, &containerSandbox, &budgetSec),
+		newHookPostToolCmd(&hermeticDir, &containerSandbox, &budgetSec),
 	)
 	return cmd
 }
 
-func newHookSessionStartCmd(hermeticDir *string) *cobra.Command {
+func newHookSessionStartCmd(hermeticDir *string, budgetSec *int) *cobra.Command {
 	return &cobra.Command{
 		Use:     "session-start",
 		Short:   "Execute SessionStart orientation handshake from JSON stdin payload",
@@ -56,6 +58,7 @@ func newHookSessionStartCmd(hermeticDir *string) *cobra.Command {
 				return writeEmptyJSON(cmd.OutOrStdout())
 			}
 			payload := parseHookPayload(raw)
+			ensureSessionBudgetStamp(payload, *hermeticDir, resolveEffectiveBudgetSeconds(*budgetSec))
 			targetDir := resolveHookWorkspaceDir(payload, *hermeticDir)
 
 			hookRoot := targetDir
@@ -80,7 +83,7 @@ func newHookSessionStartCmd(hermeticDir *string) *cobra.Command {
 	}
 }
 
-func newHookPreToolCmd(hermeticDir *string, containerSandbox *bool) *cobra.Command {
+func newHookPreToolCmd(hermeticDir *string, containerSandbox *bool, budgetSec *int) *cobra.Command {
 	return &cobra.Command{
 		Use:     "pre-tool",
 		Short:   "Evaluate Law 3 boundary isolation and Law 7 command safety on PreToolUse payload",
@@ -92,13 +95,14 @@ func newHookPreToolCmd(hermeticDir *string, containerSandbox *bool) *cobra.Comma
 				return writeHookDecision(cmd.OutOrStdout(), HookDecision{Decision: "allow"})
 			}
 			payload := parseHookPayload(raw)
+			ensureSessionBudgetStamp(payload, *hermeticDir, resolveEffectiveBudgetSeconds(*budgetSec))
 			dec := dispatchPreToolHook(payload, *hermeticDir, *containerSandbox)
 			return writePreToolResponse(cmd.OutOrStdout(), payload, dec)
 		},
 	}
 }
 
-func newHookPostToolCmd(hermeticDir *string, containerSandbox *bool) *cobra.Command {
+func newHookPostToolCmd(hermeticDir *string, containerSandbox *bool, budgetSec *int) *cobra.Command {
 	return &cobra.Command{
 		Use:     "post-tool",
 		Short:   "Evaluate Law 4 zero-footprint in-memory AST and syntax radar on PostToolUse payload",
@@ -110,7 +114,7 @@ func newHookPostToolCmd(hermeticDir *string, containerSandbox *bool) *cobra.Comm
 				return writeEmptyJSON(cmd.OutOrStdout())
 			}
 			payload := parseHookPayload(raw)
-			msg := dispatchPostToolHook(payload, *hermeticDir, *containerSandbox)
+			msg := dispatchPostToolHook(payload, *hermeticDir, *containerSandbox, resolveEffectiveBudgetSeconds(*budgetSec))
 			if msg == "" {
 				return writeEmptyJSON(cmd.OutOrStdout())
 			}
@@ -126,11 +130,15 @@ func dispatchPreToolHook(payload *HookPayload, hermeticDir string, containerSand
 	return EvaluatePreToolHook(payload, hermeticDir)
 }
 
-func dispatchPostToolHook(payload *HookPayload, hermeticDir string, containerSandbox bool) string {
+func dispatchPostToolHook(payload *HookPayload, hermeticDir string, containerSandbox bool, budgetSec int) string {
+	budgetMsg := evaluateSessionBudgetRadar(payload, hermeticDir, budgetSec)
+	var syntaxMsg string
 	if containerSandbox && hermeticDir == "" {
-		return EvaluateContainerPostToolHook(payload)
+		syntaxMsg = EvaluateContainerPostToolHook(payload)
+	} else {
+		syntaxMsg = EvaluatePostToolHook(payload, hermeticDir)
 	}
-	return EvaluatePostToolHook(payload, hermeticDir)
+	return joinHookAdvisories(budgetMsg, syntaxMsg)
 }
 
 func writeEmptyJSON(w io.Writer) error {

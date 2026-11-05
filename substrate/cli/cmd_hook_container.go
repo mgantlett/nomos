@@ -76,7 +76,7 @@ func evaluateContainerCommandGuard(cmdLine, baseCwd string) HookDecision {
 			Reason:   fmt.Sprintf("❌ [NOMOS INTERCEPT] Anti-Reward-Hacking Violation (Law 2 & Law 3): Shell access targeting protected verifier/oracle path '%s' is strictly prohibited.", hit),
 		}
 	}
-	return HookDecision{Decision: hookDecisionAllow}
+	return evaluateInteractiveCommandGuard(cmdLine)
 }
 
 func evaluateContainerTargetGuard(p *HookPayload, baseCwd string) HookDecision {
@@ -96,7 +96,7 @@ func evaluateContainerTargetGuard(p *HookPayload, baseCwd string) HookDecision {
 			Reason:   fmt.Sprintf("Anti-Reward-Hacking Violation (Law 2 & Law 3): Access to protected verifier/oracle path '%s' is strictly prohibited.", resolved),
 		}
 	}
-	return HookDecision{Decision: hookDecisionAllow}
+	return evaluateBinaryReadGuard(p, true)
 }
 
 func isProtectedContainerVerifierPath(resolved string) bool {
