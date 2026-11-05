@@ -198,26 +198,17 @@ func recallRepoPitfallsWithTask(repoRoot, taskKey string, touchedFiles []string,
 	}
 
 	repoID := strings.ToLower(filepath.Base(filepath.Clean(repoRoot)))
-	candidates := filterActiveRepoPitfalls(all, repoID)
+	targetScope := DeriveDirectoryScope(repoRoot, touchedFiles)
+	candidates := filterEligibleRepoPitfalls(all, repoID, targetScope, time.Now().UTC())
 	if len(candidates) == 0 {
 		return nil
 	}
 
-	rankRepoPitfalls(candidates, DeriveDirectoryScope(repoRoot, touchedFiles))
+	rankRepoPitfalls(candidates, targetScope)
 	if len(candidates) > limit {
 		candidates = candidates[:limit]
 	}
 	return collectRecalledContents(store, repoRoot, taskKey, candidates, recordAccess)
-}
-
-func filterActiveRepoPitfalls(all []*Memory, repoID string) []*Memory {
-	var candidates []*Memory
-	for _, m := range all {
-		if m.Kind == KindPitfall && m.Status == StatusActive && strings.ToLower(strings.TrimSpace(m.RepoID)) == repoID {
-			candidates = append(candidates, m)
-		}
-	}
-	return candidates
 }
 
 func rankRepoPitfalls(candidates []*Memory, targetScope string) {

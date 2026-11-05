@@ -103,3 +103,20 @@ func parseMemoryDismissIDs(rawArgs []string) ([]int, error) {
 	return ids, nil
 }
 
+func resolveMemListStatusFilter(raw string) (mem.MemoryStatus, error) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", string(mem.StatusActive):
+		return mem.StatusActive, nil
+	case string(mem.StatusSuperseded):
+		return mem.StatusSuperseded, nil
+	case string(mem.StatusTombstoned):
+		return mem.StatusTombstoned, nil
+	case "all":
+		return "", nil
+	default:
+		return "", types.NewNomosError(types.ErrCodeValidationFailed,
+			"invalid memory status %q: expected active, superseded, tombstoned, or all", raw)
+	}
+}
+
+

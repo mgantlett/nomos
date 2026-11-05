@@ -187,12 +187,16 @@ func renderRecallResults(query string, results []*mem.SearchResult) {
 }
 
 type listArgs struct {
-	taskID, kind, topic, project string
-	listAll, jsonOutput          bool
-	limit                        int
+	taskID, kind, topic, project, status string
+	listAll, jsonOutput                  bool
+	limit                                int
 }
 
-func runMemList(l listArgs) error {
+func runMemList(out io.Writer, l listArgs) error {
+	statusFilter, sErr := resolveMemListStatusFilter(l.status)
+	if sErr != nil {
+		return sErr
+	}
 	repoID := l.project
 	if !l.listAll && repoID == "" {
 		repoID = resolveCurrentRepoID()
@@ -212,6 +216,7 @@ func runMemList(l listArgs) error {
 		TaskID:           l.taskID,
 		Kind:             mem.MemoryKind(l.kind),
 		Topic:            l.topic,
+		Status:           statusFilter,
 		RepoID:           repoID,
 		IncludeCrossRepo: l.listAll,
 		Limit:            l.limit,
@@ -226,11 +231,11 @@ func runMemList(l listArgs) error {
 		if mErr != nil {
 			return types.NewNomosError(types.ErrCodeCore, "failed marshaling json: %v", mErr)
 		}
-		fmt.Println(string(data))
+		fmt.Fprintln(out, string(data))
 		return nil
 	}
 
-	renderMemoryList(memories)
+	renderMemoryList(out, memories)
 	return nil
 }
 
@@ -242,12 +247,13 @@ func newMemListCmd() *cobra.Command {
 		Long:    helpMemListLong,
 		Example: helpMemListExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runMemList(l)
+			return runMemList(cmd.OutOrStdout(), l)
 		},
 	}
 	cmd.Flags().StringVar(&l.taskID, "task", "", "Filter by task ID")
 	cmd.Flags().StringVar(&l.kind, "kind", "", "Filter by kind")
 	cmd.Flags().StringVar(&l.topic, "topic", "", "Filter by topic")
+	cmd.Flags().StringVar(&l.status, "status", string(mem.StatusActive), "Filter by lifecycle status (active, superseded, tombstoned, or all)")
 	cmd.Flags().StringVarP(&l.project, flagNameProject, "p", "", "Filter by repository ID")
 	cmd.Flags().BoolVarP(&l.listAll, "all", "A", false, "Show memories across all repositories")
 	cmd.Flags().IntVarP(&l.limit, flagNameLimit, "n", 20, "Maximum records to return")
@@ -255,14 +261,14 @@ func newMemListCmd() *cobra.Command {
 	return cmd
 }
 
-func renderMemoryList(memories []*mem.Memory) {
-	fmt.Printf("%s %s\n",
+func renderMemoryList(out io.Writer, memories []*mem.Memory) {
+	fmt.Fprintf(out, "%s %s\n",
 		renderBrandTitle("🧠 Nomos Mneme Memory Records"),
 		uiMutedStyle.Render(fmt.Sprintf("(%d found)", len(memories))))
-	fmt.Println(uiRule(ruleWide))
+	fmt.Fprintln(out, uiRule(ruleWide))
 	if len(memories) == 0 {
-		fmt.Printf("  %s\n", uiMutedStyle.Render("No matching memories found."))
-		fmt.Println(uiRule(ruleWide))
+		fmt.Fprintf(out, "  %s\n", uiMutedStyle.Render("No matching memories found."))
+		fmt.Fprintln(out, uiRule(ruleWide))
 		return
 	}
 	for _, m := range memories {
@@ -274,19 +280,24 @@ func renderMemoryList(memories []*mem.Memory) {
 		if repoTag == "" {
 			repoTag = "global"
 		}
+		statusTag := string(m.Status)
+		if statusTag == "" {
+			statusTag = string(mem.StatusActive)
+		}
 		snippet := strings.ReplaceAll(m.Content, "\n", " ")
 		if len(snippet) > 60 {
 			snippet = snippet[:57] + "..."
 		}
-		fmt.Printf("  %s %s %s %s %s: %s\n",
+		fmt.Fprintf(out, "  %s %s %s %s %s %s: %s\n",
 			padStyled(fmt.Sprintf("#%d", m.ID), 6, uiCommandStyle),
 			padStyled("["+string(m.Kind)+"]", 12, uiIntentStyle),
+			padStyled("["+statusTag+"]", 12, uiMutedStyle),
 			padStyled("["+repoTag+"]", 14, uiSubstrateStyle),
 			padStyled("["+taskStr+"]", 10, taskKeyStyleFor(taskStr)),
 			padStyled("("+m.Topic+")", 22, uiLabelStyle),
 			uiValueStyle.Render(snippet))
 	}
-	fmt.Println(uiRule(ruleWide))
+	fmt.Fprintln(out, uiRule(ruleWide))
 }
 
 func resolveCurrentRepoID() string {

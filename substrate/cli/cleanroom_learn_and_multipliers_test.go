@@ -164,6 +164,41 @@ func verifyHandshakeRecallsDistilledPitfallAndImpact(t *testing.T, repoDir strin
 	if len(evAfterDismiss.GraduationCandidates) != 0 {
 		t.Fatalf("TV-LRN-09b: expected dismissed pitfall cleared from GraduationCandidates, got: %v", evAfterDismiss.GraduationCandidates)
 	}
+
+	// TC-MEM-13: Default 'nomos mem list' hides tombstoned record while '--status tombstoned' surfaces it
+	var activeBuf, tombBuf strings.Builder
+	listActiveCmd := NewMemCmd()
+	listActiveCmd.SetOut(&activeBuf)
+	listActiveCmd.SetArgs([]string{"list", "--all"})
+	if lErr := listActiveCmd.Execute(); lErr != nil {
+		t.Fatalf("TC-MEM-13: default mem list failed: %v", lErr)
+	}
+	if strings.Contains(activeBuf.String(), "#"+restID+" ") {
+		t.Fatalf("TC-MEM-13: expected dismissed #%s hidden from default active mem list, got:\n%s", restID, activeBuf.String())
+	}
+
+	listTombCmd := NewMemCmd()
+	listTombCmd.SetOut(&tombBuf)
+	listTombCmd.SetArgs([]string{"list", "--all", "--status", "tombstoned"})
+	if lErr := listTombCmd.Execute(); lErr != nil {
+		t.Fatalf("TC-MEM-13: tombstoned mem list failed: %v", lErr)
+	}
+	if !strings.Contains(tombBuf.String(), "#"+restID) {
+		t.Fatalf("TC-MEM-13: expected dismissed #%s visible under '--status tombstoned', got:\n%s", restID, tombBuf.String())
+	}
+	for _, validStatus := range []string{"superseded", "all"} {
+		sc := NewMemCmd()
+		sc.SetOut(&strings.Builder{})
+		sc.SetArgs([]string{"list", "--all", "--status", validStatus})
+		if sErr := sc.Execute(); sErr != nil {
+			t.Fatalf("TC-MEM-13: expected '--status %s' to succeed, got: %v", validStatus, sErr)
+		}
+	}
+	badStatusCmd := NewMemCmd()
+	badStatusCmd.SetArgs([]string{"list", "--status", "invalid-state"})
+	if bErr := badStatusCmd.Execute(); bErr == nil {
+		t.Fatalf("TC-MEM-13: expected invalid '--status' flag to fail closed")
+	}
 }
 
 func verifySecretShieldAndDependencyLock(t *testing.T, repoDir string) {

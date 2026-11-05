@@ -265,7 +265,7 @@ func matchesMemoryFilter(m *Memory, filter MemoryFilter) bool {
 	if filter.Topic != "" && !strings.EqualFold(m.Topic, filter.Topic) {
 		return false
 	}
-	if filter.Status != "" && m.Status != filter.Status {
+	if filter.Status != "" && effectiveMemoryStatus(m.Status) != filter.Status {
 		return false
 	}
 	if filter.TaskID != "" && !strings.EqualFold(m.TaskID, filter.TaskID) {
@@ -279,6 +279,13 @@ func matchesMemoryFilter(m *Memory, filter MemoryFilter) bool {
 		}
 	}
 	return true
+}
+
+func effectiveMemoryStatus(s MemoryStatus) MemoryStatus {
+	if s == "" {
+		return StatusActive
+	}
+	return s
 }
 
 // RecordAccess increments access count for a memory record.

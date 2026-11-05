@@ -11,9 +11,13 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 )
 
-const recallLedgerPrefix = "mneme_recalled_"
+const (
+	recallLedgerPrefix               = "mneme_recalled_"
+	defaultUnscopedPitfallCoolWindow = 14 * 24 * time.Hour
+)
 
 var pyOrTSSymbolPattern = regexp.MustCompile(`(?m)^(?:\s*(?:async\s+)?function|(?:export\s+)?(?:async\s+)?function|def|class)\s+([A-Za-z_][A-Za-z0-9_]*)`)
 
@@ -172,3 +176,35 @@ func extractGoFuncAndTypeNames(absPath string, data []byte) []string {
 	}
 	return names
 }
+
+func filterEligibleRepoPitfalls(all []*Memory, repoID, targetScope string, now time.Time) []*Memory {
+	topicDepths := countPitfallTopicChain(all, repoID)
+	var candidates []*Memory
+	for _, m := range all {
+		if isPitfallEligibleForScope(m, repoID, targetScope, topicDepths[strings.ToLower(m.Topic)], now) {
+			candidates = append(candidates, m)
+		}
+	}
+	return candidates
+}
+
+func isActiveRepoPitfall(m *Memory, repoID string) bool {
+	if m == nil || m.Kind != KindPitfall || m.Status != StatusActive {
+		return false
+	}
+	return strings.ToLower(strings.TrimSpace(m.RepoID)) == repoID
+}
+
+func isPitfallEligibleForScope(m *Memory, repoID, targetScope string, topicDepth int, now time.Time) bool {
+	if !isActiveRepoPitfall(m, repoID) {
+		return false
+	}
+	if targetScope != workspaceScopeLabel && strings.Contains(m.Topic, targetScope) {
+		return true
+	}
+	if topicDepth >= 2 || m.CreatedAt.IsZero() {
+		return true
+	}
+	return now.Sub(m.CreatedAt) <= defaultUnscopedPitfallCoolWindow
+}
+

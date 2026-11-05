@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPerTaskReinforcementDeduplicationAndReadOnlySearch(t *testing.T) {
@@ -93,3 +94,48 @@ func TestDistillTaskLearnings_SynthesizesGoSymbolDelta(t *testing.T) {
 		t.Fatalf("TC-MEM-11: expected symbol delta %q in %q", wantSub, recalled[0])
 	}
 }
+
+func TestUnscopedOneOffPitfallCoolingAndStatusQuery(t *testing.T) {
+	t.Setenv("NOMOS_HOME", t.TempDir())
+	repo := filepath.Join(t.TempDir(), "eta-repo")
+	store, err := NewStore("")
+	if err != nil {
+		t.Fatalf("NewStore: %v", err)
+	}
+	defer store.Close()
+
+	staleCreated := time.Now().UTC().Add(-20 * 24 * time.Hour)
+	staleOneOff := &Memory{
+		RepoID:    "eta-repo",
+		Kind:      KindPitfall,
+		Topic:     "pitfall:cognitive_complexity_invariant:.github/ISSUE_TEMPLATE",
+		Content:   "[Cognitive Complexity Invariant in .github/ISSUE_TEMPLATE] Trap: stale one-off -> Verified Fix (SUB-1): split",
+		TaskID:    "SUB-1",
+		Status:    StatusActive,
+		CreatedAt: staleCreated,
+	}
+	if sErr := store.Save(staleOneOff); sErr != nil {
+		t.Fatalf("Save staleOneOff: %v", sErr)
+	}
+
+	// Unscoped handshake (no touched files) must cool out a 20-day-old single-occurrence pitfall
+	if unscoped := RecallRepoPitfallsReadOnly(repo, nil, 3); len(unscoped) != 0 {
+		t.Fatalf("TC-MEM-12: expected 20d one-off pitfall cooled out of unscoped recall, got %v", unscoped)
+	}
+
+	// Touching a file inside .github/ISSUE_TEMPLATE must STILL surface the pitfall
+	if scoped := RecallRepoPitfallsReadOnly(repo, []string{".github/ISSUE_TEMPLATE/01_bug_report.yml"}, 3); len(scoped) != 1 {
+		t.Fatalf("TC-MEM-12: expected scoped file match to recall older directory pitfall, got %v", scoped)
+	}
+
+	// Dismissing transitions to tombstoned and excludes from StatusActive Query while matching StatusTombstoned
+	if _, dErr := store.Dismiss(staleOneOff.ID); dErr != nil {
+		t.Fatalf("Dismiss: %v", dErr)
+	}
+	activeOnly, _ := store.Query(MemoryFilter{RepoID: "eta-repo", Status: StatusActive})
+	tombstonedOnly, _ := store.Query(MemoryFilter{RepoID: "eta-repo", Status: StatusTombstoned})
+	if len(activeOnly) != 0 || len(tombstonedOnly) != 1 {
+		t.Fatalf("TC-MEM-13: expected active=0 tombstoned=1, got active=%d tombstoned=%d", len(activeOnly), len(tombstonedOnly))
+	}
+}
+
