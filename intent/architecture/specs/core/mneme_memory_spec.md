@@ -4,12 +4,12 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-23"
-last_updated: "2026-11-03"
+last_updated: "2026-11-05"
 plane: intent
 status: active
 title: "Nomos Mneme Episodic and Semantic Memory Subsystem Specification"
 type: spec
-version: "4.3.0"
+version: "4.4.0"
 tags:
     - INT-735
     - SUB-1213
@@ -17,6 +17,7 @@ tags:
     - SUB-1524
     - INT-899
     - SUB-1680
+    - INT-926
 ssot_repository: nomos
 ---
 
@@ -99,7 +100,9 @@ $$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{Lexica
 - **Cosine Similarity**: $\frac{A \cdot B}{\|A\| \|B\|}$ evaluating semantic alignment.
 - **Lexical Overlap**: Word token Jaccard-style intersection over query length.
 - **Ebbinghaus Temporal Decay**: $\exp(-\lambda \times \text{age}_{\text{days}})$, where $\lambda$ is tuned by memory kind (`axiom`: $0.005$, `pattern`: $0.006$, `pitfall`: $0.008$, `reflection`: $0.02$, `release`/`task`/`commit`: $0.05$).
-- **Access Reinforcement**: $1.0 + 0.05 \times \min(\text{access\_count}, 10)$, reinforcing wisdom recalled during active task execution (`nomos task start`, `nomos task chore`, active worktree `nomos handshake`, and explicit `nomos mem recall`) while passive `IDLE` trunk orientation (`nomos handshake`, `nomos status`, `nomos task status`) queries read-only so `access_count` reflects genuine task reinforcement and surfaces `kind="pitfall"` Tier A $\to$ Tier B graduation candidates (`access_count >= 3`).
+- **Access Reinforcement & Per-Task Deduplication**: $1.0 + 0.05 \times \min(\text{access\_count}, 10)$, reinforcing wisdom injected during active task execution (`nomos task start`, `nomos task chore`, and active worktree `nomos handshake`) **at most once per distinct `(task_id, memory_id)`**. Passive `IDLE` trunk orientation (`nomos handshake`, `nomos status`, `nomos task status`) and interactive CLI `nomos mem recall` queries execute read-only (`SearchOptions.ReadOnly = true`) so inspecting memories never inflates `access_count`.
+- **Recurrence-Aware Graduation (`RecallGraduationCandidates`)**: Built-in compiled Tier-C structural AST gates (`Cognitive Complexity`, `Function Length`, `File Length`, `Docstring Density`, `Statement Coverage`) only surface as graduation candidates when **true topic recurrence $\ge 2$** (at least two distinct tasks tripped that gate in the same directory scope, measured via superseded topic chain depth), recommending a package-scoped Repo Axiom rather than redundant `nomos.yaml` thresholds. Policy-graduatable statutory pitfalls surface when topic recurrence $\ge 2$ or task-deduplicated `access_count >= 3`.
+- **Symbol-Delta Pitfall Distillation (`DistillTaskLearnings`)**: When a buffered gate trap references a concrete repository file, 2PC sync distillation inspects the verified post-fix file AST/symbols and prepends `Refactored <file> [<symbols>]` ahead of the walkthrough summary so downstream agents see the concrete structural resolution.
 
 ---
 
@@ -131,7 +134,7 @@ $$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{Lexica
   - `--json`: Structured JSON output.
 
 ### 5.4 `nomos mem dismiss <id> [id...]`
-- Transitions one or more active or superseded memory records to `tombstoned` (`Store.Dismiss`) once a `pitfall` guardrail has been codified into `nomos.yaml` or an advisory memory is obsolete, while preserving audit history in `mneme.db` without raw SQLite manipulation (ADR-0062).
+- Transitions one or more active or superseded memory records to `tombstoned` (`Store.Dismiss`) once a `pitfall` gate has been codified into `nomos.yaml` or an advisory memory is obsolete, while preserving audit history in `mneme.db` without raw SQLite manipulation (ADR-0062).
 - Flags:
   - `--json`: Structured JSON output.
 
@@ -148,5 +151,7 @@ $$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{Lexica
 | `TC-MEM-05` | Empty content rejection | `nomos mem save ""` | Fails closed: memory content cannot be empty. |
 | `TC-MEM-06` | Statutory provenance guard | `nomos mem save "fake" --kind pattern` or `--kind pitfall` | Fails closed (`ERR_VALIDATION_FAILED`): statutory kinds minted strictly by 2PC `nomos task sync`. |
 | `TC-MEM-07` | Positive-path pattern distillation | Clean 42/42 verified `nomos task sync` | Distills `kind="pattern"` blueprint into `mneme.db` and recalls via `verified_patterns`. |
-| `TC-MEM-08` | Tier B graduation surfacing | Statutory `pitfall` memory reaches `access_count >= 3` | Surfaced in `graduation_candidates` for promotion into `nomos.yaml` (`pattern` blueprints excluded). |
+| `TC-MEM-08` | Recurrence-aware graduation surfacing | Policy pitfall reaches `access_count >= 3` or built-in AST pitfall recurs across `>= 2` tasks | Surfaced in `graduation_candidates` (`pattern` blueprints and single-occurrence passive AST views excluded). |
 | `TC-MEM-09` | Memory dismissal | `nomos mem dismiss <id>` | Transitions record to `tombstoned`; excluded from active recall and `graduation_candidates`. |
+| `TC-MEM-10` | Per-task reinforcement & read-only CLI recall | Repeated `RecallRepoPitfallsForTask` in same task + `SearchOptions{ReadOnly: true}` | Increments `access_count` at most `+1` per distinct task and `+0` on read-only CLI inspection. |
+| `TC-MEM-11` | Symbol-delta pitfall fix distillation | Gate trap cites a repository source file resolved at 2PC sync | `Verified Fix` records concrete refactored file and verified symbols ahead of walkthrough prose. |
