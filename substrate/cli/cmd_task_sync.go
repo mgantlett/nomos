@@ -68,6 +68,9 @@ func finalizeSync(key, walkthroughPath string, report *verify.PipelineReport) er
 		return cErr
 	}
 	touchedFiles := verify.ListModifiedWorktreeFiles(wtPath, key)
+	if pErr := validateReceiptTraceParity(wtPath, walkthroughPath, touchedFiles); pErr != nil {
+		return pErr
+	}
 	branch := mgr.BranchName(key)
 	rebased, rErr := rebaseOntoTrunkIfDiverged(mgr.RepoRoot, wtPath, branch)
 	if rErr != nil {
@@ -93,6 +96,7 @@ func finalizeSync(key, walkthroughPath string, report *verify.PipelineReport) er
 	recordReleaseReceipt(mgr.RepoRoot, key, walkthroughPath, now, report)
 	revokeActiveLease(key)
 	distillAndMaintainOnSync(mgr.RepoRoot, key, walkthroughPath, touchedFiles)
+	clearHookSessionTrace(wtPath)
 	cleanupAndAnnounceSyncedTask(mgr, key)
 	return nil
 }

@@ -11,17 +11,18 @@ import (
 
 // HookPayload normalizes incoming JSON hook events across Claude Code, Gemini CLI, Cursor, and Antigravity.
 type HookPayload struct {
-	SessionID      string
-	ToolName       string
-	TargetFile     string
-	CommandLine    string
-	ArgsDigest     string
-	Cwd            string
-	WorkspacePaths []string
-	HasToolInput   bool
-	IsClaudeEvent  bool
-	IsGeminiEvent  bool
-	IsPostInvoke   bool
+	SessionID        string
+	ToolName         string
+	TargetFile       string
+	CommandLine      string
+	ArgsDigest       string
+	ToolResponseText string
+	Cwd              string
+	WorkspacePaths   []string
+	HasToolInput     bool
+	IsClaudeEvent    bool
+	IsGeminiEvent    bool
+	IsPostInvoke     bool
 }
 
 var (
@@ -71,6 +72,7 @@ func parseHookPayload(raw []byte) *HookPayload {
 	p.TargetFile = extractTargetFileField(m)
 	p.CommandLine = extractCommandField(m)
 	p.ArgsDigest = extractArgsDigestField(m)
+	p.ToolResponseText = extractToolResponseText(m)
 	return p
 }
 
@@ -205,4 +207,33 @@ func resolveHookWorkspaceDir(p *HookPayload, hermeticDir string) string {
 		return wd
 	}
 	return "."
+}
+
+// extractToolResponseText normalizes PostToolUse and AfterTool output/error fields across agent schemas.
+func extractToolResponseText(m map[string]any) string {
+	for _, key := range []string{"tool_response", "toolResponse", "toolResult"} {
+		raw, ok := m[key]
+		if !ok || raw == nil {
+			continue
+		}
+		if s, isStr := raw.(string); isStr && strings.TrimSpace(s) != "" {
+			return strings.TrimSpace(s)
+		}
+		if sub, isMap := raw.(map[string]any); isMap {
+			if joined := collectResponseSubfields(sub); joined != "" {
+				return joined
+			}
+		}
+	}
+	return firstNonEmpty(extractStringField(m, "stderr"), extractStringField(m, "error"))
+}
+
+func collectResponseSubfields(sub map[string]any) string {
+	var parts []string
+	for _, k := range []string{"stderr", "error", "output", "stdout", "llmContent", "returnDisplay"} {
+		if v := extractStringField(sub, k); v != "" {
+			parts = append(parts, v)
+		}
+	}
+	return strings.Join(parts, "\n")
 }

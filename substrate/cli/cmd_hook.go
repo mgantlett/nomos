@@ -97,6 +97,7 @@ func newHookPreToolCmd(hermeticDir *string, containerSandbox *bool, budgetSec *i
 			payload := parseHookPayload(raw)
 			ensureSessionBudgetStamp(payload, *hermeticDir, resolveEffectiveBudgetSeconds(*budgetSec))
 			dec := dispatchPreToolHook(payload, *hermeticDir, *containerSandbox)
+			recordPreToolSessionTrace(payload, *hermeticDir, dec.Decision == hookDecisionDeny)
 			return writePreToolResponse(cmd.OutOrStdout(), payload, dec)
 		},
 	}
@@ -131,14 +132,16 @@ func dispatchPreToolHook(payload *HookPayload, hermeticDir string, containerSand
 }
 
 func dispatchPostToolHook(payload *HookPayload, hermeticDir string, containerSandbox bool, budgetSec int) string {
+	recordPostToolSessionTrace(payload, hermeticDir)
 	budgetMsg := evaluateSessionBudgetRadar(payload, hermeticDir, budgetSec)
+	healthMsg := evaluatePostToolHostHealth(payload, hermeticDir)
 	var syntaxMsg string
 	if containerSandbox && hermeticDir == "" {
 		syntaxMsg = EvaluateContainerPostToolHook(payload)
 	} else {
 		syntaxMsg = EvaluatePostToolHook(payload, hermeticDir)
 	}
-	return joinHookAdvisories(budgetMsg, syntaxMsg)
+	return joinHookAdvisories(joinHookAdvisories(budgetMsg, healthMsg), syntaxMsg)
 }
 
 func writeEmptyJSON(w io.Writer) error {
