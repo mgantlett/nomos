@@ -4,12 +4,12 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-03"
-last_updated: "2026-11-03"
+last_updated: "2026-11-04"
 plane: intent
 status: active
 title: "Agent Tiers & Indirect Control: The Open-Core Charter Architectural Specification"
 type: spec
-version: "4.1.0"
+version: "4.2.0"
 execution_frontier:
   tasks:
     - key: "INT-279"
@@ -45,6 +45,12 @@ execution_frontier:
     - key: "SUB-1720"
       plane: "substrate"
       summary: "Implement Gemini CLI BeforeTool/AfterTool event discrimination and dir_path extraction in substrate/cli"
+    - key: "INT-925"
+      plane: "intent"
+      summary: "Codify binary read context guard, headless interactive hang guard, and session budget radar in nomos hook"
+    - key: "SUB-1764"
+      plane: "substrate"
+      summary: "Implement binary read guard, interactive hang guard, and session budget radar in substrate/cli"
 ssot_repository: nomos
 ---
 
@@ -213,6 +219,9 @@ When `--container-sandbox` is active (without `--hermetic-dir`), `nomos hook pre
 In `--container-sandbox` mode, `nomos hook post-tool` validates edited `.go`, `.py`, `.json`, and `.jsonl` files in memory and runs `EvaluateFastFileRadar` only when the target repository declares `nomos.yaml`.
 When both flags are omitted in a standard Nomos repository, `nomos hook pre-tool` enforces the Law 3 hermetic worktree boundary.
 In addition, `nomos init` and `nomos hook` preserve and chain pre-existing `.claude/settings.json` hook entries, and `nomos hook pre-tool` enforces a 3-strike identical-call circuit-breaker keyed on `(tool_name, canonical_args_hash, workspace_mtime_digest)` to halt non-progressing tool loops.
+Across all operating modes, `nomos hook pre-tool` blocks native text-read calls (`Read`, `read_file`) targeting opaque binary, archive, media, database, or model-weight extensions and guides the agent to inspect structured metadata via shell utilities.
+In headless `--container-sandbox` and `--hermetic-dir` modes, `nomos hook pre-tool` also blocks Gemini CLI inline-media `read_file` serialization crashes and unbounded interactive or follow commands (`tail -f`, `watch`, `vim`, `nano`, `less`, `top` without batch or `timeout` flags).
+Finally, every `nomos hook` subcommand accepts an optional `--budget-sec <seconds>` flag (or `NOMOS_BUDGET_SECONDS` environment variable) so `nomos hook post-tool` emits deduplicated wall-clock checkpoint advisories at `75%` and `90%` elapsed budget while remaining silent on all other calls.
 
 ### Sovereign Deny-List (Prohibited in Open-Core)
 
