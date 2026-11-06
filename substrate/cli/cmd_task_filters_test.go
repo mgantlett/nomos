@@ -16,7 +16,7 @@ func TestTaskListAndDAG_FilterFlagsAndJSONParity(t *testing.T) {
 	pairCmd := newTaskPairCmd()
 	pairCmd.SetArgs([]string{
 		"Filter Parity Pair",
-		"--int-scope", "Document CLI filter contract in intent/architecture/specs/core/task_lifecycle_cli_spec.md.",
+		"--int-scope", "Document CLI filter contract in intent/architecture/specs/task_lifecycle_cli_spec.md.",
 		"--sub-scope", "Implement CLI filter flags in substrate/cli/cmd_task_filters.go.",
 		"--ac", "Verify filter flags and JSON output",
 		"--verify", "go test ./substrate/cli/...",

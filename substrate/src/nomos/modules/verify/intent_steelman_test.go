@@ -9,30 +9,64 @@ import (
 
 const canonicalStrictSpecFixture = `---
 authors:
-    - Mark Gantlett
-    - Nomos Open-Core Substrate
+  - Mark Gantlett
+  - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-01"
 last_updated: "2026-11-05"
+lineage:
+  - INT-932
+  - SUB-1797
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Sample Steel-Man Specification"
 type: spec
-version: "4.0.0"
+version: "4.8.0"
 ---
 
 # Sample Steel-Man Specification
 
-## 1. Executive Summary
+---
+
+## 1. Executive Summary & Problem Statement
 
 The substrate enforces deterministic verification across all Intent documents.
 
-## 2. Table-Driven Test Vectors
+---
+
+## 2. Axiomatic Invariants & Governing Laws
+
+Every Intent contract binds to one compiled Go Single Source of Truth.
+
+---
+
+## 3. Compiled Go SSoT Contracts
+
+` + "```go" + `
+package verify
+
+// SampleContract defines a deterministic test structure.
+type SampleContract struct {
+	Enabled bool
+}
+` + "```" + `
+
+---
+
+## 4. Table-Driven Verification Vectors
 
 | Vector ID | Scenario | Expected Verdict |
 | :--- | :--- | :--- |
-| TV-01 | Valid specification | PASS |
+| TC-SMP-01 | Valid canonical specification | PASS |
+| TC-SMP-02 | Missing frontmatter delimiter | FAIL |
+| TC-SMP-03 | Unclosed Markdown code fence | FAIL |
+
+---
+
+## 5. Cross-Plane Traceability & DoD Verification
+
+1. ` + "`substrate/src/nomos/modules/verify/intent_steelman.go`" + ` enforces ` + "`Cell 4.1 (intent_steelman)`" + `.
 `
 
 const strictNomosConfigFixture = `project: test-strict
@@ -45,7 +79,7 @@ governance:
         enabled: true
 `
 
-func TestIntentSteelmanStrictStandardVectors(t *testing.T) {
+func TestIntentSteelmanStrictFrontmatterAndNCTE(t *testing.T) {
 	cases := []struct {
 		name      string
 		relPath   string
@@ -53,48 +87,60 @@ func TestIntentSteelmanStrictStandardVectors(t *testing.T) {
 		wantError string
 	}{
 		{
-			name:    "valid_canonical_spec_passes",
-			relPath: "architecture/specs/core/sample_spec.md",
+			name:    "valid_flat_canonical_spec_passes",
+			relPath: "architecture/specs/sample_spec.md",
 			content: canonicalStrictSpecFixture,
 		},
 		{
-			name:    "valid_handbook_without_test_vectors_passes",
-			relPath: "architecture/handbook/01-guide.md",
-			content: strings.Replace(canonicalStrictSpecFixture, "type: spec", "type: handbook", 1),
+			name:    "valid_root_intent_manifest_passes",
+			relPath: "intent.md",
+			content: canonicalStrictSpecFixture,
 		},
 		{
-			name:      "rejects_non_spec_filename_in_specs_dir",
-			relPath:   "architecture/specs/substrate/polyglot_invariants.md",
+			name:      "rejects_handbook_document_in_open_core",
+			relPath:   "architecture/handbook/01-guide.md",
 			content:   canonicalStrictSpecFixture,
-			wantError: "canonical '_spec.md' suffix",
+			wantError: "handbook",
 		},
 		{
-			name:      "rejects_missing_test_vectors_in_spec",
-			relPath:   "architecture/specs/core/no_vectors_spec.md",
-			content:   strings.Replace(canonicalStrictSpecFixture, "## 2. Table-Driven Test Vectors", "## 2. Notes", 1),
-			wantError: "Table-Driven Test Vectors/Matrix",
+			name:      "rejects_disallowed_frontmatter_trigger_and_tags",
+			relPath:   "architecture/specs/extra_keys_spec.md",
+			content:   strings.Replace(canonicalStrictSpecFixture, "plane: intent\n", "plane: intent\ntrigger: always_on\ntags:\n  - legacy\n", 1),
+			wantError: "disallowed YAML frontmatter key(s)",
+		},
+		{
+			name:      "rejects_non_spec_doc_type_in_strict_mode",
+			relPath:   "architecture/specs/wrong_type_spec.md",
+			content:   strings.Replace(canonicalStrictSpecFixture, "type: spec", "type: research", 1),
+			wantError: "requires 'type: spec'",
+		},
+		{
+			name:      "rejects_invalid_lineage_task_key",
+			relPath:   "architecture/specs/bad_lineage_spec.md",
+			content:   strings.Replace(canonicalStrictSpecFixture, "  - INT-932", "  - CUST-99", 1),
+			wantError: "invalid frontmatter lineage task key",
 		},
 		{
 			name:      "rejects_unicode_em_dash",
-			relPath:   "architecture/specs/core/dash_spec.md",
+			relPath:   "architecture/specs/dash_spec.md",
 			content:   canonicalStrictSpecFixture + "\nThis line contains an em-dash \u2014 in prose.\n",
 			wantError: "Unicode em-dash or en-dash",
 		},
 		{
 			name:      "rejects_missing_ssot_repository",
-			relPath:   "architecture/specs/core/no_repo_spec.md",
+			relPath:   "architecture/specs/no_repo_spec.md",
 			content:   strings.Replace(canonicalStrictSpecFixture, "ssot_repository: nomos\n", "", 1),
 			wantError: "ssot_repository",
 		},
 		{
 			name:      "rejects_invalid_version_semver",
-			relPath:   "architecture/specs/core/bad_ver_spec.md",
-			content:   strings.Replace(canonicalStrictSpecFixture, "version: \"4.0.0\"", "version: \"v4\"", 1),
+			relPath:   "architecture/specs/bad_ver_spec.md",
+			content:   strings.Replace(canonicalStrictSpecFixture, "version: \"4.8.0\"", "version: \"v4\"", 1),
 			wantError: "invalid frontmatter version",
 		},
 		{
 			name:      "rejects_ncte_ambiguous_modal",
-			relPath:   "architecture/specs/core/modal_spec.md",
+			relPath:   "architecture/specs/modal_spec.md",
 			content:   canonicalStrictSpecFixture + "\nOperators should configure thresholds carefully.\n",
 			wantError: "ERR_NCTE_AMBIGUOUS_MODAL",
 		},
@@ -130,7 +176,7 @@ func TestIntentSteelmanGateEndToEndStrictMode(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(tempDir, "nomos.yaml"), []byte(strictNomosConfigFixture), 0644); err != nil {
 		t.Fatalf("write nomos.yaml: %v", err)
 	}
-	specDir := filepath.Join(tempDir, "intent", "architecture", "specs", "core")
+	specDir := filepath.Join(tempDir, "intent", "architecture", "specs")
 	if err := os.MkdirAll(specDir, 0755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}

@@ -28,7 +28,7 @@ func TestIntentSteelmanGateClean(t *testing.T) {
 	}
 
 	tempDir := t.TempDir()
-	specDir := filepath.Join(tempDir, "intent", "architecture", "specs", "core")
+	specDir := filepath.Join(tempDir, "intent", "architecture", "specs")
 	if err := os.MkdirAll(specDir, 0755); err != nil {
 		t.Fatal(err)
 	}

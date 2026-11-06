@@ -146,7 +146,7 @@ func TestTaskCmd_PairAndTwinOf(t *testing.T) {
 	pairCmd := newTaskPairCmd()
 	pairCmd.SetArgs([]string{
 		"Bilateral Feature Pair",
-		"--int-scope", "Codify bilateral contract in intent/architecture/specs/core/task_lifecycle_cli_spec.md.",
+		"--int-scope", "Codify bilateral contract in intent/architecture/specs/task_lifecycle_cli_spec.md.",
 		"--sub-scope", "Enforce bilateral contract in substrate/cli/cmd_task.go.",
 		"--ac", "Pass 42 DoD gates across both planes",
 		"--verify", "nomos verify",

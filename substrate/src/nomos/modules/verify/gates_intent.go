@@ -126,7 +126,7 @@ func (g *IntentSteelmanGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		return &GateResult{
 			GateName: g.Name(), ProbeID: probeIntentSteelman, Law: 4, Ring: RingSyntactic,
 			Passed: false, Message: fmt.Sprintf("Intent specification schema violation(s): %s", strings.Join(issues, "; ")),
-			Remedy: "ensure every Intent Markdown file has canonical 10-key YAML frontmatter, '_spec.md' naming, Test Vectors, balanced code fences, and passes 'nomos directive --lint <file>'",
+			Remedy: "enforce flat 'intent/architecture/specs/*_spec.md' topology, 10-key + optional 'lineage' YAML frontmatter, contiguous 1..N H2 spine with '```go' SSoT and 'TC-' vectors, and zero NCTE-100 diagnostics ('nomos directive --lint <file>')",
 		}, nil
 	}
 

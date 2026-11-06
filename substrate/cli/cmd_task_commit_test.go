@@ -75,7 +75,7 @@ func TestNormalizeCommitSubject_DeduplicationCasingAnd80RuneBudget(t *testing.T)
 			name:        "maps spec prefix to canonical docs",
 			taskKey:     "INT-864",
 			raw:         "spec(intent): codify 3-section task card contract",
-			stagedFiles: []string{"intent/architecture/specs/core/card_spec.md"},
+			stagedFiles: []string{"intent/architecture/specs/card_spec.md"},
 			want:        "docs(intent): codify 3-section task card contract",
 		},
 		{
@@ -104,7 +104,7 @@ func TestNormalizeCommitSubject_DeduplicationCasingAnd80RuneBudget(t *testing.T)
 			taskKey:     "INT-12",
 			raw:         "",
 			rec:         &task.TaskRecord{Title: "Codify commit hydration contract"},
-			stagedFiles: []string{"intent/architecture/specs/core/commit_rules_spec.md"},
+			stagedFiles: []string{"intent/architecture/specs/commit_rules_spec.md"},
 			want:        "docs(specs): codify commit hydration contract",
 		},
 		{
