@@ -2,7 +2,9 @@ package cli
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -121,6 +123,29 @@ func operationalSurfaceContractCases() []repoContractCase {
 			relPath: filepath.Join("substrate", "cli", "commit_scope.go"),
 			forbid:  []string{"cockpit-ui", "cockpit"},
 		},
+		{
+			name:    "TC-REL-014 GoReleaser AUR nomos-bin static binary target",
+			relPath: ".goreleaser.yaml",
+			mustHave: []string{
+				"aurs:",
+				"name: nomos-bin",
+				"ssh://aur@aur.archlinux.org/nomos-bin.git",
+				`install -Dm755 "./nomos" "${pkgdir}/usr/bin/nomos"`,
+				`install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/nomos-bin/LICENSE"`,
+			},
+		},
+		{
+			name:    "TC-REL-015 Arch/Omarchy packaging/aur/PKGBUILD static binary contract",
+			relPath: filepath.Join("packaging", "aur", "PKGBUILD"),
+			mustHave: []string{
+				"pkgname=nomos-bin",
+				"arch=('x86_64' 'aarch64')",
+				"license=('Apache-2.0')",
+				"options=('!strip' '!debug')",
+				"sha256sums_x86_64=",
+				"sha256sums_aarch64=",
+			},
+		},
 	}
 }
 
@@ -149,5 +174,62 @@ func TestOpenCoreLegalAndReleaseContracts(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestAURPKGBUILD_SHA256AndPackageExecution(t *testing.T) {
+	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("resolve repo root: %v", err)
+	}
+	pkgbuildPath := filepath.Join(repoRoot, "packaging", "aur", "PKGBUILD")
+	raw, err := os.ReadFile(pkgbuildPath)
+	if err != nil {
+		t.Fatalf("read PKGBUILD: %v", err)
+	}
+	shaRe := regexp.MustCompile(`sha256sums_(?:x86_64|aarch64)=\('([0-9a-f]{64})'\)`)
+	matches := shaRe.FindAllStringSubmatch(string(raw), -1)
+	if len(matches) != 2 {
+		t.Fatalf("expected 2 pinned 64-hex SHA-256 sums in PKGBUILD, got %d", len(matches))
+	}
+
+	bashBin, bErr := exec.LookPath("bash")
+	if bErr != nil {
+		return
+	}
+	_ = ensureCompiledHookTestEnv(t)
+	srcDir := t.TempDir()
+	pkgDir := t.TempDir()
+
+	binBytes, rErr := os.ReadFile(filepath.Join(compiledHookTestBinDir, "nomos"))
+	if rErr != nil {
+		t.Fatalf("read compiled nomos: %v", rErr)
+	}
+	if wErr := os.WriteFile(filepath.Join(srcDir, "nomos"), binBytes, 0755); wErr != nil {
+		t.Fatalf("stage nomos in srcdir: %v", wErr)
+	}
+	for _, doc := range []string{"LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md", "README.md", "CHANGELOG.md"} {
+		docBytes, dErr := os.ReadFile(filepath.Join(repoRoot, doc))
+		if dErr != nil {
+			t.Fatalf("read %s: %v", doc, dErr)
+		}
+		if wErr := os.WriteFile(filepath.Join(srcDir, doc), docBytes, 0644); wErr != nil {
+			t.Fatalf("stage %s: %v", doc, wErr)
+		}
+	}
+
+	script := `set -euo pipefail; srcdir="$1"; pkgdir="$2"; source "$3"; package`
+	cmd := exec.Command(bashBin, "-c", script, "pkgbuild-test", srcDir, pkgDir, pkgbuildPath)
+	if out, cErr := cmd.CombinedOutput(); cErr != nil {
+		t.Fatalf("PKGBUILD package() execution failed (%v):\n%s", cErr, string(out))
+	}
+
+	installedBin := filepath.Join(pkgDir, "usr", "bin", "nomos")
+	verOut, vErr := exec.Command(installedBin, "--version").CombinedOutput()
+	if vErr != nil {
+		t.Fatalf("installed /usr/bin/nomos --version failed (%v): %s", vErr, string(verOut))
+	}
+	if _, lErr := os.Stat(filepath.Join(pkgDir, "usr", "share", "licenses", "nomos-bin", "LICENSE")); lErr != nil {
+		t.Fatalf("expected installed LICENSE under /usr/share/licenses/nomos-bin/LICENSE: %v", lErr)
 	}
 }

@@ -49,6 +49,25 @@ archives:
 checksum:
   name_template: 'checksums.txt'
 
+aurs:
+  - name: nomos-bin
+    homepage: "https://github.com/mgantlett/nomos"
+    description: "Deterministic engineering substrate and 42-gate AST control harness for AI coding agents"
+    maintainers:
+      - "Mark Gantlett <mark@sophialabs.ca>"
+    license: "Apache-2.0"
+    private_key: "{{ .Env.AUR_KEY }}"
+    git_url: "ssh://aur@aur.archlinux.org/nomos-bin.git"
+    skip_upload: "{{ if .Env.AUR_KEY }}auto{{ else }}true{{ end }}"
+    options:
+      - "!strip"
+      - "!debug"
+    package: |-
+      install -Dm755 "./nomos" "${pkgdir}/usr/bin/nomos"
+      install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/nomos-bin/LICENSE"
+      install -Dm644 "./NOTICE" "${pkgdir}/usr/share/licenses/nomos-bin/NOTICE"
+      install -Dm644 "./THIRD_PARTY_NOTICES.md" "${pkgdir}/usr/share/licenses/nomos-bin/THIRD_PARTY_NOTICES.md"
+
 changelog:
   sort: asc
   filters:
