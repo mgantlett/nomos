@@ -6,7 +6,7 @@ Welcome to **Nomos**! This guide covers the ground rules and local verification 
 
 This repository (`nomos`) contains the Apache 2.0 indirect-control governance harness for **Tier 1 coding agents** (Claude Code, Cursor, Antigravity, OpenCode, Windsurf, Aider), the 42-gate polyglot AST & toolchain verification engine, pure-Go SQLite Living Ledger persistence, and **Nomos Mneme** hybrid vector memory.
 
-Enterprise multi-seat orchestration, autonomous Tier 2 coding agents, and hosted control-plane surfaces live outside this repository (see [`open_core_license_spec.md`](intent/architecture/specs/core/open_core_license_spec.md)). Never commit hardcoded host paths, secrets, or proprietary dependencies.
+Enterprise multi-seat orchestration, autonomous Tier 2 coding agents, and hosted control-plane surfaces live outside this repository (see [`open_core_license_spec.md`](intent/architecture/specs/open_core_license_spec.md)). Never commit hardcoded host paths, secrets, or proprietary dependencies.
 
 ## The 7 Statutory Laws
 
@@ -34,7 +34,7 @@ Every contribution is verified deterministically against the 7 core architectura
 
    # Or full 3-section card / twinned spec + code pair:
    nomos task pair "Add verification probe" \
-     --int-scope "Document contract in intent/architecture/specs/core/..." \
+     --int-scope "Document contract in intent/architecture/specs/..." \
      --sub-scope "Implement probe in substrate/src/nomos/modules/verify/..." \
      --ac "Pass all 42 DoD gates and unit tests" \
      --verify "go -C substrate test ./... && nomos verify"
