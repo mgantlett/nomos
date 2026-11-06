@@ -146,7 +146,7 @@ func advanceUntilQuoteClose(src string, i int, quote byte) int {
 // ValidatePythonSyntax checks balanced delimiters and complete function headers in Python source.
 func ValidatePythonSyntax(filePath string, content []byte) error {
 	cleaned := stripPythonLiterals(string(content))
-	if err := checkBalancedTriplet(cleaned, filePath); err != nil {
+	if err := checkBalancedDelimiters("python", cleaned, filePath); err != nil {
 		return err
 	}
 	for _, loc := range pyDefCheckRe.FindAllStringIndex(cleaned, -1) {
@@ -163,7 +163,7 @@ var pyDelimiterWeights = map[rune][3]int{
 	'{': {0, 0, 1}, '}': {0, 0, -1},
 }
 
-func checkBalancedTriplet(cleaned, filePath string) error {
+func checkBalancedDelimiters(lang, cleaned, filePath string) error {
 	var counts [3]int
 	for _, ch := range cleaned {
 		w, ok := pyDelimiterWeights[ch]
@@ -173,12 +173,12 @@ func checkBalancedTriplet(cleaned, filePath string) error {
 		for idx := 0; idx < 3; idx++ {
 			counts[idx] += w[idx]
 			if counts[idx] < 0 {
-				return fmt.Errorf("python syntax error: unbalanced closing delimiter in %s", filePath)
+				return fmt.Errorf("%s syntax error: unbalanced closing delimiter in %s", lang, filePath)
 			}
 		}
 	}
 	if counts != [3]int{0, 0, 0} {
-		return fmt.Errorf("python syntax error: unclosed delimiter in %s", filePath)
+		return fmt.Errorf("%s syntax error: unclosed delimiter in %s", lang, filePath)
 	}
 	return nil
 }

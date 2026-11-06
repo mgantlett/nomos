@@ -14,6 +14,7 @@ var langScannerMap = map[string]func(string, []byte) ([]FunctionMetric, error){
 	"typescript": func(fp string, c []byte) ([]FunctionMetric, error) { return scanTypeScript(fp, c, 0) },
 	"svelte":     scanSvelte,
 	"python":     scanPython,
+	"ruby":       scanRuby,
 	"rust":       scanRust,
 	"c":          scanC,
 	"cpp":        scanC,

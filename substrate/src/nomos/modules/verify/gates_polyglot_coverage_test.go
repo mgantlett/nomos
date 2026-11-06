@@ -34,6 +34,9 @@ func TestPolyglotCoverageAndToolchainProbes(t *testing.T) {
 	if !isCSharpImpactPath("src/Program.cs") || !isCSharpImpactPath("app.csproj") {
 		t.Errorf("expected C# impact paths to match")
 	}
+	if !isRubyImpactPath("app/models/order.rb") || !isRubyImpactPath("lib/tasks/deploy.rake") || !isRubyImpactPath("gemfile") {
+		t.Errorf("expected Ruby/Rails impact paths to match")
+	}
 
 	tmp := t.TempDir()
 	if label, fail := verifyCCppToolchain(tmp); label != "" || fail != nil {
@@ -44,6 +47,20 @@ func TestPolyglotCoverageAndToolchainProbes(t *testing.T) {
 	}
 	if label, fail := verifyCSharpToolchain(tmp); label != "" || fail != nil {
 		t.Errorf("expected empty C# probe on empty dir")
+	}
+	if label, fail := verifyRubyToolchain(nil, tmp); label != "" || fail != nil {
+		t.Errorf("expected empty Ruby probe on empty dir")
+	}
+
+	railsTest := filepath.Join(tmp, "test", "models")
+	if err := os.MkdirAll(railsTest, 0755); err != nil {
+		t.Fatalf("mkdir rails test dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(railsTest, "order_test.rb"), []byte("class OrderTest; end\n"), 0644); err != nil {
+		t.Fatalf("write order_test.rb: %v", err)
+	}
+	if paired := resolvePairedTestStatus(tmp, "app/models/order.rb"); paired != "paired test: order_test.rb" {
+		t.Errorf("expected Rails Minitest paired test resolution, got %q", paired)
 	}
 
 	cmakeFile := filepath.Join(tmp, "CMakeLists.txt")

@@ -132,6 +132,7 @@ func stepSCMDelim(ch byte, parens, brackets int) (int, int) {
 var (
 	tsSkipRe     = regexp.MustCompile(`\b(?:it|test|describe)\.skip\s*\(`)
 	pySkipRe     = regexp.MustCompile(`@(?:pytest\.mark\.skip(?:if)?|unittest\.skip(?:If|Unless)?)\b`)
+	rbSkipRe     = regexp.MustCompile(`(?:^\s*(?:xit|xdescribe|xcontext)\b|^\s*skip\b)`)
 	rsSkipRe     = regexp.MustCompile(`#\s*\[\s*ignore\b`)
 	jvmSkipRe    = regexp.MustCompile(`@(?:Disabled|Ignore)\b`)
 	csharpSkipRe = regexp.MustCompile(`\[\s*(?:Fact|Theory)\s*\([^]]*\bSkip\s*=|\[\s*Ignore\b`)
@@ -141,9 +142,12 @@ var (
 // to prevent test-skip reward hacking across polyglot test suites (Law 2).
 func DetectSkippedTests(lang string, content []byte) []string {
 	var cleaned string
-	if lang == "python" {
+	switch lang {
+	case "python":
 		cleaned = stripPythonLiterals(string(content))
-	} else {
+	case "ruby":
+		cleaned = stripRubyLiterals(string(content))
+	default:
 		cleaned = stripCLikeLiterals(string(content), lang != "rust")
 	}
 
@@ -168,6 +172,8 @@ func skipRegexForLang(lang string) *regexp.Regexp {
 		return tsSkipRe
 	case "python":
 		return pySkipRe
+	case "ruby":
+		return rbSkipRe
 	case "rust":
 		return rsSkipRe
 	case "java", "kotlin":

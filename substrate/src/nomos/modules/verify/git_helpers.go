@@ -25,6 +25,10 @@ func isJSTestOrDeclFile(path string) bool {
 	return strings.HasSuffix(path, ".d.ts") || strings.HasSuffix(path, ".test.ts") || strings.HasSuffix(path, ".spec.ts")
 }
 
+func isRubyTestFile(path string) bool {
+	return strings.HasSuffix(path, "_spec.rb") || strings.HasSuffix(path, "_test.rb")
+}
+
 func isNativeTestFile(path string) bool {
 	return strings.HasSuffix(path, "_test.rs") || strings.HasSuffix(path, "_test.c") || strings.HasSuffix(path, "_test.cpp") ||
 		strings.HasSuffix(path, "Test.java") || strings.HasSuffix(path, "Tests.java") ||
@@ -35,7 +39,7 @@ func isNativeTestFile(path string) bool {
 func isSupportedPolyglotSourceFile(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
-	case ".go", ".ts", ".tsx", ".js", ".jsx", ".svelte", ".rs", ".py", ".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".java", ".kt", ".kts", ".cs":
+	case ".go", ".ts", ".tsx", ".js", ".jsx", ".svelte", ".rs", ".py", ".rb", ".rake", ".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".java", ".kt", ".kts", ".cs":
 		return true
 	default:
 		return false

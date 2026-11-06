@@ -33,6 +33,38 @@ func isCSharpImpactPath(lower string) bool {
 	return ext == ".cs" || ext == ".csproj" || ext == ".sln"
 }
 
+func isRubyImpactPath(lower string) bool {
+	ext := filepath.Ext(lower)
+	if ext == ".rb" || ext == ".rake" {
+		return true
+	}
+	base := filepath.Base(lower)
+	return base == "gemfile" || base == "gemfile.lock" || base == "rakefile"
+}
+
+func verifyRubyToolchain(ctx *VerifyContext, root string) (string, *GateResult) {
+	rubyBin, err := exec.LookPath("ruby")
+	if err != nil {
+		return "", nil
+	}
+	rbFiles := collectTargetFilesByExt(ctx, root, ".rb")
+	if len(rbFiles) == 0 {
+		return "", nil
+	}
+	cmdCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	rbCheckScript := "ARGV.each { |p| RubyVM::InstructionSequence.compile_file(p) }"
+	args := append([]string{"-e", rbCheckScript}, rbFiles...)
+	cmd := exec.CommandContext(cmdCtx, rubyBin, args...)
+	cmd.Dir = root
+	cmd.Env = append(os.Environ(), "NOMOS_IN_TOOLCHAIN_GATE=1")
+	if out, cErr := cmd.CombinedOutput(); cErr != nil {
+		return "", toolchainFailure("Ruby syntax compilation failed", string(out), "fix Ruby syntax errors (ruby -c)")
+	}
+	return "Ruby(compile)", nil
+}
+
 func verifyCCppToolchain(root string) (string, *GateResult) {
 	if _, err := os.Stat(filepath.Join(root, "CMakeLists.txt")); err != nil {
 		return "", nil

@@ -101,6 +101,7 @@ func isTestSourceFile(rel string) bool {
 	return strings.HasSuffix(base, "_test.go") ||
 		strings.HasPrefix(base, "test_") ||
 		strings.HasSuffix(base, "_test.py") ||
+		isRubyTestFile(base) ||
 		isJSTestOrDeclFile(base) ||
 		isNativeTestFile(base)
 }
@@ -150,6 +151,8 @@ func resolvePairedTestStatus(root, rel string) string {
 			filepath.Join(dir, stem+"_test.py"),
 			filepath.Join("tests", "test_"+stem+".py"),
 		}
+	case ".rb":
+		candidates = rubyPairedTestCandidates(dir, stem)
 	case ".ts", ".tsx", ".js", ".jsx":
 		candidates = []string{
 			filepath.Join(dir, stem+".test"+ext),
@@ -165,6 +168,24 @@ func resolvePairedTestStatus(root, rel string) string {
 		}
 	}
 	return "no paired unit test"
+}
+
+func rubyPairedTestCandidates(dir, stem string) []string {
+	out := []string{
+		filepath.Join(dir, stem+"_test.rb"),
+		filepath.Join(dir, stem+"_spec.rb"),
+		filepath.Join("test", stem+"_test.rb"),
+		filepath.Join("spec", stem+"_spec.rb"),
+	}
+	slashDir := filepath.ToSlash(dir)
+	if strings.HasPrefix(slashDir, "app/") {
+		sub := strings.TrimPrefix(slashDir, "app/")
+		out = append(out,
+			filepath.Join("test", sub, stem+"_test.rb"),
+			filepath.Join("spec", sub, stem+"_spec.rb"),
+		)
+	}
+	return out
 }
 
 func extractFileIntentAnchors(absPath string) []string {

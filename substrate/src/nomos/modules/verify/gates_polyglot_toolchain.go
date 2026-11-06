@@ -25,6 +25,7 @@ func evaluatePolyglotToolchains(ctx *VerifyContext, root string) ([]string, *Gat
 	}
 	probes := []polyProbe{
 		{isPythonImpactPath, func() (string, *GateResult) { return verifyPythonToolchain(ctx, root) }},
+		{isRubyImpactPath, func() (string, *GateResult) { return verifyRubyToolchain(ctx, root) }},
 		{isTypeScriptImpactPath, func() (string, *GateResult) { return verifyTypeScriptToolchain(root) }},
 		{isRustImpactPath, func() (string, *GateResult) { return verifyRustToolchain(root) }},
 		{isCCppImpactPath, func() (string, *GateResult) { return verifyCCppToolchain(root) }},
@@ -81,7 +82,7 @@ func verifyPythonToolchain(ctx *VerifyContext, root string) (string, *GateResult
 	if err != nil {
 		return "", nil
 	}
-	pyFiles := collectTargetPythonFiles(ctx, root)
+	pyFiles := collectTargetFilesByExt(ctx, root, ".py")
 	if len(pyFiles) == 0 {
 		return "", nil
 	}
@@ -112,21 +113,21 @@ func verifyPythonToolchain(ctx *VerifyContext, root string) (string, *GateResult
 	return "Python(compile)", nil
 }
 
-func collectTargetPythonFiles(ctx *VerifyContext, root string) []string {
-	if files := collectModifiedPythonFiles(ctx); len(files) > 0 {
+func collectTargetFilesByExt(ctx *VerifyContext, root, ext string) []string {
+	if files := collectModifiedFilesByExt(ctx, ext); len(files) > 0 {
 		return files
 	}
-	return walkRepoPythonFiles(root)
+	return walkRepoFilesByExt(root, ext)
 }
 
-func collectModifiedPythonFiles(ctx *VerifyContext) []string {
+func collectModifiedFilesByExt(ctx *VerifyContext, ext string) []string {
 	modified, err := getModifiedPolyglotFiles(ctx)
 	if err != nil || len(modified) == 0 {
 		return nil
 	}
 	var files []string
 	for p := range modified {
-		if !strings.HasSuffix(p, ".py") {
+		if !strings.HasSuffix(p, ext) {
 			continue
 		}
 		if fi, sErr := os.Stat(p); sErr == nil && !fi.IsDir() {
@@ -136,7 +137,7 @@ func collectModifiedPythonFiles(ctx *VerifyContext) []string {
 	return files
 }
 
-func walkRepoPythonFiles(root string) []string {
+func walkRepoFilesByExt(root, ext string) []string {
 	var files []string
 	if walkErr := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d == nil {
@@ -148,7 +149,7 @@ func walkRepoPythonFiles(root string) []string {
 			}
 			return nil
 		}
-		if strings.HasSuffix(d.Name(), ".py") && len(files) < 50 {
+		if strings.HasSuffix(d.Name(), ext) && len(files) < 50 {
 			files = append(files, path)
 		}
 		return nil

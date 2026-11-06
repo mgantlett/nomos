@@ -200,11 +200,13 @@ func TestTreeSitterEngine_Vectors(t *testing.T) {
 
 	t.Run("VEC-TS-13 Test Skip Reward Hack Rejection", func(t *testing.T) {
 		cases := map[string]string{
-			"app.test.ts":  "it.skip('bypassesbroken test', () => {});",
-			"test_app.py":  "@pytest.mark.skip\ndef test_broken():\n    assert True\n",
-			"lib_test.rs":  "#[ignore]\nfn test_broken() {\n    assert!(true);\n}\n",
-			"AppTest.java": "public class AppTest {\n\t@Disabled\n\tpublic void testBroken() {\n\t\tassertTrue(true);\n\t}\n}\n",
-			"AppTests.cs":  "public class AppTests {\n\t[Fact(Skip = \"broken\")]\n\tpublic void TestBroken() {\n\t\tAssert.True(true);\n\t}\n}\n",
+			"app.test.ts":   "it.skip('bypassesbroken test', () => {});",
+			"test_app.py":   "@pytest.mark.skip\ndef test_broken():\n    assert True\n",
+			"order_spec.rb": "RSpec.describe Order do\n  xit 'bypasses broken spec' do\n    expect(true).to be(true)\n  end\nend\n",
+			"order_test.rb": "class OrderTest < ActiveSupport::TestCase\n  def test_broken\n    skip 'temporarily muted'\n  end\nend\n",
+			"lib_test.rs":   "#[ignore]\nfn test_broken() {\n    assert!(true);\n}\n",
+			"AppTest.java":  "public class AppTest {\n\t@Disabled\n\tpublic void testBroken() {\n\t\tassertTrue(true);\n\t}\n}\n",
+			"AppTests.cs":   "public class AppTests {\n\t[Fact(Skip = \"broken\")]\n\tpublic void TestBroken() {\n\t\tAssert.True(true);\n\t}\n}\n",
 		}
 		for file, code := range cases {
 			rep, err := engine.ParseAndEvaluate(ctx, file, []byte(code))
@@ -214,6 +216,42 @@ func TestTreeSitterEngine_Vectors(t *testing.T) {
 			if rep.Passed || len(rep.SkippedTests) == 0 {
 				t.Errorf("expected skipped test in %s to fail closed, got Passed=%v SkippedTests=%v", file, rep.Passed, rep.SkippedTests)
 			}
+		}
+	})
+
+	t.Run("VEC-TS-14 Ruby and Rails Idioms Heredoc Endless and AntiShim", func(t *testing.T) {
+		railsModel := []byte(`class Order < ApplicationRecord
+  # Compute settled cents when valid
+  def settled_cents
+    sql = <<~SQL
+      SELECT CASE WHEN paid THEN amount ELSE 0 END FROM orders
+    SQL
+    return 0 unless sql && valid_amount?
+    amount_cents
+  end
+
+  # Predicate using Ruby 3 endless method syntax
+  def valid_amount? = amount_cents > 0 && !refunded?
+end
+`)
+		repRb, err := engine.ParseAndEvaluate(ctx, "app/models/order.rb", railsModel)
+		if err != nil {
+			t.Fatalf("unexpected ruby parse error: %v", err)
+		}
+		if !repRb.Passed || len(repRb.Functions) != 2 {
+			t.Fatalf("expected 2 passing Ruby methods, got Passed=%v Functions=%+v", repRb.Passed, repRb.Functions)
+		}
+		if repRb.Functions[0].Name != "settled_cents" || !repRb.Functions[0].Documented || repRb.Functions[0].Complexity != 3 {
+			t.Errorf("unexpected settled_cents metrics: %+v", repRb.Functions[0])
+		}
+		if repRb.Functions[1].Name != "valid_amount?" || repRb.Functions[1].LOC != 1 || repRb.Functions[1].Complexity != 2 {
+			t.Errorf("unexpected endless method metrics: %+v", repRb.Functions[1])
+		}
+
+		rbShim := []byte("class PaymentGateway\n  def charge!(cents)\n    raise NotImplementedError, 'pending'\n  end\nend\n")
+		repShim, sErr := engine.ParseAndEvaluate(ctx, "app/models/payment_gateway.rb", rbShim)
+		if sErr != nil || repShim.Passed || len(repShim.EmptyBlocks) != 1 {
+			t.Fatalf("expected Ruby NotImplementedError shim to fail closed: err=%v rep=%+v", sErr, repShim)
 		}
 	})
 }

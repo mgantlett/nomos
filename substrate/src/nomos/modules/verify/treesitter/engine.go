@@ -270,6 +270,8 @@ var extToLangMap = map[string]string{
 	".jsx":    "typescript",
 	".svelte": "svelte",
 	".py":     "python",
+	".rb":     "ruby",
+	".rake":   "ruby",
 	".rs":     "rust",
 	".c":      "c",
 	".h":      "c",

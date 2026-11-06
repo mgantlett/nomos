@@ -53,12 +53,25 @@ func DetectStructuralClones(files map[string][]byte, minLines int) []CloneGroup 
 	return buildCloneGroups(buckets)
 }
 
+var polyglotCloneLangs = map[string]bool{
+	"typescript": true,
+	"svelte":     true,
+	"python":     true,
+	"ruby":       true,
+	"rust":       true,
+	"c":          true,
+	"cpp":        true,
+	"java":       true,
+	"kotlin":     true,
+	"csharp":     true,
+}
+
 func extractFileCloneCandidates(relPath string, src []byte, minLines int) []cloneBlockCandidate {
 	if strings.HasSuffix(relPath, ".go") {
 		return extractGoCloneCandidates(relPath, src, minLines)
 	}
 	lang := treesitter.DetectLanguage(relPath)
-	if lang == "typescript" || lang == "svelte" || lang == "python" || lang == "rust" || lang == "c" || lang == "cpp" {
+	if polyglotCloneLangs[lang] {
 		return extractPolyglotCloneCandidates(lang, relPath, src, minLines)
 	}
 	return nil

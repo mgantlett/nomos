@@ -87,6 +87,7 @@ func ValidateQueryFS() error {
 		"go",
 		"typescript",
 		"python",
+		"ruby",
 		"svelte",
 		"rust",
 		"c",

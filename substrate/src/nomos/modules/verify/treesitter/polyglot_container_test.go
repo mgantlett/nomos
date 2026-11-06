@@ -165,6 +165,14 @@ int handle_task(int code) {
 	}
 }
 `,
+		"order.rb": `class Order
+  # Settle invoice balance
+  def settle!(amount)
+    return false unless amount > 0
+    true
+  end
+end
+`,
 	}
 
 	for relPath, content := range files {
@@ -212,6 +220,10 @@ int handle_task(int code) {
 				if len(rep.Functions) != 1 || rep.Functions[0].Name != "analyze_payload" {
 					t.Errorf("unexpected python functions: %+v", rep.Functions)
 				}
+			case ".rb":
+				if len(rep.Functions) != 1 || rep.Functions[0].Name != "settle!" || !rep.Functions[0].Documented {
+					t.Errorf("unexpected ruby functions: %+v", rep.Functions)
+				}
 			case ".rs":
 				if len(rep.Functions) != 1 || rep.Functions[0].Name != "process_event" {
 					t.Errorf("unexpected rust functions: %+v", rep.Functions)
@@ -241,6 +253,7 @@ int handle_task(int code) {
 			"bad.go":   "package main\nfunc Incomplete() { ERROR_SYNTAX",
 			"bad.ts":   "function Incomplete() { ERROR_SYNTAX",
 			"bad.py":   "def broken(\n  ERROR_SYNTAX",
+			"bad.rb":   "class Broken\n  def missing_end\n    if ready?\n      run!\nend\n",
 			"bad.rs":   "fn broken() { ERROR_SYNTAX",
 			"bad.c":    "int broken() { ERROR_SYNTAX",
 			"bad.html": "<html><body>ERROR_SYNTAX",
@@ -259,6 +272,7 @@ int handle_task(int code) {
 			"shim.go": "package main\nfunc ShimGo() {}",
 			"shim.ts": "function ShimTS() {}",
 			"shim.py": "def shim_py():\n    pass",
+			"shim.rb": "def shim_rb; end",
 			"shim.rs": "pub fn shim_rs() {}",
 			"shim.c":  "void shim_c() {}",
 		}
