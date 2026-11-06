@@ -2,6 +2,7 @@ package verify
 
 import (
 	"context"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -42,6 +43,9 @@ func isRubyImpactPath(lower string) bool {
 	return base == "gemfile" || base == "gemfile.lock" || base == "rakefile"
 }
 
+var minitestSkipSummaryRe = regexp.MustCompile(`(?i)\b([1-9][0-9]*)\s+skips?\b`)
+
+// verifyRubyToolchain compiles Ruby sources via InstructionSequence and runs Rails/Rake Minitest suites when present.
 func verifyRubyToolchain(ctx *VerifyContext, root string) (string, *GateResult) {
 	rubyBin, err := exec.LookPath("ruby")
 	if err != nil {
@@ -62,7 +66,92 @@ func verifyRubyToolchain(ctx *VerifyContext, root string) (string, *GateResult) 
 	if out, cErr := cmd.CombinedOutput(); cErr != nil {
 		return "", toolchainFailure("Ruby syntax compilation failed", string(out), "fix Ruby syntax errors (ruby -c)")
 	}
+
+	if hasRubyMinitestSuite(root) {
+		if bin, mArgs, ok := resolveRubyMinitestCommand(root, rubyBin); ok {
+			return executeRubyMinitestRunner(root, bin, mArgs)
+		}
+	}
 	return "Ruby(compile)", nil
+}
+
+// hasRubyMinitestSuite reports whether root/test contains any *_test.rb Minitest files.
+func hasRubyMinitestSuite(root string) bool {
+	testDir := filepath.Join(root, "test")
+	fi, err := os.Stat(testDir)
+	if err != nil || !fi.IsDir() {
+		return false
+	}
+	found := false
+	if walkErr := filepath.WalkDir(testDir, func(path string, d fs.DirEntry, wErr error) error {
+		if wErr != nil || d == nil {
+			return nil
+		}
+		if d.IsDir() {
+			if isSkippableSecurityDir(d.Name()) && path != testDir {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.HasSuffix(d.Name(), "_test.rb") {
+			found = true
+			return fs.SkipAll
+		}
+		return nil
+	}); walkErr != nil {
+		return found
+	}
+	return found
+}
+
+// resolveRubyMinitestCommand selects bin/rails test or bundle exec rake test for a Rails/Minitest workspace.
+func resolveRubyMinitestCommand(root, rubyBin string) (string, []string, bool) {
+	railsBinstub := filepath.Join(root, "bin", "rails")
+	if fi, err := os.Stat(railsBinstub); err == nil && !fi.IsDir() {
+		if fi.Mode().Perm()&0111 != 0 {
+			return railsBinstub, []string{"test"}, true
+		}
+		return rubyBin, []string{filepath.Join("bin", "rails"), "test"}, true
+	}
+	if !fileExistsInDir(root, "Rakefile") {
+		return "", nil, false
+	}
+	if fileExistsInDir(root, "Gemfile") {
+		if bundleBin, bErr := exec.LookPath("bundle"); bErr == nil {
+			return bundleBin, []string{"exec", "rake", "test"}, true
+		}
+	}
+	if rakeBin, rErr := exec.LookPath("rake"); rErr == nil {
+		return rakeBin, []string{"test"}, true
+	}
+	return "", nil, false
+}
+
+// executeRubyMinitestRunner runs the discovered Minitest command and rejects assertion failures or skipped tests.
+func executeRubyMinitestRunner(root, bin string, args []string) (string, *GateResult) {
+	tCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	tCmd := exec.CommandContext(tCtx, bin, args...)
+	tCmd.Dir = root
+	tCmd.Env = append(os.Environ(), "RAILS_ENV=test", "NOMOS_IN_TOOLCHAIN_GATE=1")
+	out, err := tCmd.CombinedOutput()
+	output := string(out)
+	if err != nil {
+		return "", toolchainFailure("Ruby Minitest suite failed", output, "resolve failing Minitest assertions (bin/rails test)")
+	}
+	if hasSkippedMinitestOutput(output) {
+		return "", toolchainFailure("Ruby Minitest suite contains skipped tests", output, "implement or remove skipped Minitest cases (bin/rails test)")
+	}
+	return "Ruby(compile+minitest)", nil
+}
+
+// hasSkippedMinitestOutput detects non-zero skip counts or verbose Skipped sections in Minitest output.
+func hasSkippedMinitestOutput(output string) bool {
+	if minitestSkipSummaryRe.MatchString(output) {
+		return true
+	}
+	return strings.Contains(output, "\nSkipped:\n")
 }
 
 func verifyCCppToolchain(root string) (string, *GateResult) {
