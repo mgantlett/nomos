@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing SemVer tag to release (e.g. v4.9.0)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -15,6 +21,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.tag || github.ref }}
           fetch-depth: 0
 
       - name: Set up Go
@@ -31,8 +38,10 @@ jobs:
           "$RUNNER_TEMP/nomos" verify proof
 
       - name: Extract Canonical Release Notes from CHANGELOG.md
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
-          TAG="${GITHUB_REF_NAME}"
+          TAG="${RELEASE_TAG}"
           awk -v tag="[$TAG]" '
             index($0, "## " tag) == 1 { flag=1; next }
             flag && /^## \[/ { exit }
@@ -48,6 +57,7 @@ jobs:
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: release --clean --release-notes "$RUNNER_TEMP/release-notes.md"
+          args: release --clean --release-notes "${{ runner.temp }}/release-notes.md"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ inputs.tag || github.ref_name }}
