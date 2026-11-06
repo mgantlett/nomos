@@ -4,25 +4,25 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-08"
-last_updated: "2026-11-01"
+last_updated: "2026-11-05"
 plane: intent
+ssot_repository: nomos
 status: active
-title: Strongly-Typed Actionable Error Framework Specification
+title: "Strongly-Typed Actionable Error Framework Specification"
 type: spec
 version: "4.0.0"
-ssot_repository: nomos
 ---
 
 # Strongly-Typed Actionable Error Framework Specification
 
 ## 1. Executive Summary
-The Nomos Substrate execution engine must provide clear, actionable, and deterministically formatted error messages when invariances, execution boundaries, or Definition of Done (DoD) quality gates fail. The historical use of naked `fmt.Errorf` and unstructured strings obscures root causes, prevents reliable programmatic parsing, and violates the rigor mandated by the Canonical Singularity Law. This specification establishes the Strongly-Typed Actionable Error Framework for the `nomos/core/types` package, anchoring `NomosError` as the compiled Go Single Source of Truth (SSoT).
+The Nomos Substrate emits structured, actionable error messages whenever architectural invariants, execution boundaries, or Definition of Done (DoD) quality gates reject mutations. Unstructured `fmt.Errorf` strings obscure root causes, hinder programmatic parsing, and violate the Canonical Singularity Law (Law 6). This specification establishes the Strongly-Typed Actionable Error Framework for the `nomos/core/types` package, anchoring `NomosError` as the compiled Go Single Source of Truth (SSoT).
 
 ## 2. Axiomatic Invariants & Laws Codified
-- **Law 2: The Non-Verbal Proof Law**: Error structures must provide deterministic, non-verbal proofs of failure states, including machine-parsable error codes, contextual triage hashes, and verifiable root-cause unwrapping.
-- **Law 4: The Single Source of Truth Law**: `NomosError` in `substrate/src/nomos/core/types/errors.go` serves as the single authoritative Go SSoT for structured error reporting and JSON serialization across all Substrate modules.
-- **Law 6: The Canonical Singularity Law**: A singular, unified error type (`nomos/core/types.NomosError`) governs execution failure reporting across all Substrate modules, eliminating ad-hoc error formats, loose string conventions, and legacy wrappers.
-- **Law 7: The Fail-Closed Pre-Flight Law**: Error construction requires mandatory non-empty classification codes and descriptions. Unstructured naked errors (`fmt.Errorf`, `errors.New`) in verification gate logic fail pre-flight validation closed via AST static analysis.
+- **Law 2: The Non-Verbal Proof Law**: Error structures carry machine-parsable codes, contextual triage hashes, and verifiable root-cause unwrapping.
+- **Law 4: The Single Source of Truth Law**: `NomosError` in `substrate/src/nomos/core/types/errors.go` defines the authoritative Go SSoT for structured error reporting and JSON serialization.
+- **Law 6: The Canonical Singularity Law**: `nomos/core/types.NomosError` governs execution error reporting across all Substrate modules, eliminating ad-hoc formats and legacy wrappers.
+- **Law 7: The Fail-Closed Pre-Flight Law**: Error construction requires non-empty codes and descriptions. Static AST analysis rejects naked `fmt.Errorf` or `errors.New` calls in verification gate logic.
 
 ## 3. Compiled Go SSoT Struct Contract
 The compiled Go Single Source of Truth resides in `substrate/src/nomos/core/types/errors.go`. All Substrate modules and quality gates MUST emit or wrap failures using `NomosError`.
@@ -83,12 +83,12 @@ The `NomosError.Error()` method produces deterministic, Markdown blockquote-form
 
 ### 4.1 Serialization Rules
 1. **Header**: The first line is strictly `>  Error: <Code>`.
-2. **Description**: Each non-empty line of `Description` is prefixed with `> `. A blank blockquote line `>` follows.
+2. **Description**: Prefixes each non-empty line of `Description` with `> `, followed by a blank `>` blockquote line.
 3. **Remedy Protocol (Conditional)**: If `Remedy` is non-empty, emit `>  **Agent Remedy Protocol:**`, followed by each non-empty line of `Remedy` prefixed with `> `, followed by `>`.
 4. **Required Reading (Conditional)**: If `ContextFiles` contains one or more items, emit `>  **Required Reading:**`, followed by each file path formatted as `> - <Path>`.
 5. **Interactive Diagnostic Guidance (Conditional)**: If `TriageHash` is non-empty, emit a blank blockquote line `>` followed by:
    `>  **Diagnostic Context (`<TriageHash>`):** Run \`nomos directive\` or \`nomos verify\` to inspect structured remediation guidance.`
-6. **Whitespace Normalization**: The resulting string is passed through `strings.TrimSpace` prior to return.
+6. **Whitespace Normalization**: Passes the resulting string through `strings.TrimSpace` prior to return.
 
 ### 4.2 Canonical String Representation Example
 ```markdown
@@ -105,7 +105,7 @@ The `NomosError.Error()` method produces deterministic, Markdown blockquote-form
 ```
 
 ## 5. Structured JSON Wire Representation
-When `--json` output is requested, `NomosError` serializes deterministically with closed JSON field keys:
+Under `--json` output mode, `NomosError` serializes deterministically with closed JSON field keys:
 
 ```json
 {
@@ -156,7 +156,7 @@ To prevent the recurrence of naked `fmt.Errorf` usage across the Substrate:
    }
    ```
 2. **Static AST Enforcement Gate (Law 2 / Gate 28)**:
-   The Substrate gate pipeline inspects all exported functions within `substrate/src/nomos/modules/verify/` and `substrate/src/nomos/core/`. Any direct call to `fmt.Errorf` or `errors.New` that is returned as a top-level error without encapsulation inside `NewNomosError` or `NomosError` fails closed with exit code 1.
+   The Substrate gate pipeline audits exported functions in `substrate/src/nomos/modules/verify/` and `substrate/src/nomos/core/`. Returning unencapsulated `fmt.Errorf` or `errors.New` calls outside `NewNomosError` or `NomosError` aborts verification with exit code 1.
 
 ## 7. Table-Driven Verification Vectors (Law 2)
 
@@ -173,6 +173,6 @@ To prevent the recurrence of naked `fmt.Errorf` usage across the Substrate:
 - **DoD Gates**: Gate 14 (Broken Wire), Gate 16 (Cognitive Complexity), Gate 25 (Traceability), Gate 28 (Unchecked Error Hygiene)
 
 ## 9. Rigor & Verification Boundary
-All modifications to `nomos_actionable_error_framework_spec.md` and related schemas are continuously certified by:
+Continuous verification enforces `nomos_actionable_error_framework_spec.md` and related contracts through:
 1. `nomos verify` evaluating Go SSoT contract schema parity and AST traceability.
 2. `nomos verify` across all automated DoD quality gates.

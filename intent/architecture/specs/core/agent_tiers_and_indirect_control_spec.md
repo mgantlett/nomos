@@ -4,7 +4,7 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-03"
-last_updated: "2026-11-04"
+last_updated: "2026-11-05"
 plane: intent
 status: active
 title: "Agent Tiers & Indirect Control: The Open-Core Charter Architectural Specification"
@@ -56,11 +56,11 @@ ssot_repository: nomos
 
 # Agent Tiers & Indirect Control: The Open-Core Charter Architectural Specification
 
-**Document Key:** `SPEC-AGENT-TIERS-0031`  
-**Classification:** Public Open-Core Specification  
-**Version:** `4.0.0`  
-**Governing Laws:** Law 1 (Dual-Core Inversion), Law 2 (Non-Verbal Proof), Law 3 (Hermetic Worktrees), Law 4 (SSoT), Law 5 (Zero-Hardcoded-Path), Law 6 (Canonical Singularity), Law 7 (Fail-Closed Pre-Flight)  
-**Governing Decision:** ADR-0031 (*Agent Tiers, Indirect Control and Adoption Profiles*)  
+- **Document Key:** `SPEC-AGENT-TIERS-0031`.
+- **Classification:** Public Open-Core Specification.
+- **Version:** `4.2.0`.
+- **Governing Laws:** Laws `1` through `7` (Dual-Core Inversion through Fail-Closed Pre-Flight).
+- **Governing Decision:** ADR-0031 (*Agent Tiers, Indirect Control and Adoption Profiles*).
 
 ---
 
@@ -80,7 +80,7 @@ Open-core Nomos enforces indirect control through six deterministic levers.
 
 | Indirect Control Lever | Substrate Enforcement Mechanism | Fail-Closed Invariant |
 | :--- | :--- | :--- |
-| **Phase Discipline** | Immutable 6-phase state machine (`IDLE` $\rightarrow$ `PLAN` $\rightarrow$ `EDIT` $\rightarrow$ `REVIEW` $\rightarrow$ `SYNC` $\rightarrow$ `LEARN`) | `ERR_PHASE_VIOLATION` (Exit 1) |
+| **Phase Discipline** | Immutable 6-phase state machine (`IDLE -> PLAN -> EDIT -> REVIEW -> SYNC -> LEARN`) | `ERR_PHASE_VIOLATION` (Exit 1) |
 | **Trunk Immutability** | Read-only trunk branch `main` enforced via filesystem permissions | `ERR_HERMETIC_BOUNDARY` (Exit 1) |
 | **Worktree Sandboxing** | Ephemeral task worktrees provisioned dynamically under `config.Paths.WorktreesDir` | `ERR_WORKTREE_ESCAPE` (Exit 1) |
 | **Non-Verbal Proof** | 42 Go-native Definition of Done quality gates (`nomos verify`) | `ERR_DOD_VIOLATION` (Exit 1) |
@@ -210,18 +210,20 @@ These compiled subcommands replace fragile external shell, `jq`, and Python hook
 | Subcommand | Lifecycle Event | Core Responsibility | Output Contract |
 | :--- | :--- | :--- | :--- |
 | `nomos hook session-start` | `SessionStart` | Executes `nomos handshake` in the target workspace and formats the orientation payload. | JSON `injectSteps` or `hookSpecificOutput` on `stdout` |
-| `nomos hook pre-tool` | `PreToolUse` / `BeforeTool` | Enforces Law 3 boundary isolation, quote-aware clean-`IDLE`-`main` `go install` guards, Zero-Trust MCP IFC, `CapabilityFlowGraph` taint tracking, and Law 7 command safety. | Claude `hookSpecificOutput` (`permissionDecision`) or Gemini/generic `{"decision": "allow" \| "deny", "reason": "..."}` |
-| `nomos hook post-tool` | `PostToolUse` / `AfterTool` / `PostInvocation` | Runs zero-footprint in-memory AST, JSON, and JSONL syntax verification on mutated files. | Silent `{}` on valid edits; injects `additionalContext` or `ephemeralMessage` only on real syntax or radar violations |
+| `nomos hook pre-tool` | `PreToolUse` / `BeforeTool` | Enforces Law 3 boundaries, `go install` guards, MCP IFC, and `CapabilityFlowGraph`. | Claude `hookSpecificOutput` (`permissionDecision`) or Gemini/generic `{"decision": "allow" \| "deny", "reason": "..."}` |
+| `nomos hook post-tool` | `PostToolUse` / `AfterTool` / `PostInvocation` | Runs in-memory AST, JSON, and JSONL syntax verification on mutated files. | Silent `{}` on valid edits; emits `additionalContext` or `ephemeralMessage` on violations |
 
-Every `nomos hook` subcommand accepts an optional `--hermetic-dir <path>` flag or a `--container-sandbox` flag for container and sandbox environments.
-When `--hermetic-dir <path>` is active, `nomos hook pre-tool` confines file mutations and shell paths to the canonical realpath of `<path>` without requiring a transient `worktrees/` subdirectory.
-When `--container-sandbox` is active (without `--hermetic-dir`), `nomos hook pre-tool` permits legitimate container operating-system paths (`/etc`, `/tmp`, `/var`, task `sqlite3` files) while blocking access to benchmark verifier and oracle roots (`/logs/verifier`, `/solution`, `/tests`), wildcard deletions, and 3-strike retry loops.
-In `--container-sandbox` mode, `nomos hook post-tool` validates edited `.go`, `.py`, `.json`, and `.jsonl` files in memory and runs `EvaluateFastFileRadar` only when the target repository declares `nomos.yaml`.
-When both flags are omitted in a standard Nomos repository, `nomos hook pre-tool` enforces the Law 3 hermetic worktree boundary.
-In addition, `nomos init` and `nomos hook` preserve and chain pre-existing `.claude/settings.json` hook entries, and `nomos hook pre-tool` enforces a 3-strike identical-call circuit-breaker keyed on `(tool_name, canonical_args_hash, workspace_mtime_digest)` to halt non-progressing tool loops.
-Across all operating modes, `nomos hook pre-tool` blocks native text-read calls (`Read`, `read_file`) targeting opaque binary, archive, media, database, or model-weight extensions and guides the agent to inspect structured metadata via shell utilities.
-In headless `--container-sandbox` and `--hermetic-dir` modes, `nomos hook pre-tool` also blocks Gemini CLI inline-media `read_file` serialization crashes and unbounded interactive or follow commands (`tail -f`, `watch`, `vim`, `nano`, `less`, `top` without batch or `timeout` flags).
-Finally, every `nomos hook` subcommand accepts an optional `--budget-sec <seconds>` flag (or `NOMOS_BUDGET_SECONDS` environment variable) so `nomos hook post-tool` emits deduplicated wall-clock checkpoint advisories at `75%` and `90%` elapsed budget while remaining silent on all other calls.
+Every `nomos hook` subcommand accepts an optional `--hermetic-dir <path>` or `--container-sandbox` flag for containerized execution environments.
+Active `--hermetic-dir <path>` mode confines file mutations and shell paths to `<path>` without requiring a `worktrees/` subdirectory.
+Active `--container-sandbox` mode permits container OS paths (`/etc`, `/tmp`, `/var`, `sqlite3`) while blocking verifier roots (`/logs/verifier`, `/solution`, `/tests`), wildcard `rm`, and 3-strike loops.
+In `--container-sandbox` mode, `nomos hook post-tool` validates `.go`, `.py`, `.json`, and `.jsonl` edits in memory and runs `EvaluateFastFileRadar` when `nomos.yaml` exists.
+Omitting both flags in a standard Nomos repository enforces the Law 3 hermetic worktree boundary.
+
+Both `nomos init` and `nomos hook` preserve and chain pre-existing `.claude/settings.json` hook entries.
+Furthermore, `nomos hook pre-tool` enforces a 3-strike circuit-breaker keyed on `(tool_name, canonical_args_hash, workspace_mtime_digest)` to halt non-progressing tool loops.
+Across all modes, `nomos hook pre-tool` blocks `Read` and `read_file` on binary, archive, media, or database files and directs shell metadata queries.
+Headless `--container-sandbox` and `--hermetic-dir` modes block Gemini CLI media `read_file` crashes and unbounded interactive commands (`tail -f`, `watch`, `vim`, `nano`, `less`, `top`).
+Finally, `--budget-sec <seconds>` (or `NOMOS_BUDGET_SECONDS`) configures `nomos hook post-tool` to emit deduplicated advisories at `75%` and `90%` elapsed budget.
 
 ### Sovereign Deny-List (Prohibited in Open-Core)
 
@@ -283,13 +285,13 @@ Every profile deploys its own external Tier 1 coding agent under indirect contro
 | **Team** | Multi-developer product teams | Shared Intent SSoT, branch protection, CI gate integration | Distributed trunk locks, CI `nomos verify` enforcement |
 | **Regulated** | Compliance-bound enterprise | Cryptographic audit trail, air-gapped execution | Strict CapBAC, Git Notes release receipt verification |
 
-The **Foundry** profile describes internal operations at SophiaLabs and is never distributed downstream.
+The **Foundry** profile governs internal SophiaLabs operations and remains strictly outside downstream distribution.
 
 ---
 
 ## 9. Table-Driven Test Vectors
 
-The table below defines the deterministic test vectors for the Open-Core Boundary Invariant Gate.
+The table below defines deterministic verification vectors for the Open-Core Boundary Invariant Gate.
 
 | Vector ID | Target Substrate Input | Evaluated Invariant | Expected Error Code | Expected Verdict |
 | :--- | :--- | :--- | :--- | :--- |
@@ -304,7 +306,7 @@ The table below defines the deterministic test vectors for the Open-Core Boundar
 
 ## 10. Verification Boundaries & DoD Evidence
 
-1. **Boundary Gate (Gate 19)**: Open-core code tree is verified clean against `policy.ProhibitedPackages` and `policy.ProhibitedCommands`.
+1. **Boundary Gate (Gate 19)**: `BoundaryGate` verifies the open-core code tree against `policy.ProhibitedPackages` and `policy.ProhibitedCommands`.
 2. **Markdown Integrity (Gate 14)**: All markdown relative links resolve deterministically without broken wires.
 3. **Verification Command**:
    ```bash

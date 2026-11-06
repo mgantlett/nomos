@@ -4,25 +4,25 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-24"
-last_updated: "2026-11-01"
+last_updated: "2026-11-05"
 plane: intent
+ssot_repository: nomos
 status: active
 tags:
     - INT-737
     - SUB-1215
     - INT-862
     - SUB-1543
-title: Full 42 DoD Gate Suite and Polyglot Verification Architecture Specification
+title: "Full 42 DoD Gate Suite and Polyglot Verification Architecture Specification"
 trigger: always_on
 type: spec
 version: "4.1.0"
-ssot_repository: nomos
 ---
 
 # Full 42 DoD Gate Suite and Polyglot Verification Architecture Specification
 
-**Role:** Autonomous Open-Core Software Architect  
-**Objective:** Codify the complete 42-sensor Definition of Done (DoD) verification architecture, mapping each statutory sensor probe to its exact cell in the 7x3 Canonical Matrix, and establishing the pure-Go polyglot verification strategy that guarantees zero CGO dependencies.
+- **Role:** Autonomous Open-Core Software Architect.
+- **Objective:** Codify the 42-sensor Definition of Done (DoD) verification architecture across the 7x3 Canonical Matrix with pure-Go (`CGO_ENABLED=0`) polyglot execution.
 
 ---
 
@@ -31,9 +31,9 @@ ssot_repository: nomos
 In Nomos v3, the Definition of Done pipeline grew organically across sequential sensor probes. However, legacy execution suffered from significant architectural liabilities:
 1. **CGO Compilation Bottlenecks**: Polyglot AST parsing depended on `smacker/go-tree-sitter` with 10 compiled C grammars, preventing pure-Go `CGO_ENABLED=0` static binary builds.
 2. **False Positives & Fragile Discards**: Several gates used naive string matching (e.g. matching forbidden literal keywords inside comments or docstrings) or relied on unchecked error discards (`_ = ...`), violating Law 7.
-3. **Parity Confusion**: Transitioning to v4 initially activated 16, then 19, and then 21 statutory gates (ensuring each of the 21 Invariant Cells had at least one active Go-native anchor probe) before unifying all 42 granular sensor probes into the 7x3 matrix.
+3. **Parity Confusion**: Early v4 transitions staged 16, 19, and 21 anchor probes before unifying all 42 statutory sensor probes across the 7x3 matrix.
 
-This specification formalizes the clean-room activation of all 42 statutory sensor probes, raising active gate verification to complete statutory depth while preserving **pure Go execution (`CGO_ENABLED=0`)**, **MaxFuncLOC <= 60**, and **sub-second verification latency**.
+This specification formalizes all 42 statutory sensor probes at full statutory depth. Execution preserves **pure Go (`CGO_ENABLED=0`)**, **MaxFuncLOC <= 60**, and **sub-second verification latency**.
 
 ---
 
@@ -73,14 +73,14 @@ The Nomos DoD verification engine binds 42 statutory sensor probes across 7 Laws
 
 #### Law 2: Non-Verbal Proof (Epistemology & Verification)
 - **Cell 2.1 (Syntactic)**:
-  - `tdd`: Validates that new or modified implementation source files possess accompanying test files.
+  - `tdd`: Validates that new or modified implementation source files possess accompanying `_test.go` verification suites.
   - `anti_shim`: AST-level inspection rejecting trivial functions returning literal `Passed: true` or constant dummy values.
   - `docstrings`: Validates exported function docstring density ($\ge 10\%$).
   - `dead_code`: Detects unreachable functions, unused local variables, and obsolete declarations.
   - `uasset_dependency`: Audits binary asset links and schema dependencies.
 - **Cell 2.2 (Dynamic)**:
   - `go_toolchain`: Machine compilation verification (`go test`, `go vet`).
-  - `coverage`: Statement test coverage gating ($\ge 55\%$).
+  - `coverage`: Enforces statement verification coverage gating ($\ge 55\%$).
   - `visual_regression`: Verifies UI components against baseline visual renders.
 - **Cell 2.3 (Cryptographic)**:
   - `review_receipt`: Cryptographically verifies human/agent review attestation before merge.
@@ -88,11 +88,11 @@ The Nomos DoD verification engine binds 42 statutory sensor probes across 7 Laws
 
 #### Law 3: Hermetic Worktree (State & Isolation)
 - **Cell 3.1 (Syntactic)**:
-  - `staged_boundaries`: Machine-enforces that only files within the active task's designated plane boundary are staged.
+  - `staged_boundaries`: Restricts staged files to the active task's designated plane and `.tmp/` scratch boundary.
 - **Cell 3.2 (Dynamic)**:
   - `hermetic_worktree`: Verifies execution occurs strictly within transient worktrees (`worktrees/nomos-<KEY>`), and protected trunk `main` is physically read-only.
   - `git_hygiene`: Enforces canonical Git command hygiene and prevents unstaged mutations.
-  - `ecosystem_drift`: Detects cross-repository drift against upstream ecosystem baseline.
+  - `ecosystem_drift`: Detects cross-repository drift against the canonical trunk ecosystem baseline.
 - **Cell 3.3 (Cryptographic)**:
   - `release_receipt`: Verifies Git Notes release receipt under `refs/notes/nomos/releases`.
 
@@ -110,7 +110,7 @@ The Nomos DoD verification engine binds 42 statutory sensor probes across 7 Laws
 - **Cell 5.1 (Syntactic)**:
   - `forbidden_literals`: AST-level token search rejecting hardcoded absolute paths (`/home/`, `/tmp/`, `/Users/`) in source code.
   - `ip_leak`: Scans source code for leaked internal IP markers, proprietary URLs, and confidential credentials.
-  - `magic_strings`: Detects inline raw string literals that should be extracted to constants.
+  - `magic_strings`: Detects inline raw string literals requiring constant extraction.
   - `magic_string_duplication`: Detects string literals repeated $> 2$ times without constant extraction.
 - **Cell 5.2 (Dynamic)**:
   - `infra_ingress`: Verifies dynamic port binding and zero hardcoded port assumptions.
@@ -134,7 +134,7 @@ The Nomos DoD verification engine binds 42 statutory sensor probes across 7 Laws
 - **Cell 7.2 (Dynamic)**:
   - `unchecked_errors`: Rejects unchecked error discards via `_ = ...` or `, _ :=`.
 - **Cell 7.3 (Cryptographic)**:
-  - `threshold_integrity`: Cryptographically verifies that DoD metric thresholds in `nomos.yaml` (`config.ThresholdsConfig`) cannot be loosened without debt-task authorization.
+  - `threshold_integrity`: Cryptographically prevents `nomos.yaml` (`config.ThresholdsConfig`) threshold relaxation without explicit debt-task authorization.
 
 ---
 
@@ -142,9 +142,9 @@ The Nomos DoD verification engine binds 42 statutory sensor probes across 7 Laws
 
 In Nomos v4, polyglot verification executes natively in pure Go without external C toolchains:
 1. **Go Source Analysis**: Standard library `go/parser`, `go/ast`, and `go/token`. Fast, zero dependencies, memory safe.
-2. **Polyglot Tree-sitter WASM Analysis**: Embedded `wazero` WebAssembly runtime backed by `wazero.CompilationCache` and compiled `.scm` S-expression query evaluators for **Go, TypeScript, TSX, JavaScript, Svelte, Python, Rust, C, C++, Java, Kotlin, and C#** (`substrate/src/nomos/modules/verify/treesitter/`).
-3. **Anti-Shim & Test-Skip Reward-Hacking Detection**: Evaluates `.scm` query captures to reject empty/stubbed functions (`todo!()`, `unimplemented!()`, `pass`, `NotImplementedError`, `UnsupportedOperationException`, `NotImplementedException`) and skipped test annotations (`it.skip`, `pytest.mark.skip`, `#[ignore]`, `@Disabled`, `[Fact(Skip=)]`).
-4. **Per-`source_root` Native Toolchains & Coverage Ratchets**: Evaluates declared `source_roots` across `tsc`, `pytest`, `cargo`, `clang`/`cmake`, `gradle`/`maven`, and `dotnet`, and enforces statement coverage ratchets across Go `coverprofile`, `lcov.info`, and `cobertura.xml` reports.
+2. **Polyglot Tree-sitter WASM Analysis**: Embeds `wazero` (`wazero.CompilationCache`) and `.scm` query evaluators for `Go, TypeScript, TSX, JavaScript, Svelte, Python, Rust, C, C++, Java, Kotlin, C#` (`substrate/src/nomos/modules/verify/treesitter/`).
+3. **Anti-Shim & Skip-Guard Detection**: Evaluates `.scm` captures to reject stubbed functions (`todo!()`, `unimplemented!()`, `pass`, `NotImplementedError`, `UnsupportedOperationException`, `NotImplementedException`) and skipped suite annotations (`it.skip`, `pytest.mark.skip`, `#[ignore]`, `@Disabled`, `[Fact(Skip=)]`).
+4. **Per-`source_root` Native Toolchains & Coverage Ratchets**: Audits `source_roots` via `tsc`, `pytest`, `cargo`, `clang`/`cmake`, `gradle`/`maven`, and `dotnet` across `coverprofile`, `lcov.info`, and `cobertura.xml` ratchets.
 5. **Markdown & Schema Analysis**: Lexical stream scanner for Markdown relative links, YAML frontmatter, and balanced fences, paired with Go-reflected Draft 2020-12 JSON Schema parity (`nomos.schema.json`).
 6. **Configuration & Script Analysis**: Standard library decoders (`yaml.v3` with `KnownFields(true)`, `encoding/json`) and shell analyzers.
 
@@ -154,7 +154,7 @@ This architecture ensures static compilation under `CGO_ENABLED=0`, cross-compil
 
 ## 4. Thresholds and Mathematical Guarantees
 
-All thresholds are unified in `config.ThresholdsConfig` (`substrate/src/nomos/core/config/config.go` & `nomos.schema.json`):
+`config.ThresholdsConfig` (`substrate/src/nomos/core/config/config.go` and `nomos.schema.json`) unifies all statutory verification thresholds:
 
 | Metric | Threshold | Enforcement Probe |
 | :--- | :--- | :--- |

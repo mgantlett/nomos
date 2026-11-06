@@ -4,30 +4,30 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-06"
-last_updated: "2026-11-01"
+last_updated: "2026-11-05"
 plane: intent
+ssot_repository: nomos
 status: active
 title: "Hermetic Worktree and Git Hygiene Specification"
 type: spec
 version: "4.0.0"
-ssot_repository: nomos
 ---
 
 # Hermetic Worktree and Git Hygiene Specification
 
 ## 1. Executive Summary & Problem Statement
-The Nomos Open-Core protocol enforces **Law 3 (The Hermetic Worktree Law)** to ensure that protected trunk branches (`main`, `master`, `intent`, `substrate`) remain physically immutable, and that all modifications occur strictly within transient, isolated task worktrees. Unrestricted mutations to trunk branches introduce untracked state drift, broken CI pipelines, and multi-agent collisions.
+The Nomos Open-Core protocol enforces **Law 3 (The Hermetic Worktree Law)** across protected trunk branches (`main`, `master`, `intent`, `substrate`). Protected trunks remain physically immutable, and all mutations execute inside isolated task worktrees. Unrestricted trunk mutations introduce untracked state drift, broken CI pipelines, and multi-agent collisions.
 
-This specification formalizes the **Hermetic Worktree and Git Hygiene Subsystem** implemented in `substrate/src/nomos/core/workspace/`. It codifies the state machine governing isolated worktree lifecycle, git subprocess security wrappers (`SafeGitCommand`), dynamic root discovery, and automated DoD quality gate enforcement across the 42-gate verification pipeline.
+This specification formalizes the **Hermetic Worktree and Git Hygiene Subsystem** in `substrate/src/nomos/core/workspace/`. It codifies the worktree lifecycle state machine, `SafeGitCommand` wrappers, dynamic root discovery, and 42-gate DoD verification.
 
 ## 2. Axiomatic Invariants & Laws Codified
-- **Law 1: The Dual-Core Inversion Law**: The Go Substrate engine retains absolute governance over worktree creation, branch provisioning, and git executions. Tier 1 coding agents (AGY-IDE, Claude Code, OpenCode) execute within the hermetic boundary under indirect control. Direct shell invocations of raw `git` commands that bypass substrate envelopes are prohibited.
-- **Law 2: The Non-Verbal Proof Law**: Worktree boundary integrity and subprocess sanitization are continuously verified via automated, deterministic table-driven test vectors.
-- **Law 3: The Hermetic Worktree Law**: Protected trunk branches are guarded against direct mutation via Git pre-commit hooks and CapBAC boundary enforcement. Code modifications, dependency installs, and file generation must execute exclusively inside isolated task worktrees (`worktrees/nomos-<KEY>`).
+- **Law 1: The Dual-Core Inversion Law**: The Go Substrate engine retains absolute governance over worktree creation, branch provisioning, and git executions. Tier 1 coding agents (AGY-IDE, Claude Code, OpenCode) execute within the hermetic boundary under indirect control. The substrate prohibits raw `git` shell invocations that bypass substrate envelopes.
+- **Law 2: The Non-Verbal Proof Law**: Automated, deterministic table-driven verification vectors continuously prove worktree boundary integrity and subprocess sanitization.
+- **Law 3: The Hermetic Worktree Law**: Git pre-commit hooks and CapBAC boundary checks guard protected trunk branches against direct mutation. Code modifications, dependency installs, and file generation must execute exclusively inside isolated task worktrees (`worktrees/nomos-<KEY>`).
 - **Law 4: The Single Source of Truth Law**: Worktree configuration schemas bind directly to compiled Go structs in `nomos/core/workspace` and `nomos/core/config`, reflected into `nomos.schema.json`.
-- **Law 5: The Zero-Hardcoded-Path Law**: Worktree directories and repository roots resolve dynamically via configuration discovery (`config.ResolveWorktreeDir()`, `FindRepoRoot()`). Hardcoded host home directory prefixes, container mount literals (`/app/...`), and literal workstation paths are strictly prohibited.
-- **Law 6: The Canonical Singularity Law**: Subprocess executions are unified under the singular envelope `workspace.SafeGitCommand`. Ad-hoc `exec.Command("git", ...)` invocations are prohibited across the Substrate codebase.
-- **Law 7: The Fail-Closed Pre-Flight Law**: Attempting to stage or commit files to the root repository while on a protected branch fails closed immediately with `ERR_HERMETIC_BREACH`.
+- **Law 5: The Zero-Hardcoded-Path Law**: Worktree directories and repository roots resolve dynamically via configuration discovery (`config.ResolveWorktreeDir()`, `FindRepoRoot()`). The substrate strictly prohibits hardcoded host home prefixes, container mount literals (`/app/...`), and literal workstation paths.
+- **Law 6: The Canonical Singularity Law**: `workspace.SafeGitCommand` unifies all git subprocess executions under one canonical envelope. The substrate prohibits ad-hoc `exec.Command("git", ...)` calls across all Go packages.
+- **Law 7: The Fail-Closed Pre-Flight Law**: Staging or committing root repository files on a protected branch immediately aborts with `ERR_HERMETIC_BREACH`.
 
 ## 3. Compiled Go SSoT Contracts
 The Go Single Source of Truth resides in `substrate/src/nomos/core/workspace/`.
@@ -95,22 +95,22 @@ type WorktreeSession struct {
 ```
 
 ## 5. Substrate DoD Quality Gate Integration
-The hermetic worktree and git hygiene invariants are enforced automatically during `nomos verify` via three dedicated Definition of Done quality gates:
+During `nomos verify`, three dedicated Definition of Done quality gates enforce hermetic worktree and git hygiene invariants:
 
 | Gate Name | Pipeline Key | Associated Invariant | Enforcement Logic |
 | :--- | :--- | :--- | :--- |
-| **Hermetic Worktree Invariant** | `hermetic_worktree` | Law 3 | Verifies active execution occurs within an isolated worktree (`nomos-<KEY>`) rather than root repository trunk. |
-| **Worktree Boundaries Invariant** | `staged_boundaries` | Law 3 / Law 7 | Scans staged and uncommitted files via `ValidateUncommittedBoundaries`. Fails closed if any root file (e.g. `walkthrough.md`) is modified on trunk. |
-| **Git Subprocess Hygiene Invariant** | `git_hygiene` | Law 1 / Law 6 | AST static analysis across all Go packages: flags any un-sanitized `exec.Command("git", ...)` that bypasses `workspace.SafeGitCommand`. |
+| **Hermetic Worktree Invariant** | `hermetic_worktree` | Law 3 | Verifies execution inside an isolated `nomos-<KEY>` worktree rather than trunk. |
+| **Worktree Boundaries Invariant** | `staged_boundaries` | Law 3 / Law 7 | Runs `ValidateUncommittedBoundaries` and rejects root file mutations on trunk. |
+| **Git Subprocess Hygiene Invariant** | `git_hygiene` | Law 1 / Law 6 | Scans Go ASTs and rejects `exec.Command("git", ...)` bypassing `workspace.SafeGitCommand`. |
 
 ## 6. Table-Driven Verification Vectors (Law 2)
 
 | Test Vector ID | Invariant / Boundary Evaluated | Input Scenario | Expected Deterministic Outcome | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| `TC-WT-001` | Direct mutation on protected branch | `ValidateWorktreeBoundary(root, "main", "root/file.go")` | Fails closed with `ERR_CORE`: "direct mutation of root repository on protected trunk branch is strictly prohibited". | PASS |
-| `TC-WT-002` | Mutation within isolated task worktree | `ValidateWorktreeBoundary(root, "main", "root/worktrees/nomos-SUB-747/file.go")` | Passes boundary check (`err == nil`). Isolated execution permitted. | PASS |
-| `TC-WT-003` | Root clutter violation (`walkthrough.md`) | Staging `walkthrough.md` directly at `repoRoot` | `ValidateUncommittedBoundaries` fails closed: "scratch files and walkthroughs must go in .tmp/". | PASS |
-| `TC-WT-004` | Git subprocess environment sanitization | `SafeGitCommand(dir, "status")` | Environment variables sanitized; `GIT_DIR` and `GIT_WORK_TREE` overrides cleared to prevent host traversal. | PASS |
+| `TC-WT-001` | Direct mutation on protected branch | `ValidateWorktreeBoundary(root, "main", "root/file.go")` | Rejects root trunk mutation with `ERR_CORE` boundary error. | PASS |
+| `TC-WT-002` | Mutation within isolated task worktree | `ValidateWorktreeBoundary(root, "main", "root/worktrees/nomos-SUB-747/file.go")` | Passes boundary validation (`err == nil`) for isolated execution. | PASS |
+| `TC-WT-003` | Root clutter violation (`walkthrough.md`) | Staging `walkthrough.md` directly at `repoRoot` | `ValidateUncommittedBoundaries` rejects root scratch files outside `.tmp/`. | PASS |
+| `TC-WT-004` | Git subprocess environment sanitization | `SafeGitCommand(dir, "status")` | Sanitizes environment and clears `GIT_DIR` and `GIT_WORK_TREE` overrides. | PASS |
 
 ## 7. Cross-Plane Traceability Matrix
 - **Intent Plane**: `INT-327` (Hermetic Worktree Architecture)
@@ -118,6 +118,6 @@ The hermetic worktree and git hygiene invariants are enforced automatically duri
 - **DoD Gates**: Gate 2 (`hermetic_worktree`), Gate 3 (`staged_boundaries`), Gate 11 (`git_hygiene`)
 
 ## 8. Rigor & Verification Boundary
-All specifications and state machines defined herein are continuously certified by:
+The substrate continuously certifies every specification and state machine defined herein via:
 1. `nomos verify` evaluating Go SSoT contract schema parity and AST traceability.
 2. `nomos verify` enforcing all automated Definition of Done quality gates.

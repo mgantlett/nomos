@@ -4,36 +4,36 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-05"
-last_updated: "2026-11-01"
+last_updated: "2026-11-05"
 plane: intent
+ssot_repository: nomos
 status: active
-title: Nomos Intent Traceability Specification
+title: "Nomos Intent Traceability Specification"
 type: spec
 version: "4.0.0"
-ssot_repository: nomos
 ---
 
 # Nomos Intent Traceability Specification
 
 ## 1. Executive Summary
-The Nomos Open-Core protocol enforces Law 4 (Single Source of Truth) by maintaining intent specifications separately from the substrate Go code. However, without a cryptographic or structural linkage between the Substrate AST and the Intent plane, there is no deterministic proof that a given block of code implements a specific Intent task.
+The Nomos Open-Core protocol enforces Law 4 (Single Source of Truth) by separating intent specifications from substrate Go code. Without structural linkage between the Substrate AST and the Intent plane, zero deterministic proof links Go code to Intent tasks.
 
-This specification defines the exact code-level tagging syntax (`// @intent <TARGET>`) required to map Go substrate components to their originating Intent specifications, semantic heading anchors, or compiled Go SSoT type anchors.
+This specification defines the `// @intent <TARGET>` annotation syntax mapping Go substrate components to Intent specifications, heading anchors, or Go SSoT types.
 
 ---
 
 ## 2. Axiomatic Invariants & Laws Codified
-- **Law 2: The Non-Verbal Proof Law**: Substrate code must compile and pass AST proofs. Code tracing must be verified by the Go compiler and AST parsers, not by human review.
-- **Law 4: The Single Source of Truth Law**: Intent specifications reside solely in the `intent/` plane, but the code implementation must carry a pointer back to that SSoT.
+- **Law 2: The Non-Verbal Proof Law**: Substrate code must compile and pass AST proofs. The Go compiler and AST parsers verify code tracing deterministically without human review.
+- **Law 4: The Single Source of Truth Law**: Intent specifications reside solely in `intent/`, while Go implementations carry explicit pointers back to that SSoT.
 - **Law 6: The Canonical Singularity Law**: All Intent task keys adhere strictly to `INT-[0-9]+` with zero aliases or non-canonical prefixes.
 
 ---
 
 ## 3. The `@intent` Traceability Syntax
-To enforce traceability, all significant packages, core structs, interfaces, and public functions within the Substrate MUST include an `@intent` tag in their Go docstrings.
+Significant packages, core structs, interfaces, and exported functions within the Substrate MUST include an `@intent` annotation in their Go docstrings.
 
-### 3.1 Tag Formats
-The tag parser (`ParseIntentTag`) supports three canonical binding forms:
+### 3.1 Annotation Formats
+The parser (`ParseIntentTag`) supports three canonical binding forms:
 
 1. **Canonical Intent Task Key**:
    ```go
@@ -52,7 +52,7 @@ The tag parser (`ParseIntentTag`) supports three canonical binding forms:
    // @intent #PhysicsFrame (software_physics_engine_spec.md)
    // @intent #PipelineDeclaration
    ```
-   Binds the Go symbol directly to a compiled Go `type <TypeName>` AST declaration across `substrate/` and/or an Intent Markdown specification (`<name>_spec.md`) in `intent/`.
+   Binds the Go symbol directly to a compiled Go `type <TypeName>` AST declaration across `substrate/` or an Intent specification (`<name>_spec.md`) in `intent/`.
 
 ### 3.2 Example Implementation
 ```go
@@ -91,17 +91,17 @@ The `nomos verify` engine enforces intent traceability via **`IntentTraceability
 2. **Density Enforcement**: Modified Go source files with exported functions must maintain `@intent` docstring coverage $\ge 50\%$.
 3. **Go Type Anchor Resolution**: Every `#<TypeName>` token on an `@intent` line must resolve to a real `type <TypeName>` AST declaration across `substrate/`.
 4. **Specification File Resolution**: Every `<name>_spec.md` token on an `@intent` line must resolve to an existing Markdown specification under `intent/`.
-5. **Fail-Closed Rejection**: If an `@intent` tag references an unresolvable `#<TypeName>` or non-existent `<name>_spec.md`, the gate immediately fails closed (exit code 1).
+5. **Fail-Closed Rejection**: If an `@intent` annotation references an unresolvable `#<TypeName>` or missing `<name>_spec.md`, the gate rejects execution (exit code 1).
 
 ### 5.2 Scope of Tracing
-Traceability tags are strictly required for:
+`IntentTraceabilityGate` strictly requires traceability annotations for:
 - Root-level package docstrings (`doc.go` or `main.go`).
 - Public API surface (exported interfaces, structs, and functions).
 - Critical invariant enforcement mechanisms (e.g., hooks, boundary guards).
 
-Traceability tags are NOT required for:
+`IntentTraceabilityGate` exempts the following symbols from traceability annotations:
 - Unexported utility functions.
-- Unit test files (`*_test.go`).
+- Go verification suite files (`*_test.go`).
 - Auto-generated or embedded files.
 
 ---

@@ -4,9 +4,9 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-05"
-last_updated: "2026-11-03"
+last_updated: "2026-11-05"
 plane: intent
-ssot_repository: "nomos"
+ssot_repository: nomos
 status: active
 title: "Unified Database & Git Notes Topology Contract"
 type: spec
@@ -30,12 +30,12 @@ execution_frontier:
 
 The Nomos v4 architecture establishes a strict separation of concerns across three orthogonal persistence stores:
 1. **The Immutable Release Provenance Ref (`refs/notes/nomos/releases`):** Git commits and SHA-256 Git Notes receipts (`task.ReleaseNotePayload`) serve strictly as non-repudiable Two-Phase Commit (`2PC`) release proofs. Git Notes never store or reconstruct episodic agent memory.
-2. **The Episodic & Semantic Memory Store (`mneme.db`):** A standalone pure-Go SQLite WAL database powering **Nomos Mneme** (`nomos mem save`, `nomos mem recall`, `nomos mem list`, `nomos mem dismiss`), post-sync `Nomos Learn` distillation (`pitfall` and `pattern` records), and idempotent write-time deduplication.
-3. **The Local Runtime Coordinator (`nomos_global.db`):** The node-local operational SQLite WAL database managing Living Ledger task DAG wavefronts (`tasks`), CapBAC object-capability leases (`leases`), and local CLI capability invocation metrics (`telemetry_capabilities`).
+2. **The Episodic & Semantic Memory Store (`mneme.db`):** Standalone pure-Go SQLite WAL database powering **Nomos Mneme** (`nomos mem save`, `nomos mem recall`, `nomos mem list`, `nomos mem dismiss`). Supports post-sync `Nomos Learn` distillation (`pitfall` and `pattern` records) and idempotent write-time deduplication.
+3. **The Local Runtime Coordinator (`nomos_global.db`):** Node-local SQLite WAL database managing task DAG wavefronts (`tasks`), CapBAC leases (`leases`), and CLI metrics (`telemetry_capabilities`).
 
 This contract formalizes:
 - Full DDL and RFC3339 timestamp alignment between `nomos_global.db`, `mneme.db`, and compiled Go SSoT structs (`task.TaskRecord`, `storage.LeaseRecord`, `mem.Memory`, `telemetry.CapabilityMetrics`, `task.ReleaseNotePayload`).
-- Automatic rolling compaction (`Store.Maintain`, `storage.MaintainRuntimeStorage`) capping expired leases, pruning retired legacy database artifacts (`gitgudbrain.db`), reclaiming SQLite freelist pages via conditional `VACUUM`, and checkpointing WAL files (`PRAGMA wal_checkpoint(TRUNCATE)`).
+- Automatic rolling compaction (`Store.Maintain`, `storage.MaintainRuntimeStorage`) capping expired leases and pruning retired `gitgudbrain.db` artifacts. Reclaims freelist pages via conditional `VACUUM` and checkpoints WAL files (`PRAGMA wal_checkpoint(TRUNCATE)`).
 - The `nomos task sync` 2PC release pipeline separating trunk merge attestation (`refs/notes/nomos/releases`) from `Nomos Mneme` (`mneme.db`) distillation.
 
 ---
@@ -44,12 +44,12 @@ This contract formalizes:
 
 | Law # | Law Name | Architectural Enforcement |
 | :---: | :--- | :--- |
-| **Law 1** | **Dual-Core Inversion** | Substrate Go core orchestrates release receipts and SQLite stores; Tier 1 agents access state strictly via canonical CLI commands (`nomos mem`, `nomos task`). |
-| **Law 2** | **Non-Verbal Proof** | `ReleaseReceiptGate` (`Cell 3.3`) verifies SHA-256 release receipts in `refs/notes/nomos/releases`, proven by vectors `TC-DBNOTE-001` through `TC-DBNOTE-006`. |
-| **Law 4** | **Single Source of Truth** | SQLite schemas match compiled Go SSoT structs (`TaskRecord`, `LeaseRecord`, `Memory`, `ReleaseNotePayload`) with strict field and RFC3339 timestamp parity. |
+| **Law 1** | **Dual-Core Inversion** | Go core governs SQLite and receipts via `nomos mem` and `nomos task`. |
+| **Law 2** | **Non-Verbal Proof** | `ReleaseReceiptGate` (`Cell 3.3`) verifies SHA-256 receipts via vectors `TC-DBNOTE-001` to `TC-DBNOTE-006`. |
+| **Law 4** | **Single Source of Truth** | SQLite schemas match `TaskRecord`, `LeaseRecord`, `Memory`, and `ReleaseNotePayload` with RFC3339 parity. |
 | **Law 5** | **Zero-Hardcoded-Path** | Database paths resolve dynamically via `config.ResolveGlobalDBPath()` and `config.ResolveMnemeDBPath()`. |
-| **Law 6** | **Canonical Singularity** | Single canonical release receipt namespace (`refs/notes/nomos/releases`) and single memory store (`mneme.db`). Legacy `refs/notes/agent` and `gitgudbrain.db` are retired. |
-| **Law 7** | **Fail-Closed Pre-Flight** | Direct SQLite file queries via raw `sqlite3` CLI are blocked (`ADR-0062`), and corrupted release receipts on `HEAD` fail closed in `nomos verify`. |
+| **Law 6** | **Canonical Singularity** | Enforces singular `refs/notes/nomos/releases` and `mneme.db`; retires `refs/notes/agent` and `gitgudbrain.db`. |
+| **Law 7** | **Fail-Closed Pre-Flight** | Blocks raw `sqlite3` (`ADR-0062`) and rejects corrupted `HEAD` receipts during `nomos verify`. |
 
 ---
 
@@ -185,8 +185,8 @@ stateDiagram-v2
 ```
 
 ### 5.1 Provenance & Hygiene Guarantees
-1. **Orthogonal Release Receipt & Mneme Distillation:** Every `nomos task sync` seals a SHA-256 `ReleaseNotePayload` receipt in Git Notes (`refs/notes/nomos/releases` via `substrate/src/nomos/modules/task/git_notes.go`) and separately distills resolved `pitfall` traps and `pattern` blueprints into `mneme.db` (`Nomos Learn`).
-2. **Automatic Compaction (`Store.Maintain` & `storage.MaintainRuntimeStorage`):** Runs automatically on `nomos handshake` (throttled once per 24h) and `nomos task sync` - deduplicating active clones, purging inactive memories older than 30 days, capping expired `leases`, pruning retired database files (`gitgudbrain.db`), running `VACUUM` when SQLite freelist exceeds 2 MiB, and executing `PRAGMA wal_checkpoint(TRUNCATE); PRAGMA optimize;`.
+1. **Orthogonal Release Receipt & Mneme Distillation:** Every `nomos task sync` seals a SHA-256 `ReleaseNotePayload` receipt in `refs/notes/nomos/releases` (`substrate/src/nomos/modules/task/git_notes.go`). It separately distills resolved `pitfall` traps and `pattern` blueprints into `mneme.db` (`Nomos Learn`).
+2. **Automatic Compaction (`Store.Maintain` & `storage.MaintainRuntimeStorage`):** Runs automatically on `nomos handshake` (once per 24h) and `nomos task sync`. Deduplicates active clones, purges 30-day inactive memories, caps expired `leases`, and prunes retired `gitgudbrain.db` files. Executes `VACUUM` above a 2 MiB freelist alongside `PRAGMA wal_checkpoint(TRUNCATE); PRAGMA optimize;`.
 
 ---
 

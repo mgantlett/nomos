@@ -4,20 +4,21 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-01"
-last_updated: "2026-10-29"
+last_updated: "2026-11-05"
 plane: intent
+ssot_repository: nomos
 status: active
 title: "The Nomos Intent Plane Architectural Specification and Master Manifesto"
 type: spec
-version: 4.0.0
+version: "4.0.0"
 ---
 
 # The Nomos Intent Plane Architectural Specification and Master Manifesto
 
-**Document Key:** `SPEC-INTENT-MANIFESTO`  
-**Classification:** Public Open-Core Specification  
-**Version:** `4.0.0`  
-**Governing Laws:** Law 1 (Dual-Core Inversion), Law 2 (Non-Verbal Proof), Law 3 (Hermetic Worktrees), Law 4 (SSoT), Law 5 (Zero-Hardcoded-Path), Law 6 (Canonical Singularity), Law 7 (Fail-Closed Pre-Flight)  
+- **Document Key:** `SPEC-INTENT-MANIFESTO`.
+- **Classification:** Public Open-Core Specification.
+- **Version:** `4.0.0`.
+- **Governing Laws:** Laws `1` through `7` (Dual-Core Inversion through Fail-Closed Pre-Flight).
 
 ---
 
@@ -39,13 +40,13 @@ The Substrate plane enforces all seven laws deterministically across runtime lif
 
 | Law # | Law Name | Core Architectural Invariant | Machine Enforcement Mechanism |
 | :---: | :--- | :--- | :--- |
-| **1** | **The Dual-Core Inversion Law** | Substrate Go core governs state and execution; Tier 1 agent operates strictly under indirect control. | `nomos verify`, Phase Discipline state machine |
-| **2** | **The Non-Verbal Proof Law** | Zero trust in conversational assertions; correctness requires compilation exit code 0 and AST proof. | 42 Go-native Definition of Done Quality Gates (`nomos verify`) |
+| **1** | **The Dual-Core Inversion Law** | Go core governs state; Tier 1 agents operate under indirect control. | `nomos verify`, Phase Discipline state machine |
+| **2** | **The Non-Verbal Proof Law** | Zero conversational trust; correctness requires exit code `0` and AST proof. | 42 Go-native DoD Quality Gates (`nomos verify`) |
 | **3** | **The Hermetic Worktree Law** | Protected trunk branch `main` remains read-only; mutations occur strictly inside transient worktrees. | `ValidateWorktreeBoundary`, Pre-Commit Hooks |
-| **4** | **The Single Source of Truth Law** | Every contract, schema, and configuration possesses exactly one compiled Go SSoT with schema parity. | Static Go AST & JSON Schema validation (`nomos verify`) |
-| **5** | **The Zero-Hardcoded-Path Law** | Path literals strictly prohibited in source code; all directories resolve via dynamic configuration. | Configuration discovery (`config.LoadConfig()`) |
-| **6** | **The Canonical Singularity Law** | Zero aliases, synonyms, or convenience wrappers tolerated in CLI engines or contract schemas. | Zero-Alias AST Parser validation in CLI entrypoints |
-| **7** | **The Fail-Closed Pre-Flight Law** | Mutations require explicit configuration and pass mandatory DoD quality gates prior to release. | CapBAC Object Capabilities, phase budget enforcement |
+| **4** | **The Single Source of Truth Law** | Every contract and schema binds to one compiled Go SSoT. | Static Go AST & JSON Schema validation (`nomos verify`) |
+| **5** | **The Zero-Hardcoded-Path Law** | Source code prohibits path literals; directories resolve via dynamic configuration. | Configuration discovery (`config.LoadConfig()`) |
+| **6** | **The Canonical Singularity Law** | CLI engines and contract schemas prohibit aliases, synonyms, and wrappers. | Zero-Alias AST Parser validation in CLI entrypoints |
+| **7** | **The Fail-Closed Pre-Flight Law** | Mutations require declarative configuration and pass mandatory DoD gates before sync. | CapBAC Object Capabilities, phase budget enforcement |
 
 ---
 
@@ -139,7 +140,7 @@ Verification terminates with exit code 1 whenever any predicate evaluates to fal
 2. **Schema Parity Predicate ($P_{\text{parity}}$)**:
    $$\forall c \in \text{Schemas}, \quad \text{SHA256}(\text{Schema}(c)) = \text{SHA256}(\text{Reflect}(\text{GoSSoT}(c)))$$
 3. **Law 5 Dynamic Path Predicate ($P_{\text{path}}$)**:
-   $$\forall p \in \text{Paths}, \quad p \notin \text{LiteralBlacklist} \land p = \text{ResolveConfig}(\text{Key})$$
+   $$\forall p \in \text{Paths}, \quad p \notin \text{LiteralBlacklist} \wedge p = \text{ResolveConfig}(\text{Key})$$
 
 ### Pre-Flight Evaluation Rules
 - If $P_{\text{singularity}} = \text{false}$, abort task creation with error `ERR_CANONICAL_VIOLATION`.
@@ -167,7 +168,7 @@ Every contract adheres to Law 4 (SSoT) and Law 6 (Canonical Singularity):
 
 ## 7. Table-Driven Test Vectors
 
-The table below defines the deterministic test vectors for the Intent manifesto and parser engine.
+The table below defines deterministic verification vectors for the Intent manifesto and parser engine.
 
 | Vector ID | Target Input Scenario | Evaluated Invariant | Expected Error Code | Expected Verdict |
 | :--- | :--- | :--- | :--- | :--- |

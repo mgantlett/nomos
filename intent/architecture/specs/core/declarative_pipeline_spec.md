@@ -4,40 +4,40 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-13"
-last_updated: "2026-11-01"
+last_updated: "2026-11-05"
 plane: intent
+ssot_repository: nomos
 status: active
-title: Nomos Declarative DoD Quality Gate Pipeline Specification
+title: "Nomos Declarative DoD Quality Gate Pipeline Specification"
 trigger: always_on
 type: spec
 version: "4.0.0"
-ssot_repository: nomos
 ---
 
 # Nomos Declarative DoD Quality Gate Pipeline Specification
 
-**Role:** Autonomous Open-Core Software Architect  
-**Objective:** Decouple Definition of Done (DoD) quality gate registration and execution sequencing from ad-hoc switch blocks into a structured declarative `PipelineDeclaration` loader (`substrate/src/nomos/modules/verify/pipeline_loader.go`), enabling JSON/YAML pipeline manifests and zero-fork downstream adoption.
+- **Role:** Autonomous Open-Core Software Architect.
+- **Objective:** Decouple DoD gate registration into a declarative `PipelineDeclaration` loader (`substrate/src/nomos/modules/verify/pipeline_loader.go`) supporting JSON/YAML manifests and zero-fork adoption.
 
 ---
 
 ## 1. Problem Statement & Architectural Motivation
-In early Nomos builds, Definition of Done (DoD) quality gate registration, sequencing, and configuration were tightly coupled to imperative constructor chains.
+Early Nomos builds coupled Definition of Done (DoD) quality gate registration, sequencing, and configuration to imperative constructor chains.
 
 Tightly coupled registration presents two architectural drawbacks:
-1. **Adoption Friction (Violation of Law 6)**: Downstream workspaces cannot inspect, toggle, or compose sensor pipelines declaratively without modifying Go constructors.
-2. **Substrate Decoupling (The Game Engine Invariant)**: The Go substrate functions strictly as the deterministic *physics and sensor engine* (running Tree-sitter AST, git subcommands, coverage test execution, and sandboxing), while pipeline declarations bind sensor IDs to canonical 7x3 Law and Ring coordinates via `GateSpec` and `PipelineDeclaration`.
+1. **Adoption Friction (Violation of Law 6)**: Downstream workspaces cannot examine, toggle, or compose sensor pipelines declaratively without modifying Go constructors.
+2. **Substrate Decoupling (The Game Engine Invariant)**: The Go substrate operates strictly as the deterministic *physics and sensor engine* for AST, Git, coverage, and worktree containment. Declarative manifests bind sensor IDs to canonical 7x3 Law and Ring coordinates via `GateSpec` and `PipelineDeclaration`.
 
 ---
 
-## 2. Core Axioms & Law Enforcements
+## 2. Axiomatic Invariants & Law Enforcements
 
 | Law # | Law Name | Declarative Pipeline Enforcement Mechanism |
 | :---: | :--- | :--- |
-| **Law 2** | **The Non-Verbal Proof Law** | Every gate definition validates against `GateSpec` and evaluates with exit code 0 on verification. |
-| **Law 4** | **The Single Source of Truth Law** | Compiled `CanonicalGateOrder` (`matrix.go`) and `PipelineDeclaration` (`pipeline_loader.go`) define the active 42-gate sequence. |
-| **Law 6** | **The Canonical Singularity Law** | Zero aliases or duplicate registration channels; all gates execute through the declarative loader. |
-| **Law 7** | **The Fail-Closed Pre-Flight Law** | If a custom gate definition is invalid or missing its sensor, verification fails immediately with a descriptive error. |
+| **Law 2** | **The Non-Verbal Proof Law** | Every gate definition matches `GateSpec` and exits `0` on verification. |
+| **Law 4** | **The Single Source of Truth Law** | Compiled `CanonicalGateOrder` (`matrix.go`) and `PipelineDeclaration` (`pipeline_loader.go`) define all 42 gates. |
+| **Law 6** | **The Canonical Singularity Law** | All gates register singularly through the declarative pipeline loader. |
+| **Law 7** | **The Fail-Closed Pre-Flight Law** | Invalid gate definitions or unknown sensors trigger immediate verification rejection. |
 
 ---
 
@@ -93,7 +93,7 @@ The Go substrate compiles and dispatches gates deterministically:
 1. **`pipeline_loader.go`**:
    - Validates `PipelineDeclaration` (`ValidatePipelineDeclaration`) and maps each `GateSpec.Sensor` and `GateSpec.ID` to its corresponding Go sensor executor in the internal `gateRegistry`.
 2. **Custom Gate Composition**:
-   - Workspaces and test harnesses can compose `PipelineDeclaration` manifests binding registered sensors without recompiling core executors.
+   - Workspaces and verification harnesses compose `PipelineDeclaration` manifests binding registered sensors without recompiling core executors.
 3. **Fail-Closed Canonical Baseline**:
    - By default, `StandardPipeline` loads `DefaultBaselineGates()` bound 1:1 to `CanonicalGateOrder` (all 42 statutory probes).
 

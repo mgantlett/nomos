@@ -4,13 +4,13 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-01"
-last_updated: "2026-11-02"
+last_updated: "2026-11-05"
 plane: intent
+ssot_repository: nomos
 status: active
 title: "Nomos Controlled Technical English (NCTE-100) Architectural Specification"
 type: spec
-version: "4.1.0"
-ssot_repository: nomos
+version: "4.2.0"
 ---
 
 # Nomos Controlled Technical English (NCTE-100) Architectural Specification
@@ -23,11 +23,11 @@ ssot_repository: nomos
 
 ## 1. Executive Summary
 
-Natural language serves as the compilation source for AI agent execution in the Nomos substrate. 
-Vague syntax and passive voice cause cognitive co-processors to hallucinate. 
-Unbounded sentences waste token budgets during context injection. 
-NCTE-100 defines a deterministic, machine-verifiable subset of English for Intent specifications and task contracts. 
-The substrate enforces NCTE-100 rules deterministically using an AST markdown analysis engine.
+Natural language serves as the compilation source for AI agent execution in the Nomos substrate.
+Vague syntax and passive voice cause cognitive co-processors to hallucinate.
+Unbounded sentences waste token budgets during context injection.
+NCTE-100 defines a deterministic, machine-verifiable subset of English for Intent specifications and task contracts.
+The substrate enforces NCTE-100 rules deterministically through `ncte.Engine` in `substrate/src/nomos/modules/ncte/linter.go`.
 
 ---
 
@@ -181,36 +181,36 @@ type NCTELinter interface {
 
 ---
 
-## 4. Markdown AST Parsing and Tokenization Mechanics
+## 4. Markdown Tokenization and Isolation Mechanics
 
-The NCTE linter converts raw markdown into an Abstract Syntax Tree using `yuin/goldmark`. 
-Token counting executes under deterministic isolation rules:
+`ncte.Engine` in `substrate/src/nomos/modules/ncte/linter.go` tokenizes Markdown deterministically without external parser dependencies.
+Token counting executes under deterministic line, fence, frontmatter, and inline-literal isolation rules:
 
 ### 4.1 Frontmatter Isolation
-- The parser extracts YAML frontmatter before AST evaluation.
+- `ncte.Engine.LintMarkdown` skips leading `---` YAML frontmatter blocks before prose evaluation.
 - `IntentSteelmanGate` validates frontmatter keys against compiled Go rules.
-- Frontmatter words do not contribute to document sentence counts.
+- Frontmatter words never contribute to document sentence counts.
 
-### 4.2 Fenced Code Block and Inline Literal Handling
-- Fenced code blocks (` ``` `) represent executable artifacts.
-- The parser excludes fenced code blocks from prose word counts.
-- Inline code spans (`` ` ``) count as exactly one atomic technical token.
+### 4.2 Fenced Code Block and Inline Literal Isolation
+- `ncte.Engine` tracks ```` ``` ```` and `~~~` fence delimiters line by line and excludes fenced blocks from prose evaluation.
+- `TokenizeSentence` collapses each inline backtick code span (`` `...` ``) into one atomic literal token.
+- Literal tokens bypass banned-modal, passive-voice, and synonym matching.
 
 ### 4.3 Table Cell Word Counting and Exemption Markers
-- The parser evaluates standard prose table cells as independent statements.
-- Standard prose table cells must not exceed 12 words.
-- The parser exempts table cells from word bounds when the column header matches any entry in `exempt_table_headers`.
-- The parser exempts code-wrapped or quoted table cells representing input literals.
+- `ncte.Engine` evaluates standard prose table cells as independent statements.
+- Non-exempt prose table cells must not exceed 12 words.
+- Column headers matching `exempt_table_headers` exempt their cells from word bounds.
+- Backtick-wrapped or double-quoted table cells bypass prose length bounds as literal inputs.
 
 ### 4.4 Sentence Delimitation Algorithm
-- The parser splits prose on periods, question marks, and exclamation points followed by whitespace.
-- Numeric decimals (`3.14`) and version strings (`v3.0.0`) must not trigger sentence splits.
+- `SplitSentences` splits prose on periods, question marks, and exclamation points outside inline backticks.
+- Numeric decimals (`3.14`) and version strings (`v3.0.0`) do not trigger sentence splits.
 - Hyphenated technical identifiers (`NCTE-100`, `INT-590`) count as single words.
 
 ### 4.5 Passive Voice Detection Algorithm
 - The engine identifies forms of the auxiliary verb `be`: `am`, `is`, `are`, `was`, `were`, `been`, `being`, `be`.
 - The engine scans forward for past participles within a maximum window of 2 intervening adverb tokens.
-- The engine flags matching sequences and outputs `ErrPassiveVoiceDetected`.
+- Matching sequences emit `ErrPassiveVoiceDetected`.
 
 ---
 
@@ -257,15 +257,13 @@ The table below defines deterministic verification vectors for the NCTE AST engi
 
 ---
 
-## 7. Dynamic Substrate Integration (Law 5 & Law 7)
+## 7. Dynamic Substrate Integration (Law 4, Law 5 & Law 7)
 
 1. **Dynamic Path Resolution (Law 5):**
-   - The NCTE engine discovers Intent source roots using `config.LoadConfig()`.
-   - The engine resolves directories dynamically via `cfg.Governance.QualityGates.IntentSourceRoots`.
-   - The engine never embeds hardcoded repository paths.
+   - `IntentSteelmanGate` resolves repository and worktree roots dynamically via `VerifyContext` and `config.LoadConfig()`.
+   - The gate scans `intent/` Markdown documents without hardcoded repository path literals.
 
-2. **Fail-Closed Gatekeeper Enforcement (Law 7):**
-   - The engine registers as Gate 29 in the Definition of Done pipeline.
-   - Any diagnostic with `SeverityError` terminates verification with exit code 1.
-   - Pre-commit hooks reject commits containing NCTE violations.
-   - The engine permits zero warning overrides.
+2. **Fail-Closed Steel-Man & CLI Enforcement (Law 4 & Law 7):**
+   - `IntentSteelmanGate` (`Cell 4.1`, Probe `intent_steelman`) executes `ncte.Engine.LintMarkdown` across `intent/` during `nomos verify` when `strict_mode` and `contracts.enabled` are active.
+   - Operators also audit individual specifications via standalone `nomos directive --lint <file>` verification.
+   - Any `SeverityError` diagnostic aborts verification with exit code 1 and zero warning overrides.

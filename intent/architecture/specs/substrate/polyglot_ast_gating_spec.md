@@ -2,12 +2,11 @@
 authors:
     - Mark Gantlett
     - Nomos Open-Core Substrate
-    - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-04"
-last_updated: "2026-11-01"
+last_updated: "2026-11-05"
 plane: intent
-ssot_repository: "nomos"
+ssot_repository: nomos
 status: active
 tags:
     - architecture
@@ -15,7 +14,7 @@ tags:
     - polyglot
     - validation
     - gates
-title: Polyglot AST Validation & Language-Agnostic Gating Architecture
+title: "Polyglot AST Validation & Language-Agnostic Gating Architecture"
 type: spec
 version: "4.1.0"
 execution_frontier:
@@ -38,7 +37,7 @@ execution_frontier:
 
 ## 1. Context & Dual-Core Motivation
 
-The Nomos Substrate enforces mathematical Definition of Done (DoD) quality gates via Go-native Abstract Syntax Trees (`go/ast`). However, as Nomos orchestrates Tier 1 agentic frameworks, Membrane UIs (SvelteKit/TypeScript), and polyglot customer fixtures (Customer Zero Lab), the Substrate must audit polyglot assets with the same deterministic rigor.
+The Nomos Substrate enforces mathematical Definition of Done (DoD) quality gates via Go-native Abstract Syntax Trees (`go/ast`). Nomos also orchestrates Tier 1 agentic frameworks, SvelteKit/TypeScript UIs, and polyglot workspaces. Consequently, the Substrate audits polyglot assets with identical deterministic AST rigor.
 
 This specification formalizes the **Polyglot AST Validation Engine**:
 1. **Dynamic Dialect Dispatching:** Routes Go source files to `go/ast` (zero CGO overhead, 100% type-aware) and TypeScript, JavaScript, and Svelte assets to `go-tree-sitter`.
@@ -52,12 +51,12 @@ This specification formalizes the **Polyglot AST Validation Engine**:
 
 | Law # | Law Name | Architectural Enforcement |
 | :---: | :--- | :--- |
-| **Law 1** | **Dual-Core Inversion** | Substrate Go core executes deterministic AST parsing; Tier 1 agents cannot disable polyglot verification. |
-| **Law 2** | **Non-Verbal Proof** | AST node inspection replaces fragile regex scanning, proven by table-driven test vectors (`TC-POLY-001` through `TC-POLY-006`). |
-| **Law 4** | **Single Source of Truth** | Scanners bind findings strictly to compiled Go DTOs in `substrate/src/nomos/modules/verify/` and `nomos.schema.json`. |
+| **Law 1** | **Dual-Core Inversion** | Go core executes deterministic AST parsing across all polyglot files. |
+| **Law 2** | **Non-Verbal Proof** | AST node evaluation replaces regex heuristics across vectors `TC-POLY-001` through `TC-POLY-006`. |
+| **Law 4** | **Single Source of Truth** | Scanners bind findings strictly to `substrate/src/nomos/modules/verify/` DTOs and `nomos.schema.json`. |
 | **Law 5** | **Zero-Hardcoded-Path** | Scanned roots and exclusions resolve dynamically via `nomos.yaml` (`quality_gates.substrate_source_roots`). |
-| **Law 6** | **Canonical Singularity** | Single canonical scanner pipeline (`substrate/src/nomos/modules/verify/gates_architecture.go`) auditing all frontend and service syntaxes. |
-| **Law 7** | **Fail-Closed Pre-Flight** | Any unparseable AST node or Tree-sitter error fails closed immediately with exit code 1. |
+| **Law 6** | **Canonical Singularity** | Single canonical scanner (`substrate/src/nomos/modules/verify/gates_architecture.go`) audits frontend and service syntaxes. |
+| **Law 7** | **Fail-Closed Pre-Flight** | Unparseable AST nodes or Tree-sitter errors abort verification (exit code 1). |
 
 ---
 
@@ -87,14 +86,14 @@ flowchart TD
 1. **Zero Hardcoded Ports & Endpoints (Law 5):** Rejects raw port literals (e.g., `":8089"`, `port: 5173`) and `localhost` URLs inside Svelte/TS source files. Service ports must derive from `nomos.yaml` topology.
 2. **Zero Hardcoded Repository Maps:** Rejects inline dictionaries mapping bare workspace slugs.
 3. **Zero Sovereign IP Bleed:** Rejects strings containing banned Sovereign prefixes (e.g. `github.com/mgantlett/gsi-sov`) from public open-core code.
-4. **Wazero WASI Linear-Memory Source Scanner & 0700 User Cache Isolation (`INT-862` / `SUB-1543` / `INT-871` / `SUB-1577`):** The pure-Go `wazero` runtime binds a persistent `wazero.CompilationCache` inside a user-private `0700` cache directory (`os.UserCacheDir()/nomos/wazero` verified via `os.Lstat` to reject symlinks, never un-namespaced world-writable `/tmp`) and executes compiled WebAssembly linear-memory source scanning (`scan_source_bytes(ptr, len) -> line_count`) on every `ParseAndEvaluate` pass alongside `verify_probe` under `CGO_ENABLED=0`.
+4. **Wazero WASI Scanner & `0700` Cache Isolation (`INT-862` / `SUB-1543` / `INT-871` / `SUB-1577`):** Pure-Go `wazero` binds `wazero.CompilationCache` inside a private `0700` directory (`os.UserCacheDir()/nomos/wazero`). It verifies paths via `os.Lstat` to reject symlinks and avoids world-writable `/tmp`. Every `ParseAndEvaluate` pass executes Wasm linear-memory scanning (`scan_source_bytes(ptr, len) -> line_count`) and `verify_probe` under `CGO_ENABLED=0`.
 5. **Supply-Chain & Runtime Boundary Hardening (`INT-871` / `SUB-1577`):**
-   - `install.sh` enforces `set -euo pipefail`, downloads and extracts inside an isolated `mktemp -d` directory with `trap` cleanup, and verifies the archive's SHA-256 digest against the release `checksums.txt` (`sha256sum` / `shasum -a 256`) before installing the binary.
+   - `install.sh` enforces `set -euo pipefail` and extracts inside an isolated `mktemp -d` directory with `trap` cleanup. It verifies the archive SHA-256 digest against `checksums.txt` (`sha256sum` / `shasum -a 256`) before binary installation.
    - `nomos hook` loop circuit-breaker state files reside in a user-private `0700` directory (`os.UserCacheDir()/nomos/hooks`) verified via `os.Lstat` (`ModeSymlink == 0`).
    - `discoverPlugins` rejects symlinked or world-writable (`mode.Perm()&0002 != 0`) plugin binaries, and `openBrowser` validates `https://github.com/` URL prefixes before invoking the OS browser opener.
-6. **Embedded `.scm` S-Expression Query Binding:** Embedded `.scm` query files (`go.scm`, `typescript.scm`, `svelte.scm`, `python.scm`, `rust.scm`, `c.scm`, `cpp.scm`, `java.scm`, `kotlin.scm`, `csharp.scm`, `html.scm`, `css.scm`) are parsed into structured S-expression AST query rules (`ParseSCMQuery`) driving function extraction, branch counting, anti-shim stub detection (`todo!()`, `unimplemented!()`, `pass`, `raise NotImplementedError`, `throw new UnsupportedOperationException`, `throw new NotImplementedException`), and test-skip reward-hacking detection (`it.skip`, `test.skip`, `describe.skip`, `pytest.mark.skip`, `@unittest.skip`, `#[ignore]`, `@Disabled`, `[Fact(Skip=`).
-7. **Literal & Multiline Template Stripping:** Before evaluating structural braces, branches, or function headers, the polyglot lexer strips multiline backtick template literals (`` `...` ``), raw string literals (`r#"..."#`, `"""..."""`, `'''...'''`, `@"..."`), and comments so keywords inside strings never trigger false positives.
-8. **Per-`source_root` Polyglot Toolchain & Coverage Ratchet Parity:** `gates_polyglot_toolchain.go` iterates across root and configured `source_roots` for TypeScript (`tsc --noEmit`), Python (`python3 -m py_compile` + `pytest`), Rust (`cargo check`), C/C++ (`cmake` / `clang -fsyntax-only`), Java/Kotlin (`gradle check` / `mvn test-compile`), and C# (`dotnet build`), and parses `lcov.info` and `cobertura.xml` coverage reports against `min_coverage`.
+6. **Embedded `.scm` S-Expression Query Binding:** `ParseSCMQuery` compiles embedded `.scm` query files (`go.scm`, `typescript.scm`, `svelte.scm`, `python.scm`, `rust.scm`, `c.scm`, `cpp.scm`, `java.scm`, `kotlin.scm`, `csharp.scm`, `html.scm`, `css.scm`). Queries drive function extraction, branch counting, and anti-shim stub detection (`todo!()`, `unimplemented!()`, `pass`, `raise NotImplementedError`, `throw new UnsupportedOperationException`, `throw new NotImplementedException`). Queries also block skipped-suite reward hacking (`it.skip`, `test.skip`, `describe.skip`, `pytest.mark.skip`, `@unittest.skip`, `#[ignore]`, `@Disabled`, `[Fact(Skip=`).
+7. **Literal & Multiline Template Stripping:** The polyglot lexer strips multiline template literals (`` `...` ``), raw strings (`r#"..."#`, `"""..."""`, `'''...'''`, `@"..."`), and comments first. Consequently, keywords inside string literals or comments never trigger false-positive brace or branch matches.
+8. **Per-`source_root` Polyglot Toolchain & Coverage Parity:** `gates_polyglot_toolchain.go` audits TypeScript (`tsc --noEmit`), Python (`python3 -m py_compile`, `pytest`), and Rust (`cargo check`) across `source_roots`. It also audits C/C++ (`cmake`, `clang -fsyntax-only`), Java/Kotlin (`gradle check`, `mvn test-compile`), C# (`dotnet build`), and `lcov.info` or `cobertura.xml` against `min_coverage`.
 
 ---
 
@@ -125,23 +124,23 @@ type PolyglotScanner interface {
 
 ## 5. Table-Driven Verification Vectors
 
-The following deterministic test vectors validate polyglot AST verification:
+The following deterministic verification vectors validate polyglot AST evaluation:
 
-| Vector ID | Target File | Content Under Test | Expected Scanner Output | Invariant Enforced |
+| Vector ID | Target File | Evaluated Content | Expected Scanner Output | Invariant Enforced |
 | :--- | :--- | :--- | :--- | :--- |
 | **TC-POLY-001** | `src/routes/app.svelte` | `fetch("http://localhost:8089/api")` | REJECT: Hardcoded localhost URL (Gate 22) | Law 5 (Zero-hardcoded-path) |
 | **TC-POLY-002** | `src/lib/client.ts` | `const port = 5173;` | REJECT: Numeric port assignment (Gate 22) | Law 5 (Port abstraction) |
 | **TC-POLY-003** | `vite.config.ts` | `server: { port: 5173 }` | PASS: Build config file exempt | Config exemption |
 | **TC-POLY-004** | `src/lib/auth.ts` | `import "github.com/mgantlett/gsi-sov"` | REJECT: Sovereign IP leak (Gate 21) | Law 7 (IP boundary) |
 | **TC-POLY-005** | `src/lib/util.ts` | Clean code using dynamic config | PASS: Zero findings | Clean-room pass |
-| **TC-POLY-006** | `src/corrupt.ts` | Unclosed template string / syntax error | REJECT: Tree-sitter parse failure | Law 7 (Fail-closed parser) |
+| **TC-POLY-006** | `src/corrupt.ts` | Unclosed template string / syntax error | REJECT: Tree-sitter parse error | Law 7 (Fail-closed parser) |
 
 ---
 
 ## 6. Acceptance Criteria & Rigor Boundary
 
-1. **Tree-Sitter Structural Precision:** Polyglot analysis inspects AST property and string nodes; whitespace and comments are completely ignored.
-2. **Exemption Integrity:** Tooling configs (`vite.config.ts`, `package.json`) are legitimately exempt; application source files are strictly enforced.
+1. **Tree-Sitter Structural Precision:** Polyglot analysis evaluates AST property and string nodes while skipping whitespace and comments.
+2. **Exemption Integrity:** Scanners exempt build configuration files (`vite.config.ts`, `package.json`) while strictly enforcing application source files.
 3. **Go SSoT & JSON Schema Parity:** Validated against `nomos.schema.json` and `verify.ComplexityFinding`.
 4. **42-Gate DoD Verification:** Verification passes all 42 quality gates (`nomos verify`) with exit code 0.
 5. **No Broken Links:** All markdown documentation links resolve cleanly.

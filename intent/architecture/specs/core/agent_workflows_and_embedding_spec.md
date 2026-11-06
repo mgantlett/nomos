@@ -4,7 +4,7 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-05"
-last_updated: "2026-11-03"
+last_updated: "2026-11-05"
 plane: intent
 status: active
 title: "Invisible Harness Asset Embedding & Ambient Hook Parity Specification"
@@ -25,17 +25,17 @@ ssot_repository: nomos
 
 ## 1. Executive Summary & Architectural Mandate
 
-Under **Radical Minimalism** and **Law 1 (The Dual-Core Inversion Law)**, a human developer using Nomos must never have to alter their natural prompting workflow, memorize custom `/nomos-*` slash commands, or navigate a wall of conversational skills regardless of which Tier 1 coding agent they choose (Antigravity, Claude Code, Cursor, OpenCode, Aider, Windsurf).
+Under **Radical Minimalism** and **Law 1 (Dual-Core Inversion)**, developers preserve their natural engineering workflow without memorizing `/nomos-*` slash commands or skill walls. This zero-ceremony guarantee holds across every Tier 1 coding agent (`Antigravity`, `Claude Code`, `Cursor`, `OpenCode`, `Aider`, `Windsurf`).
 
-Historically, Nomos distributed markdown workflow playbooks under `.agents/workflows/` (such as `/nomos-handshake` and `/nomos-idle`). As the Go substrate achieved full deterministic phase enforcement and modern harnesses deprecated flat workflow files, conversational playbooks became redundant ceremony violating **Law 6 (The Canonical Singularity Law)**.
+Historically, Nomos distributed markdown workflow playbooks under `.agents/workflows/` (such as `/nomos-handshake` and `/nomos-idle`). Full Go phase enforcement and modern harness evolution rendered flat conversational workflow files redundant under **Law 6 (Canonical Singularity)**.
 
 This specification codifies the **Zero-Ceremony Invisible Harness Asset Architecture**:
-1. **Complete Excision of Workflows & Skill Walls:** `.agents/workflows/` is permanently retired, and zero conversational `.agents/skills/` are scaffolded by Nomos. Developers interact with their Tier 1 agent in natural prose with zero workflow friction.
+1. **Complete Excision of Workflows & Skill Walls:** Nomos permanently retires `.agents/workflows/` and scaffolds zero conversational `.agents/skills/`. Developers direct their Tier 1 agent in natural prose with zero workflow friction.
 2. **Three-Layer Ambient Indirect Control:**
    - **Universal Always-On Protocol (`AGENTS.md` & `CLAUDE.md`):** Concise invariant card read natively at repository root by every Tier 1 coding agent.
    - **Ambient IDE Lifecycle Hooks (`.agents/hooks.json` & `.agents/scripts/`):** Pure 16-line launchers invoke `exec nomos hook {session-start,pre-tool,post-tool}` with zero external `jq` fallback logic.
    - **Git CapBAC Defense Hooks (`pre-commit`, `commit-msg`, `pre-push`):** Deterministic substrate backstop guaranteeing invariant enforcement even in agent harnesses that do not support IDE lifecycle hooks.
-3. **Cryptographic Byte-Parity & Anti-Regression (`IntentParityGate`):** All scaffolded protocol files (`AGENTS.md`) and ambient hook assets (`.agents/hooks.json`, `.agents/scripts/*`) are embedded in `substrate/cli/templates/` via `//go:embed` and verified for SHA-256 byte parity on every `nomos verify` run, failing closed if drift or legacy `.agents/workflows/` directories appear.
+3. **Cryptographic Byte-Parity & Anti-Regression (`IntentParityGate`):** Go `//go:embed` embeds `AGENTS.md`, `.agents/hooks.json`, and `.agents/scripts/*` inside `substrate/cli/templates/`. Every `nomos verify` run asserts SHA-256 byte parity and rejects template drift or legacy `.agents/workflows/` directories.
 
 ---
 
@@ -43,18 +43,18 @@ This specification codifies the **Zero-Ceremony Invisible Harness Asset Architec
 
 | Law # | Law Name | Architectural Enforcement |
 | :---: | :--- | :--- |
-| **Law 1** | **Dual-Core Inversion** | Substrate Go core and ambient hooks govern session boot, worktree boundaries, and verification; Tier 1 agents operate under invisible indirect control with zero human slash-command ceremony. |
-| **Law 2** | **Non-Verbal Proof** | Deterministic byte-parity verification and table-driven test vectors (`TC-EMBED-001` through `TC-EMBED-006`) prove scaffolded and embedded asset integrity. |
-| **Law 4** | **Single Source of Truth** | Workspace governance assets (`AGENTS.md`, `.agents/hooks.json`, `.agents/scripts/*`) maintain exact SHA-256 byte parity with `substrate/cli/templates/`. |
-| **Law 5** | **Zero-Hardcoded-Path** | Workspace paths and customization directories resolve dynamically via `filepath.Join` and `config` discovery helpers without hardcoded path literals. |
-| **Law 6** | **Canonical Singularity** | Zero `.agents/workflows/` or duplicate skill playbooks are permitted; `IntentParityGate` fails closed if legacy workflow artifacts remain on disk. |
-| **Law 7** | **Fail-Closed Pre-Flight** | Any SHA-256 mismatch between workspace governance files and embedded templates causes immediate non-zero exit in `nomos verify`. |
+| **Law 1** | **Dual-Core Inversion** | Go core and ambient hooks govern session handshake, worktrees, and verification invisibly. |
+| **Law 2** | **Non-Verbal Proof** | Byte-parity gates and vectors (`TC-EMBED-001` to `TC-EMBED-006`) prove scaffolded asset integrity. |
+| **Law 4** | **Single Source of Truth** | Governance assets (`AGENTS.md`, `.agents/hooks.json`, `.agents/scripts/*`) match `substrate/cli/templates/` SHA-256 digests. |
+| **Law 5** | **Zero-Hardcoded-Path** | Workspace paths resolve dynamically via `filepath.Join` and `config` discovery helpers. |
+| **Law 6** | **Canonical Singularity** | `IntentParityGate` rejects `.agents/workflows/` directories and duplicate conversational skill files. |
+| **Law 7** | **Fail-Closed Pre-Flight** | Any SHA-256 template mismatch triggers non-zero rejection in `nomos verify`. |
 
 ---
 
 ## 3. Canonical Directory Layout
 
- Workspace governance and ambient hook assets follow a minimal, cross-harness footprint at the repository root:
+Workspace governance and ambient hook assets maintain a minimal cross-harness layout at the repository root:
 
 ```text
 nomos/
@@ -147,7 +147,7 @@ stateDiagram-v2
 
 ---
 
-## 6. Table-Driven Verification Vectors
+## 6. Table-Driven Test Vectors
 
 | Vector ID | Scenario | Input Target | Expected Outcome | Status |
 | :--- | :--- | :--- | :--- | :--- |
@@ -162,7 +162,7 @@ stateDiagram-v2
 
 ## 7. Acceptance Criteria
 
-1. **Zero Workflow or Skill Clutter:** Zero files exist under `.agents/workflows/` or `substrate/cli/templates/workflows/`, and zero custom slash-command skills are required to operate Nomos.
+1. **Zero Workflow or Skill Clutter:** Zero files exist under `.agents/workflows/` or `substrate/cli/templates/workflows/`, and Nomos requires zero custom slash-command skills.
 2. **Ambient Session Orientation:** `.agents/hooks.json` registers a `SessionStart` handler invoking `nomos handshake` silently alongside `PreToolUse` boundary guards.
 3. **Go SSoT Parity:** `substrate/src/nomos/core/workspace/parity.go` binds `AssetTypeHook` (`"hook"`) and `nomos.schema.json` cleanly with zero orphan contracts.
 4. **Gate Suite Green:** `nomos verify` passes all 42 statutory Definition of Done gates with exit code 0.

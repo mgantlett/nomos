@@ -2,12 +2,11 @@
 authors:
     - Mark Gantlett
     - Nomos Open-Core Substrate
-    - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-06"
-last_updated: "2026-11-01"
+last_updated: "2026-11-05"
 plane: intent
-ssot_repository: "nomos"
+ssot_repository: nomos
 status: active
 title: "Nomos Trunk Lockout & Hermetic Worktree Enforcement Specification"
 trigger: pre_commit, pre_push
@@ -31,8 +30,8 @@ Direct mutations on repository trunk branches (e.g., `main`, `master`) violate t
 
 Historically, boundary checks relied on blacklist heuristics (e.g. checking whether `branch == "main"`), which failed open on detached HEAD states, arbitrary feature branches checked out in the root worktree, or commands executed from deep subdirectories.
 
-This specification formalizes the **Nomos Absolute Mutability Lock (NAML)**:
-1. **Fail-Closed Whitelist Architecture (Law 7):** Code mutations are prohibited everywhere by default. Mutations are permitted strictly if:
+This specification formalizes the `Nomos Absolute Mutability Lock` (`NAML`):
+1. **Fail-Closed Whitelist Architecture (Law 7):** The substrate prohibits code mutations everywhere by default. The substrate authorizes mutations strictly when:
    - The execution occurs inside a verified transient task worktree (`worktrees/<repo>-<key>`).
    - Or the operation holds a cryptographically signed CapBAC release lease during atomic Two-Phase Commit (`nomos task sync`).
 2. **Zero-Hardcoded Topology (Law 5):** Worktree base directories and protected branches resolve dynamically via `config.LoadConfig()`.
@@ -45,13 +44,13 @@ This specification formalizes the **Nomos Absolute Mutability Lock (NAML)**:
 
 | Law # | Law Name | Architectural Enforcement |
 | :---: | :--- | :--- |
-| **Law 1** | **Dual-Core Inversion** | Substrate Go core enforces physical pre-commit and pre-push hooks; Tier 1 agents cannot disable hook interception. |
-| **Law 2** | **Non-Verbal Proof** | Boundary assertions are proven by process exit code 1 on prohibited paths, validated by test vectors (`TC-TRK-001` through `TC-TRK-006`). |
-| **Law 3** | **Hermetic Worktree** | Protected trunks are physically read-only; all mutations execute strictly inside isolated task worktrees. |
-| **Law 4** | **Single Source of Truth** | Worktree boundaries bind strictly to compiled Go structs in `substrate/src/nomos/core/workspace/` and `nomos.schema.json`. |
+| **Law 1** | **Dual-Core Inversion** | Go core enforces physical pre-commit and pre-push hook interception. |
+| **Law 2** | **Non-Verbal Proof** | Boundary guards return exit code 1 across vectors `TC-TRK-001` through `TC-TRK-006`. |
+| **Law 3** | **Hermetic Worktree** | Protected trunks remain read-only; mutations execute strictly inside isolated task worktrees. |
+| **Law 4** | **Single Source of Truth** | Worktree boundaries bind strictly to `substrate/src/nomos/core/workspace/` and `nomos.schema.json`. |
 | **Law 5** | **Zero-Hardcoded-Path** | Base directories (`worktree_base_dir`) and default branches derive dynamically from `nomos.yaml`. |
-| **Law 6** | **Canonical Singularity** | Single canonical boundary validation engine (`workspace.ValidateWorktreeBoundary`) called across hooks and CLI. |
-| **Law 7** | **Fail-Closed Pre-Flight** | Whitelist evaluation: any unverified worktree context or expired lease rejects mutations immediately with exit code 1. |
+| **Law 6** | **Canonical Singularity** | Single canonical `workspace.ValidateWorktreeBoundary` engine governs all hooks and CLI commands. |
+| **Law 7** | **Fail-Closed Pre-Flight** | Unverified worktree contexts or expired leases reject mutations immediately (exit 1). |
 
 ---
 
@@ -126,22 +125,22 @@ type WorktreeBoundaryValidator interface {
 
 ## 5. Fail-Closed Whitelist Evaluation Rules
 
-1. **Root Immutability (Law 3):** If `filepath.Clean(cwd)` matches the root repository path or any non-worktree subdirectory, mutations are blocked unconditionally unless a valid `ReleaseLeaseToken` is active.
+1. **Root Immutability (Law 3):** When `filepath.Clean(cwd)` matches the root repository or a non-worktree subdirectory, `NAML` blocks mutations without an active `ReleaseLeaseToken`.
 2. **Worktree Directory Confinement:** Worktrees must reside strictly inside the configured `worktree_base_dir` (default: `worktrees/`).
 3. **Detached HEAD Safety:** Running with a detached HEAD in the root repository triggers an immediate `FAIL`, closing the historical detached HEAD bypass.
-4. **Boundary Staging Sensor (Gate 3):** Pre-commit scans staged files using `git diff --cached --name-only`. If any staged file resolves outside the active worktree boundary, the commit is rejected.
+4. **Boundary Staging Sensor:** Pre-commit scans staged files via `git diff --cached --name-only`. Staged files outside the active worktree boundary abort the commit.
 
 ---
 
 ## 6. Table-Driven Verification Vectors
 
-The following deterministic test vectors validate boundary enforcement:
+The following deterministic verification vectors validate boundary enforcement:
 
 | Vector ID | Execution Directory | Active Branch | Active Lease | Expected Outcome | Invariant Enforced |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TC-TRK-001** | Repository Root | `main` | None | REJECT: NAML Lock (Exit 1) | Law 3 (Root lock) |
+| **TC-TRK-001** | Repository Root | `main` | None | REJECT: `NAML` boundary (Exit 1) | Law 3 (Root boundary) |
 | **TC-TRK-002** | Repository Root | Detached HEAD | None | REJECT: Fail-closed whitelist | Law 7 (Detached HEAD guard) |
-| **TC-TRK-003** | Subdirectory of Root | `feature/SUB-213` | None | REJECT: Root worktree is read-only | Law 3 (Hermetic tree) |
+| **TC-TRK-003** | Subdirectory of Root | `feature/SUB-213` | None | REJECT: Root worktree read-only | Law 3 (Hermetic tree) |
 | **TC-TRK-004** | `worktrees/nomos-SUB-213` | `feature/SUB-213` | None | PASS: Verified isolated worktree | Law 3 (Hermetic mutation) |
 | **TC-TRK-005** | Repository Root | `main` | Valid `SYNC` Lease | PASS: Authorized 2PC release | Law 1 (CapBAC 2PC) |
 | **TC-TRK-006** | Repository Root | `main` | Expired Lease | REJECT: Lease expired (Exit 1) | Law 7 (Fail-closed token) |
@@ -150,7 +149,7 @@ The following deterministic test vectors validate boundary enforcement:
 
 ## 7. Acceptance Criteria & Rigor Boundary
 
-1. **Whitelist Enforcement Active:** Direct mutations on root repositories fail closed with exit code 1 and a deterministic NAML error message.
+1. **Whitelist Enforcement Active:** Direct mutations on root repositories abort with exit code 1 and a deterministic `NAML` error message.
 2. **Dynamic Configuration:** Protected branches and worktree directories resolve through `config.LoadConfig()`.
 3. **Go SSoT & JSON Schema Parity:** Validated against `nomos.schema.json` and `workspace.ValidateWorktreeBoundary`.
 4. **42-Gate DoD Verification:** Verification passes all 42 quality gates (`nomos verify`) with exit code 0.

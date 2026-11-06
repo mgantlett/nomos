@@ -4,7 +4,7 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-11-03"
-last_updated: "2026-11-03"
+last_updated: "2026-11-05"
 plane: intent
 ssot_repository: nomos
 status: active
@@ -19,10 +19,10 @@ version: "4.3.0"
 
 # Compiled Go SSoT and Reflected Draft 2020-12 JSON Schema Architecture Specification
 
-**Document Key:** `SPEC-GO-SSOT-SCHEMA`  
-**Classification:** Public Open-Core Specification  
-**Version:** `4.3.0`  
-**Governing Laws:** Law 2 (Non-Verbal Proof), Law 4 (Single Source of Truth), Law 6 (Canonical Singularity), Law 7 (Fail-Closed Pre-Flight)
+- **Document Key:** `SPEC-GO-SSOT-SCHEMA`.
+- **Classification:** Public Open-Core Specification.
+- **Version:** `4.3.0`.
+- **Governing Laws:** Laws 2, 4, 6, and 7.
 
 ---
 
@@ -32,9 +32,9 @@ Across three generations of the Nomos substrate, policy and contract validation 
 
 1. **Generation 3 (`OPA + CUE`):** Maintained dual Rego policies and `.cue` schemas alongside Go structs. Cross-language synchronization required continuous manual parity maintenance.
 2. **Generation 4.0 (`CUE-Only Bridge`):** Retired Open Policy Agent (`OPA`) in favor of `cuelang.org/go` (`intent/contracts/cue/*.cue`). Simultaneously, all runtime validation migrated into deterministic pure-Go `Validate()` methods, `yaml.v3` strict `KnownFields(true)` decoding, SQLite `CHECK` constraints, and compiled Go/WASM AST gates.
-3. **Generation 4.3 (`Compiled Go AST + Reflected JSON Schema`):** Audits prior to open-core v4 stabilization confirmed that zero runtime CLI commands (`nomos task`, `nomos session`, `nomos issue`, `nomos mem`, `nomos hook`, `nomos status`, `nomos handshake`) evaluated `.cue` files. Maintaining 24 passive `.cue` files violated **Law 4 (Single Source of Truth)** and **Law 6 (Canonical Singularity)** by duplicating Go types in a secondary DSL while inflating binary weight by `32.8%`.
+3. **Generation 4.3 (`Compiled Go AST + Reflected JSON Schema`):** Audits prior to open-core v4 stabilization confirmed that zero runtime CLI commands (`nomos task`, `nomos session`, `nomos issue`, `nomos mem`, `nomos hook`, `nomos status`, `nomos handshake`) evaluated `.cue` files. Maintaining 24 passive `.cue` files violated **Law 4** and **Law 6** by duplicating Go types while inflating binary weight by `32.8%`.
 
-Nomos v4.3 establishes **Compiled Go Types as the sole runtime Single Source of Truth**, paired with **deterministic Go-reflected Draft 2020-12 JSON Schema (`nomos.schema.json`)** for external IDE and YAML language-server autocompletion.
+Nomos v4.3 establishes **Compiled Go Types** as the sole runtime SSoT, paired with Go-reflected Draft 2020-12 JSON Schema (`nomos.schema.json`) for IDE validation.
 
 ---
 
@@ -54,7 +54,7 @@ Removing `cuelang.org/go v0.17.1` and its transitive OCI registry, protobuf, dec
 
 ## 3. Law 4 Enforcement Architecture
 
-Under **Law 4 (The Single Source of Truth Law)**, contract and specification integrity is enforced across three deterministic quality gates in `substrate/src/nomos/modules/verify/`:
+Under **Law 4 (Single Source of Truth)**, three deterministic quality gates in `substrate/src/nomos/modules/verify/` enforce contract and specification integrity:
 
 ```mermaid
 flowchart LR
@@ -66,18 +66,18 @@ flowchart LR
     Specs --> Trace
 ```
 
-### 3.1 `ContractParityGate` (`Cell 4.2` — `config/schema.go` & `gates_contracts_boundary.go`)
+### 3.1 `ContractParityGate` (`Cell 4.2` - `config/schema.go` & `gates_contracts_boundary.go`)
 - `config.GenerateConfigJSONSchema()` reflects `config.EcosystemConfig` together with `config.DefaultNomosConfig()` into a canonical Draft 2020-12 JSON Schema (`additionalProperties: false`, field descriptions, numeric bounds, and default values).
 - `config.VerifyConfigJSONSchemaParity(schemaPath)` recomputes the schema in memory and fails closed if `nomos.schema.json` drifts by a single byte from `config.EcosystemConfig`.
 - `AuditArchitecturalEngines` verifies that required architectural invariants remain grounded across `substrate/` packages and `intent/` specifications.
 
-### 3.2 `IntentSteelmanGate` (`Cell 4.1` — `intent_schema_helpers.go`)
-- Walks `intent/**/*.md` and validates YAML frontmatter (`yaml.Unmarshal`) requiring non-empty `title`, `plane: intent`, and `status` (`active`, `draft`, `proposed`, `deprecated`, or `superseded`) whenever `contracts.enabled: true` or frontmatter delimiters (`---`) are present.
-- Verifies that all fenced Markdown code blocks (` ``` ` / `~~~`) are properly balanced and closed, catching truncated specification edits deterministically.
+### 3.2 `IntentSteelmanGate` (`Cell 4.1` - `intent_schema_helpers.go`)
+- Walks `intent/**/*.md` and validates YAML frontmatter (`yaml.Unmarshal`) requiring `title`, `plane: intent`, and valid `status` whenever `contracts.enabled: true` or `---` delimiters exist.
+- Verifies balanced and closed Markdown code fences (` ``` ` / `~~~`) to intercept truncated specification mutations deterministically.
 
-### 3.3 `IntentTraceabilityGate` (`Cell 4.1` — `intent_schema_helpers.go`)
+### 3.3 `IntentTraceabilityGate` (`Cell 4.1` - `intent_schema_helpers.go`)
 - Enforces `@intent` docstring traceability across exported Go functions (`>= 50%` density on modified files).
-- Resolves every `@intent #<TypeName>` token against real `type <TypeName>` AST declarations across `substrate/` (`go/parser`) and every `<name>_spec.md` reference against existing `intent/` Markdown specifications, failing closed on dangling symbols or missing specs.
+- Resolves `@intent #<TypeName>` tokens against `substrate/` `type <TypeName>` AST declarations (`go/parser`) and `<name>_spec.md` references against `intent/` specs, rejecting dangling anchors.
 
 ---
 

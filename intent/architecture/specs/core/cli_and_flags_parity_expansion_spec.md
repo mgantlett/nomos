@@ -1,26 +1,26 @@
 ---
-title: "CLI and Flag Surface Parity Contract Expansion Specification"
-plane: intent
-type: spec
-status: active
-version: "4.0.0"
-classification: public
 authors:
-  - Mark Gantlett
-  - Nomos Autonomous Architect
+    - Mark Gantlett
+    - Nomos Open-Core Substrate
+classification: public
 date: "2026-10-17"
-last_updated: "2026-11-01"
+last_updated: "2026-11-05"
+plane: intent
 ssot_repository: nomos
+status: active
+title: "CLI and Flag Surface Parity Contract Expansion Specification"
+type: spec
+version: "4.0.0"
 ---
 
 # CLI and Flag Surface Parity Contract Expansion Specification
 
-**Role:** Autonomous Open-Core Software Architect  
-**Objective:** Expand the Unified Nomos Parity Engine with two additional surface parity contracts—`contracts.cli` and `contracts.flags`—to detect and eliminate phantom commands, hallucinated CLI flags, and plane-crossing instructions across all Intent documentation.
+- **Role:** Autonomous Open-Core Software Architect.
+- **Objective:** Expand the Unified Nomos Parity Engine with `contracts.cli` and `contracts.flags` to eliminate phantom commands, hallucinated CLI flags, and cross-plane drift.
 
 ---
 
-## 0.0 Invariant Matrix
+## 0.0 Axiomatic Invariants & Surface Parity Laws
 
 | Invariant Key | Invariant Name | Formal AST Invariant | Machine Enforcement |
 | :--- | :--- | :--- | :--- |
@@ -39,14 +39,14 @@ The Sovereign Parity Engine (governed under gsi-sov) audits universal surface co
 3. `contracts.reverse`: Verifies that Substrate Go struct types ending in `Contract` have Intent anchors.
 4. `contracts.directives`: Audits active directives for obsolete gate numbers (`12 gates`, `38 gates`, `61 gates`).
 
-When all four contracts match, the engine reports $\Delta(t) = 0.0$ (Parity Equilibrium). However, an empirical manual spot check across the repository revealed significant undetected drift:
+When all four contracts match, the engine reports $\Delta(t) = 0.0$ (Parity Equilibrium). However, an empirical manual audit across the repository revealed significant undetected drift:
 
 - **Phantom Commands in Active Directives:** Intent directives cite unbuilt commands (counter-example: `nomos code watch` and `nomos code burndown` in open-core directives).
 - **Aspirational Commands in Architectural Specs:** System specifications cite unbuilt subcommands (counter-example: `nomos physics serve --rate 5`).
 - **Obsolete Lifecycle Commands in Handbooks:** Intent handbooks cite retired commands (counter-example: `nomos release ship`).
 - **Namespace Divergence:** Documentation references non-existent command signatures (counter-example: `nomos intent compile` instead of `nomos verify`, and `nomos init --agent` instead of `nomos task template`).
 
-Because the Parity Engine was not inspecting CLI command invocations or flag parameters, it suffered from the **Lamppost Effect**: searching only where its existing scanners were pointed.
+Omitting CLI command and flag verification produced the **Lamppost Effect**: the Parity Engine audited only where its initial scanners pointed.
 
 ---
 
@@ -67,12 +67,12 @@ Given an extracted invocation `nomos <token_1> <token_2> ... <token_k>`:
 2. For each token:
    - If the previous token was a flag where `TakesValue == true` without an `=` assignment, consume this token as the flag's value.
    - If `currCmd.HasSubCommands()`:
-     - Check if `token` matches any registered canonical subcommand name. Under Law 6 (Canonical Singularity), aliases are strictly prohibited; invoking an alias rather than the canonical command name is flagged as Canonical Drift.
-     - If a matching canonical subcommand is found, advance `currCmd = matchedSubCmd` and continue.
-     - If no matching subcommand is found:
-       - Check if `currCmd.AcceptsArgs` is true.
-       - If `currCmd.AcceptsArgs == false` (e.g. requires a subcommand), flag `token` as an **unknown subcommand** under `contracts.cli`.
-       - If `currCmd.AcceptsArgs == true`, all remaining positional tokens are treated as arguments, not subcommands.
+     - Verify whether `token` matches a registered canonical subcommand name. Law 6 prohibits command aliases and flags any alias invocation as Canonical Drift.
+     - On a canonical subcommand match, set `currCmd = matchedSubCmd` and advance to the next token.
+     - When no subcommand matches:
+       - Evaluate `currCmd.AcceptsArgs`.
+       - When `currCmd.AcceptsArgs == false`, record `token` as an **unknown subcommand** under `contracts.cli`.
+       - When `currCmd.AcceptsArgs == true`, treat all remaining positional tokens as arguments.
    - If `!currCmd.HasSubCommands()` (leaf command):
      - All subsequent positional tokens are arguments to `currCmd`.
 
@@ -85,27 +85,30 @@ For every command invocation, the engine tokenizes all option arguments:
 1. **Flag Tokenization & Argument Consumption:**
    - Long flags: `--flag` and `--flag=value` (splits on `=`).
    - Short flags: `-f` and `-f=value`.
-   - Space-separated flag arguments: If `flag.TakesValue == true` and no `=` is present, the subsequent token is consumed as the flag's argument.
+   - Space-separated flag arguments: When `flag.TakesValue == true` without `=`, the tokenizer consumes the next token as the flag argument.
 2. **Merged FlagSet Resolution:**
-   Every flag is resolved against the target command's **merged flag set**:
+   The engine resolves every flag against the target command's **merged flag set**.
+
    $$\text{MergedFlags}(c) = c.\text{Flags}() \cup c.\text{PersistentFlags}() \cup c.\text{InheritedFlags}()$$
-   This ensures standard Cobra flags (`--help`, `-h`) and subcommand-registered flags (`--json`, `--verbose`) are accurately resolved per command.
+
+   Merged resolution validates standard Cobra flags (`--help`, `-h`) and subcommand flags (`--json`, `--verbose`) per command.
 3. **Fail-Closed Drift Condition:**
-   If a cited flag is missing from `MergedFlags(c)`, the discrepancy is recorded under `contracts.flags`:
+   When `MergedFlags(c)` omits a cited flag, the engine records a discrepancy under `contracts.flags`.
+
    $$\text{Discrepancy} = \text{fmt.Sprintf}(\text{"Doc \%s cites invalid flag '\%s' for command '\%s'", docPath, flagName, cmdString})$$
 
 ---
 
 ### 2.3 Hermetic Plane & Profile Boundary (`INV-PARITY-010`)
 Commands defined strictly in sovereign packages (sovereign only: `nomos code`, `nomos-plugin-ship`, `nomos cockpit`) must observe repository profiles:
-- In open-core repositories (`nomos`), citations of sovereign commands in active directives or core specs are flagged as **Plane Contamination Drift**.
+- Open-core repositories (`nomos`) reject sovereign command citations in active directives or core specs as **Plane Contamination Drift**.
 - In sovereign repositories (`gsi-sov`), citations of sovereign commands resolve against the sovereign CLI plugin registry.
 
 ---
 
 ## 3.0 Filtering & Exemption Grammar
 
-To prevent false positives on historical records, counter-examples, and test fixtures, the scanner enforces deterministic filters:
+To prevent false positives on historical records, counter-examples, and verification fixtures, the scanner enforces deterministic filters:
 
 1. **Negative Assertions & Counter-Examples:**
    Lines matching explicit negation or counter-example prefixes are exempt:
@@ -123,25 +126,25 @@ To prevent false positives on historical records, counter-examples, and test fix
    $$\text{status} \in \{\text{"superseded"}, \text{"rejected"}, \text{"obsolete"}, \text{"deprecated"}, \text{"archived"}\}$$
    is universally exempt, resolving dynamically across all directories without hardcoded paths.
 4. **Template Parameter Exemption:**
-   Invocations containing unresolved template placeholders (e.g. `<command>`, `[flags]`, `$ARG`, `<task-key>`) are skipped.
+   The scanner skips invocations containing unresolved template placeholders (`<command>`, `[flags]`, `$ARG`, `<task-key>`).
 
 ---
 
 ## 4.0 Open-Core Substrate Enforcement (`substrate/src/nomos/modules/verify/`)
 
-In Open-Core `nomos`, static Cobra command reachability and documentation completeness are enforced deterministically at AST level during `nomos verify`:
+Open-Core `nomos` enforces static Cobra command reachability and documentation completeness at the AST level during `nomos verify`:
 
 1. **`ScanCobraSurfaceCompletenessInDir` (`substrate/src/nomos/modules/verify/cli_surface_audit.go`, enforced in `ZeroAliasGate` `Cell 6.2`, `INV-PARITY-011`):**
    - Walks every static `&cobra.Command{}` composite literal in `substrate/cli/` (excluding `plugin.go` passthroughs and `_test.go` files).
    - Fails closed if any command omits non-empty `Use`, `Short`, `Long`, or `Example` fields, or registers `Aliases` (`Law 6`).
 2. **`DeadCodeGate` (`findUnreachableCommands` in `substrate/src/nomos/modules/verify/gates_governance.go`):**
-   - Parses `substrate/cli/root.go` and every `New*Cmd()` constructor in `substrate/cli/*.go`, failing closed if any command constructor is not wired into `NewRootCmd()`.
+   - Parses `substrate/cli/root.go` and `substrate/cli/*.go`, rejecting any `New*Cmd()` constructor omitted from `NewRootCmd()`.
 3. **Sovereign Markdown Cross-Reference Scanner (`INV-PARITY-008` .. `INV-PARITY-010`):**
-   - Markdown command/flag tokenization (`contracts.cli` and `contracts.flags` described in Sections 2–3) executes in the Sovereign Parity Engine while Open-Core enforces static AST Cobra completeness and zero-alias reachability directly in `nomos verify`.
+   - The Sovereign Parity Engine runs Markdown tokenization (`contracts.cli` and `contracts.flags` in Sections 2 to 3). Open-Core `nomos verify` enforces static AST Cobra completeness and zero-alias reachability.
 
 ---
 
-## 5.0 Verification Proofs & Test Vectors
+## 5.0 Table-Driven Test Vectors
 
 | Vector ID | Test Vector Description | Expected Verification Outcome |
 | :--- | :--- | :--- |

@@ -4,9 +4,9 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-04"
-last_updated: "2026-11-04"
+last_updated: "2026-11-05"
 plane: intent
-ssot_repository: "nomos"
+ssot_repository: nomos
 status: active
 title: "Open-Core License, IP Boundary, and Release Readiness Specification"
 type: spec

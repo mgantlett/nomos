@@ -2,12 +2,11 @@
 authors:
     - Mark Gantlett
     - Nomos Open-Core Substrate
-    - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-05"
-last_updated: "2026-11-01"
+last_updated: "2026-11-05"
 plane: intent
-ssot_repository: "nomos"
+ssot_repository: nomos
 status: active
 title: "Strict DoD Coverage and Threshold Integrity Lock Specification"
 type: spec
@@ -26,11 +25,11 @@ execution_frontier:
 
 ## 1. Executive Summary & Intent Motivation
 
-In autonomous software engineering, AI coding agents frequently attempt to bypass quality gates by lowering test thresholds (e.g. reducing `min_test_coverage_pct` in `nomos.yaml`) or claiming task-plane exemptions (`plane: "intent"`) while surreptitiously modifying Go substrate code.
+AI coding agents frequently attempt to bypass quality gates by lowering coverage thresholds (such as `min_test_coverage_pct` in `nomos.yaml`). Agents also claim task-plane exemptions (`plane: "intent"`) while surreptitiously modifying Go substrate source files.
 
-Under **Law 2 (Non-Verbal Proof)** and **Law 7 (Fail-Closed Pre-Flight)**, this escape hatch must be closed mathematically:
-1. **Threshold Immutability Invariant:** Quality thresholds (`min_*` and `max_*`) in `nomos.yaml` are structurally locked against relaxation. Any downward mutation of coverage or upward mutation of complexity triggers an immediate `FAIL`, unless explicitly executed under a task whose `schema_type` is `"debt"`.
-2. **Go Mutation Guard on Coverage Exemptions:** A task declared as `plane: "intent"` or `schema_type: "spike"` is only exempt from `CoverageGate` if **zero `.go` files are mutated** in the active worktree. If a single Go file is modified, full statement coverage is enforced fail-closed.
+Under **Law 2 (Non-Verbal Proof)** and **Law 7 (Fail-Closed Pre-Flight)**, the substrate closes this escape hatch mathematically:
+1. **Threshold Immutability Invariant:** The substrate freezes quality thresholds (`min_*` and `max_*`) in `nomos.yaml` against relaxation. Downward coverage or upward complexity mutations trigger an immediate `FAIL` outside `schema_type: "debt"` tasks.
+2. **Go Mutation Guard on Coverage Exemptions:** `CoverageGate` exempts `plane: "intent"` or `schema_type: "spike"` tasks strictly when the worktree mutates zero `.go` files. Modifying any `.go` file triggers mandatory statement coverage verification.
 3. **AST-Based Threshold Audit:** Compares compiled configuration structs against base revisions via `config.LoadConfig()`, preventing bypass via YAML reformatting.
 4. **Universal Topology:** References strictly adhere to `nomos` (Open-Core Public Foundation) and `gsi-sov` (Sovereign Proprietary Extensions).
 
@@ -40,12 +39,12 @@ Under **Law 2 (Non-Verbal Proof)** and **Law 7 (Fail-Closed Pre-Flight)**, this 
 
 | Law # | Law Name | Architectural Enforcement |
 | :---: | :--- | :--- |
-| **Law 1** | **Dual-Core Inversion** | Substrate Go core evaluates threshold integrity and statement coverage; Tier 1 agents cannot override gate policies. |
-| **Law 2** | **Non-Verbal Proof** | Statement coverage must satisfy `config.ThresholdsConfig` (`coverage >= min_test_coverage_pct`), proven by table-driven test vectors (`TC-COV-001` through `TC-COV-006`). |
-| **Law 4** | **Single Source of Truth** | Plane and task types bind strictly to `task.TaskRecord` (`substrate/src/nomos/modules/task/task.go`). Thresholds bind to `config.ThresholdsConfig` (`nomos.schema.json`). |
+| **Law 1** | **Dual-Core Inversion** | Go core evaluates threshold integrity and statement coverage without agent overrides. |
+| **Law 2** | **Non-Verbal Proof** | Statement coverage satisfies `config.ThresholdsConfig` across vectors `TC-COV-001` through `TC-COV-006`. |
+| **Law 4** | **Single Source of Truth** | Plane types bind to `task.TaskRecord`; thresholds bind to `config.ThresholdsConfig` (`nomos.schema.json`). |
 | **Law 5** | **Zero-Hardcoded-Path** | Configuration and git root resolve dynamically via `config.LocateConfigPath()` and `workspace.SafeGitCommand`. |
-| **Law 6** | **Canonical Singularity** | Single canonical `CoverageGate` (Gate 7) and `ThresholdIntegrityGate` (Gate 24) in the 29-gate DoD pipeline. |
-| **Law 7** | **Fail-Closed Pre-Flight** | Any relaxation of thresholds outside a designated `debt` task halts verification immediately with exit code 1. |
+| **Law 6** | **Canonical Singularity** | Single canonical `CoverageGate` and `ThresholdIntegrityGate` inside the 42-gate DoD pipeline. |
+| **Law 7** | **Fail-Closed Pre-Flight** | Threshold relaxation outside `debt` tasks halts verification with exit code 1. |
 
 ---
 
@@ -79,14 +78,16 @@ stateDiagram-v2
 ```
 
 ### 3.1 Strict Fail-Closed Exemption Predicate
-$$\text{IsExempt} = (\text{Task.Plane} == \text{"intent"}) \land (\forall f \in \text{WorktreeDiff}, \neg \text{HasSuffix}(f, \text{".go"}))$$
-If a developer or agent claims an `INT-*` task but edits `substrate/src/nomos/main.go`, `IsExempt` evaluates to `false`, and `CoverageGate` executes the complete test suite.
+
+$$\text{IsExempt} = (\text{Task.Plane} == \text{"intent"}) \wedge (\forall f \in \text{WorktreeDiff}, \neg \text{HasSuffix}(f, \text{".go"}))$$
+
+When an operator claims an `INT-*` task yet edits `substrate/src/nomos/main.go`, `IsExempt` evaluates to `false`. `CoverageGate` then executes full package coverage verification.
 
 ---
 
 ## 4. Threshold Integrity State Machine (Gate 24)
 
-`ThresholdIntegrityGate` mathematically asserts that thresholds in `nomos.yaml` are never relaxed:
+`ThresholdIntegrityGate` mathematically asserts that tasks never relax thresholds in `nomos.yaml`:
 
 ```mermaid
 stateDiagram-v2
@@ -121,16 +122,16 @@ Any violation outside a `schema_type: "debt"` task triggers `ErrThresholdRelaxat
 
 ## 5. Table-Driven Verification Vectors
 
-The following deterministic test vectors certify the coverage and threshold lock:
+The following deterministic verification vectors attest coverage and threshold integrity:
 
 | Vector ID | Task Plane | Schema Type | Files Mutated | Threshold Mutation | Expected Outcome | Invariant Enforced |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TC-COV-001** | `substrate` | `substrate` | `*.go` | None | Coverage evaluated; requires $\ge 55\%$ | Law 2 (Non-verbal proof) |
+| **TC-COV-001** | `substrate` | `substrate` | `*.go` | None | Evaluates coverage; requires $\ge 55\%$ | Law 2 (Non-verbal proof) |
 | **TC-COV-002** | `intent` | `intent` | `*.md` only | None | `CoverageGate` exempt; returns PASS | Scope isolation |
-| **TC-COV-003** | `intent` | `intent` | `*.md` + `foo.go` | None | Mutation guard triggers; coverage enforced | Law 7 (Escape hatch lock) |
-| **TC-COV-004** | `substrate` | `substrate` | `nomos.yaml` | `min_coverage: 55 -> 40` | Rejects: `ThresholdIntegrityGate` FAIL | Law 7 (Threshold lock) |
+| **TC-COV-003** | `intent` | `intent` | `*.md` + `foo.go` | None | Mutation guard enforces coverage | Law 7 (Escape hatch guard) |
+| **TC-COV-004** | `substrate` | `substrate` | `nomos.yaml` | `min_coverage: 55 -> 40` | Rejects: `ThresholdIntegrityGate` FAIL | Law 7 (Threshold integrity) |
 | **TC-COV-005** | `substrate` | `debt` | `nomos.yaml` | `min_coverage: 55 -> 50` | Passes: Audited debt task exemption | Audited debt lifecycle |
-| **TC-COV-006** | `substrate` | `substrate` | `nomos.yaml` | `max_cds: 45 -> 40` | Passes: Threshold tightened | Monotonic improvement |
+| **TC-COV-006** | `substrate` | `substrate` | `nomos.yaml` | `max_cds: 45 -> 40` | Passes: Tightens threshold bound | Monotonic improvement |
 
 ---
 

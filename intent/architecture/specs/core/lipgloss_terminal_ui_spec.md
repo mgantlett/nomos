@@ -4,7 +4,7 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-13"
-last_updated: "2026-11-04"
+last_updated: "2026-11-05"
 plane: intent
 status: active
 title: "Open-Core Terminal UI Architecture & Totem CLI Ergonomics"
@@ -78,14 +78,14 @@ In alignment with `task.TaskRecord.Status`, adaptive status pills (`styleSemanti
 ## 4. Substrate Styling Primitives (`substrate/cli/theme.go`)
 
 The Substrate centralizes adaptive terminal rendering inside `substrate/cli/theme.go` and `substrate/cli/theme_gradient.go`:
-- `renderBrandTitle(title string)` — Adaptive gradient title header.
-- `styleSemanticBadge(status string)` / `styleSemanticBadgeWidth(status string, width int)` — Semantic status pill formatting.
-- `styleTaskKey(key string)` — Plane-colored task key formatting (`INT-*` purple, `SUB-*` cyan).
-- `kvLine(label string, width int, value string)` — Aligned key-value telemetry rows.
+- `renderBrandTitle(title string)`: Adaptive gradient title header.
+- `styleSemanticBadge(status string)` / `styleSemanticBadgeWidth(status string, width int)`: Semantic status pill formatting.
+- `styleTaskKey(key string)`: Plane-colored task key formatting (`INT-*` purple, `SUB-*` cyan).
+- `kvLine(label string, width int, value string)`: Aligned key-value telemetry rows.
 
 ---
 
-## 5. Deterministic Invariants & Graceful Degradation
+## 5. Axiomatic Invariants & Graceful Degradation
 
 1. **Law 1 (Dual-Core Inversion)**: Lipgloss terminal UX delivers clear telemetry to developers and Tier 1 agents under indirect control.
 2. **Law 2 (Non-Verbal Proof)**: Terminal formatting preserves deterministic command exit codes (`0` on pass, non-zero on rejection).
@@ -95,7 +95,7 @@ The Substrate centralizes adaptive terminal rendering inside `substrate/cli/them
 
 ---
 
-## 6. Table-Driven Verification Vectors
+## 6. Table-Driven Test Vectors
 
 | Vector ID | Target Component | Input Environment | Expected Output | Invariant Verified |
 | :--- | :--- | :--- | :--- | :--- |

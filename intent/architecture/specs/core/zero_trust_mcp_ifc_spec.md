@@ -4,7 +4,7 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-11-03"
-last_updated: "2026-11-03"
+last_updated: "2026-11-05"
 plane: intent
 ssot_repository: nomos
 status: active
@@ -19,10 +19,10 @@ version: "4.3.0"
 
 # Zero-Trust MCP Boundary Interceptor and Information Flow Control Specification
 
-**Document Key:** `SPEC-CAPBAC-MCP-IFC-0857`  
-**Classification:** Public Open-Core Specification  
-**Version:** `4.3.0`  
-**Governing Laws:** Law 1 (Dual-Core Inversion), Law 3 (Hermetic Worktree), Law 4 (Single Source of Truth), Law 7 (Fail-Closed Pre-Flight)
+**Document Key:** `SPEC-CAPBAC-MCP-IFC-0857`.  
+**Classification:** Public Open-Core Specification.  
+**Version:** `4.3.0`.  
+**Governing Laws:** Law 1 (Dual-Core Inversion), Law 3 (Hermetic Worktree), Law 4 (Single Source of Truth), and Law 7 (Fail-Closed Pre-Flight).
 
 ---
 
@@ -62,9 +62,9 @@ flowchart LR
 
 ### 2.3 Information Flow Control Rules (`EvaluateMCPBoundary`)
 1. **Policy Gate:** Rejects invocations targeting `blocked_mcp_servers` or servers absent from a non-empty `allowed_mcp_servers` allowlist.
-2. **Credential Payload Gate:** Scans serialized MCP arguments for canonical secret tokens (`sk-proj-`, `sk-ant-`, `AKIA`, `ghp_`, `github_pat_`, `glpat-`, `xoxb-`, `hf_`, `xai-`, PEM private keys) and sensitive credential paths (`.env`, `.ssh/id_`, `.aws/credentials`).
+2. **Credential Payload Gate:** Scans serialized MCP arguments for canonical secret tokens (`sk-proj-`, `sk-ant-`, `AKIA`, `ghp_`, `github_pat_`, `glpat-`, `xoxb-`, `hf_`, `xai-`, and PEM keys). Also rejects sensitive credential paths (`.env`, `.ssh/id_`, `.aws/credentials`).
 3. **Credential Taint Egress Gate:** Rejects `MCPModeMutate` and `MCPModePrivileged` MCP calls when `CapabilityFlowGraph` holds `credential_source` taint.
-4. **Cross-Server Escalation Gate:** Records untrusted ingress server `mcp_untrusted:<S1>` on external fetch/browser MCP servers and rejects `MCPModePrivileged` calls on any distinct server `S2 != S1` until `nomos verify` sanitizes the session.
+4. **Cross-Server Escalation Gate:** Records untrusted ingress `mcp_untrusted:<S1>` on external fetch or browser MCP servers. Rejects `MCPModePrivileged` calls on any distinct server `S2 != S1` until `nomos verify` sanitizes the session.
 5. **Hermetic Worktree Enforcement:** Routes mutating MCP tools with file path targets through `evaluateFileMutationGuard` (**Law 3**).
 
 ---

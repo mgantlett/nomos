@@ -4,23 +4,23 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-23"
-last_updated: "2026-11-01"
+last_updated: "2026-11-05"
 plane: intent
+ssot_repository: nomos
 status: active
 tags:
     - INT-731
     - SUB-1207
-title: Anti-Stub Invariants, Empirical Verification, and Contract Boundaries Specification
+title: "Anti-Stub Invariants, Empirical Verification, and Contract Boundaries Specification"
 trigger: always_on
 type: spec
 version: "4.0.0"
-ssot_repository: nomos
 ---
 
 # Anti-Stub Invariants, Empirical Verification, and Contract Boundaries Specification
 
-**Role:** Autonomous Open-Core Software Architect  
-**Objective:** Codify machine-enforced invariants prohibiting trivial constant-return stubs in Definition of Done (DoD) quality gates, mandating dynamic asset discovery in bilateral parity audits, and formalizing Contract Boundaries across hemispheres and substrate domains.
+- **Role:** Autonomous Open-Core Software Architect.
+- **Objective:** Prohibit trivial constant-return stubs in DoD gates, mandate dynamic asset discovery in parity audits, and codify Contract Boundaries across planes.
 
 ---
 
@@ -33,24 +33,24 @@ During the initial bootstrap of the Gen 4 substrate (`nomos-v4`), an insidious c
    ```go
    return &GateResult{GateName: g.Name(), Passed: true, Message: "..."}, nil
    ```
-   were evaluated as having 1 valid statement. These stubs passed `nomos verify` cleanly while performing zero actual checks.
+   satisfied that naive length predicate as 1 valid statement. Those stubs passed `nomos verify` cleanly while performing zero actual verification.
 
 2. **The Vacuous Parity Audit**:
-   `workspace.CheckBilateralParity(sourceRoot, targetRoot)` invoked `CheckAssetParity(sourceRoot, targetRoot, nil)`. Passing `nil` resulted in `TotalAssets: 0, Mismatches: 0, Passed: true`, yielding false confidence of "Zero Drift" when no assets were actually compared.
+   `workspace.CheckBilateralParity(sourceRoot, targetRoot)` invoked `CheckAssetParity(sourceRoot, targetRoot, nil)`. Passing `nil` produced `TotalAssets: 0, Mismatches: 0, Passed: true` and reported false "Zero Drift" while comparing zero assets.
 
 3. **Unimplemented Contract Boundary Gates**:
    ADR-0066 declared Contract Boundaries (`contracts.contracts`, `contracts.membrane`, `contracts.infra`), but substrate gate implementations were missing or unported, creating a contract governance blind spot.
 
 ---
 
-## 2. Invariant Contracts
+## 2. Axiomatic Invariants & Contract Laws
 
 ### `INV-STUB-001`: Gate Non-Triviality Invariant (Law 2: Non-Verbal Proof)
-Any function implementing the `verify.Gate` interface (`Evaluate(*VerifyContext) (*GateResult, error)`) is strictly prohibited from returning a static literal `&GateResult{Passed: true}` or `nil` error without executing substantive inspection logic (e.g. AST traversal, filesystem walk, configuration inspection, or subprocess execution).
-- **Enforcement**: `AntiShimGate` inspects gate ASTs. Functions whose body consists solely of a single `ast.ReturnStmt` yielding `Passed: true` are rejected with `ERR_TRIVIAL_PASS_SHIM`.
+Every `verify.Gate` implementation (`Evaluate(*VerifyContext) (*GateResult, error)`) must execute substantive AST, filesystem, configuration, or subprocess analysis before returning `&GateResult{Passed: true}`.
+- **Enforcement**: `AntiShimGate` walks gate ASTs and rejects single-statement `ast.ReturnStmt` functions returning `Passed: true` with `ERR_TRIVIAL_PASS_SHIM`.
 
 ### `INV-PARITY-002`: Empirical Asset Discovery Invariant (Law 4: SSoT)
-Any bilateral or cross-hemisphere parity check executed via `workspace.CheckAssetParity` must discover and audit $\ge 1$ canonical assets.
+Every bilateral or cross-hemisphere parity audit executed via `workspace.CheckAssetParity` must discover and verify $\ge 1$ canonical assets.
 - If `TotalAssets == 0`, the parity audit fails closed with `ERR_ZERO_ASSETS_DISCOVERED`.
 - Canonical assets dynamically discovered must include:
   1. The canonical root `./AGENTS.md`.
@@ -63,11 +63,11 @@ Contract Boundaries govern the interfaces between Intent, Substrate Core, Membra
 1. `contracts.contracts`: `ContractParityGate` (Cell 4_2). Audits `nomos.schema.json` byte parity vs `config.EcosystemConfig` and engine grounding.
 2. `contracts.infra`: `InfraPortIngressGate` (Cell 5_2). Audits source `os.Getenv` usages vs environment declarations (`.env.example`) and port configurations.
 3. `contracts.membrane`: `UIAntiMaskSentinelGate` (Cell 7_1). Audits UI component bindings and eliminates defensive fallback masks.
-When a boundary is declared `enabled: false` in `nomos.yaml` (e.g. open-core boundary omitting UI membrane), the corresponding gate must emit an explicit skip result rather than failing or silently returning an unverified pass.
+Setting `enabled: false` on a boundary in `nomos.yaml` causes the bound gate to emit an explicit skip result instead of an unverified pass.
 
 ---
 
-## 3. Table-Driven Protocol Compliance Vectors
+## 3. Table-Driven Test Vectors
 
 | Compliance Vector | Invariant | Target Substrate Gate | Expected Failure / Outcome |
 | :--- | :--- | :--- | :--- |

@@ -4,26 +4,26 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-23"
-last_updated: "2026-11-03"
+last_updated: "2026-11-05"
 plane: intent
+ssot_repository: nomos
 status: active
-title: "Hermetic Git Hooks, Task Commit, and Staged Boundary Enforcement Specification"
-type: spec
-version: "4.4.0"
 tags:
     - INT-734
     - SUB-1212
     - INT-874
     - INT-903
     - SUB-1700
-ssot_repository: nomos
+title: "Hermetic Git Hooks, Task Commit, and Staged Boundary Enforcement Specification"
+type: spec
+version: "4.4.0"
 ---
 
 # Hermetic Git Hooks, Task Commit, and Staged Boundary Enforcement Specification
 
 ## 1. Executive Summary & Problem Statement
 
-Under **Law 1 (The Dual-Core Inversion Law)** and **Law 3 (The Hermetic Worktree Law)**, the Go substrate governs execution while Tier 1 coding agents edit inside isolated worktrees.
+Under **Law 1 (Dual-Core Inversion)** and **Law 3 (Hermetic Worktree)**, the Go substrate governs execution while Tier 1 agents operate inside isolated worktrees.
 
 In uncontained development environments, agents or developers may inadvertently:
 1. Attempt raw `git commit` on protected trunk branches (`main`), corrupting canonical history.
@@ -42,7 +42,7 @@ This specification defines the **Hermetic Git Hooks Lifecycle**, the **`nomos ta
 | **1** | **The Dual-Core Inversion Law** | Substrate Go core governs execution; agents commit through canonical CLI commands. | `nomos task commit`, `git_hygiene` AST probe |
 | **2** | **The Non-Verbal Proof Law** | Commit rationale prose and anti-shim rules are machine-verified before merge. | `commit_schema` gate, table-driven tests |
 | **3** | **The Hermetic Worktree Law** | Mutations execute strictly inside transient worktrees while trunk stays read-only. | `pre-commit` hook, `staged_boundaries` gate |
-| **4** | **The Single Source of Truth Law** | Git's tree diff owns file manifests; hook scripts and commit gates share Go SSoT. | `commit_schema_gate.go`, `workspace/hooks.go` |
+| **4** | **The Single Source of Truth Law** | Git tree diffs own manifests; hooks and gates share Go SSoT. | `commit_schema_gate.go`, `workspace/hooks.go` |
 | **5** | **The Zero-Hardcoded-Path Law** | Worktrees, hooks, and repository roots resolve dynamically at runtime. | `config.ResolveWorktreeDir()`, `FindRepoRoot()` |
 | **6** | **The Canonical Singularity Law** | One commit CLI (`nomos task commit`) emits Conventional Commits with `Task:` trailers. | Zero-Alias CLI gate, `commit-msg` hook |
 | **7** | **The Fail-Closed Pre-Flight Law** | Boundary escapes, missing `Task:` trailers, or unsanitized git calls fail closed. | Gate pipeline exit code 1 |
@@ -62,8 +62,8 @@ Nomos installs and self-heals three hermetic client-side hooks inside `.git/hook
 
 ### 3.2 `commit-msg`
 - **Prefixed Conventional Subject**: Enforces `^\[(INT|SUB)-[1-9][0-9]*(-[a-z0-9-]+)?\]\s+(feat|fix|docs|chore|refactor|test)(\([a-z0-9_,/-]+\))?:\s+\S+` (`<= 110` chars) and blocks trailing `[KEY]` duplicates.
-- **Anti-Dump, Anti-Scissors & Anti-Shim Guard**: Rejects `---` patch-scissors lines (in favor of `___`), legacy Dual-Layer headers, raw `- M file` diff dumps, and canned boilerplate shims.
-- **Rationale & Trailer Parity Check**: Requires substantive plain-text rationale prose and a `Task: <KEY>` RFC 822 Git trailer matching the `[<KEY>]` subject prefix.
+- **Anti-Dump, Anti-Scissors & Anti-Shim Guard**: Rejects `---` scissors lines (in favor of `___`), legacy Dual-Layer headers, raw `- M file` diff dumps, and canned placeholder shims.
+- **Rationale & Trailer Parity Audit**: Requires substantive plain-text rationale prose and a `Task: <KEY>` RFC 822 Git trailer matching the `[<KEY>]` subject prefix.
 
 ### 3.3 `pre-push`
 - **Trunk Push Defense**: Blocks pushing non-trunk branches directly to remote trunk and runs `nomos verify --range` before trunk pushes.
@@ -87,10 +87,10 @@ Flags:
 
 ### 4.1 Deterministic Golden Commit Hydration (`INT-874`, `INT-903`, `INT-904`)
 1. **Task Key Resolution**: Resolves `INT-<N>` or `SUB-<N>` from `TASK_KEY`, the active worktree directory name, or `feature/<KEY>`.
-2. **80-Rune Prefixed Subject Normalization**: Emits `[<KEY>] <type>(<scope>): <summary>` within an `80`-rune target budget, stripping duplicate key tokens and lowercasing plain English verbs while preserving acronyms (`AST`, `CapBAC`, `MCP`, `CLI`, `Go`).
+2. **80-Rune Subject Normalization**: Emits `[<KEY>] <type>(<scope>): <summary>` within `80` runes, stripping duplicate keys and preserving acronyms (`AST`, `CapBAC`, `MCP`, `CLI`, `Go`).
 3. **Flowing Unwrapped CommonMark Body**:
-   - **Paragraph 1 (Rationale)**: Hydrates a smooth unwrapped paragraph from `--rationale`, Living Ledger `## Scope & Context`, walkthrough lead prose, or concise module intent so IDE hover cards wrap naturally.
-   - **Optional Mechanics Bullets**: Hydrates flowing bullets from `--mechanics`, deduplicated walkthrough summary items (excluding `## Verification` / `## Test` sections), or `## Acceptance Criteria` without repeating Paragraph 1 or dumping staged file lists.
+   - **Paragraph 1 (Rationale)**: Hydrates an unwrapped paragraph from `--rationale`, Living Ledger `## Scope & Context`, walkthrough prose, or module intent for IDE hover cards.
+   - **Optional Mechanics Bullets**: Hydrates bullets from `--mechanics`, deduplicated walkthrough summaries (excluding `## Verification` / `## Test`), or `## Acceptance Criteria` without file dumps.
 4. **Divider & RFC 822 Git Trailers**: Emits a `git interpret-trailers`-safe `___` CommonMark divider followed by `Task: <KEY>` and automatic `Twin: <TWIN_KEY>` whenever `TaskRecord.TwinKey` is bound.
 5. **Dirty Worktree Sync Parity**: `nomos task sync <KEY> -F <walkthrough>` routes uncommitted edits through the identical Golden Commit pipeline.
 

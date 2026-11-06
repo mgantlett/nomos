@@ -4,7 +4,7 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-11-03"
-last_updated: "2026-11-03"
+last_updated: "2026-11-05"
 plane: intent
 ssot_repository: nomos
 status: active
@@ -19,10 +19,10 @@ version: "4.3.0"
 
 # Compositional Capability-Flow Graph and Cross-Tool Taint Guard Specification
 
-**Document Key:** `SPEC-CAPBAC-FLOW-0856`  
-**Classification:** Public Open-Core Specification  
-**Version:** `4.3.0`  
-**Governing Laws:** Law 1 (Dual-Core Inversion), Law 2 (Non-Verbal Proof), Law 3 (Hermetic Worktree), Law 7 (Fail-Closed Pre-Flight)
+- **Document Key:** `SPEC-CAPBAC-FLOW-0856`.
+- **Classification:** Public Open-Core Specification.
+- **Version:** `4.3.0`.
+- **Governing Laws:** Law 1 (Dual-Core Inversion), Law 2 (Non-Verbal Proof), Law 3 (Hermetic Worktree), Law 7 (Fail-Closed Pre-Flight).
 
 ---
 
@@ -38,7 +38,18 @@ Nomos extends `core/capbac` with a deterministic **Compositional Capability-Flow
 
 ---
 
-## 2. Capability-Flow Graph Model (`core/capbac`)
+## 2. Axiomatic Invariants & Governing Laws
+
+| Law # | Law Name | Capability-Flow Enforcement |
+| :---: | :--- | :--- |
+| **Law 1** | **Dual-Core Inversion** | `nomos hook session-start` resets workspace flow state cleanly per session. |
+| **Law 2** | **Non-Verbal Proof** | Only `nomos verify` or `nomos task review` clears `untrusted_external` taint. |
+| **Law 3** | **Hermetic Worktree** | Workspace flow ledgers persist with `0600` permissions and `Lstat` symlink rejection. |
+| **Law 7** | **Fail-Closed Pre-Flight** | `EvaluateToolFlow` blocks tainted release, exfiltration, and remote shell pipes pre-execution. |
+
+---
+
+## 3. Capability-Flow Graph Model (`core/capbac`)
 
 ```mermaid
 flowchart LR
@@ -49,11 +60,11 @@ flowchart LR
     Graph -->|"BLOCK if credential_source"| SinkExfil["Network Exfiltration Sink<br/>(curl POST / scp / webhook)"]
 ```
 
-### 2.1 Canonical Taint Labels (`capbac.TaintLabel`)
-- `untrusted_external`: Recorded when an invocation ingests external network content (`webfetch`, `web_search`, `search_web`, `fetch_url`, `browse`, or remote `curl`/`wget` fetches).
-- `credential_source`: Recorded when an invocation reads credential files (`.env`, `.env.*` excluding templates, `.npmrc`, `.netrc`, `id_rsa`, `id_ed25519`, `.aws/credentials`, `.kube/config`).
+### 3.1 Canonical Taint Labels (`capbac.TaintLabel`)
+- `untrusted_external`: Recorded on external network ingestion (`webfetch`, `web_search`, `search_web`, `fetch_url`, `browse`, or remote `curl`/`wget` fetches).
+- `credential_source`: Recorded on credential file reads (`.env`, `.env.*` excluding templates, `.npmrc`, `.netrc`, `id_rsa`, `id_ed25519`, `.aws/credentials`, `.kube/config`).
 
-### 2.2 Canonical Flow Roles (`capbac.FlowRole`)
+### 3.2 Canonical Flow Roles (`capbac.FlowRole`)
 - `source`: Introduces one or more `TaintLabel` edges into the workspace flow ledger.
 - `sanitizer`: Clears `untrusted_external` edges after deterministic verification (`nomos verify` or `nomos task review`).
 - `sink_shell_eval`: Rejects single-turn remote interpreter pipes (`curl|sh`, `wget|bash`) unconditionally.
@@ -62,16 +73,16 @@ flowchart LR
 
 ---
 
-## 3. Compiled Go SSoT Contracts (`core/capbac/flow.go`)
+## 4. Compiled Go SSoT Contracts (`core/capbac/flow.go`)
 
 - `TaintEdge`: Captures `Label`, `SourceTool`, `Resource`, and `RecordedAt` (`RFC3339`).
 - `CapabilityFlowGraph`: Bounded FIFO ledger (max `32` edges) persisted per workspace under `0600` cache permissions with `Lstat` symlink rejection.
-- `EvaluateToolFlow`: Classifies `ToolFlowInvocation`, checks active taint invariants fail-closed before mutation, applies sanitizers, and appends new source edges.
+- `EvaluateToolFlow`: Classifies `ToolFlowInvocation`, evaluates active taint invariants fail-closed before mutation, applies sanitizers, and appends new source edges.
 - `ResetWorkspaceFlowState`: Clears transient flow edges on `nomos hook session-start` so each new agent session begins from a clean baseline.
 
 ---
 
-## 4. Table-Driven Verification Vectors
+## 5. Table-Driven Test Vectors
 
 | Vector ID | Invariant | Composition Trajectory | Expected Outcome |
 | :--- | :--- | :--- | :--- |

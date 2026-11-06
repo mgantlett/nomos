@@ -8,34 +8,36 @@ category: Cybernetic Control & Linguistics
 classification: public
 date: "2026-11-02"
 excerpt: Transactional code worktrees and declarative intent schemas are only two axes of deterministic software engineering. The third axis is the Cybernetic Agent-Steering Protocol - how the compiled Go substrate and human architect steer Tier 1 coding agents through HATEOAS CLI affordances, self-healing remedies, sub-5ms ambient hooks, and the 36-term NCTE-100 Succinct Action Lexicon.
-last_updated: "2026-11-03"
+last_updated: "2026-11-05"
 order: 1
 part: "Open-Core Architectural Reference"
 plane: intent
 publishedAt: November 2026
 readTime: 14 min read
 slug: agent-steering-protocol-and-ncte-lexicon
+ssot_repository: nomos
 status: active
 subtitle: Indirect Cybernetic Control, HATEOAS CLI Hypermedia, and the 36-Term Succinct Action Lexicon
 title: "The Agent-Steering Protocol & NCTE-100 Lexicon: Speaking Physics to Probabilistic Agents"
 type: handbook
 updatedAt: November 2026
+version: "4.0.0"
 ---
 
 # The Agent-Steering Protocol & NCTE-100 Lexicon: Speaking Physics to Probabilistic Agents
 
 ## 1. The Third Axis: Beyond Transactional Code and Transactional Intent
 
-Most engineering teams evaluate AI developer tooling along only one axis: **how code is edited**. Nomos began by locking down two foundational axes:
+Most engineering teams evaluate AI developer tooling along only one axis: **how agents edit code**. Nomos began by locking down two foundational axes:
 
-1. **Transactional Code (`substrate/`):** Protected trunk `main` is physically read-only (`Law 3`). Mutations occur inside isolated transient Git worktrees (`worktrees/<repo>-<KEY>`), pass 42 compiled Go and WebAssembly Tree-sitter AST gates (`Law 2`), and merge via atomic Two-Phase Commit (`2PC`) with cryptographic Git Notes receipts.
-2. **Transactional Intent (`intent/`):** Specifications, configuration manifests, and causal `INT-<N>` / `SUB-<N>` task DAG cards are versioned, schema-validated (`Law 4`), and hemispherically separated from runtime code (`Law 7`).
+1. **Transactional Code (`substrate/`):** Protected trunk `main` is physically read-only (`Law 3`). Mutations occur inside isolated transient Git worktrees (`worktrees/<repo>-<KEY>`) and pass 42 compiled Go and Tree-sitter AST gates (`Law 2`). Atomic Two-Phase Commit (`2PC`) merges verified worktrees with cryptographic Git Notes receipts.
+2. **Transactional Intent (`intent/`):** Nomos versions and schema-validates specifications, configuration manifests, and causal `INT-<N>` / `SUB-<N>` task DAG cards (`Law 4`). Strict hemisphere boundaries separate Intent artifacts from runtime code (`Law 7`).
 
-Yet empirical evaluation across 190 paired containerized runs in `TraceTrial-Bench` revealed a third, orthogonal axis that governs whether a **Tier 1 coding agent** (`Claude Code`, `Antigravity`, `OpenCode`, `Cursor`) converges cleanly or spirals into context thrashing:
+Empirical evaluation across 190 paired `TraceTrial-Bench` runs revealed a third orthogonal axis. This axis governs whether a **Tier 1 coding agent** (`Claude Code`, `Antigravity`, `OpenCode`, `Cursor`) converges cleanly or spirals into context thrashing:
 
-> **The Cybernetic Agent-Steering Protocol (`Law 1: Indirect Control`):** Every byte emitted by the `nomos` CLI on `stdout` and `stderr`, every JSON decision returned by `nomos hook`, and every imperative verb chosen by the human operator is **live control-plane compilation input** into the coding agent's attention window.
+> **The Cybernetic Agent-Steering Protocol (`Law 1: Indirect Control`):** Every `nomos` CLI byte on `stdout` or `stderr` and every `nomos hook` JSON decision compiles directly into the agent's attention window. Human imperative verbs follow the same deterministic control-plane discipline.
 
-When an agent executes a CLI tool, it does not merely change state on disk. **The agent reads the output of `nomos` to decide its next thought and next tool call.** Treating CLI output and English prompts as casual human prose wastes context tokens, invites synonym drift, and forces probabilistic models to guess state transitions. Treating them as a **deterministic hypermedia and linguistic protocol** turns any off-the-shelf coding agent into a disciplined engineering co-processor - with zero custom slash commands, zero fragile prompt wrappers, and zero model fine-tuning.
+When an agent executes a CLI tool, it does not merely mutate state on disk. The agent reads `nomos` output to select its next thought and next tool call. Treating CLI output and operator directives as casual prose wastes context tokens, invites synonym drift, and forces state guessing. A **deterministic hypermedia and linguistic protocol** turns any off-the-shelf coding agent into a disciplined engineering co-processor. This architecture requires zero custom slash commands, zero fragile directive wrappers, and zero model fine-tuning.
 
 ```mermaid
 flowchart LR
@@ -55,9 +57,9 @@ Nomos steers Tier 1 coding agents across five deterministic, machine-verified fe
 
 ### Channel 1: HATEOAS `ActionAffordance` Hypermedia (`stdout`)
 
-In classic web architecture, **HATEOAS** (*Hypermedia as the Engine of Application State*) means a client never hardcodes state transitions; each response embeds the exact valid next links for the current state.
+In classic web architecture, **HATEOAS** (*Hypermedia as the Engine of Application State*) eliminates hardcoded client state transitions. Each server response embeds the exact valid next links for the active state.
 
-Nomos applies HATEOAS directly to the terminal. Every orientation, inspection, and lifecycle command (`nomos status`, `nomos handshake`, `nomos task list`, `nomos task dag`, `nomos task show`, `nomos task start`, `nomos verify`, `nomos task sync`) computes phase-aware `ActionAffordance` vectors (`types.ActionAffordance` in `core/types/affordance.go`) and renders a `Next Actions` block at the bottom of `stdout`:
+Nomos applies HATEOAS directly to the terminal. Orientation and lifecycle commands (`nomos status`, `nomos handshake`, `nomos task list`, `nomos task dag`, `nomos task show`, `nomos task start`, `nomos verify`, `nomos task sync`) compute phase-aware `ActionAffordance` vectors (`core/types/affordance.go`). Each command renders a `Next Actions` block at the bottom of `stdout`:
 
 ```text
   ◈ Next Actions:
@@ -71,12 +73,12 @@ Why this matters for LLM cognition:
 
 ### Channel 2: Fail-Closed `NomosError` Self-Healing Remedies (`stderr`)
 
-Standard CLI tools fail with opaque error strings (`invalid input` or `permission denied`), forcing an AI agent to spend 3 to 6 turns reading source code or guessing flag combinations.
+Standard CLI tools reject inputs with opaque strings (`invalid input` or `permission denied`). Opaque rejections force an AI agent into 3 to 6 turns of source reading or flag guessing.
 
-Under `SPEC-ERR-001`, every fail-closed rejection in Nomos returns a typed `NomosError` (`ERR_PHASE_VIOLATION`, `ERR_VALIDATION_FAILED`, `ERR_CROSS_PLANE_MUTATION`, `ERR_CANONICAL_VIOLATION`) paired with a **executable 1-turn `Remedy:`**:
+Under `SPEC-ERR-001`, every fail-closed rejection in Nomos returns a typed `NomosError` (`ERR_PHASE_VIOLATION`, `ERR_VALIDATION_FAILED`, `ERR_CROSS_PLANE_MUTATION`, `ERR_CANONICAL_VIOLATION`) paired with an **executable 1-turn `Remedy:`**:
 
-- **Unstructured Backlog Card Rejection:** If an agent runs `nomos task create "Title" -d "plain prose"` without the 3-section acceptance contract, Nomos rejects the call and prints two copy-pasteable remedies: the `--scope` / `--ac` / `--verify` synthesis command for multi-step features, and `nomos task chore "Title"` for single-step fixes.
-- **Cross-Plane Mutation Rejection (`Law 7`):** If an `INT-*` worktree touches `substrate/`, `PlaneSeparationGate` fails closed and emits the exact `git checkout` + `nomos task start SUB-*` remediation sequence.
+- **Unstructured Backlog Card Rejection:** Running `nomos task create "Title" -d "plain prose"` without the 3-section contract triggers immediate rejection. Nomos prints two executable remedies: `--scope` / `--ac` / `--verify` for multi-step features, and `nomos task chore "Title"` for single-step fixes.
+- **Cross-Plane Mutation Rejection (`Law 7`):** If an `INT-*` worktree touches `substrate/`, `PlaneSeparationGate` rejects the edit and emits the exact `git checkout` + `nomos task start SUB-*` remediation sequence.
 
 Instead of scolding the agent, `stderr` hands the agent the exact steering wheel movement required to re-enter the legal flight envelope in one turn.
 
@@ -86,26 +88,26 @@ Waiting until `git commit` to tell an agent that it edited fifteen files directl
 
 Nomos resolves this tension through **Asymmetric Hook Discipline** (`~4ms` compiled Go execution):
 
-1. **`nomos hook session-start`:** Auto-heals `.git/hooks` defense shims and injects a compact phase, active-task, and ready-wavefront orientation banner at session boot.
+1. **`nomos hook session-start`:** Auto-heals `.git/hooks` defense shims and injects a compact phase, active-task, and ready-wavefront orientation banner on session handshake.
 2. **`nomos hook pre-tool`:** Intercepts mutating tool calls *before* disk I/O occurs:
    - Blocks direct edits on read-only `main` and instructs the agent to run `nomos task chore "<title>"` or `nomos task start <KEY> --edit`.
    - Blocks unexpanded shell variables (`$HOME`, `~`) on native file tools that omit shell expansion.
    - Blocks direct SQLite file tampering (`ADR-0062`), `git stash`, wildcard `rm`, and `.git/hooks` tampering.
    - Tokenizes shell segments with quote awareness and allows local `./...` `go install` of `nomos` strictly on a clean `IDLE` primary `main` trunk (`Law 4`).
    - Enforces Zero-Trust MCP server allow/block policies, secret payload guards, and `CapabilityFlowGraph` compositional taint tracking (`Law 7`).
-   - **3-Strike Loop Circuit-Breaker (`Law 1`):** Hashes consecutive identical failing tool invocations and trips a hard circuit breaker on the third identical strike so a confused agent cannot burn budget in an infinite retry loop.
-3. **`nomos hook post-tool`:** Remains **100% silent (`0 bytes`)** on read-only and shell command channels so native OS exit codes and compiler diagnostics reach the model unadulterated, firing in-memory AST and LOC radar advisories strictly when an edited source file crosses structural thresholds.
+   - **3-Strike Loop Circuit-Breaker (`Law 1`):** Hashes consecutive identical rejected tool calls and trips a circuit breaker on the third identical strike. This guard prevents confused agents from burning budget in infinite retry loops.
+3. **`nomos hook post-tool`:** Remains **100% silent (`0 bytes`)** on read-only and shell channels so native compiler diagnostics reach the model unadulterated. It fires in-memory AST and LOC radar advisories strictly when a mutated source file crosses structural thresholds.
 
 ### Channel 4: JIT Phase Directives & Mneme Pitfall/Pattern Distillation (`LEARN`)
 
-Static `3,000`-line system prompts suffer from severe middle-context attention decay. Nomos keeps root `AGENTS.md` / `CLAUDE.md` compressed to the One-Page 7-Law Invariant Card and delivers detailed guidance **Just-In-Time (JIT)** per lifecycle phase:
+Static `3,000`-line system directives suffer from severe middle-context attention decay. Nomos keeps root `AGENTS.md` / `CLAUDE.md` compressed to the One-Page 7-Law Invariant Card and delivers detailed guidance **Just-In-Time (JIT)** per lifecycle phase:
 
 - **Phase-Scoped Directives (`nomos directive`):** Entering `PLAN`, `EDIT`, `REVIEW`, or `SYNC` surfaces only the directives bound to that phase (`plan_03_nomos_controlled_technical_english.md`, `review_01_dod_gates.md`, `sync_01_atomic_2pc_and_receipts.md`).
-- **Closed-Loop `Trap -> Fix` Distillation:** Whenever `nomos verify` records a gate failure inside a worktree and the task subsequently passes `42/42` gates during `nomos task sync`, Nomos automatically distills the verified **Learned Pitfall** (`gate + package -> verified fix`) and **Verified Pattern** (`files + exported symbols + AST intents + tests`) into repository-scoped SQLite `Nomos Mneme`. On the next `nomos task start`, those exact pitfalls and patterns are injected into the orientation banner so no agent repeats the same mistake twice.
+- **Closed-Loop `Trap -> Fix` Distillation:** During `nomos task sync`, Nomos distills resolved gate rejections into **Learned Pitfalls** (`gate + package -> verified fix`) and **Verified Patterns** in `Nomos Mneme`. The next `nomos task start` injects those exact pitfalls and patterns into the orientation banner so no agent repeats a mistake twice.
 
 ### Channel 5: Self-Documenting CLI Surface Completeness (`Cell 6.2`)
 
-Whenever an agent is uncertain about a command's contract, its natural reflex is `--help`. Under `INV-PARITY-011`, `ScanCobraSurfaceCompletenessInDir` in `ZeroAliasGate` (`Cell 6.2`) walks the Go AST of `substrate/cli` and **fails closed** if any static `&cobra.Command{}` omits a non-empty `Use`, `Short`, `Long`, or runnable `Example` block, or introduces duplicate command `Aliases` (`Law 6`).
+Uncertain agents naturally invoke `--help`. Under `INV-PARITY-011`, `ScanCobraSurfaceCompletenessInDir` (`Cell 6.2` `ZeroAliasGate`) walks `substrate/cli` ASTs and rejects any static `&cobra.Command{}` missing `Use`, `Short`, `Long`, or `Example`, or declaring `Aliases` (`Law 6`).
 
 ---
 
@@ -113,9 +115,9 @@ Whenever an agent is uncertain about a command's contract, its natural reflex is
 
 Indirect control works in **both** directions:
 - **Substrate -> Agent:** Directives, error remedies, and task cards compiled by Nomos.
-- **Human Architect -> Agent:** Natural-language instructions typed into the IDE or CLI prompt.
+- **Human Architect -> Agent:** Natural-language directives typed into the IDE or CLI input.
 
-Large language models map ambiguous English onto wide probability distributions. Telling an agent *"You should ideally check the temp branch sandbox and clean up any old stuff as needed before shipping"* activates vague training priors: the model may invent ad-hoc bash scripts, run destructive `rm` commands, or skip `nomos verify`.
+Large language models map ambiguous English onto wide probability distributions. Telling an agent `"You should ideally check the temp branch sandbox and clean up any old stuff as needed before shipping"` activates vague training priors. Unbounded models then invent ad-hoc bash scripts, execute destructive `rm` commands, or bypass `nomos verify`.
 
 **Nomos Controlled Technical English (`SPEC-NCTE-100`)** eliminates linguistic entropy through five mechanical rules enforced by `substrate/src/nomos/modules/ncte` (`nomos directive --lint <file>`):
 
@@ -194,16 +196,16 @@ Query this compiled registry anytime from the terminal via `nomos directive --le
 
 ## 4. High-Signal Operator Steering Patterns (Before vs. After)
 
-When directing a Tier 1 coding agent in chat, using the **36-term Succinct Action Lexicon** compresses prompt length by `50-70%` while mapping 1-to-1 onto compiled `nomos` subcommands:
+Directing a Tier 1 coding agent with the **36-term Succinct Action Lexicon** compresses directive length by `50-70%` and maps 1-to-1 onto compiled `nomos` subcommands:
 
-| What You Want | Low-Signal Conversational Prompt (Drifts) | Succinct `NCTE-100` Steering Prompt (Exact) |
+| What You Want | Low-Signal Conversational Input (Drifts) | Succinct `NCTE-100` Steering Directive (Exact) |
 | :--- | :--- | :--- |
-| **Quick 1-file fix** | *"Can you quickly tweak the CLI status output on a temp branch and ship it?"* | **`"Run a substrate chore to mutate status output, verify --strict, and sync."`** |
-| **New feature across spec + Go** | *"Let's bundle a doc update and Go code change together and test everything."* | **`"Pair an INT/SUB twin for X, start the SUB worktree first, verify, and sync both."`** |
-| **Check what is ready next** | *"Look at the backlog queue and see what unblocked stuff we should work on."* | **`"Inspect the pending substrate wavefront via nomos task dag and start the top task."`** |
-| **Parallel agent safety check** | *"Make sure two agents aren't stepping on each other's files right now."* | **`"Inspect active worktree hulls and collision threat level via nomos physics."`** |
-| **Audit gate trustworthiness** | *"Make sure none of the new verification rules are fake stubs."* | **`"Attest gate mutation sensitivity and anti-vacuity via nomos verify proof."`** |
-| **Preserve an engineering lesson** | *"Remember this trick for next time so we don't hit this gotcha again."* | **`"Save a repository decision in Mneme and recall existing verify pitfalls."`** |
+| **Quick 1-file fix** | `"Can you quickly tweak the CLI status output on a temp branch and ship it?"` | **`"Run a substrate chore to mutate status output, verify --strict, and sync."`** |
+| **New feature across spec + Go** | `"Let's bundle a doc update and Go code change together and test everything."` | **`"Pair an INT/SUB twin for X, start the SUB worktree first, verify, and sync both."`** |
+| **Verify ready wavefront** | `"Look at the backlog queue and see what unblocked stuff we should work on."` | **`"Examine the pending substrate wavefront via nomos task dag and start the top task."`** |
+| **Parallel agent safety** | `"Make sure two agents aren't stepping on each other's files right now."` | **`"Examine active worktree hulls and collision threat level via nomos physics."`** |
+| **Audit gate trustworthiness** | `"Make sure none of the new verification rules are fake stubs."` | **`"Attest gate mutation sensitivity and anti-vacuity via nomos verify proof."`** |
+| **Preserve an engineering lesson** | `"Remember this trick for next time so we don't hit this gotcha again."` | **`"Save a repository decision in Mneme and recall existing verify pitfalls."`** |
 
 ---
 

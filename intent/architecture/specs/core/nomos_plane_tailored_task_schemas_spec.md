@@ -4,8 +4,9 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-09-29"
-last_updated: "2026-11-01"
+last_updated: "2026-11-05"
 plane: intent
+ssot_repository: nomos
 status: active
 tags:
     - nomos
@@ -18,32 +19,31 @@ tags:
     - SUB-1549
     - INT-867
     - SUB-1558
-title: Nomos Task Contract & Universal 3-Section Backlog Card Specification
+title: "Nomos Task Contract & Universal 3-Section Backlog Card Specification"
 type: spec
 version: "4.1.1"
-ssot_repository: nomos
 ---
 
 # Nomos Task Contract & Universal 3-Section Backlog Card Specification
 
 ## 1. Purpose
 
-This specification defines the formal contract for Living Ledger tasks. The authoritative Single Source of Truth (SSoT) is compiled in `substrate/src/nomos/modules/task/` (`TaskRecord` in `task.go` and `ValidateCardDescription` / `SynthesizeCardMarkdown` in `card.go`), enforced deterministically under Law 4 (The Single Source of Truth Law), Law 6 (The Canonical Singularity Law), and Law 7 (The Fail-Closed Pre-Flight Law).
+This specification defines the formal contract for Living Ledger tasks. `substrate/src/nomos/modules/task/` compiles the authoritative SSoT (`TaskRecord` in `task.go` and `ValidateCardDescription` / `SynthesizeCardMarkdown` in `card.go`). Deterministic gates enforce Law 4 (Single Source of Truth), Law 6 (Canonical Singularity), and Law 7 (Fail-Closed Pre-Flight).
 
-Twin semantics and lifecycle state transitions are codified in [`task_lifecycle_cli_spec.md`](task_lifecycle_cli_spec.md).
+[`task_lifecycle_cli_spec.md`](task_lifecycle_cli_spec.md) codifies twin semantics and lifecycle state transitions.
 
 ---
 
 ## 2. Two-Lane Ceremony Architecture (`INT-864`)
 
-Nomos v3 suffered from over-ceremonialized task inception (7 distinct section taxonomies, 35+ memorized H2 headers, brittle regex bans on `TODO`, and 4 manual sizing flags), whereas early Nomos v4 swung to the opposite extreme (unvalidated `-d` prose walls and `burden: 0`).
+Nomos v3 suffered from over-ceremonialized task inception across 7 section taxonomies, 35+ H2 headers, regex bans on `TODO`, and 4 sizing flags. Early Nomos v4 swung to the opposite extreme with unvalidated `-d` prose walls and `burden: 0`.
 
 Nomos v4.1 resolves this tension by splitting ceremony strictly by **task durability**:
 
 | Lane | CLI Surface | Ceremony Level | Body & Sizing Rule |
 | :--- | :--- | :--- | :--- |
-| **Fast Lane (Transient)** | `nomos task chore "<title>"` | **Zero template** | Immediate 1-turn worktree inception in `EDIT` phase; auto-populates minimal chore description and `burden: 1`. |
-| **Backlog Lane (Durable)** | `nomos task create`, `nomos task pair` | **Fail-closed 3-section card** | Rejects empty or unstructured `-d` prose (`ERR_VALIDATION_FAILED`) with a 3-line HATEOAS remedy; auto-derives `burden` (`1-8`) when `--burden` is omitted. |
+| **Fast Lane (Transient)** | `nomos task chore "<title>"` | **Zero template** | Provisions an `EDIT` worktree in 1 turn with `burden: 1`. |
+| **Backlog Lane (Durable)** | `nomos task create`, `nomos task pair` | **Fail-closed 3-section card** | Rejects unstructured `-d` prose (`ERR_VALIDATION_FAILED`) and auto-derives `burden` (`1-8`). |
 
 ---
 
@@ -68,21 +68,21 @@ Every durable backlog task across **both** `INT-*` and `SUB-*` planes shares a s
 Callers may satisfy `#TaskCardInput` on turn 1 via either structured synthesis flags or Markdown body input:
 
 1. **Structured CLI Synthesis Flags (Recommended for 1-liners & agents):**
-   - `--scope <text>` — populates `## Scope & Context` (>= 10 runes).
-   - `--ac <item>` (repeatable) — populates `- [ ] <item>` checklist bullets under `## Acceptance Criteria` (>= 1 non-empty item).
-   - `--verify <text>` — populates `## Verification` (>= 5 runes).
-   - On `nomos task pair`, optional `--int-scope` / `--sub-scope` overrides allow distinct Intent vs. Substrate scope descriptions when needed while sharing `--scope` as fallback.
+   - `--scope <text>` - populates `## Scope & Context` (>= 10 runes).
+   - `--ac <item>` (repeatable) - populates `- [ ] <item>` checklist bullets under `## Acceptance Criteria` (>= 1 non-empty item).
+   - `--verify <text>` - populates `## Verification` (>= 5 runes).
+   - On `nomos task pair`, optional `--int-scope` / `--sub-scope` overrides allow distinct Intent vs. Substrate scope descriptions while sharing `--scope` as fallback.
 2. **Markdown Body Input (`-F <file>`, `-F -` stdin heredoc, or `-d <markdown>`):**
    - Validated case-insensitively by fuzzy H2/H3 section matching:
      - **Scope section** (`Scope`, `Scope & Context`, `Context & Scope`, or `Problem & Scope`): >= 1 non-comment content line (>= 10 runes).
      - **Acceptance Criteria section** (`Acceptance Criteria`): >= 1 non-empty Markdown task-list item (`- [ ] <text>` or `- [x] <text>`).
      - **Verification section** (`Verification`): >= 1 non-comment content line (>= 5 runes).
-   - Literal unexpanded `\n` escape sequences outside fenced code blocks are rejected with guidance to use `--scope/--ac/--verify` or `-F -`.
-   - Unlike v3, legitimate domain tokens (`TODO`, `StatusTodo`, `<flag>`) are **never** false-positived.
+   - The validator rejects literal unexpanded `\n` escape sequences outside fenced code blocks and directs callers to `--scope/--ac/--verify` or `-F -`.
+   - Unlike v3, the validator never triggers false positives on legitimate domain tokens (`TODO`, `StatusTodo`, `<flag>`).
 
 ### 3.2 Fail-Closed HATEOAS Remedy (Law 1 & Law 7)
 
-Invoking `nomos task create` or `nomos task pair` with an empty description or single-paragraph `-d` prose fails closed (exit 1) and emits a copy-pasteable 3-line remedy:
+Invoking `nomos task create` or `nomos task pair` with an empty description or single-paragraph `-d` prose aborts (exit 1) and emits a 3-line remedy:
 
 ```text
 Hint: Durable backlog tasks require the 3-section card contract (use 'nomos task chore "<title>"' for 1-turn fixes):
@@ -93,7 +93,7 @@ Hint: Durable backlog tasks require the 3-section card contract (use 'nomos task
 ### 3.3 Deterministic Burden Auto-Sizing
 
 - Optional `-b, --burden <1-10>` sets explicit `#TaskRecord.burden`.
-- When `--burden` is omitted (`0`), the substrate deterministically derives `burden` (`2-8`) from checklist item count and scope/body density so Glass Cockpit and Living Ledger cards never display `0 pts` on backlog items.
+- Omitting `--burden` (`0`) derives `burden` (`2-8`) from checklist count and body density. Backlog cards never display `0 pts`.
 
 ---
 
@@ -103,10 +103,10 @@ Hint: Durable backlog tasks require the 3-section card contract (use 'nomos task
 | :--- | :--- |
 | `key` | `INT-<N>` / `SUB-<N>`, derived from `plane` unless explicit valid `--key` supplied (Law 6). |
 | `plane` | Strictly `"intent"` or `"substrate"` (`INT-*` -> `intent`, `SUB-*` -> `substrate`). |
-| `project` | Repository identifier partitioned in the shared Living Ledger (`nomos_global.db`). Auto-resolved on `create` / `pair` / `chore` from active repository `nomos.yaml` (`project`) or Git common-dir root basename (worktree-safe), overridable via `--project` and reassignable via `nomos task project <project> <key>...`. |
+| `project` | Repository key in `nomos_global.db`, resolved from `nomos.yaml` or `--project` / `nomos task project`. |
 | `schema_type` | One of `"intent"`, `"substrate"`, `"membrane"`, `"infra"`, `"cycle"`, `"debt"`, `"spike"`. |
 | `title` | Required, >= 5 characters. |
-| `description` | Required 3-section Markdown card on `create`/`pair`; historical SQLite rows remain readable without retroactive breakage. |
+| `description` | Required 3-section Markdown card on `create`/`pair`; historical SQLite rows remain readable. |
 | `burden` | Integer `1-10` on newly created tasks (`--burden` override or deterministic density derivation). |
 | `twin_key` | Optional cross-plane `INT-<N>` / `SUB-<N>` pointer (`--twin-of` or atomic `nomos task pair`). |
 
@@ -114,7 +114,7 @@ Hint: Durable backlog tasks require the 3-section card contract (use 'nomos task
 
 ## 5. Table-Driven Verification Matrix
 
-Under Law 2 (**The Non-Verbal Proof Law**), the Universal 3-Section Task Card Contract is validated against the following deterministic test vectors:
+Under Law 2 (**The Non-Verbal Proof Law**), deterministic verification vectors validate the Universal 3-Section Task Card Contract:
 
 | Test ID | Scenario | Input Conditions | Expected Outcome | Exit Code |
 | :--- | :--- | :--- | :--- | :---: |

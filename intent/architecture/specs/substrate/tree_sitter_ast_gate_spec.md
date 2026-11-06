@@ -4,21 +4,21 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-05"
-last_updated: "2026-11-01"
+last_updated: "2026-11-05"
 plane: intent
+ssot_repository: nomos
 status: active
 title: "Tree-sitter AST Gate Engine to Replace Legacy Gen 2 Regex Gates"
 type: spec
 version: "4.0.0"
-ssot_repository: nomos
 ---
 
 # Tree-sitter AST Gate Engine
 
 ## 1. Executive Summary & Problem Statement
-In Gen 2, the Nomos Definition of Done (DoD) quality gates relied upon line-scanning regex heuristics to validate codebase hygiene (e.g., cyclomatic complexity, docstring density, forbidden literal scanning). This approach was inherently brittle: it failed on polyglot workspaces, was susceptible to false positives inside comments or multiline strings, and could not parse deeply nested syntactic structures.
+Gen 2 Nomos quality gates relied on line-scanning regex heuristics for complexity, docstring density, and forbidden literal audits. Regex scanning broke on polyglot workspaces and produced false positives inside comments and multiline strings. Line heuristics also lacked structural awareness of nested syntax trees.
 
-In strict compliance with **Law 2 (The Non-Verbal Proof Law)**, this specification formalizes the **Tree-sitter AST Gate Engine**. The engine integrates Tree-sitter parser bindings across Go, TypeScript, Svelte, Python, and Markdown, replacing regex line-matching with deterministic concrete syntax trees (CST/AST). Under Nomos v4, the engine executes polyglot Tree-sitter parsers hermetically in pure Go via the `wazero` WebAssembly runtime (`github.com/tetratelabs/wazero`), strictly avoiding CGo and external process spawns. The engine binds to `treesitter.TreeSitterWasmConfig` (`substrate/src/nomos/modules/verify/treesitter/types.go`) and evaluates AST metric extractions directly against `config.ThresholdsConfig` (`nomos.yaml` / `nomos.schema.json`) to enforce all automated DoD quality gates.
+In strict compliance with **Law 2 (The Non-Verbal Proof Law)**, this specification formalizes the **Tree-sitter AST Gate Engine**. The engine integrates Tree-sitter parser bindings across Go, TypeScript, Svelte, Python, and Markdown, replacing regex line-matching with deterministic concrete syntax trees (CST/AST). Under Nomos v4, pure-Go `wazero` (`github.com/tetratelabs/wazero`) executes polyglot Tree-sitter parsers hermetically without CGo or external process spawns. The engine binds directly to `treesitter.TreeSitterWasmConfig` (`substrate/src/nomos/modules/verify/treesitter/types.go`). It evaluates extracted AST metrics against `config.ThresholdsConfig` (`nomos.yaml` and `nomos.schema.json`) across all 42 DoD gates.
 
 ```mermaid
 graph TD
@@ -38,18 +38,18 @@ graph TD
 
 | Law # | Law Name | Architectural Invariant Enforced in Tree-sitter Engine |
 | :---: | :--- | :--- |
-| **Law 2** | **The Non-Verbal Proof Law** | Code correctness and architectural hygiene require deterministic AST proof. Regex matching on source code is strictly prohibited for DoD gates. |
-| **Law 4** | **The Single Source of Truth Law** | AST query definitions are compiled directly into the Substrate Go binary via `//go:embed` as an immutable SSoT. Extraction outputs map 1:1 to compiled Go metric structs (`FunctionMetric`, `FileMetric`) and `config.ThresholdsConfig`. |
-| **Law 5** | **The Zero-Hardcoded-Path Law** | Source roots and target files are resolved dynamically via configuration discovery (`#SourceRootConfig`). Zero hardcoded absolute paths or filesystem literals tolerated. |
-| **Law 6** | **The Canonical Singularity Law** | Exactly one canonical AST gatekeeper pipeline evaluates all supported languages through a unified `TreeSitterGateEngine` interface. |
-| **Law 7** | **The Fail-Closed Pre-Flight Law** | Unparseable syntax trees, malformed S-expressions, or Tree-sitter `ERROR`/`MISSING` syntax nodes trigger immediate pre-flight abort (Exit Code 1). |
+| **Law 2** | **The Non-Verbal Proof Law** | Enforces deterministic AST proof and prohibits regex source matching in gates. |
+| **Law 4** | **The Single Source of Truth Law** | Embeds queries via `//go:embed` mapping to `FunctionMetric`, `FileMetric`, and `config.ThresholdsConfig`. |
+| **Law 5** | **The Zero-Hardcoded-Path Law** | Resolves roots dynamically via `#SourceRootConfig` with zero hardcoded path literals. |
+| **Law 6** | **The Canonical Singularity Law** | Evaluates all supported languages through one canonical `TreeSitterGateEngine` interface. |
+| **Law 7** | **The Fail-Closed Pre-Flight Law** | Tree-sitter `ERROR` or `MISSING` nodes trigger immediate pre-flight abort (exit 1). |
 
 ---
 
 ## 3. Architectural Decisions & Mathematical Predicates
 
 ### 3.1 S-Expression Query Specifications Across Languages
-Tree-sitter queries are compiled into the Substrate via `//go:embed queries/*` to extract function boundaries, comments, and decision branches:
+The substrate embeds Tree-sitter queries via `//go:embed queries/*` to extract function boundaries, comments, and decision branches:
 
 #### 1. Go Query (`queries/go.scm`)
 ```scheme
@@ -109,26 +109,32 @@ Tree-sitter queries are compiled into the Substrate via `//go:embed queries/*` t
 ### 3.2 Concrete Mathematical Predicates
 
 #### 1. Cyclomatic Complexity ($M$)
-For any function node $F$, cyclomatic complexity is calculated as:
-$$M(F) = 1 + \sum_{b \in F} \mathbb{I}(b \text{ is branch node})$$
-Where branch nodes are captured by the language-specific `@branch` S-expression query. The function passes if $M(F) \le \text{thresholds.max\_complexity}$ (default: 15).
+For any function node $F$, the engine computes cyclomatic complexity as:
+
+$$M(F) = 1 + \sum_{b \in F} \mathbb{I}(b \in \text{Branches})$$
+
+Language-specific `@branch` S-expression queries capture all branch nodes. The function passes when $M(F) \le \text{thresholds.max\_complexity}$ (default: 15).
 
 #### 2. Docstring Adjacency & Density
-A function possesses a valid docstring if a comment node precedes the declaration node with vertical line distance $\Delta \text{line} \le 1$.
+A function possesses a valid docstring when a comment node precedes the declaration within vertical distance $\Delta \text{line} \le 1$.
+
 $$\text{Docstring Density} = \left( \frac{\text{documented functions}}{\text{total functions}} \right) \times 100$$
-The workspace passes Gate 12 if $\text{Docstring Density} \ge \text{thresholds.min\_docstring\_density}$ (default: 10%).
+
+The workspace passes Gate 12 when $\text{Docstring Density} \ge \text{thresholds.min\_docstring\_density}$ (default: 10%).
 
 #### 3. Cognitive Debt Score ($CDS$)
 For any source file $S$ containing functions $F_1, \dots, F_k$:
+
 $$CDS(S) = \sum_{i=1}^k \left( \max(0, M(F_i) - 10) \times 2.0 + \max(0, \text{LOC}(F_i) - 30) \times 0.5 \right) + \max(0, 100 - \text{Density}) \times 0.2$$
-The file passes Gate 17 if $CDS(S) \le \text{thresholds.max\_cds}$ (default: 45).
+
+The file passes Gate 17 when $CDS(S) \le \text{thresholds.max\_cds}$ (default: 45).
 
 ---
 
 ## 4. Formal Go Contracts & Thresholds Binding
 
 ### 4.1 Thresholds Configuration (`config.ThresholdsConfig` / `nomos.schema.json`)
-Extracted AST metrics are evaluated deterministically against `config.ThresholdsConfig`:
+The engine evaluates extracted AST metrics deterministically against `config.ThresholdsConfig`:
 
 ```json
 {
@@ -204,7 +210,7 @@ The Tree-sitter AST Gate Engine directly underpins the automated verification of
 
 ## 6. Table-Driven Test Vectors
 
-The following table-driven test vectors validate the Tree-sitter AST Gate Engine:
+The following table-driven verification vectors validate the Tree-sitter AST Gate Engine:
 
 | Vector ID | Source Language | Input Code Snippet | Expected AST Extraction | Metric Calculations | Gate Verdict | Failure Invariant |
 | :---: | :--- | :--- | :--- | :--- | :--- | :--- |

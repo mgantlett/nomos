@@ -1,16 +1,16 @@
 ---
 authors:
     - Mark Gantlett
-    - Antigravity
+    - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-12"
-last_updated: "2026-11-03"
+last_updated: "2026-11-05"
 plane: intent
+ssot_repository: nomos
 status: active
 title: "Nomos Launchpad: Invisible Harness & Capability Telemetry Specification"
 type: spec
 version: "4.2.0"
-ssot_repository: nomos
 ---
 
 # Nomos Launchpad: Invisible Harness & Capability Telemetry Specification
@@ -18,7 +18,7 @@ ssot_repository: nomos
 ## 1. Overview & Strategic Intent
 The Nomos open-core developer experience satisfies two fundamental architectural requirements:
 1. **Total Invariance & Zero Trust**: Strict machine enforcement of 42 Definition of Done (DoD) quality gates, trunk locking (Law 3), and AST fitness proofs (Law 2).
-2. **Invisible Ergonomics**: The developer and their Tier 1 coding agent (AGY-IDE, Claude Code, Cursor, opencode) must experience zero friction, zero command-line nagging, and zero cognitive overhead during standard iteration flow.
+2. **Invisible Ergonomics**: Developers and Tier 1 agents (AGY-IDE, Claude Code, Cursor, opencode) experience zero friction, CLI nagging, or cognitive overhead during iteration.
 
 This specification formalizes the **Invisible Harness Paradigm** and the **Capability Invocation Telemetry Architecture**.
 
@@ -27,8 +27,8 @@ This specification formalizes the **Invisible Harness Paradigm** and the **Capab
 ## 2. The Invisible Harness Architecture
 
 The Invisible Harness ensures that Nomos operates silently in the background with **zero custom slash commands, zero conversational workflow playbooks, and zero skill walls**:
-- **Zero-Config Bootstrap (`nomos init`)**: Discovers project language and topology, scaffolding universal protocol files (`AGENTS.md`, `CLAUDE.md`), ambient IDE lifecycle hooks (`.agents/hooks.json`, `.agents/scripts/`), and minimal configuration discovered via `config.ResolveConfigPath()` in $< 2$ seconds—while pruning any legacy `.agents/workflows/` files.
-- **Ambient Session Orientation & Defense Hooks (`nomos hook session-start`, `nomos hook pre-tool`, `nomos hook post-tool`)**: Automatically executes `nomos handshake` on session boot and installs CapBAC `pre-commit` and `commit-msg` hooks. If an agent attempts direct mutation on protected trunk (`main`), the hook intercepts the mutation and provides an immediate one-step remedy: `nomos task chore "<title>"`.
+- **Zero-Config Bootstrap (`nomos init`)**: Scaffolds `AGENTS.md`, `CLAUDE.md`, `.agents/hooks.json`, `.agents/scripts/`, and `config.ResolveConfigPath()` configuration in $< 2$ seconds while pruning legacy `.agents/workflows/` files.
+- **Ambient Session Orientation & Defense Hooks (`nomos hook session-start`, `nomos hook pre-tool`, `nomos hook post-tool`)**: Automatically executes `nomos handshake` at session start and installs CapBAC `pre-commit` and `commit-msg` hooks. If an agent attempts direct mutation on protected trunk (`main`), the hook intercepts the mutation and emits remedy `nomos task chore "<title>"`.
 - **One-Step Maintenance Chores (`nomos task chore`)**: Incepts the task, registers it in the SQLite Living Ledger, provisions a transient worktree, and enters the `EDIT` phase atomically.
 - **Microsecond DoD Evaluations**: All 42 DoD quality gates execute in parallel compiled Go routines, verifying entire codebases in $< 1.5$ seconds.
 
@@ -36,10 +36,10 @@ The Invisible Harness ensures that Nomos operates silently in the background wit
 
 ## 3. Capability Invocation Telemetry Architecture
 
-With ambient lifecycle hooks, universal protocol rules, and Intent directives embedded internally and delivered Just-In-Time by `nomos handshake`, tracking local CLI and directive utilization across planes is surfaced through `nomos capabilities`.
+`nomos handshake` delivers embedded lifecycle hooks, protocol rules, and Just-In-Time directives while `nomos capabilities` surfaces local CLI and directive utilization across both planes.
 
 ### 3.1 Relational Storage & Dynamic Resolution
-Database locations resolve dynamically through configuration discovery (`config.ResolveGlobalDBPath()` and `config.ResolveMnemeDBPath()`). Local invocation metrics are persisted in the `telemetry_capabilities` table of `nomos_global.db`:
+Database locations resolve dynamically through `config.ResolveGlobalDBPath()` and `config.ResolveMnemeDBPath()`. `nomos_global.db` persists local invocation metrics in the `telemetry_capabilities` table:
 
 ```sql
 CREATE TABLE IF NOT EXISTS telemetry_capabilities (
@@ -96,7 +96,7 @@ JSON payload serialized by `nomos capabilities --json`:
 
 ## 4. The 3-Pass Progressive Developer Journey
 
-To eliminate cognitive overload, the onboarding path is partitioned into three progressive passes:
+Nomos partitions developer onboarding into three progressive passes to eliminate cognitive overload:
 
 | Pass | Target Audience | Primary Tooling | Key Competency |
 | :--- | :--- | :--- | :--- |
@@ -109,11 +109,11 @@ To eliminate cognitive overload, the onboarding path is partitioned into three p
 ## 5. Fail-Closed Pre-Flight Gating & Transactional Rollback (Law 7)
 
 1. **Atomic Chore Provisioning**: When executing `nomos task chore <title>`:
-   - If worktree creation fails after the task record is created in SQLite, the command aborts fail-closed without leaving an unleased `EDIT` state.
-   - The phase state machine does not transition to `EDIT` unless physical worktree boundaries are verified clean.
+   - If worktree provisioning errors after SQLite task insertion, the command aborts fail-closed without leaving an unleased `EDIT` state.
+   - The phase state machine enters `EDIT` only after verifying physical worktree boundaries.
 2. **Fail-Safe Telemetry Recording**:
    - Capability telemetry ingestion into `telemetry_capabilities` executes via `telemetry.RecordInvocationSafe` and `telemetry.RecordWorkflowInvocationSafe`.
-   - If SQLite write lock contention or an invalid path occurs, telemetry emission degrades silently without panicking or blocking user operations.
+   - If SQLite write contention or an invalid path occurs, telemetry emission degrades silently without panicking or blocking user operations.
 
 ---
 
@@ -130,7 +130,7 @@ To eliminate cognitive overload, the onboarding path is partitioned into three p
 
 ## 7. Verification Boundaries & DoD Evidence
 
-1. **Telemetry Registry Assertion**: The `telemetry_capabilities` table is initialized in `storage.SchemaDDL` and verified in `telemetry/registry_test.go`.
+1. **Telemetry Registry Assertion**: `storage.SchemaDDL` initializes `telemetry_capabilities`, and `telemetry/registry_test.go` verifies table behavior.
 2. **Zero-Overhead Ingestion**: Event emission maintains sub-millisecond overhead ($< 1$ms per write).
 3. **Markdown Integrity**: All markdown relative links resolve deterministically via `BrokenWireGate`.
 4. **Verification Command**:

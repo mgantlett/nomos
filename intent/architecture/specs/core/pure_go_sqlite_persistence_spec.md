@@ -4,32 +4,32 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-23"
-last_updated: "2026-11-01"
+last_updated: "2026-11-05"
 plane: intent
+ssot_repository: nomos
 status: active
 tags:
     - INT-732
     - SUB-1209
-title: Pure-Go SQLite Persistence and Task State Store Specification
+title: "Pure-Go SQLite Persistence and Task State Store Specification"
 trigger: always_on
 type: spec
 version: "4.0.0"
-ssot_repository: nomos
 ---
 
 # Pure-Go SQLite Persistence and Task State Store Specification
 
 **Role:** Autonomous Open-Core Software Architect  
-**Objective:** Codify architectural contracts and formal data schemas for the deterministic pure-Go SQLite persistence layer in Nomos v4, governing global task lifecycles, CapBAC capability leases, and local capability utilization telemetry without CGO dependencies.
+**Objective:** Codify pure-Go SQLite persistence contracts and schemas in Nomos v4. Govern task lifecycles, CapBAC leases, and capability telemetry without CGO dependencies.
 
 ---
 
 ## 1. Context & Problem Statement
 
-In Nomos v3, SQLite persistence was implemented using `mattn/go-sqlite3`. While feature-complete, this dependency introduced severe architectural liability:
+Nomos v3 implemented SQLite persistence via `mattn/go-sqlite3`. While feature-complete, this dependency introduced severe architectural liability:
 1. **CGO Compilation Bottlenecks**: Required GCC/Clang toolchains, causing multi-second compilation latency, cross-compilation failures on non-standard architectures, and complex dynamic linking.
 2. **Memory Leaks and Thread Contention**: CGO boundary crossing introduced non-deterministic thread contention in high-frequency gate evaluation loops.
-3. **In-Memory Volatility in Early v4**: In the initial v4 bootstrap, tasks were temporarily stored in an in-memory stub (`MemoryTaskStore`), losing state across CLI command invocations.
+3. **In-Memory Volatility in Early v4**: Initial v4 bootstrap builds held tasks in an in-memory stub (`MemoryTaskStore`), losing state across CLI invocations.
 
 Nomos v4 transitions persistence to **pure Go** via `modernc.org/sqlite`.
 
@@ -47,13 +47,13 @@ The SQLite schema must maintain 1:1 structural parity with authoritative compile
 - `telemetry_capabilities` table maps to `telemetry.CapabilityMetrics` (`substrate/src/nomos/modules/telemetry/registry.go`).
 
 ### `INV-SQL-003`: Dynamic Database Resolution (Law 5: Zero-Hardcoded-Path)
-Database filesystem locations are strictly forbidden from appearing as string literals in source code. All paths must resolve dynamically via `config.ResolveGlobalDBPath()`.
+The substrate prohibits string literals for database filesystem paths in source code. All paths must resolve dynamically via `config.ResolveGlobalDBPath()`.
 
 ### `INV-SQL-004`: Atomic Fail-Closed Transactions (Law 7: Fail-Closed Pre-Flight)
 All task mutations and phase transitions must execute inside serializable SQLite transactions:
 - Database must initialize in Write-Ahead Logging (`PRAGMA journal_mode=WAL;`).
-- Foreign keys must be strictly enforced (`PRAGMA foreign_keys=ON;`).
-- Busy timeouts must be configured to at least 5000ms (`PRAGMA busy_timeout=5000;`) to eliminate lock contention.
+- The connection enforces foreign key integrity (`PRAGMA foreign_keys=ON;`).
+- The connection sets busy timeouts to at least 5000ms (`PRAGMA busy_timeout=5000;`) to eliminate write contention.
 
 ---
 

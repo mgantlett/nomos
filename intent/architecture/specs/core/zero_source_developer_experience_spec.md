@@ -4,8 +4,9 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-16"
-last_updated: "2026-11-01"
+last_updated: "2026-11-05"
 plane: intent
+ssot_repository: nomos
 status: active
 title: "Zero-Source Downstream Developer Experience & Agentic HATEOAS Specification"
 trigger: always_on
@@ -22,15 +23,14 @@ execution_frontier:
     - key: "INT-842"
       plane: "intent"
       summary: "Downstream-Safe Gate Remedies, Capabilities Drill-Down & CDV HATEOAS Trajectory Suite"
-ssot_repository: nomos
 ---
 
 # Zero-Source Downstream Developer Experience & Agentic HATEOAS Specification
 
-**Document Key:** `SPEC-ZERO-SOURCE-HATEOAS`  
-**Classification:** Public Open-Core Specification  
-**Version:** `4.0.0`  
-**Governing Laws:** Law 1 (Dual-Core Inversion), Law 2 (Non-Verbal Proof), Law 3 (Hermetic Worktrees), Law 4 (SSoT), Law 5 (Zero-Hardcoded-Path), Law 6 (Canonical Singularity), Law 7 (Fail-Closed Pre-Flight)  
+**Document Key:** `SPEC-ZERO-SOURCE-HATEOAS`.  
+**Classification:** Public Open-Core Specification.  
+**Version:** `4.0.0`.  
+**Governing Laws:** Law 1 (Dual-Core Inversion), Law 2 (Non-Verbal Proof), Law 3 (Hermetic Worktrees), and Law 4 (SSoT). Also enforces Law 5 (Zero-Hardcoded-Path), Law 6 (Canonical Singularity), and Law 7 (Fail-Closed Pre-Flight).
 
 ---
 
@@ -107,7 +107,8 @@ Ambient `worktree-guard.sh` permits `.tmp/` scratch and walkthrough file writes 
 
 Gate failure remedies and defense hook rejections emit contradiction-free, repository-agnostic recovery commands.
 Remedies never recommend commands prohibited by ambient guards (such as `git stash`) and never reference internal Foundry milestones.
-`nomos capabilities [id]` accepts a capability ID, cell ID (`cell_7_1`), or probe ID (`plane_separation`) and emits `#CapabilityDetail` with Law, Ring, invariant rules, and canonical remediation steps under Law 6.
+`nomos capabilities [id]` accepts a capability ID, cell ID (`cell_7_1`), or probe ID (`plane_separation`).
+It emits `#CapabilityDetail` with Law, Ring, invariant rules, and canonical remediation steps under Law 6.
 
 ---
 

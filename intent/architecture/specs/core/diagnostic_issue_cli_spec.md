@@ -4,7 +4,7 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-11-03"
-last_updated: "2026-11-03"
+last_updated: "2026-11-05"
 plane: intent
 ssot_repository: nomos
 status: active
@@ -18,14 +18,14 @@ version: "4.2.0"
 
 # Sanitized Diagnostic Bundle & Issue Reporting CLI Specification
 
-**Role:** Autonomous Open-Core Software Architect  
-**Objective:** Codify the canonical `nomos issue` CLI command (`substrate/cli/cmd_issue.go`), `cli.IssueReport` diagnostic contract, automatic credential/path scrubbing invariants, and fail-closed browser dispatch semantics.
+- **Role:** Autonomous Open-Core Software Architect.
+- **Objective:** Codify `nomos issue` (`substrate/cli/cmd_issue.go`), the `cli.IssueReport` contract, deterministic credential/path scrubbing, and fail-closed browser dispatch.
 
 ---
 
 ## 1. Context & Problem Statement
 
-Open-core adopters reporting bugs or quality gate edge cases need a one-command way to capture accurate runtime context (Nomos version, Go runtime, OS/architecture, Git version, workspace lifecycle phase, worktree state, and SQLite health) without accidentally leaking personal filesystem paths, GitHub Personal Access Tokens, API keys, or HTTP bearer credentials into a public issue tracker.
+Open-core adopters reporting defects need one command to capture runtime context (`Nomos`, `Go`, OS, `Git`, phase, worktree, and SQLite health). That collector must never leak personal filesystem paths, GitHub PATs, API keys, or bearer credentials into public issue trackers.
 
 `nomos issue` provides a zero-dependency, client-side diagnostic collector that scrubs sensitive strings deterministically before previewing (`--dry-run`) or opening a pre-filled GitHub issue URL.
 
@@ -35,12 +35,12 @@ Open-core adopters reporting bugs or quality gate edge cases need a one-command 
 
 | Law # | Law Name | Architectural Invariant | Machine Enforcement Mechanism |
 | :---: | :--- | :--- | :--- |
-| **1** | **The Dual-Core Inversion Law** | Diagnostic telemetry is collected deterministically from Go runtime and git state without LLM summarization. | `collectIssueReport` |
-| **2** | **The Non-Verbal Proof Law** | Bug bundles attach machine-verified `NomosVersion`, `GoVersion`, `GitVersion`, `ActivePhase`, and `DatabaseStatus`. | `formatIssueMarkdown` |
+| **1** | **The Dual-Core Inversion Law** | Go runtime and Git state collect diagnostic telemetry without LLM summarization. | `collectIssueReport` |
+| **2** | **The Non-Verbal Proof Law** | Bug bundles attach verified `NomosVersion`, `GoVersion`, `GitVersion`, `ActivePhase`, and `DatabaseStatus`. | `formatIssueMarkdown` |
 | **4** | **The Single Source of Truth Law** | Diagnostic bundle fields bind 1:1 to `cli.IssueReport` in `substrate/cli/cmd_issue.go`. | `cmd_issue_test.go` & Go compiler |
-| **5** | **The Zero-Hardcoded-Path Law** | User home directories discovered via `os.UserHomeDir()` are scrubbed to `~` prior to output or URL encoding. | `sanitizeText` |
-| **6** | **The Canonical Singularity Law** | `nomos issue` is the sole canonical bug-report command registered on `NewRootCmd()`. | `ZeroAliasGate`, `DeadCodeGate` |
-| **7** | **The Fail-Closed Pre-Flight Law** | Browser launch refuses any target URL outside `https://github.com/` and prompts interactively unless `--yes` or `--dry-run` is set. | `openBrowser` URL prefix guard |
+| **5** | **The Zero-Hardcoded-Path Law** | `sanitizeText` scrubs `os.UserHomeDir()` paths to `~` before output or URL encoding. | `sanitizeText` |
+| **6** | **The Canonical Singularity Law** | `nomos issue` registers as the sole bug-report command on `NewRootCmd()`. | `ZeroAliasGate`, `DeadCodeGate` |
+| **7** | **The Fail-Closed Pre-Flight Law** | `openBrowser` rejects non-GitHub URLs and prompts unless `--yes` or `--dry-run` applies. | `openBrowser` URL prefix guard |
 
 ---
 
@@ -63,14 +63,14 @@ nomos issue [title] [--dry-run] [--web|-w] [--yes|-y] [--body|-b <text>]
 
 | Flag | Shorthand | Default | Semantics |
 | :--- | :---: | :---: | :--- |
-| `--dry-run` | — | `false` | Renders the sanitized diagnostic summary, Markdown payload, and encoded GitHub URL to stdout without launching a browser. |
-| `--web` | `-w` | `true` | Opens the pre-filled GitHub issue URL in the OS default browser (`xdg-open`, `open`, or `rundll32`). |
-| `--yes` | `-y` | `false` | Skips interactive `[y/N]` confirmation prompt when launching the browser in a TTY. |
-| `--body` | `-b` | `""` | Supplies additional reproduction details or error logs (automatically passed through `sanitizeText`). |
+| `--dry-run` | `-` | `false` | Prints sanitized Markdown and GitHub URL to `stdout` without browser launch. |
+| `--web` | `-w` | `true` | Opens the pre-filled GitHub URL via `xdg-open`, `open`, or `rundll32`. |
+| `--yes` | `-y` | `false` | Skips interactive `[y/N]` confirmation when launching the browser in a TTY. |
+| `--body` | `-b` | `""` | Supplies reproduction details or error diagnostics passed automatically through `sanitizeText`. |
 
 ---
 
-## 5. Table-Driven Verification Vectors
+## 5. Table-Driven Test Vectors
 
 | Vector ID | Scenario | Input Vector | Expected Verdict | Invariant Verified |
 | :--- | :--- | :--- | :--- | :--- |

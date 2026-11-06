@@ -4,38 +4,38 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-13"
-last_updated: "2026-11-01"
+last_updated: "2026-11-05"
 plane: intent
+ssot_repository: nomos
 status: active
-title: Nomos Software Physics Engine - Kinematics, Continuous Collision Detection & Phase Ballistics Specification
+title: "Nomos Software Physics Engine - Kinematics, Continuous Collision Detection & Phase Ballistics Specification"
 trigger: always_on
 type: spec
 version: "4.0.0"
-ssot_repository: nomos
 ---
 
 # Nomos Software Physics Engine: Kinematics, Continuous Collision Detection & Phase Ballistics Specification
 
 **Role:** Autonomous Open-Core Software Architect  
-**Objective:** Formulate and codify the first-principles computational physics of software development (AST Mass, Shannon Entropy Viscosity, Multi-Worktree Continuous Collision Detection, and 2PC Atmospheric Re-entry). Ground all telemetry and ergonomic representations in mathematical computer science, graph theory, and control systems.
+**Objective:** Formulate computational software physics across AST Mass, Shannon Entropy Viscosity, Continuous Collision Detection, and 2PC Re-entry. Ground all telemetry in graph theory and control systems.
 
 ---
 
 ## 1. Problem Statement & First-Principles Grounding
 
 ### 1.1 The Category Error: Code Is Machinery, Not Paint
-As established in the foundational Nomos Software Physics formulation (*The Physics of Software: Why Code is Not Paint*), software development is governed by the structural physics of computation rather than the subjective curation of paint on canvas.
+*The Physics of Software: Why Code is Not Paint* grounds software engineering in computational physics rather than subjective canvas curation.
 
 When autonomous coding agents operate under generative friction approaching zero, the cognitive cost of unverified code approaches infinity:
 
 $$\lim_{\text{Friction}(\text{Generation}) \to 0} \text{CognitiveDebt}(\text{Verification}) = \infty$$
 
-Without continuous, physical constraints, agents drift into un-indexed loops, semantic signature collisions, and state-space combinatorial explosions. Post-hoc verification at merge time is fundamentally too late—it detects catastrophic failures only after massive cognitive energy has been dissipated.
+Without continuous physical constraints, agents drift into un-indexed loops, semantic signature collisions, and state-space combinatorial explosions. Post-hoc merge verification arrives too late - detecting catastrophic defects only after dissipating massive cognitive energy.
 
 ### 1.2 Separation of Substrate Physics from Ergonomic Telemetry
 To maintain uncompromising realism and avoid metaphor degradation:
-1. **The Software Physics Engine (Open-Core Substrate):** Pure Go mathematical calculations and compiled Go telemetry structs evaluating AST graph metrics, Shannon information entropy, directed call-graph reachability, and capability leases.
-2. **The Air Traffic Control Interface (HMI / Presentation Layer):** The ergonomic telemetry projection (`nomos physics`) that visualizes these underlying physics vectors (AST mass, worktree hulls, collision threat levels) for human architects. The visualization never replaces the math; it merely renders it at human-perceptual speed.
+1. **The Software Physics Engine (Open-Core Substrate):** Pure Go telemetry structs calculate AST graph metrics, Shannon entropy, call-graph reachability, and capability leases.
+2. **The Air Traffic Control Interface (HMI Projection):** `nomos physics` visualizes AST mass, worktree hulls, and collision threat levels for human architects. The visualization never replaces the math; it merely renders it at human-perceptual speed.
 
 ---
 
@@ -43,13 +43,13 @@ To maintain uncompromising realism and avoid metaphor degradation:
 
 | Law # | Law Name | Physical Counterpart | Substrate Mechanical Invariant |
 | :---: | :--- | :--- | :--- |
-| **1** | **The Dual-Core Inversion Law** | Aerodynamic Airframe vs. Pilot | Substrate Go core enforces flight laws; Tier 1 agent is a bounded cognitive craft under indirect control. |
-| **2** | **The Non-Verbal Proof Law** | Conservation of Mass & Momentum | Zero trust in textual claims; code mass, entropy, and collision vectors are calculated from AST and git invariants. |
+| **1** | **The Dual-Core Inversion Law** | Aerodynamic Airframe vs. Pilot | Substrate Go core enforces flight laws over bounded Tier 1 agents. |
+| **2** | **The Non-Verbal Proof Law** | Conservation of Mass & Momentum | AST and git invariants calculate mass, entropy, and collision vectors directly. |
 | **3** | **The Hermetic Worktree Law** | Isolated Flight Corridors | Mutations occur strictly inside transient isolated worktrees; trunk `main` is physically immutable. |
 | **4** | **The Single Source of Truth Law** | Unified Spacetime Metric | All physics telemetry binds strictly to compiled Go structs in `substrate/cli/physics.go`. |
 | **5** | **The Zero-Hardcoded-Path Law** | Relativistic Reference Frames | Symbol coordinates and paths resolve dynamically relative to transient worktree roots. |
-| **6** | **The Canonical Singularity Law** | Conservation of Energy | Exactly one canonical tensor for mass, drag, and collision; zero duplicate metrics or shadow state. |
-| **7** | **The Fail-Closed Pre-Flight Law** | Atmospheric Re-entry Envelope | Any DoD gate failure triggers an immediate wave-off and restoration of the clean baseline (`git checkout -- <file>`). |
+| **6** | **The Canonical Singularity Law** | Conservation of Energy | One canonical tensor governs mass, drag, and collision without shadow state. |
+| **7** | **The Fail-Closed Pre-Flight Law** | Atmospheric Re-entry Envelope | DoD gate defects trigger immediate wave-offs (`git checkout -- <file>`). |
 
 ---
 
@@ -66,10 +66,10 @@ To maintain uncompromising realism and avoid metaphor degradation:
 ```
 
 ### 3.1 Kinematics, File Mass & Inertia
-In software physics, a source file or package possesses **Inertia** not because of its byte count on disk, but because of its AST cardinality, decision branching, and topological coupling.
+Source files and packages acquire **Inertia** from AST cardinality, decision branching, and topological coupling rather than disk bytes.
 
 #### Mass Metric:
-For any source file $f \in \mathcal{F}$, its physical mass $M(f)$ is defined as:
+For any source file $f \in \mathcal{F}$, the engine defines physical mass $M(f)$ as:
 
 $$M(f) = \alpha \cdot \text{LOC}(f) + \beta \cdot v(G)_f + \gamma \cdot |\text{AST}_f| + \delta \cdot \left( \text{FanIn}(f) + \text{FanOut}(f) \right)$$
 
@@ -104,7 +104,7 @@ Code viscosity combines information entropy with sliding-window structural dupli
 
 $$\mu(f) = \frac{H(f)}{H_{\text{max}}} \cdot \left( 1 + \text{DuplicationRatio}(f) \right)$$
 
-Where $\text{DuplicationRatio}(f) \in [0.0, 1.0]$ is computed via rolling Rabin-Karp hashes over sliding token windows of size $w = 10$.
+Rolling Rabin-Karp hashes over sliding token windows of size $w = 10$ compute $\text{DuplicationRatio}(f) \in [0.0, 1.0]$.
 
 #### Aerodynamic Drag Force $F_{\text{drag}}$:
 The drag force opposing clean cognitive traversal through the codebase is:
@@ -141,32 +141,32 @@ $$C(W_i, W_j) = \left( \text{ExportsMutated}(W_i) \cap \text{ImportsReferenced}(
 └──────────────────────┴───────────────────────────────────────────┴───────────────────────────────────────┘
 ```
 
-When a RED collision is detected while agents are typing, the substrate alerts the orchestrator before either agent attempts to commit.
+When CCD detects a RED collision during active editing, the substrate alerts the orchestrator before either agent commits.
 
 ---
 
 ### 3.4 The 60Hz Telemetry Loop & Nyquist-Shannon Sampling
-According to the Nyquist-Shannon sampling theorem, to prevent aliasing and control-loop divergence, the monitoring feedback loop must sample at more than twice the maximum frequency of environmental disturbance:
+Under the Nyquist-Shannon sampling theorem, feedback loops must sample above twice the maximum disturbance frequency to prevent aliasing:
 
 $$f_{\text{feedback}} > 2 \cdot f_{\text{mutation}}$$
 
-If an autonomous coding agent generates AST mutations at 2Hz (tokens streaming into buffer), the substrate must evaluate AST invariants, type checking, and boundary constraints at sub-second intervals ($f \ge 4\text{Hz}$, targeting 60Hz frame intervals for telemetry streaming).
+When an agent streams AST mutations at 2Hz, the substrate evaluates AST, type, and boundary invariants at sub-second intervals. Sampling at $f \ge 4\text{Hz}$ (targeting 60Hz telemetry frames) maintains deterministic feedback.
 
 This high-frequency loop ensures the agent stays strictly within its **Controllable Basin of Attraction**, preventing compounding hallucinations.
 
 ---
 
 ### 3.5 Two-Phase Commit (2PC) Atmospheric Re-entry
-Trunk branch `main` represents the pristine surface of production reality. Merging a transient worktree is modeled as an **atmospheric re-entry maneuver**:
+Trunk branch `main` represents the pristine surface of production reality. The engine models transient worktree merges as an **atmospheric re-entry maneuver**:
 
 1. **Pre-Flight Entry Vector:** Phase transitions from `EDIT` to `REVIEW`. CapBAC leases freeze further file mutations.
 2. **The DoD Thermal Shield:** `nomos verify` runs all Definition of Done quality gates against the worktree AST.
-3. **Aerodynamic Wave-Off (Revert Invariant):** If any single gate fails ($exit \ne 0$), the landing is aborted immediately. The worktree executes:
+3. **Aerodynamic Wave-Off (Revert Invariant):** Any gate defect ($exit \ne 0$) aborts the landing immediately. The worktree executes:
    ```bash
    git checkout -- <file>
    ```
    No scorched earth or damaged state touches `main`.
-4. **Touchdown & Release Receipt:** If all DoD quality gates pass cleanly, atomic 2PC merges the worktree to `main` and writes a cryptographic release receipt to Git Notes (`refs/notes/nomos/releases`).
+4. **Touchdown & Release Receipt:** Passing all DoD gates triggers atomic 2PC merge to `main` and records a receipt in `refs/notes/nomos/releases`.
 
 ---
 

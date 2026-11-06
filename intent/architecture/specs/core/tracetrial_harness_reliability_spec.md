@@ -4,8 +4,9 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-11-01"
-last_updated: "2026-11-04"
+last_updated: "2026-11-05"
 plane: intent
+ssot_repository: nomos
 status: active
 tags:
     - INT-858
@@ -28,7 +29,6 @@ title: "TraceTrial-Bench 7-Pillar Harness Reliability & Fail-Closed Stress Speci
 trigger: always_on
 type: spec
 version: "4.1.1"
-ssot_repository: nomos
 ---
 
 # TraceTrial-Bench 7-Pillar Harness Reliability & Fail-Closed Stress Specification
@@ -85,7 +85,7 @@ In `substrate/src/nomos/modules/verify/gate.go`, `TimedEvaluate(g Gate, ctx *Ver
 Nomos ships zero-dependency Go subcommands (`nomos hook session-start`, `nomos hook pre-tool`, `nomos hook post-tool`) removing external `jq`, `bash`, or `python3` requirements:
 
 1. **Unified JSON Payload Ingestion:** Each subcommand parses standard `stdin` hook payloads from Claude Code (`tool_name`, `tool_input`), Cursor, and Antigravity (`toolCall.name`, `toolCall.args`, `cwd`).
-2. **PreToolUse Guards (`nomos hook pre-tool` — Law 3 & Law 7):**
+2. **PreToolUse Guards (`nomos hook pre-tool` - Law 3 & Law 7):**
    - **Unexpanded Variable Guard:** Rejects native file-edit tool calls whose target path contains unexpanded `$VAR`, `${VAR}`, or leading `~` tokens.
    - **Boundary Containment:** Standard mode rejects writes outside `/worktrees/`, `/.tmp/`, and `/brain/` with a HATEOAS remedy (`nomos task chore "<title>"`). Passing `--hermetic-dir <dir>` confines writes to `<dir>` while protecting OS roots (`/etc`, `/usr`, `/bin`, `/var`, `/proc`, `/sys`, `/dev`, `/boot`). Passing `--container-sandbox` permits container OS paths while blocking verifier and oracle roots (`/logs/verifier`, `/solution`, `/tests`).
    - **Command Safety & Encapsulation Guard:** Inspects shell tool invocations (`Bash`, `bash`, `run_command`, `execute_command`) and denies:
@@ -94,7 +94,7 @@ Nomos ships zero-dependency Go subcommands (`nomos hook session-start`, `nomos h
      - Direct `sqlite3` mutations or queries against `.nomos` or `.db` files (Law 1 & ADR-0062).
      - Stateful `git stash` mutations (allowing read-only `git stash list` / `git stash clear`).
      - Tampering with `.git/hooks` defense scripts (`rm`, `unlink`, `chmod`, `mv`).
-3. **PostToolUse Channel Purity (`nomos hook post-tool` — Law 4):**
+3. **PostToolUse Channel Purity (`nomos hook post-tool` - Law 4):**
    - **Silent Non-Edit Channels:** Emits `{}` immediately for `Bash`, `Read`, and `MCP` calls so native OS errors (`EACCES`, `ENOENT`) remain unmasked.
    - **In-Memory Syntax & Radar Verification:** Validates edited `.go`, `.py`, `.json`, `.jsonl`, and `.yaml` files in memory without writing `.tmp/` scratch files.
 4. **Additive Hook Chaining & 3-Strike Circuit-Breaker (`INT-868` / `SUB-1560`):**
@@ -107,15 +107,15 @@ Nomos ships zero-dependency Go subcommands (`nomos hook session-start`, `nomos h
 
 The cleanroom suite (`substrate/cli/cleanroom_tracetrial_bench_test.go`) and unit suite (`substrate/src/nomos/modules/verify/tracetrial_hardening_test.go`) execute seven end-to-end vectors:
 
-- **`VEC-TTB-01` (Pillar 1 — Context):** Seed two repo scopes in Mneme, run `SynthesizeDynamicHandshake`, and verify strict repository isolation plus wavefront orientation.
-- **`VEC-TTB-02` (Pillar 2 — Execution / Worktree Escape):** Run `worktree-guard.sh` against trunk paths, `../../trunk.go` traversal, and direct `main` commits; verify non-zero rejection.
-- **`VEC-TTB-03` (Pillar 3 — Governance / Config Tampering):**
+- **`VEC-TTB-01` (Pillar 1 - Context):** Seed two repo scopes in Mneme, run `SynthesizeDynamicHandshake`, and verify strict repository isolation plus wavefront orientation.
+- **`VEC-TTB-02` (Pillar 2 - Execution / Worktree Escape):** Run `worktree-guard.sh` against trunk paths, `../../trunk.go` traversal, and direct `main` commits; verify non-zero rejection.
+- **`VEC-TTB-03` (Pillar 3 - Governance / Config Tampering):**
   - *Sub-vector 3a:* Mutate `nomos.yaml` inside a `SUB-*` worktree; verify `PlaneSeparationGate` rejects the edit.
   - *Sub-vector 3b:* Flip `strict_mode: false` and `max_file_loc: 9999` inside an `INT-*` worktree; verify `ThresholdIntegrityGate` rejects the downgrade.
-- **`VEC-TTB-04` (Pillar 4 — Lifecycle / Panic & 2PC Abort):** Trigger a panicking gate in `TimedEvaluate` and verify `nomos task sync` leaves trunk `HEAD` and `refs/notes/nomos/releases` untouched.
-- **`VEC-TTB-05` (Pillar 5 — Observability / Receipts & Mneme):** Sync a compliant worktree and verify both the `refs/notes/nomos/releases` SHA-256 receipt and `mneme.db` pattern record.
-- **`VEC-TTB-06` (Pillar 6 — Tools / Build & Symlink Guards):** Run `nomos-build-guard.sh` on a dirty tree and plant a worktree symlink; verify both reject execution.
-- **`VEC-TTB-07` (Pillar 7 — Verification / Anti-Shortcut):** Inject an empty function stub (`func Shortcut() {}`) into a worktree; verify `AntiShimGate` rejects the stub.
+- **`VEC-TTB-04` (Pillar 4 - Lifecycle / Panic & 2PC Abort):** Trigger a panicking gate in `TimedEvaluate` and verify `nomos task sync` leaves trunk `HEAD` and `refs/notes/nomos/releases` untouched.
+- **`VEC-TTB-05` (Pillar 5 - Observability / Receipts & Mneme):** Sync a compliant worktree and verify both the `refs/notes/nomos/releases` SHA-256 receipt and `mneme.db` pattern record.
+- **`VEC-TTB-06` (Pillar 6 - Tools / Build & Symlink Guards):** Run `nomos-build-guard.sh` on a dirty tree and plant a worktree symlink; verify both reject execution.
+- **`VEC-TTB-07` (Pillar 7 - Verification / Anti-Shortcut):** Inject an empty function stub (`func Shortcut() {}`) into a worktree; verify `AntiShimGate` rejects the stub.
 
 ---
 
@@ -123,7 +123,7 @@ The cleanroom suite (`substrate/cli/cleanroom_tracetrial_bench_test.go`) and uni
 
 [TraceTrial-Bench](https://github.com/TraceLite-AI/TraceTrial-Bench) ([arXiv:2610.32285](https://arxiv.org/abs/2610.32285)) separates **harness reliability** from **model capability** across 95 containerized tasks (`190` paired Docker runs). Both arms run `Claude Code v2.1.220` with `gemini-2.5-flash-lite` (scored by `gemini-3.5-flash-lite`), comparing stock Control against `nomos-claudecode:4.1.0`:
 
-| Pillar / Cohort (`n = 95`, `0` errors) | Control Overall | Nomos `v4.1.0` | Overall Δ | Agent Deliverable Axis (`0–100`) | Harness Reliability Axis (`0–100`) |
+| Pillar / Cohort (`n = 95`, `0` errors) | Control Overall | Nomos `v4.1.0` | Overall Δ | Agent Deliverable Axis (`0..100`) | Harness Reliability Axis (`0..100`) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Full 95-Task Suite** | `44.89` | **`48.78`** | **`+3.89` (`+8.7%` rel.)** | `34.78` → **`40.05` (`+5.27` / `+15.2%` rel.)** | `55.01` → **`57.52` (`+2.51`)** |
 | **`C` · Context & Continuity (`n = 15`)** | `43.55` | **`62.16`** | **`+18.62` (`+42.8%` rel.)** | `32.59` → **`58.12` (`+25.52` / `+78.3%` rel.)** | `54.51` → **`66.21` (`+11.71`)** |
@@ -147,3 +147,14 @@ The cleanroom suite (`substrate/cli/cleanroom_tracetrial_bench_test.go`) and uni
 2. **Governance Overlays Must Chain Additively (`O` `+10.39` & `T` `+5.92` Recovery):** CLI `--settings` overrides shadow workspace hooks (`-6.51` in `v4.0.0`). Additive `nomos hook` merging flips Observability positive (`+4.17` over stock).
 3. **Zero-Noise Channel Purity Beats Verbose Coaching:** Synthetic `PostToolUse` coaching prose masked native `EACCES` errors (`-39.3%` on `G`). Emitting `{}` on allow preserves native error provenance.
 4. **Input Hygiene & Loop Breakers Multiply Continuity (`+42.8%` on `C`):** Budget models pass unexpanded `$WORKSPACE`/`~` paths and repeat broken calls (`700+` turns). Pre-flight variable guards and 3-strike circuit-breakers prevent context collapse.
+
+---
+
+## 7. Table-Driven Test Vectors
+
+| Vector ID | Invariant Evaluated | Input Condition | Expected Deterministic Verdict |
+| :--- | :--- | :--- | :--- |
+| `TV-TTB-01` | `ThresholdIntegrityGate` downgrade guard | Worktree sets `strict_mode: false` or `max_file_loc: 9999` vs trunk `nomos.yaml` | Rejects verification (`Passed: false`) under Law 4 & Law 7 |
+| `TV-TTB-02` | `go.work` module boundary resolution | Multi-module workspace evaluated via `GoToolchainGate` and `BoundaryGate` | Resolves `go.work` module roots without cross-boundary escape |
+| `TV-TTB-03` | 3-strike circuit-breaker loop guard | Three identical calls in `nomos hook pre-tool` with unchanged `workspace_mtime_digest` | Emits 1-line remediation directive and halts retry loop |
+| `TV-TTB-04` | `TimedEvaluate` runtime panic recovery | Gate panics during `nomos task sync` pipeline execution | Converts panic to `ERR_CORE` and aborts before trunk merge |

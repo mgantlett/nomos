@@ -4,33 +4,33 @@ authors:
     - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-23"
-last_updated: "2026-11-01"
+last_updated: "2026-11-05"
 plane: intent
+ssot_repository: nomos
 status: active
 tags:
     - INT-740
     - INT-741
     - SUB-1224
     - SUB-1225
-title: Gate Integrity & Invariant Attestation Specification (Mutation Sensitivity, Metamorphic Invariance, AST Anti-Vacuity)
+title: "Gate Integrity & Invariant Attestation Specification (Mutation Sensitivity, Metamorphic Invariance, AST Anti-Vacuity)"
 trigger: always_on
 type: spec
 version: "4.0.0"
-ssot_repository: nomos
 ---
 
 # Gate Integrity & Invariant Attestation Specification
 
-**Role:** Autonomous Open-Core Software Architect  
-**Objective:** Codify the three deterministic vectors that attest to Definition of Done (DoD) quality gate integrity, eliminating false negatives (trivial pass shims) and false positives (spurious alarms) through in-memory AST mutation fault-injection, metamorphic reference invariance, and AST structural anti-vacuity audits.
+- **Role:** Autonomous Open-Core Software Architect.
+- **Objective:** Codify the three deterministic attestation vectors that eliminate quality gate false negatives and false positives via AST mutation, metamorphic invariance, and anti-vacuity audits.
 
 ---
 
 ## 1. Context & Epistemology
 
-In autonomous, agentic software engineering, conversational assertions of code correctness are fundamentally untrusted (Law 2: The Non-Verbal Proof Law). Verification pipelines themselves are susceptible to two failure modalities:
+Under Law 2 (The Non-Verbal Proof Law), the substrate distrusts conversational claims of code correctness. Verification pipelines face two structural defect modalities:
 
-1. **False Negative (Type II Error / Trivial Pass):** A quality gate returns `Passed: true` without evaluating code ASTs or failing on synthetically introduced flaws, allowing defective code into trunk.
+1. **False Negative (Type II Error / Trivial Pass):** A gate returns `Passed: true` without evaluating ASTs or catching synthetic flaws, admitting defective code into trunk.
 2. **False Positive (Type I Error / Spurious Alarm):** A gate rejects clean, compliant code due to brittle regexes, improper relative path resolution, or faulty boundary thresholds.
 
 ### Epistemic Precision
@@ -62,7 +62,7 @@ Nomos executes in-memory AST fault injections directly against sampled functions
 9. **Mutant 9 (Docstring Stripping):** Strips all exported comments to force docstring density below 80%. Assertion: `DocstringDensityGate` kills mutant.
 10. **Mutant 10 (Single Return Discard):** Strips business logic down to premature return statement. Assertion: `AntiShimGate` kills mutant.
 
-**Hermetic Invariant (Law 3):** All mutations occur strictly in-memory on AST copies; physical source files on disk are never altered.
+**Hermetic Invariant (Law 3):** All mutations execute strictly in-memory on AST copies without modifying physical source files on disk.
 
 ---
 
@@ -78,7 +78,7 @@ The engine evaluates clean constructs:
 - Properly checked error handling passes `UncheckedErrorsGate`.
 - Canonical baseline sequence passes all registered statutory gates.
 
-**Self-Audit Recursion Invariant:** During evaluation of Vector 2, the `GateIntegrityProofGate` is strictly excluded from recursive self-invocation to prevent re-entrancy cycles.
+**Self-Audit Recursion Invariant:** Vector 2 evaluation excludes `GateIntegrityProofGate` from recursive self-invocation to prevent re-entrancy cycles.
 
 ---
 
@@ -118,7 +118,7 @@ Output schema:
 
 ## 4. Compiled Go SSoT Report Contract
 
-The attestation report is strictly typed in `substrate/src/nomos/modules/verify/`:
+Package `substrate/src/nomos/modules/verify/` defines the strongly typed attestation report contract:
 
 ```go
 package verify
