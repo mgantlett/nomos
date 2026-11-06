@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [v4.10.0] - 2026-11-06
+
+> Ambient OpenCode Plugin Hooks, First-Class Rails 8 Minitest Runner, Arch/Omarchy `nomos-bin` AUR Packaging, Pure NixOS Zero-FHS Hooks & Tree-Hash Toolchain Receipt Caching (Apache 2.0)
+
+### Ambient OpenCode Plugin Hook Scaffolding (`nomos init`, `nomos hook`)
+- **Zero-Touch `.opencode/plugins/nomos.ts` Scaffolding**: Scaffolds a zero-dependency TypeScript OpenCode plugin during `nomos init` with idempotent `NOMOS_OPENCODE_PLUGIN_START`/`END` markers that preserve existing user plugins.
+- **Sub-5ms OpenCode Payload Normalization**: Normalizes OpenCode `tool.execute.before` and `tool.execute.after` payloads across `bash`, `write`, `edit`, `apply_patch` (`*** Update File:` / `*** Add File:` / `*** Delete File:` target extraction), `read`, `list`, `glob`, `grep`, and `lsp`.
+
+### First-Class Rails 8 Minitest Suite Runner (`nomos verify`)
+- **Automatic `bin/rails test` & `bundle exec rake test` Execution**: Detects `test/**/*_test.rb` Minitest suites alongside Ruby `InstructionSequence` bytecode compilation, executes `bin/rails test` (or `bundle exec rake test` under `RAILS_ENV=test`), and rejects both failing assertions and non-zero Minitest skip counts (`Ruby(compile+minitest)`).
+
+### Arch Linux & Omarchy Distribution, Container Portability & Receipt Caching
+- **Arch Linux / Omarchy `nomos-bin` AUR Target**: Adds `packaging/aur/PKGBUILD` (`x86_64` and `aarch64` static `CGO_ENABLED=0` binaries with Apache-2.0 license staging) and automated GoReleaser `aurs:` publishing.
+- **Zero-FHS NixOS Hooks & Static Auto-Recompilation**: Removes external `sed` dependencies from `.git/hooks/commit-msg` via pure Bash parameter expansion for minimal NixOS sandboxes, and enforces `CGO_ENABLED=0` (`-trimpath -ldflags="-s -w"`, zero ELF `PT_INTERP` dynamic linker leakage) during `nomos task sync` binary recompilation.
+- **Content-Addressed Tree-Hash Receipt Cache (`nomos-toolchain-receipt-v2`)**: Canonicalizes relative and absolute worktree paths and hashes live Git blob OIDs (`ls-tree` + working-tree overlay + polyglot stack results) so `nomos verify`, `pre-commit`, `nomos task sync`, and fast-forward trunk checks share cryptographic toolchain receipts without redundant test suite runs.
+
+---
+
 ## [v4.9.0] - 2026-11-06
 
 > First-Class Ruby & Rails Polyglot AST Gating, Shell-Segment Sentinel Tokenizer, Mneme Locality Boost, RLVR/DPO Session Export & Flat 39-Spec Blueprint (Apache 2.0)

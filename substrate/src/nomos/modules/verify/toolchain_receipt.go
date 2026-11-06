@@ -2,12 +2,14 @@
 package verify
 
 import (
+	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
@@ -16,120 +18,188 @@ import (
 )
 
 const (
-	receiptSchemaVersion = "nomos-toolchain-receipt-v1"
+	receiptSchemaVersion = "nomos-toolchain-receipt-v2"
 	maxCachedReceipts    = 128
 )
 
+// computeWorkspaceSnapshotDigest computes a canonical content-addressed SHA-256 tree digest
+// across committed HEAD blobs and live working-tree modifications, invariant to relative paths
+// and worktree-vs-trunk directory location.
 func computeWorkspaceSnapshotDigest(ctx *VerifyContext, root, targetDir string) string {
 	gitDir := resolveSnapshotGitDir(ctx, root)
 	if gitDir == "" {
 		return ""
 	}
-	baseSHA := resolveBaseCommitSHA(gitDir)
-	if baseSHA == "" {
+	entries, oidHexLen, ok := loadCommittedTreeEntries(gitDir)
+	if !ok {
 		return ""
 	}
+	overlayDirtyTreeEntries(gitDir, entries, oidHexLen)
 
-	deltaFiles := collectSnapshotDeltaFiles(gitDir, baseSHA)
+	relPaths := make([]string, 0, len(entries))
+	for rel := range entries {
+		relPaths = append(relPaths, rel)
+	}
+	sort.Strings(relPaths)
+
 	h := sha256.New()
 	_, _ = h.Write([]byte(receiptSchemaVersion + "\n"))
-	_, _ = h.Write([]byte("target:" + filepath.ToSlash(targetDir) + "\n"))
-	_, _ = h.Write([]byte("base:" + baseSHA + "\n"))
+	_, _ = h.Write([]byte("target:" + canonicalTargetRelPath(gitDir, targetDir) + "\n"))
 	hashVerifyConfigFile(ctx, h)
-
-	for _, rel := range deltaFiles {
-		hashSingleWorkspacePath(gitDir, rel, h)
+	for _, rel := range relPaths {
+		_, _ = h.Write([]byte(rel + "\x00" + entries[rel] + "\n"))
 	}
 	return hex.EncodeToString(h.Sum(nil))
 }
 
 func resolveSnapshotGitDir(ctx *VerifyContext, root string) string {
+	candidate := ""
 	if ctx != nil {
-		if d := resolveGitDir(ctx); d != "" {
-			return d
-		}
+		candidate = resolveGitDir(ctx)
 	}
-	if root != "" {
+	if candidate == "" && root != "" {
 		if _, err := os.Stat(filepath.Join(root, ".git")); err == nil {
-			return root
+			candidate = root
 		}
 	}
-	return ""
-}
-
-func resolveBaseCommitSHA(gitDir string) string {
-	candidates := []string{constants.ValMain, "origin/main", constants.ValMaster}
-	for _, branch := range candidates {
-		out, err := workspace.RunSafeGit(gitDir, "merge-base", branch, constants.ValHead)
-		if err == nil {
-			if sha := strings.TrimSpace(string(out)); len(sha) == 40 {
-				return sha
-			}
-		}
-	}
-	out, err := workspace.RunSafeGit(gitDir, constants.CmdRevParse, constants.ValHead)
-	if err != nil {
+	if candidate == "" {
 		return ""
 	}
-	sha := strings.TrimSpace(string(out))
-	if len(sha) != 40 {
-		return ""
+	if abs, err := filepath.Abs(candidate); err == nil {
+		return filepath.Clean(abs)
 	}
-	return sha
+	return filepath.Clean(candidate)
 }
 
-func collectSnapshotDeltaFiles(gitDir, baseSHA string) []string {
-	fileSet := make(map[string]struct{})
-	collectBaseDiffPaths(gitDir, baseSHA, fileSet)
-	collectUntrackedAllFiles(gitDir, fileSet)
-	collectPorcelainStatusPaths(gitDir, fileSet)
+func canonicalTargetRelPath(gitDir, targetDir string) string {
+	if targetDir == "" {
+		return "."
+	}
+	absTarget := targetDir
+	if abs, err := filepath.Abs(targetDir); err == nil {
+		absTarget = abs
+	}
+	if rel, err := filepath.Rel(gitDir, filepath.Clean(absTarget)); err == nil && !strings.HasPrefix(rel, "..") {
+		return filepath.ToSlash(rel)
+	}
+	return filepath.ToSlash(filepath.Clean(absTarget))
+}
 
-	files := make([]string, 0, len(fileSet))
-	for f := range fileSet {
-		if !strings.HasPrefix(f, ".tmp/") && !strings.HasPrefix(f, "worktrees/") {
-			files = append(files, f)
+func loadCommittedTreeEntries(gitDir string) (map[string]string, int, bool) {
+	out, err := workspace.RunSafeGit(gitDir, "ls-tree", "-r", "-z", constants.ValHead)
+	if err != nil {
+		return nil, 40, false
+	}
+	entries := make(map[string]string)
+	oidHexLen := 40
+	for _, tok := range strings.Split(string(out), "\x00") {
+		tabIdx := strings.IndexByte(tok, '\t')
+		if tabIdx <= 0 {
+			continue
 		}
+		meta := strings.Fields(tok[:tabIdx])
+		rel := filepath.ToSlash(tok[tabIdx+1:])
+		if len(meta) < 3 || isTransientSnapshotRelPath(rel) {
+			continue
+		}
+		if len(meta[2]) == 64 {
+			oidHexLen = 64
+		}
+		entries[rel] = normalizeTreeEntryMode(meta[0]) + ":" + meta[2]
 	}
-	sort.Strings(files)
-	return files
+	return entries, oidHexLen, true
 }
 
-func collectBaseDiffPaths(gitDir, baseSHA string, fileSet map[string]struct{}) {
-	out, err := workspace.RunSafeGit(gitDir, "diff", "--name-only", baseSHA, constants.ValHead)
+func overlayDirtyTreeEntries(gitDir string, entries map[string]string, oidHexLen int) {
+	out, err := workspace.RunSafeGit(gitDir, "status", "--porcelain", "-z", "-uall")
 	if err != nil {
 		return
 	}
-	for _, line := range strings.Split(string(out), "\n") {
-		if clean := strings.TrimSpace(strings.Trim(line, `"`)); clean != "" {
-			fileSet[filepath.ToSlash(clean)] = struct{}{}
-		}
+	dirty := collectDirtyNulStatusPaths(string(out))
+	for rel := range dirty {
+		applyDirtyWorkspaceEntry(gitDir, rel, entries, oidHexLen)
 	}
 }
 
-func collectPorcelainStatusPaths(gitDir string, fileSet map[string]struct{}) {
-	out, err := workspace.RunSafeGit(gitDir, "status", "--porcelain")
+func collectDirtyNulStatusPaths(raw string) map[string]struct{} {
+	dirty := make(map[string]struct{})
+	tokens := strings.Split(raw, "\x00")
+	for i := 0; i < len(tokens); i++ {
+		tok := tokens[i]
+		if len(tok) < 4 || tok[2] != ' ' {
+			continue
+		}
+		addScopedSnapshotPath(tok[3:], dirty)
+		if (tok[0] == 'R' || tok[0] == 'C' || tok[1] == 'R' || tok[1] == 'C') && i+1 < len(tokens) {
+			i++
+			addScopedSnapshotPath(tokens[i], dirty)
+		}
+	}
+	return dirty
+}
+
+func addScopedSnapshotPath(rawRel string, dirty map[string]struct{}) {
+	rel := strings.TrimSuffix(filepath.ToSlash(rawRel), "/")
+	if rel != "" && !isTransientSnapshotRelPath(rel) {
+		dirty[rel] = struct{}{}
+	}
+}
+
+func isTransientSnapshotRelPath(rel string) bool {
+	return strings.HasPrefix(rel, ".tmp/") || rel == ".tmp" || strings.HasPrefix(rel, "worktrees/") || rel == "worktrees"
+}
+
+func normalizeTreeEntryMode(mode string) string {
+	switch mode {
+	case "120000", "160000", "100755":
+		return mode
+	default:
+		return "100644"
+	}
+}
+
+func applyDirtyWorkspaceEntry(gitDir, rel string, entries map[string]string, oidHexLen int) {
+	full := filepath.Join(gitDir, filepath.FromSlash(rel))
+	info, err := os.Lstat(full)
 	if err != nil {
+		delete(entries, rel)
 		return
 	}
-	for _, line := range strings.Split(string(out), "\n") {
-		addPorcelainLinePaths(line, fileSet)
+	if info.Mode()&os.ModeSymlink != 0 {
+		linkTarget, lErr := os.Readlink(full)
+		if lErr != nil {
+			linkTarget = ""
+		}
+		entries[rel] = "120000:" + computeGitBlobOID([]byte(linkTarget), oidHexLen)
+		return
 	}
+	if info.IsDir() {
+		return
+	}
+	data, rErr := os.ReadFile(full)
+	if rErr != nil {
+		entries[rel] = "unreadable"
+		return
+	}
+	mode := "100644"
+	if info.Mode()&0o111 != 0 {
+		mode = "100755"
+	}
+	entries[rel] = mode + ":" + computeGitBlobOID(data, oidHexLen)
 }
 
-func addPorcelainLinePaths(line string, fileSet map[string]struct{}) {
-	if len(line) < 4 {
-		return
+func computeGitBlobOID(data []byte, oidHexLen int) string {
+	header := "blob " + strconv.Itoa(len(data)) + "\x00"
+	if oidHexLen == 64 {
+		h := sha256.New()
+		_, _ = h.Write([]byte(header))
+		_, _ = h.Write(data)
+		return hex.EncodeToString(h.Sum(nil))
 	}
-	clean := strings.TrimSpace(strings.Trim(line[3:], `"`))
-	if idx := strings.Index(clean, sepArrow); idx >= 0 {
-		if oldRel := strings.TrimSpace(clean[:idx]); oldRel != "" {
-			fileSet[filepath.ToSlash(oldRel)] = struct{}{}
-		}
-		clean = strings.TrimSpace(clean[idx+len(sepArrow):])
-	}
-	if clean != "" {
-		fileSet[filepath.ToSlash(clean)] = struct{}{}
-	}
+	h := sha1.New()
+	_, _ = h.Write([]byte(header))
+	_, _ = h.Write(data)
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 func hashVerifyConfigFile(ctx *VerifyContext, h interface{ Write([]byte) (int, error) }) {
@@ -147,34 +217,6 @@ func hashVerifyConfigFile(ctx *VerifyContext, h interface{ Write([]byte) (int, e
 		sum := sha256.Sum256(data)
 		_, _ = h.Write([]byte("cfg:" + hex.EncodeToString(sum[:]) + "\n"))
 	}
-}
-
-func hashSingleWorkspacePath(gitDir, rel string, h interface{ Write([]byte) (int, error) }) {
-	full := filepath.Join(gitDir, filepath.FromSlash(rel))
-	info, err := os.Lstat(full)
-	if err != nil {
-		_, _ = h.Write([]byte("del:" + rel + "\n"))
-		return
-	}
-	if info.Mode()&os.ModeSymlink != 0 {
-		linkTarget, lErr := os.Readlink(full)
-		if lErr != nil {
-			linkTarget = ""
-		}
-		_, _ = h.Write([]byte("sym:" + rel + ":" + linkTarget + "\n"))
-		return
-	}
-	if info.IsDir() {
-		_, _ = h.Write([]byte("dir:" + rel + "\n"))
-		return
-	}
-	data, rErr := os.ReadFile(full)
-	if rErr != nil {
-		_, _ = h.Write([]byte("unreadable:" + rel + "\n"))
-		return
-	}
-	sum := sha256.Sum256(data)
-	_, _ = h.Write([]byte("file:" + rel + ":" + hex.EncodeToString(sum[:]) + "\n"))
 }
 
 func loadToolchainReceipt(snapshotKey string) *ToolchainSuiteReceipt {
@@ -206,7 +248,9 @@ func saveToolchainReceipt(snapshotKey string, rec *ToolchainSuiteReceipt) {
 		return
 	}
 	target := filepath.Join(cacheDir, snapshotKey+".json")
-	_ = os.WriteFile(target, data, 0644)
+	if wErr := os.WriteFile(target, data, 0644); wErr != nil {
+		return
+	}
 	pruneVerifyReceiptCache(cacheDir)
 }
 
@@ -230,6 +274,8 @@ func pruneVerifyReceiptCache(cacheDir string) {
 	}
 	sort.Slice(files, func(i, j int) bool { return files[i].modNano < files[j].modNano })
 	for i := 0; i < len(files)-maxCachedReceipts; i++ {
-		_ = os.Remove(files[i].path)
+		if rErr := os.Remove(files[i].path); rErr != nil {
+			continue
+		}
 	}
 }

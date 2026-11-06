@@ -28,13 +28,15 @@ var goCoverageLineRe = regexp.MustCompile(`coverage:\s+([0-9.]+)%`)
 
 // ToolchainSuiteReceipt stores the shared compilation, test, and statement coverage result for a workspace snapshot.
 type ToolchainSuiteReceipt struct {
-	SnapshotSHA256 string  `json:"snapshot_sha256"`
-	GoPassed       bool    `json:"go_passed"`
-	GoSkippedNonGo bool    `json:"go_skipped_non_go,omitempty"`
-	GoOutput       string  `json:"go_output,omitempty"`
-	AvgCoverage    float64 `json:"avg_coverage"`
-	CacheHit       bool    `json:"-"`
-	TimestampUTC   string  `json:"timestamp_utc"`
+	SnapshotSHA256   string   `json:"snapshot_sha256"`
+	GoPassed         bool     `json:"go_passed"`
+	GoSkippedNonGo   bool     `json:"go_skipped_non_go,omitempty"`
+	GoOutput         string   `json:"go_output,omitempty"`
+	AvgCoverage      float64  `json:"avg_coverage"`
+	PolyglotVerified bool     `json:"polyglot_verified,omitempty"`
+	PolyglotStacks   []string `json:"polyglot_stacks,omitempty"`
+	CacheHit         bool     `json:"-"`
+	TimestampUTC     string   `json:"timestamp_utc"`
 }
 
 func evaluateSharedGoSuite(ctx *VerifyContext, root, targetDir string) *ToolchainSuiteReceipt {

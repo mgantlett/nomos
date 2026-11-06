@@ -148,3 +148,54 @@ func TestTruncateToolchainOutput_AnchorsOnFailDiagnosticAfterLongStdout(t *testi
 	}
 }
 
+func TestSharedGoSuite_CanonicalizesRelativeWorktreeAndFastForwardTrunk(t *testing.T) {
+	t.Setenv("NOMOS_HOME", t.TempDir())
+	t.Setenv(envInToolchainGate, "")
+	t.Setenv(envSkipToolchainGate, "")
+	t.Setenv(envNoVerifyCache, "")
+
+	repoDir := initGitTestRepo(t)
+	wtDir := filepath.Join(repoDir, "worktrees", "test-SUB-3")
+	if out, err := workspace.SafeGitCommand(repoDir, "worktree", "add", "-b", "feature/SUB-3", wtDir, "main").CombinedOutput(); err != nil {
+		t.Fatalf("git worktree add: %v (%s)", err, string(out))
+	}
+
+	mathPath := filepath.Join(wtDir, "substrate", "math.go")
+	updatedGo := "package testmod\n\n// Add sums two integers.\nfunc Add(a, b int) int { return a + b }\n\n// Mul multiplies two integers.\nfunc Mul(a, b int) int { return a * b }\n"
+	if err := os.WriteFile(mathPath, []byte(updatedGo), 0644); err != nil {
+		t.Fatalf("write math.go: %v", err)
+	}
+
+	// 1. Run from inside worktree using relative "." path (simulating 'nomos verify' inside worktree)
+	t.Chdir(wtDir)
+	tcGate := &GoToolchainGate{}
+	ctxRel := &VerifyContext{RepoRoot: repoDir, WorktreePath: ".", TaskID: "SUB-3"}
+	resRel, err := tcGate.Evaluate(ctxRel)
+	if err != nil || !resRel.Passed || !strings.Contains(resRel.Message, "Go(go test -cover)") {
+		t.Fatalf("expected initial relative run to execute go test -cover, got err=%v res=%+v", err, resRel)
+	}
+
+	// 2. Run using absolute worktree path (simulating 'nomos task sync' executeGateCheckForTask) -> MUST hit receipt cache!
+	ctxAbs := &VerifyContext{RepoRoot: repoDir, WorktreePath: wtDir, TaskID: "SUB-3"}
+	resAbs, err := tcGate.Evaluate(ctxAbs)
+	if err != nil || !resAbs.Passed || !strings.Contains(resAbs.Message, "Go(receipt cache)") {
+		t.Fatalf("expected absolute worktree path to hit canonicalized receipt cache, got err=%v res=%+v", err, resAbs)
+	}
+
+	// 3. Commit in worktree, fast-forward merge onto main, and verify trunk hits the exact same tree-hash receipt!
+	if out, cErr := workspace.SafeGitCommand(wtDir, "add", "-A").CombinedOutput(); cErr != nil {
+		t.Fatalf("git add: %v (%s)", cErr, string(out))
+	}
+	if out, cErr := workspace.SafeGitCommand(wtDir, "commit", "-m", "[SUB-3] add Mul").CombinedOutput(); cErr != nil {
+		t.Fatalf("git commit: %v (%s)", cErr, string(out))
+	}
+	if out, mErr := workspace.SafeGitCommand(repoDir, "merge", "--ff-only", "feature/SUB-3").CombinedOutput(); mErr != nil {
+		t.Fatalf("git merge --ff-only: %v (%s)", mErr, string(out))
+	}
+	ctxTrunk := &VerifyContext{RepoRoot: repoDir, WorktreePath: repoDir, IsBaseline: true}
+	resTrunk, err := tcGate.Evaluate(ctxTrunk)
+	if err != nil || !resTrunk.Passed || !strings.Contains(resTrunk.Message, "Go(receipt cache)") {
+		t.Fatalf("expected fast-forwarded trunk to hit tree-hash receipt cache without re-running tests, got err=%v res=%+v", err, resTrunk)
+	}
+}
+

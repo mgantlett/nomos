@@ -79,14 +79,14 @@ func runVerification(targetDir, commitRange string, baseline, allFiles, strict b
 }
 
 func runVerificationOutput(out io.Writer, targetDir, commitRange string, baseline, allFiles, strict, jsonOutput bool) error {
+	if abs, err := filepath.Abs(targetDir); err == nil {
+		targetDir = abs
+	}
 	repoRoot, err := workspace.FindRepoRoot(targetDir)
 	if err != nil {
 		repoRoot = targetDir
 	}
 	cleanTarget := filepath.ToSlash(targetDir)
-	if abs, err := filepath.Abs(targetDir); err == nil {
-		cleanTarget = filepath.ToSlash(abs)
-	}
 	if !baseline && !strings.Contains(cleanTarget, "/worktrees/") {
 		baseline = true
 	}

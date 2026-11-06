@@ -120,8 +120,9 @@ func (g *GoToolchainGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	}
 	targetDir := resolveGoTargetDir(root)
 	var stacks []string
+	var rec *ToolchainSuiteReceipt
 	if targetDir != "" {
-		rec := evaluateSharedGoSuite(ctx, root, targetDir)
+		rec = evaluateSharedGoSuite(ctx, root, targetDir)
 		if !rec.GoPassed {
 			return &GateResult{
 				GateName: g.Name(),
@@ -133,7 +134,7 @@ func (g *GoToolchainGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		stacks = append(stacks, formatGoToolchainStackLabel(rec))
 	}
 
-	polyStacks, polyFail := evaluatePolyglotToolchains(ctx, root)
+	polyStacks, polyFail := evaluateOrReusePolyglotToolchains(ctx, root, rec)
 	if polyFail != nil {
 		return polyFail, nil
 	}
@@ -142,6 +143,22 @@ func (g *GoToolchainGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		return &GateResult{GateName: g.Name(), Passed: true, Message: "no Go or polyglot toolchain module detected in scope"}, nil
 	}
 	return &GateResult{GateName: g.Name(), Passed: true, Message: fmt.Sprintf("verified toolchains: %s", strings.Join(stacks, ", "))}, nil
+}
+
+func evaluateOrReusePolyglotToolchains(ctx *VerifyContext, root string, rec *ToolchainSuiteReceipt) ([]string, *GateResult) {
+	if rec != nil && rec.CacheHit && rec.PolyglotVerified && canUseToolchainReceiptCache(ctx) {
+		return rec.PolyglotStacks, nil
+	}
+	polyStacks, polyFail := evaluatePolyglotToolchains(ctx, root)
+	if polyFail != nil {
+		return nil, polyFail
+	}
+	if rec != nil && rec.GoPassed && !rec.GoSkippedNonGo && rec.SnapshotSHA256 != "" {
+		rec.PolyglotVerified = true
+		rec.PolyglotStacks = polyStacks
+		trySaveDiskReceipt(ctx, rec.SnapshotSHA256, rec)
+	}
+	return polyStacks, nil
 }
 
 func formatGoToolchainStackLabel(rec *ToolchainSuiteReceipt) string {

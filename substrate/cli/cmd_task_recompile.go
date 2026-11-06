@@ -121,9 +121,9 @@ func buildTargetsAtomically(substrateDir, binDir string, targets []string) {
 func compileSingleTarget(substrateDir, binDir, name string) {
 	tmpBin := filepath.Join(binDir, fmt.Sprintf(".tmp_%s_%d", name, os.Getpid()))
 	targetBin := filepath.Join(binDir, name)
-	buildCmd := exec.Command("go", "build", "-o", tmpBin, "./cmd/"+name)
+	buildCmd := exec.Command("go", "build", "-trimpath", "-ldflags=-s -w", "-o", tmpBin, "./cmd/"+name)
 	buildCmd.Dir = substrateDir
-	buildCmd.Env = os.Environ()
+	buildCmd.Env = buildStaticRecompileEnv(os.Environ())
 
 	if out, bErr := buildCmd.CombinedOutput(); bErr != nil {
 		removeBestEffort(tmpBin)
@@ -141,6 +141,20 @@ func compileSingleTarget(substrateDir, binDir, name string) {
 		return
 	}
 	fmt.Printf("✅ Recompiled and installed %s (SSoT)\n", targetBin)
+}
+
+// buildStaticRecompileEnv enforces zero-CGO static compilation (CGO_ENABLED=0) so
+// recompiled ~/go/bin binaries never link against host-specific dynamic interpreters
+// (such as NixOS /nix/store/.../ld-linux) and execute portably across Linux containers.
+func buildStaticRecompileEnv(baseEnv []string) []string {
+	filtered := make([]string, 0, len(baseEnv)+1)
+	for _, entry := range baseEnv {
+		if strings.HasPrefix(entry, "CGO_ENABLED=") {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	return append(filtered, "CGO_ENABLED=0")
 }
 
 func removeBestEffort(path string) {
