@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [v4.9.0] - 2026-11-06
+
+> First-Class Ruby & Rails Polyglot AST Gating, Shell-Segment Sentinel Tokenizer, Mneme Locality Boost, RLVR/DPO Session Export & Flat 39-Spec Blueprint (Apache 2.0)
+
+### First-Class Ruby & Rails Polyglot AST Verification (`nomos verify`)
+- **Embedded `ruby.scm` & Structural Ruby Scanner**: Adds first-class `.rb` and `.rake` verification covering `def`, singleton `def self.*`, predicate/bang/setter methods, Ruby 3 endless methods (`def valid? = ...`), SQL/HTML heredoc (`<<~SQL`) and `=begin`/`=end` stripping, modifier `if`/`unless`/`while`/`until` disambiguation, cyclomatic complexity, and `raise NotImplementedError` / empty-block anti-shim rejection.
+- **RSpec/Minitest Skip Guards & Rails Impact Mapping**: Rejects skipped test declarations (`xit`, `xdescribe`, `xcontext`, Minitest `skip`), maps Rails `app/<layer>/<name>.rb` edits directly to paired `spec/` and `test/` suites, and validates syntax via `RubyVM::InstructionSequence.compile_file`.
+
+### Sentinel Shell-Segment Tokenizer, Mneme Locality & Session Export (`nomos hook`, `nomos mem`, `nomos session`)
+- **Shell-Segment-Aware `evalHermeticWorktree`**: Tokenizes chained shell segments (`&&`, `;`, `||`, `|`, `\n`), tracks sequential `cd <dir>` state and `git -C <dir>` targets when ambient working directory metadata is absent, and ignores quoted `git commit` strings inside read-only search commands.
+- **Mneme Repo-Locality Boost & Global Axiom Cap**: Applies a `1.25x` ranking boost to exact `repo_id` matches during scoped recall and caps unscoped `global` `axiom` slots at `max(1, limit/3)` with sparse backfill.
+- **Joined `nomos session export` & Churn Advisories**: Synthesizes RLVR/DPO-ready trajectory datasets joined with `refs/notes/nomos/releases` receipts and adds `PostToolUse` slow-step timeout plus high-churn worktree checkpoint advisories.
+
+### Canonical Intent Blueprint, Mermaid Guards & GoReleaser Changelog Pipeline (`IntentSteelmanGate`)
+- **Flat 39-Spec Steel-Man Singularity**: Consolidates all 39 canonical specifications under `intent/architecture/specs/*_spec.md` on a single 1-indexed NCTE-100 blueprint with compiled Go SSoT contracts, `TC-*` verification vectors, Mermaid syntax validation, and orphan-state guards.
+- **Automated `CHANGELOG.md` Release Pipeline**: Bundles root `CHANGELOG.md` into release archives and extracts matching `## [vX.Y.Z]` sections directly into GoReleaser GitHub Releases (`release.yaml`), failing closed if release notes are missing.
+
+---
+
 ## [v4.8.0] - 2026-11-05
 
 > Verified Host/Tool-Health Snapshots, Receipt-Trace Parity, Configurable Model-Profile Advisories & Terminal-Bench 2.0 Harbor Results (Apache 2.0)
