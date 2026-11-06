@@ -6,10 +6,12 @@
 
 **Agents guess; Git cannot. The transactional governance harness between any coding agent and your repository.**
 
+[![CI](https://github.com/mgantlett/nomos/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/mgantlett/nomos/actions/workflows/ci.yaml)
+[![Release](https://img.shields.io/github/v/release/mgantlett/nomos?color=0EA5E9)](https://github.com/mgantlett/nomos/releases/latest)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/mgantlett/nomos?filename=substrate%2Fgo.mod&logo=go&logoColor=white)](substrate/go.mod)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Go Version](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white)](https://go.dev/)
-[![Polyglot Gates](https://img.shields.io/badge/AST_%26_Toolchains-Go_%7C_TS_%7C_Py_%7C_Rust_%7C_C_%7C_JVM_%7C_C%23-654FF0)](intent/architecture/specs/seven_laws_canonical_gate_matrix_spec.md)
-[![Quality Gates](https://img.shields.io/badge/DoD_Gates-42_Enforced-success)](intent/architecture/specs/seven_laws_canonical_gate_matrix_spec.md)
+[![Docs](https://img.shields.io/badge/Docs-sophialabs.ca-0EA5E9)](https://sophialabs.ca/docs/introduction)
+[![Discord](https://img.shields.io/badge/Discord-Community-5865F2?logo=discord&logoColor=white)](https://sophialabs.ca/go/discord)
 
 </div>
 
@@ -108,7 +110,7 @@ nomos task sync SUB-1 -F .tmp/walkthrough.md       # 3. Agent atomically merges 
 | **Capability-Flow & Zero-Trust MCP IFC** | `nomos hook pre-tool \| session-start` | Tracks multi-turn compositional taint (`CapabilityFlowGraph`) across web ingress, local credentials, and release/exfiltration sinks, and enforces zero-trust MCP server allow/block lists, secret payload guards, and cross-server escalation blocks. | [`capability_flow_taint_guard_spec.md`](intent/architecture/specs/capability_flow_taint_guard_spec.md) · [`zero_trust_mcp_ifc_spec.md`](intent/architecture/specs/zero_trust_mcp_ifc_spec.md) |
 | **Phase Discipline & Worktrees** | `nomos task chore \| pair \| create \| start \| edit \| review \| dag` | Separates `INT-*` spec tasks from `SUB-*` code tasks in a causal DAG wavefront and enforces `IDLE → PLAN → EDIT → REVIEW → SYNC → LEARN` state transitions inside hermetic `worktrees/<repo>-<task>` sandboxes. | [`nomos_hermetic_worktree_spec.md`](intent/architecture/specs/nomos_hermetic_worktree_spec.md) |
 | **42-Gate AST & DoD Engine** | `nomos verify`, `nomos verify proof` | Runs 42 statutory Definition of Done (DoD) quality gates across the 7x3 Canonical Invariant Matrix (21 Cells) via Go AST, `.scm` S-expression query rules, `wazero` WASM linear-memory scanning, polyglot structural scanners, and native toolchain/coverage probes (`tsc`, `pytest`, `cargo`, `cmake`, `gradle`/`mvn`, `dotnet`). | [`seven_laws_canonical_gate_matrix_spec.md`](intent/architecture/specs/seven_laws_canonical_gate_matrix_spec.md) · [`full_dod_gate_suite_and_polyglot_spec.md`](intent/architecture/specs/full_dod_gate_suite_and_polyglot_spec.md) |
-| **Auto-Remediation Directives** | `nomos directive` | Translates gate failures into deterministic JSON/terminal `NomosError` payloads and next-action directives for 1-turn agent self-correction. | [`nomos_actionable_error_framework_spec.md`](intent/architecture/specs/nomos_actionable_error_framework_spec.md) |
+| **Auto-Remediation & NCTE-100 Directives** | `nomos directive`, `nomos directive --lint \| --lexicon` | Translates gate failures into deterministic JSON/terminal `NomosError` payloads for 1-turn agent self-correction and enforces `NCTE-100` Controlled Technical English across specifications and directives. | [`nomos_actionable_error_framework_spec.md`](intent/architecture/specs/nomos_actionable_error_framework_spec.md) · [`nomos_controlled_technical_english_spec.md`](intent/architecture/specs/nomos_controlled_technical_english_spec.md) |
 | **Nomos Mneme Memory** | `nomos mem save \| recall \| list \| dismiss` | Pure-Go SQLite WAL + hybrid 64-dim vector & lexical memory bank (`mneme.db`) scoped per repository (`repo_id`) so agents retain architectural decisions across sessions. | [`mneme_memory_spec.md`](intent/architecture/specs/mneme_memory_spec.md) |
 | **Atomic 2PC Sync & Git Notes** | `nomos task sync`, `nomos verify proof` | Two-Phase Commit release to `main` with mandatory walkthrough synthesis and immutable `refs/notes/nomos/releases` provenance receipts. | [`task_lifecycle_cli_spec.md`](intent/architecture/specs/task_lifecycle_cli_spec.md) |
 | **Git Hooks & Sanitized Issues** | `nomos issue` | Self-healing pre-commit/commit-msg/pre-push defense hooks and zero-leak sanitized diagnostic issue reporting. | [`git_hooks_and_commit_schema_spec.md`](intent/architecture/specs/git_hooks_and_commit_schema_spec.md) |
@@ -143,7 +145,7 @@ Nomos is engineered so deterministic governance adds sub-second overhead on ever
 | **Adversarial Fail-Closed Suite (`VEC-TTB-01..07`)** | **`7/7` vectors blocked in `1.98s`** | [`cleanroom_tracetrial_bench_test.go`](substrate/cli/cleanroom_tracetrial_bench_test.go) (`go test ./cli -run TestTraceTrialBench`) |
 | **Config & Boundary Tamper Resistance** | **`0` trunk leaks** | Worktree edits to `nomos.yaml` fail closed against pinned `main`; mid-2PC gate panics abort before `main` fast-forwards |
 | **Nomos Mneme Hybrid Memory Recall** | **`< 50 ms` local query** | 64-dim vector + lexical SQLite recall (`mneme.db`); promotes `pattern` blueprints only after verified 2PC `Git Notes` release |
-| **Open-Core Automated Test Suite** | **`285` tests + `6` cleanroom suites** | Pure Apache 2.0 local test execution with zero cloud or telemetry dependencies |
+| **Open-Core Automated Test Suite** | **`645` tests across `16` packages + `6` cleanroom suites** | Pure Apache 2.0 local test execution with zero cloud or telemetry dependencies |
 
 ### Terminal-Bench 2.0 Controlled A/B ([`Harbor`](https://github.com/harbor-framework/harbor) · [`nomos-harbor`](https://github.com/mgantlett/nomos-harbor) · `89 / 89` Tasks)
 
@@ -163,7 +165,7 @@ Across all 95 containerized tasks in [*Trial by Trace* (`TraceTrial-Bench`, `arX
 
 ## 🧭 Open-Core Boundary
 
-Nomos Community Edition is **100% open-source under Apache 2.0** with zero telemetry, zero cloud account requirements, and zero crippled CLI commands. Every single-developer and single-repository governance capability runs locally out of the box (see [`open_core_license_spec.md`](intent/architecture/specs/open_core_license_spec.md)):
+Nomos Community Edition is **100% open-source under Apache 2.0** with zero telemetry, zero cloud account requirements, and zero crippled CLI commands. Every single-developer and single-repository governance capability runs locally out of the box (see [`LICENSE`](LICENSE), [`NOTICE`](NOTICE), and [`agent_tiers_and_indirect_control_spec.md`](intent/architecture/specs/agent_tiers_and_indirect_control_spec.md)):
 
 | Capability Layer | Nomos Community Edition (Apache 2.0) | SophiaLabs Sovereign Enterprise |
 | :--- | :--- | :--- |

@@ -52,10 +52,10 @@ This specification formalizes the **Polyglot AST Validation Engine**:
 ```mermaid
 flowchart TD
     A[nomos verify] --> B{Detect File Extension}
-    B -- .go --> C[Go Token FileSet Parser (go/ast)]
+    B -- .go --> C["Go Token FileSet Parser (go/ast)"]
     B -- .ts, .tsx, .js, .jsx, .svelte --> D[Tree-sitter Polyglot Parser]
     
-    C --> E[Go AST Quality Gates (Coverage, Anti-Shim, CDS)]
+    C --> E["Go AST Quality Gates (Coverage, Anti-Shim, CDS)"]
     D --> F["Cell 5.1: Magic Strings & Ports (magic_strings)"]
     D --> G["Cell 5.1: Sovereign IP Leak (ip_leak)"]
     D --> H["Cell 5.1: Magic String Duplication (magic_string_duplication)"]
