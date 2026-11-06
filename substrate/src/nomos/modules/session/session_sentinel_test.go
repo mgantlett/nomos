@@ -65,3 +65,46 @@ func TestEvaluateSentinelViolations(t *testing.T) {
 		t.Errorf("expected multiple violations, got %d", len(sc.Violations))
 	}
 }
+
+func TestEvaluateSentinel_HermeticWorktreeShellSegmentsAndQuotedGrep(t *testing.T) {
+	tempDir := t.TempDir()
+	repoDir := filepath.Join(tempDir, "nomos")
+
+	cleanCases := []struct {
+		name string
+		line string
+	}{
+		{
+			name: "chained_cd_into_worktree_before_git_commit",
+			line: `{"tool_calls":[{"name":"run_command","args":{"CommandLine":"cd /home/dev/nomos/worktrees/nomos-INT-930 && git add . && git commit -m \"docs: update spec\"","Cwd":""}}]}`,
+		},
+		{
+			name: "git_dash_C_worktree_commit",
+			line: `{"tool_calls":[{"name":"run_command","args":{"CommandLine":"git -C worktrees/nomos-SUB-1806 commit -m \"feat: add guard\"","Cwd":"` + repoDir + `"}}]}`,
+		},
+		{
+			name: "quoted_grep_searching_for_git_commit",
+			line: `{"tool_calls":[{"name":"run_command","args":{"CommandLine":"grep \"git commit\" transcript_full.jsonl | head -n 5","Cwd":""}}]}`,
+		},
+		{
+			name: "python_inline_mentioning_git_commit",
+			line: `{"tool_calls":[{"name":"run_command","args":{"CommandLine":"python3 -c 'print(\"git commit\")'","Cwd":""}}]}`,
+		},
+	}
+
+	for _, tc := range cleanCases {
+		t.Run(tc.name, func(t *testing.T) {
+			detail := &SessionDetail{AgentSession: AgentSession{ID: "sess-" + tc.name, Status: "ACTIVE"}}
+			sc := EvaluateSentinel(detail, []string{tc.line}, repoDir)
+			if sc.OverallScore != 100 || sc.IntegrityStatus != "CLEAN" {
+				t.Fatalf("%s: expected CLEAN (100), got %s (%d): %v", tc.name, sc.IntegrityStatus, sc.OverallScore, sc.Violations)
+			}
+		})
+	}
+
+	trunkLine := `{"tool_calls":[{"name":"run_command","args":{"CommandLine":"git add README.md && git commit -m \"direct trunk commit\"","Cwd":""}}]}`
+	scTrunk := EvaluateSentinel(&SessionDetail{AgentSession: AgentSession{ID: "sess-trunk", Status: "ACTIVE"}}, []string{trunkLine}, repoDir)
+	if scTrunk.OverallScore != 80 || scTrunk.IntegrityStatus != "SUSPICIOUS" {
+		t.Fatalf("expected SUSPICIOUS (80) on unquoted trunk git commit, got %s (%d)", scTrunk.IntegrityStatus, scTrunk.OverallScore)
+	}
+}

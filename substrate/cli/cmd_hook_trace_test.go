@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func runInternalHook(t *testing.T, args []string, payload map[string]any) string {
@@ -184,5 +185,102 @@ func TestReceiptTraceParity_GracefulManualSyncAndContradictionGuards(t *testing.
 	clearHookSessionTrace(wtDir)
 	if tr := loadHookSessionTrace(wtDir); tr != nil {
 		t.Fatalf("expected clearHookSessionTrace to remove worktree trace file")
+	}
+}
+
+func TestHookPostTool_SlowStepTimeoutGuardAndExplicitTimeoutSkip(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	sandboxDir := t.TempDir()
+	now := time.Now().Unix()
+
+	p := &HookPayload{SessionID: "sess-slow-1", CommandLine: "pytest -q"}
+	statePath := resolveBudgetStateFilePath(p, sandboxDir)
+	saveBudgetState(statePath, sessionBudgetState{
+		StartedUnix:     now - 60,
+		LastPreToolUnix: now - 50,
+	})
+
+	// 1. Explicit 'timeout' command skips slow-step warning
+	skipOut := runInternalHook(t, []string{"post-tool", "--hermetic-dir", sandboxDir, "--budget-sec", "180"}, map[string]any{
+		"session_id":      "sess-slow-1",
+		"hook_event_name": "PostToolUse",
+		"tool_name":       "Bash",
+		"tool_input":      map[string]any{"command": "timeout 60s pytest -q"},
+		"tool_response":   map[string]any{"stdout": "ok\n"},
+	})
+	if skipOut != "{}" {
+		t.Fatalf("TC-LRN-13: expected explicit timeout command to skip slow-step advisory, got %s", skipOut)
+	}
+
+	// 2. Unbounded 50s shell step emits slow-step timeout radar once and deduplicates on repeat
+	saveBudgetState(statePath, sessionBudgetState{
+		StartedUnix:     now - 60,
+		LastPreToolUnix: now - 50,
+	})
+	first := runInternalHook(t, []string{"post-tool", "--hermetic-dir", sandboxDir, "--budget-sec", "180"}, map[string]any{
+		"session_id":      "sess-slow-1",
+		"hook_event_name": "PostToolUse",
+		"tool_name":       "Bash",
+		"tool_input":      map[string]any{"command": "pytest -q"},
+		"tool_response":   map[string]any{"stdout": "ok\n"},
+	})
+	if !strings.Contains(first, "[Nomos Slow-Step Timeout Radar]") || !strings.Contains(first, "timeout ") {
+		t.Fatalf("TC-LRN-13: expected slow-step timeout advisory, got %s", first)
+	}
+
+	st := loadBudgetState(statePath)
+	st.LastPreToolUnix = now - 55
+	saveBudgetState(statePath, st)
+	repeat := runInternalHook(t, []string{"post-tool", "--hermetic-dir", sandboxDir, "--budget-sec", "180"}, map[string]any{
+		"session_id":      "sess-slow-1",
+		"hook_event_name": "PostToolUse",
+		"tool_name":       "Bash",
+		"tool_input":      map[string]any{"command": "pytest -q"},
+		"tool_response":   map[string]any{"stdout": "ok\n"},
+	})
+	if repeat != "{}" {
+		t.Fatalf("TC-LRN-13: expected deduplicated '{}' on second slow step, got %s", repeat)
+	}
+}
+
+func TestHookPostTool_WorktreeChurnCheckpointsAndVerifyReset(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	wtDir := filepath.Join(t.TempDir(), "worktrees", "demo-SUB-88")
+	if err := os.MkdirAll(wtDir, 0755); err != nil {
+		t.Fatalf("mkdir wtDir: %v", err)
+	}
+	payload := map[string]any{
+		"session_id":      "sess-churn-88",
+		"hook_event_name": "PostToolUse",
+		"cwd":             wtDir,
+		"tool_name":       "Bash",
+		"tool_input":      map[string]any{"command": "git status --short"},
+		"tool_response":   map[string]any{"stdout": ""},
+	}
+	for i := 1; i <= 74; i++ {
+		if out := runInternalHook(t, []string{"post-tool"}, payload); out != "{}" {
+			t.Fatalf("expected silent '{}' at call %d, got %s", i, out)
+		}
+	}
+	warn75 := runInternalHook(t, []string{"post-tool"}, payload)
+	if !strings.Contains(warn75, "[Nomos Worktree Churn Radar]") || !strings.Contains(warn75, "75") {
+		t.Fatalf("TC-LRN-13: expected 75-call churn advisory, got %s", warn75)
+	}
+	if out76 := runInternalHook(t, []string{"post-tool"}, payload); out76 != "{}" {
+		t.Fatalf("TC-LRN-13: expected silent '{}' at call 76, got %s", out76)
+	}
+	verifyPayload := map[string]any{
+		"session_id":      "sess-churn-88",
+		"hook_event_name": "PostToolUse",
+		"cwd":             wtDir,
+		"tool_name":       "Bash",
+		"tool_input":      map[string]any{"command": "nomos verify"},
+		"tool_response":   map[string]any{"stdout": "42/42 passed"},
+	}
+	if vOut := runInternalHook(t, []string{"post-tool"}, verifyPayload); vOut != "{}" {
+		t.Fatalf("expected silent '{}' on nomos verify, got %s", vOut)
+	}
+	if tr := loadHookSessionTrace(wtDir); tr == nil || tr.UnverifiedCalls != 0 || tr.WarnedChurn75 {
+		t.Fatalf("TC-LRN-13: expected nomos verify to reset churn state, got %+v", tr)
 	}
 }

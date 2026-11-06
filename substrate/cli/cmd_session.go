@@ -28,6 +28,7 @@ can distinguish active mission contexts across AGY-IDE, AGY-CLI, Claude Code, an
 	sessionCmd.AddCommand(newSessionListCmd())
 	sessionCmd.AddCommand(newSessionVisualCmd())
 	sessionCmd.AddCommand(newSessionShowCmd())
+	sessionCmd.AddCommand(newSessionExportCmd())
 	return sessionCmd
 }
 

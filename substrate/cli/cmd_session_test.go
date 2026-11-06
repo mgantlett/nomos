@@ -75,4 +75,16 @@ func TestSessionCmd_ListAndVisualAndShow(t *testing.T) {
 	if err := json.Unmarshal(metaBytes, &meta); err != nil || meta.Name != "Release Architecture Lead" {
 		t.Errorf("expected session name %q, got %q", "Release Architecture Lead", meta.Name)
 	}
+
+	// 5. Test session export (JSONL and --json)
+	cmdExport := NewSessionCmd()
+	bufExport := new(bytes.Buffer)
+	cmdExport.SetOut(bufExport)
+	cmdExport.SetArgs([]string{"export", "--brain", tempBrain, "--limit", "5", "--json"})
+	if err := cmdExport.Execute(); err != nil {
+		t.Fatalf("session export failed: %v", err)
+	}
+	if !strings.Contains(bufExport.String(), sessID) {
+		t.Fatalf("expected exported JSON to contain %s, got %s", sessID, bufExport.String())
+	}
 }

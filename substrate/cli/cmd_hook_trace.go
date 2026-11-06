@@ -22,6 +22,9 @@ type hookSessionTrace struct {
 	ShellCommandsCount  int      `json:"shell_commands_count"`
 	TestCommandsCount   int      `json:"test_commands_count"`
 	DeniedInterceptions int      `json:"denied_interceptions"`
+	UnverifiedCalls     int      `json:"unverified_calls,omitempty"`
+	WarnedChurn75       bool     `json:"warned_churn_75,omitempty"`
+	WarnedChurn150      bool     `json:"warned_churn_150,omitempty"`
 	MutatedFiles        []string `json:"mutated_files,omitempty"`
 }
 
@@ -50,8 +53,59 @@ func recordPreToolSessionTrace(p *HookPayload, hermeticDir string, denied bool) 
 		return
 	}
 	tr.ToolCallsCount++
+	if isNomosVerificationCommand(p.CommandLine) {
+		resetWorktreeChurnCounters(&tr)
+	}
 	recordTracePayloadDetails(&tr, p, wtRoot)
 	saveHookSessionTrace(path, tr)
+}
+
+// evaluateWorktreeChurnAdvisory tracks unverified PostToolUse calls inside an active task worktree
+// and emits non-blocking advisories at 75 and 150 calls since the last 'nomos verify' run.
+func evaluateWorktreeChurnAdvisory(p *HookPayload, hermeticDir, style string) string {
+	if p == nil || p.IsPostInvoke {
+		return ""
+	}
+	wtRoot := resolveWorktreeTraceRoot(p, hermeticDir)
+	if wtRoot == "" {
+		return ""
+	}
+	path := resolveTraceStateFilePath(wtRoot)
+	if path == "" {
+		return ""
+	}
+	tr := loadOrInitHookSessionTrace(path, wtRoot)
+	if isNomosVerificationCommand(p.CommandLine) {
+		resetWorktreeChurnCounters(&tr)
+		saveHookSessionTrace(path, tr)
+		return ""
+	}
+	tr.UnverifiedCalls++
+	var msg string
+	if tr.UnverifiedCalls >= 150 && !tr.WarnedChurn150 {
+		tr.WarnedChurn75 = true
+		tr.WarnedChurn150 = true
+		msg = formatWorktreeChurnAdvisory(tr.UnverifiedCalls, style)
+	} else if tr.UnverifiedCalls >= 75 && !tr.WarnedChurn75 {
+		tr.WarnedChurn75 = true
+		msg = formatWorktreeChurnAdvisory(tr.UnverifiedCalls, style)
+	}
+	saveHookSessionTrace(path, tr)
+	return msg
+}
+
+func resetWorktreeChurnCounters(tr *hookSessionTrace) {
+	tr.UnverifiedCalls = 0
+	tr.WarnedChurn75 = false
+	tr.WarnedChurn150 = false
+}
+
+func isNomosVerificationCommand(cmdLine string) bool {
+	lower := strings.ToLower(strings.TrimSpace(cmdLine))
+	if lower == "" {
+		return false
+	}
+	return hasAnySubstring(lower, "nomos verify", "nomos task review", "nomos task sync")
 }
 
 // recordPostToolSessionTrace records PostToolUse file mutations or shell runs when PreToolUse was not invoked.

@@ -120,6 +120,11 @@ integrity scoring for a specific or active Tier 1 agent conversation session.`
 	helpSessionShowExample = `  nomos session show
   nomos session show 12579ec0 --json`
 
+	helpSessionExportLong = `Synthesize RLVR, DPO, and SFT dataset records by joining Tier 1 session trajectories,
+Sentinel process-reward scorecards, Git Notes release receipts, and Mneme pitfalls/patterns.`
+	helpSessionExportExample = `  nomos session export --limit 25
+  nomos session export --limit 10 --json`
+
 	helpIssueExample = `  nomos issue --dry-run "CLI flag mismatch"
   nomos issue "Verify gate timeout" --body "Observed on large monorepo"`
 

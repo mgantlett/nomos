@@ -41,6 +41,20 @@ func TestValidateReleaseNote(t *testing.T) {
 	if err := ValidateReleaseNote(badPhase); err == nil {
 		t.Errorf("expected non-SYNC phase to fail validation")
 	}
+
+	// Optional SessionID + HookTrace preserve receipt validity
+	withTrace := valid
+	withTrace.SessionID = "sess-1234"
+	withTrace.HookTrace = &ReleaseHookTrace{
+		ToolCallsCount:      12,
+		ShellCommandsCount:  4,
+		TestCommandsCount:   2,
+		DeniedInterceptions: 1,
+		MutatedFiles:        []string{"substrate/cli/cmd_hook.go"},
+	}
+	if err := ValidateReleaseNote(withTrace); err != nil {
+		t.Fatalf("expected release note with HookTrace to validate cleanly: %v", err)
+	}
 }
 
 func TestComputeReleaseReceipt(t *testing.T) {

@@ -116,15 +116,13 @@ func calculateScorecardStatus(sc *SentinelScorecard) {
 
 func evalHermeticWorktree(detail *SessionDetail, invocations []toolInvocation) InvariantResult {
 	for _, inv := range invocations {
-		if strings.Contains(inv.CommandLine, "git commit") && !strings.Contains(inv.CommandLine, "nomos task") {
-			if !strings.Contains(inv.Cwd, "worktrees/") {
-				return InvariantResult{
-					ID:         "LAW-3-HERMETIC",
-					Name:       "Hermetic Worktree (Law 3)",
-					Passed:     false,
-					Evidence:   "Direct git commit attempted on protected trunk without worktree",
-					RemedyHint: "Execute mutations strictly inside isolated task worktrees via nomos task chore/start",
-				}
+		if hasUnscopedGitCommitInvocation(inv.CommandLine, inv.Cwd) {
+			return InvariantResult{
+				ID:         "LAW-3-HERMETIC",
+				Name:       "Hermetic Worktree (Law 3)",
+				Passed:     false,
+				Evidence:   "Direct git commit attempted on protected trunk without worktree",
+				RemedyHint: "Execute mutations strictly inside isolated task worktrees via nomos task chore/start",
 			}
 		}
 	}

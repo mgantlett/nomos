@@ -9,6 +9,7 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/storage"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/session"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/task"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify"
 	"github.com/spf13/cobra"
@@ -93,7 +94,7 @@ func finalizeSync(key, walkthroughPath string, report *verify.PipelineReport) er
 		return err
 	}
 
-	recordReleaseReceipt(mgr.RepoRoot, key, walkthroughPath, now, report)
+	recordReleaseReceipt(mgr.RepoRoot, wtPath, key, walkthroughPath, now, report)
 	revokeActiveLease(key)
 	distillAndMaintainOnSync(mgr.RepoRoot, key, walkthroughPath, touchedFiles)
 	clearHookSessionTrace(wtPath)
@@ -150,7 +151,7 @@ func fastForwardTrunkMerge(repoRoot, branch string) error {
 	return nil
 }
 
-func recordReleaseReceipt(repoRoot, key, walkthroughPath, now string, report *verify.PipelineReport) {
+func recordReleaseReceipt(repoRoot, wtPath, key, walkthroughPath, now string, report *verify.PipelineReport) {
 	revCmd := workspace.SafeGitCommand(repoRoot, "rev-parse", "HEAD")
 	revOut, err := revCmd.Output()
 	if err != nil {
@@ -176,6 +177,8 @@ func recordReleaseReceipt(repoRoot, key, walkthroughPath, now string, report *ve
 		Phase:              "SYNC",
 		DoDGatesPassed:     gatesPassed,
 		CapBACTokenID:      tokenID,
+		SessionID:          resolveTaskSyncSessionID(repoRoot, key),
+		HookTrace:          buildReleaseHookTraceSnapshot(wtPath),
 		WalkthroughContent: walkthroughContent,
 		SHA256Receipt:      receipt,
 	}
@@ -246,4 +249,37 @@ func autoCommitDirtyWorktree(wtPath, key string, rec *task.TaskRecord, walkthrou
 		autoStage:       true,
 	}
 	return runTaskCommitCmd([]string{key}, opts)
+}
+
+func resolveTaskSyncSessionID(repoRoot, key string) string {
+	if envID := strings.TrimSpace(os.Getenv("NOMOS_SESSION_ID")); envID != "" {
+		return envID
+	}
+	sessions, err := session.DiscoverSessions("", repoRoot)
+	if err != nil {
+		return ""
+	}
+	for _, s := range sessions {
+		if strings.EqualFold(strings.TrimSpace(s.TaskKey), key) {
+			return s.ID
+		}
+	}
+	return ""
+}
+
+func buildReleaseHookTraceSnapshot(wtPath string) *task.ReleaseHookTrace {
+	tr := loadHookSessionTrace(wtPath)
+	if tr == nil {
+		return nil
+	}
+	if tr.ToolCallsCount == 0 && tr.ShellCommandsCount == 0 && tr.DeniedInterceptions == 0 && len(tr.MutatedFiles) == 0 {
+		return nil
+	}
+	return &task.ReleaseHookTrace{
+		ToolCallsCount:      tr.ToolCallsCount,
+		ShellCommandsCount:  tr.ShellCommandsCount,
+		TestCommandsCount:   tr.TestCommandsCount,
+		DeniedInterceptions: tr.DeniedInterceptions,
+		MutatedFiles:        tr.MutatedFiles,
+	}
 }

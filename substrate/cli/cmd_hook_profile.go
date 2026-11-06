@@ -111,21 +111,49 @@ func clampAdvisoryInt(val, lo, hi int) int {
 
 // formatBudgetCheckpointAdvisory renders either standard or terse wall-clock budget guidance.
 func formatBudgetCheckpointAdvisory(pct, elapsed, budgetSec int, critical bool, style string) string {
+	rem := budgetSec - elapsed
+	if rem < 0 {
+		rem = 0
+	}
 	if style == advisoryStyleTerse {
 		if critical {
-			return fmt.Sprintf("🚨 [Nomos Budget] %d%% (%ds/%ds): finalize and run final verification now.", pct, elapsed, budgetSec)
+			return fmt.Sprintf("🚨 [Nomos Budget] %d%% (%ds/%ds, %ds left): finalize and run final verification now.", pct, elapsed, budgetSec, rem)
 		}
-		return fmt.Sprintf("⏱️ [Nomos Budget] %d%% (%ds/%ds): checkpoint working baseline now.", pct, elapsed, budgetSec)
+		return fmt.Sprintf("⏱️ [Nomos Budget] %d%% (%ds/%ds, %ds left): checkpoint working baseline now.", pct, elapsed, budgetSec, rem)
 	}
 	if critical {
 		return fmt.Sprintf(
-			"🚨 [Nomos Budget Radar] %d%% of session time budget elapsed (%ds / %ds): finalize outputs, stop background scratch processes, and run final verification immediately.",
-			pct, elapsed, budgetSec,
+			"🚨 [Nomos Budget Radar] %d%% of session time budget elapsed (%ds / %ds, %ds remaining): finalize outputs, stop background scratch processes, and run final verification immediately.",
+			pct, elapsed, budgetSec, rem,
 		)
 	}
 	return fmt.Sprintf(
-		"⏱️ [Nomos Budget Radar] %d%% of session time budget elapsed (%ds / %ds): commit or verify a working baseline artifact now before further iteration.",
-		pct, elapsed, budgetSec,
+		"⏱️ [Nomos Budget Radar] %d%% of session time budget elapsed (%ds / %ds, %ds remaining): commit or verify a working baseline artifact now and bound heavy commands with timeout.",
+		pct, elapsed, budgetSec, rem,
+	)
+}
+
+func formatSlowStepTimeoutAdvisory(stepSec, remainingSec int, style string) string {
+	bound := remainingSec / 2
+	if bound < 15 {
+		bound = 15
+	}
+	if style == advisoryStyleTerse {
+		return fmt.Sprintf("⏱️ [Nomos Timeout Guard] Step took %ds (%ds left): wrap heavy commands in 'timeout %ds'.", stepSec, remainingSec, bound)
+	}
+	return fmt.Sprintf(
+		"⏱️ [Nomos Slow-Step Timeout Radar] Previous shell command consumed %ds (%ds budget remaining): wrap subsequent heavy build, test, or solver commands in 'timeout %ds <cmd>' to prevent trial timeout.",
+		stepSec, remainingSec, bound,
+	)
+}
+
+func formatWorktreeChurnAdvisory(unverifiedCalls int, style string) string {
+	if style == advisoryStyleTerse {
+		return fmt.Sprintf("🧭 [Nomos Churn] %d unverified worktree calls: run 'nomos verify' now.", unverifiedCalls)
+	}
+	return fmt.Sprintf(
+		"🧭 [Nomos Worktree Churn Radar] %d worktree tool calls elapsed since last verification: run 'nomos verify' now to catch AST, LOC, or complexity drift early.",
+		unverifiedCalls,
 	)
 }
 

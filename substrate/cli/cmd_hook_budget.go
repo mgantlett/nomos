@@ -16,10 +16,12 @@ import (
 
 // sessionBudgetState persists wall-clock budget warnings and deduplicated host-health snapshots per session.
 type sessionBudgetState struct {
-	StartedUnix  int64           `json:"started_unix"`
-	Warned75     bool            `json:"warned_75"`
-	Warned90     bool            `json:"warned_90"`
-	HealthAlerts map[string]bool `json:"health_alerts,omitempty"`
+	StartedUnix     int64           `json:"started_unix"`
+	LastPreToolUnix int64           `json:"last_pre_tool_unix,omitempty"`
+	Warned75        bool            `json:"warned_75"`
+	Warned90        bool            `json:"warned_90"`
+	WarnedSlowStep  bool            `json:"warned_slow_step,omitempty"`
+	HealthAlerts    map[string]bool `json:"health_alerts,omitempty"`
 }
 
 func resolveEffectiveBudgetSeconds(flagSec int) int {
@@ -45,11 +47,12 @@ func ensureSessionBudgetStamp(p *HookPayload, hermeticDir string, budgetSec int)
 	if path == "" {
 		return
 	}
+	nowUnix := time.Now().Unix()
 	st := loadBudgetState(path)
-	if st.StartedUnix > 0 {
-		return
+	if st.StartedUnix <= 0 {
+		st.StartedUnix = nowUnix
 	}
-	st.StartedUnix = time.Now().Unix()
+	st.LastPreToolUnix = nowUnix
 	saveBudgetState(path, st)
 }
 
@@ -88,18 +91,61 @@ func evaluateSessionBudgetRadarWithProfile(p *HookPayload, hermeticDir string, b
 		critPct = defaultBudgetCritPct
 	}
 	pct := (elapsed * 100) / budgetSec
+	var checkpointMsg string
+	dirty := false
 	if pct >= critPct && !st.Warned90 {
 		st.Warned75 = true
 		st.Warned90 = true
-		saveBudgetState(path, st)
-		return formatBudgetCheckpointAdvisory(pct, elapsed, budgetSec, true, profile.AdvisoryStyle)
-	}
-	if pct >= warnPct && !st.Warned75 {
+		dirty = true
+		checkpointMsg = formatBudgetCheckpointAdvisory(pct, elapsed, budgetSec, true, profile.AdvisoryStyle)
+	} else if pct >= warnPct && !st.Warned75 {
 		st.Warned75 = true
-		saveBudgetState(path, st)
-		return formatBudgetCheckpointAdvisory(pct, elapsed, budgetSec, false, profile.AdvisoryStyle)
+		dirty = true
+		checkpointMsg = formatBudgetCheckpointAdvisory(pct, elapsed, budgetSec, false, profile.AdvisoryStyle)
 	}
-	return ""
+	slowMsg := evaluateSlowStepBurn(&st, p, nowUnix, elapsed, budgetSec, profile.AdvisoryStyle, &dirty)
+	if st.LastPreToolUnix != nowUnix {
+		st.LastPreToolUnix = nowUnix
+		dirty = true
+	}
+	if dirty {
+		saveBudgetState(path, st)
+	}
+	return joinHookAdvisories(checkpointMsg, slowMsg)
+}
+
+func evaluateSlowStepBurn(st *sessionBudgetState, p *HookPayload, nowUnix int64, elapsed, budgetSec int, style string, dirty *bool) string {
+	if st.WarnedSlowStep || st.LastPreToolUnix <= 0 || strings.TrimSpace(p.CommandLine) == "" {
+		return ""
+	}
+	if commandUsesExplicitTimeout(p.CommandLine) {
+		return ""
+	}
+	stepSec := int(nowUnix - st.LastPreToolUnix)
+	threshold := budgetSec / 4
+	if threshold < 45 {
+		threshold = 45
+	}
+	if stepSec < threshold {
+		return ""
+	}
+	st.WarnedSlowStep = true
+	*dirty = true
+	rem := budgetSec - elapsed
+	if rem < 0 {
+		rem = 0
+	}
+	return formatSlowStepTimeoutAdvisory(stepSec, rem, style)
+}
+
+func commandUsesExplicitTimeout(cmdLine string) bool {
+	fields := strings.Fields(strings.ToLower(strings.TrimSpace(cmdLine)))
+	idx := skipCommandPrefixes(fields)
+	if idx >= len(fields) {
+		return false
+	}
+	exe := filepath.Base(fields[idx])
+	return exe == "timeout" || exe == "gtimeout"
 }
 
 func resolveBudgetStateFilePath(p *HookPayload, hermeticDir string) string {

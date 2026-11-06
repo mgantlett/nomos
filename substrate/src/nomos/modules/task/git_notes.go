@@ -18,16 +18,27 @@ var (
 	regexSHA256 = regexp.MustCompile(`^[a-f0-9]{64}$`)
 )
 
+// ReleaseHookTrace summarizes verified worktree tool and shell activity sealed at 2PC release (#ReleaseHookTrace).
+type ReleaseHookTrace struct {
+	ToolCallsCount      int      `json:"tool_calls_count"`
+	ShellCommandsCount  int      `json:"shell_commands_count"`
+	TestCommandsCount   int      `json:"test_commands_count"`
+	DeniedInterceptions int      `json:"denied_interceptions"`
+	MutatedFiles        []string `json:"mutated_files,omitempty"`
+}
+
 // ReleaseNotePayload encapsulates the non-repudiation release receipt in Git Notes (#ReleaseNotePayload).
 type ReleaseNotePayload struct {
-	TaskKey            string `json:"task_key"`
-	CommitSHA          string `json:"commit_sha"`
-	Timestamp          string `json:"timestamp"`
-	Phase              string `json:"phase"`
-	DoDGatesPassed     int    `json:"dod_gates_passed"`
-	CapBACTokenID      string `json:"capbac_token_id"`
-	WalkthroughContent string `json:"walkthrough_content"`
-	SHA256Receipt      string `json:"sha256_receipt"`
+	TaskKey            string            `json:"task_key"`
+	CommitSHA          string            `json:"commit_sha"`
+	Timestamp          string            `json:"timestamp"`
+	Phase              string            `json:"phase"`
+	DoDGatesPassed     int               `json:"dod_gates_passed"`
+	CapBACTokenID      string            `json:"capbac_token_id"`
+	SessionID          string            `json:"session_id,omitempty"`
+	HookTrace          *ReleaseHookTrace `json:"hook_trace,omitempty"`
+	WalkthroughContent string            `json:"walkthrough_content"`
+	SHA256Receipt      string            `json:"sha256_receipt"`
 }
 
 // ValidateReleaseNote asserts that a ReleaseNotePayload satisfies structural invariants.

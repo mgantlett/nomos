@@ -139,6 +139,7 @@ func dispatchPreToolHook(payload *HookPayload, hermeticDir string, containerSand
 func dispatchPostToolHook(payload *HookPayload, hermeticDir string, containerSandbox bool, budgetSec int, profile HookAdvisoryProfile) string {
 	recordPostToolSessionTrace(payload, hermeticDir)
 	budgetMsg := evaluateSessionBudgetRadarWithProfile(payload, hermeticDir, budgetSec, profile)
+	churnMsg := evaluateWorktreeChurnAdvisory(payload, hermeticDir, profile.AdvisoryStyle)
 	healthMsg := evaluatePostToolHostHealth(payload, hermeticDir, profile.AdvisoryStyle)
 	var syntaxMsg string
 	if containerSandbox && hermeticDir == "" {
@@ -146,7 +147,8 @@ func dispatchPostToolHook(payload *HookPayload, hermeticDir string, containerSan
 	} else {
 		syntaxMsg = EvaluatePostToolHook(payload, hermeticDir)
 	}
-	return joinHookAdvisories(joinHookAdvisories(budgetMsg, healthMsg), syntaxMsg)
+	combined := joinHookAdvisories(budgetMsg, churnMsg)
+	return joinHookAdvisories(joinHookAdvisories(combined, healthMsg), syntaxMsg)
 }
 
 func writeEmptyJSON(w io.Writer) error {
