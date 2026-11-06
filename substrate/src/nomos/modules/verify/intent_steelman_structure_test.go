@@ -80,6 +80,24 @@ func TestIntentSteelmanStrictBlueprintStructureVectors(t *testing.T) {
 			content:   canonicalStrictSpecFixture + "\nEnforced under ADR-0031 boundary rules.\n",
 			wantError: "dangling 'ADR-XXXX' shorthand",
 		},
+		{
+			name:      "rejects_statediagram_semicolon_orphan_hazard",
+			relPath:   "architecture/specs/mermaid_semi_spec.md",
+			content:   canonicalStrictSpecFixture + "\n```mermaid\nstateDiagram-v2\n    FailClosed --> [*]: Reject release; emit report (Exit 1)\n```\n",
+			wantError: "unescaped ';' in stateDiagram/sequenceDiagram",
+		},
+		{
+			name:      "rejects_flowchart_unquoted_parentheses_node",
+			relPath:   "architecture/specs/mermaid_node_spec.md",
+			content:   canonicalStrictSpecFixture + "\n```mermaid\nflowchart TD\n    A --> B[Go Parser (go/ast)]\n```\n",
+			wantError: "unquoted parentheses inside '[...]' node label",
+		},
+		{
+			name:      "rejects_flowchart_unquoted_edge_parentheses",
+			relPath:   "architecture/specs/mermaid_edge_spec.md",
+			content:   canonicalStrictSpecFixture + "\n```mermaid\nflowchart TD\n    A -->|Events (MESSAGE_CREATE)| B\n```\n",
+			wantError: "inside '|...|' edge label",
+		},
 	}
 
 	opts := intentSteelmanOptions{RequireFrontmatter: true, StrictStandard: true}

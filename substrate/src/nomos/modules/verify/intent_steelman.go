@@ -133,6 +133,9 @@ func auditSingleIntentMarkdownWithOptions(rel, path string, opts intentSteelmanO
 	if hasUnclosedCodeFence(body) {
 		return "unclosed Markdown fenced code block detected"
 	}
+	if mermaidErr := validateMarkdownMermaidBlocks(body); mermaidErr != "" {
+		return mermaidErr
+	}
 	if !hasFM || !opts.StrictStandard {
 		return ""
 	}
