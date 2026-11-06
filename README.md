@@ -145,6 +145,16 @@ Nomos is engineered so deterministic governance adds sub-second overhead on ever
 | **Nomos Mneme Hybrid Memory Recall** | **`< 50 ms` local query** | 64-dim vector + lexical SQLite recall (`mneme.db`); promotes `pattern` blueprints only after verified 2PC `Git Notes` release |
 | **Open-Core Automated Test Suite** | **`285` tests + `6` cleanroom suites** | Pure Apache 2.0 local test execution with zero cloud or telemetry dependencies |
 
+### Terminal-Bench 2.0 Controlled A/B ([`Harbor`](https://github.com/harbor-framework/harbor) · [`nomos-harbor`](https://github.com/mgantlett/nomos-harbor) · `89 / 89` Tasks)
+
+Across all `89` containerized tasks in [`terminal-bench@2.0`](https://github.com/laude-institute/terminal-bench-2) holding `Gemini CLI 0.67.0`, `vertex_ai/gemini-3.5-flash`, and unmodified task timeouts fixed, adding compiled `nomos hook` pre-tool/post-tool governance lifted single-shot `pass@1` from **`65.17%` (`58 / 89`)** to **`70.79%` (`63 / 89`, `+5.62` pp, `0` API crashes)**, and **`84.27%` (`75 / 89`, `+19.10` pp, `pass<=2`)** when resuming the `26` failed trials with `nomos v4.7.0` (`--budget-sec` wall-clock advisories + interactive/binary stdout guards, cutting timeouts from `24` to `13`):
+
+| Arm | Agent Configuration | Score (`89` Tasks) | Lift vs. Control | Timeouts | Public Harbor Hub Trajectories |
+| :--- | :--- | :--- | :--- | :---: | :--- |
+| **Pure Stock Control (`pass@1`)** | Stock `Gemini CLI 0.67.0` (zero Nomos hooks) | **`58 / 89` (`65.17%`)** | Baseline | `24` | [`49f21995-f52a-4f33-837e-a3f86bbfadd0`](https://hub.harborframework.com/jobs/49f21995-f52a-4f33-837e-a3f86bbfadd0) |
+| **Nomos Single-Shot (`pass@1`)** | `Gemini CLI 0.67.0` + `nomos hook` (`--container-sandbox`) | **`63 / 89` (`70.79%`)** | **`+5.62` pp** (`14W / 9L`) | `16` | [`39059e9a-8236-472a-a43b-ab500146abe1`](https://hub.harborframework.com/jobs/39059e9a-8236-472a-a43b-ab500146abe1) |
+| **Nomos `v4.7.0` Resume (`pass<=2`)** | `v4.7.0` Budget Radar + interactive/binary guards resumed on `26` `0.0` trials | **`75 / 89` (`84.27%`)** | **`+19.10` pp** (`20W / 3L`) | `13` | [`6b9f81a5-0750-4242-80f2-0b5d0830355e`](https://hub.harborframework.com/jobs/6b9f81a5-0750-4242-80f2-0b5d0830355e) |
+
 ### External Harness Reliability ([`TraceTrial-Bench`](https://github.com/TraceLite-AI/TraceTrial-Bench) · [`arXiv:2610.32285`](https://arxiv.org/abs/2610.32285))
 
 Across all 95 containerized tasks in [*Trial by Trace* (`TraceTrial-Bench`, `arXiv:2610.32285`)](https://arxiv.org/abs/2610.32285) (`190` paired Docker runs holding `Claude Code v2.1.220` and `Gemini 2.5 Flash-Lite` fixed), adding compiled `~4ms` `nomos hook` governance lifted **Agent deliverables by `+15.2%`** (`+78.3%` in Context & Continuity), lifted **Harness reliability by `+2.51`** (`44.89` → **`48.78`** Overall, `36W / 30T / 29L`), and cut **`harness_caused` failures by `-18.2%`** (`55` → `45`). See the full 7-pillar paired scorecard and engineering takeaways in [`tracetrial_harness_reliability_spec.md`](intent/architecture/specs/core/tracetrial_harness_reliability_spec.md#5-external-containerized-paired-evaluation-v410-n--95).
