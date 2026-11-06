@@ -1,4 +1,4 @@
-// Package verify implements Intent frontmatter validation and AST traceability resolution (Law 4).
+// Package verify implements Intent AST traceability resolution (Law 4).
 package verify
 
 import (
@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-
-	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -19,123 +17,6 @@ var (
 	hashTypeTokenRe      = regexp.MustCompile(`#[A-Za-z0-9_]+`)
 	specFileTokenRe      = regexp.MustCompile(`\b([A-Za-z0-9_-]+\.md)\b`)
 )
-
-type intentFrontmatter struct {
-	Title  string `yaml:"title"`
-	Plane  string `yaml:"plane"`
-	Status string `yaml:"status"`
-}
-
-var (
-	validIntentPlanes = map[string]bool{
-		"intent":    true,
-		"substrate": true,
-	}
-	validIntentStatuses = map[string]bool{
-		"active":     true,
-		"superseded": true,
-		"deprecated": true,
-		"archived":   true,
-	}
-)
-
-func validateIntentDocuments(intentDir string, requireFrontmatter bool) (int, []string) {
-	var docCount int
-	var issues []string
-
-	_ = filepath.Walk(intentDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info == nil || info.IsDir() || !strings.HasSuffix(path, ".md") {
-			return nil
-		}
-		docCount++
-		rel, rErr := filepath.Rel(intentDir, path)
-		if rErr != nil {
-			rel = filepath.Base(path)
-		}
-		rel = filepath.ToSlash(rel)
-		if docErr := auditSingleIntentMarkdown(path, requireFrontmatter); docErr != "" {
-			issues = append(issues, fmt.Sprintf("%s: %s", rel, docErr))
-		}
-		return nil
-	})
-	return docCount, issues
-}
-
-func auditSingleIntentMarkdown(path string, requireFrontmatter bool) string {
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Sprintf("unreadable document (%v)", err)
-	}
-	normalized := strings.ReplaceAll(string(raw), "\r\n", "\n")
-	if !strings.HasPrefix(normalized, "---\n") {
-		if requireFrontmatter {
-			return "missing leading YAML frontmatter delimiter (---)"
-		}
-		if hasUnclosedCodeFence(normalized) {
-			return "unclosed Markdown fenced code block detected"
-		}
-		return ""
-	}
-	endIdx := strings.Index(normalized[4:], "\n---\n")
-	if endIdx < 0 {
-		return "missing closing YAML frontmatter delimiter (---)"
-	}
-	fmRaw := normalized[4 : 4+endIdx]
-	body := normalized[4+endIdx+5:]
-
-	var fm intentFrontmatter
-	if yErr := yaml.Unmarshal([]byte(fmRaw), &fm); yErr != nil {
-		return fmt.Sprintf("malformed YAML frontmatter (%v)", yErr)
-	}
-	if strings.TrimSpace(fm.Title) == "" {
-		return "YAML frontmatter missing required non-empty 'title'"
-	}
-	if fm.Plane != "" || requireFrontmatter {
-		plane := strings.ToLower(strings.TrimSpace(fm.Plane))
-		if !validIntentPlanes[plane] {
-			return fmt.Sprintf("invalid frontmatter plane %q (expected intent or substrate)", fm.Plane)
-		}
-	}
-	if fm.Status != "" || requireFrontmatter {
-		status := strings.ToLower(strings.TrimSpace(fm.Status))
-		if !validIntentStatuses[status] {
-			return fmt.Sprintf("invalid frontmatter status %q (expected active, superseded, deprecated, or archived)", fm.Status)
-		}
-	}
-	if hasUnclosedCodeFence(body) {
-		return "unclosed Markdown fenced code block detected"
-	}
-	return ""
-}
-
-func hasUnclosedCodeFence(body string) bool {
-	inFence := false
-	fenceLen := 0
-	for _, line := range strings.Split(body, "\n") {
-		trimmed := strings.TrimSpace(line)
-		ticks := countLeadingBackticks(trimmed)
-		if ticks < 3 {
-			continue
-		}
-		rest := strings.TrimSpace(trimmed[ticks:])
-		if !inFence {
-			inFence = true
-			fenceLen = ticks
-		} else if ticks >= fenceLen && rest == "" {
-			inFence = false
-			fenceLen = 0
-		}
-	}
-	return inFence
-}
-
-func countLeadingBackticks(s string) int {
-	n := 0
-	for n < len(s) && s[n] == '`' {
-		n++
-	}
-	return n
-}
 
 func verifyIntentASTAnchors(ctx *VerifyContext, root, targetDir string) []string {
 	definedTypes := collectDefinedGoTypeAnchors(root, targetDir)

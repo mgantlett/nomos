@@ -94,36 +94,44 @@ func countTraceabilityTags(srcDir string) (int, int) {
 	return tagged, total
 }
 
-// IntentSteelmanGate validates Intent specification YAML frontmatters and code fences (Cell 4.1, Law 4).
+// IntentSteelmanGate validates Intent specification YAML frontmatter, structure, and NCTE-100 prose (Cell 4.1, Law 4).
 type IntentSteelmanGate struct{}
 
+const probeIntentSteelman = "intent_steelman"
+
 // Name returns the canonical display name.
+// @intent nomos_controlled_technical_english_spec.md #NCTEPolicy
 func (g *IntentSteelmanGate) Name() string { return "Intent Steel-Man Parity Gate" }
 
-// Evaluate audits all Intent Markdown documents for valid YAML frontmatter and balanced code fences.
+// Evaluate audits all Intent Markdown documents for valid YAML frontmatter, balanced fences, and strict NCTE-100 compliance.
+// @intent nomos_controlled_technical_english_spec.md #NCTEPolicy
 func (g *IntentSteelmanGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	root := resolveIntentRoot(ctx)
 	intentDir := filepath.Join(root, "intent")
 	if _, err := os.Stat(intentDir); os.IsNotExist(err) {
 		return &GateResult{
-			GateName: g.Name(), ProbeID: "intent_steelman", Law: 4, Ring: RingSyntactic,
+			GateName: g.Name(), ProbeID: probeIntentSteelman, Law: 4, Ring: RingSyntactic,
 			Passed: true, Message: "no Intent directory detected; skipping steel-man audit",
 		}, nil
 	}
 
 	cfg := resolveVerifyConfig(ctx)
-	requireFrontmatter := cfg != nil && cfg.Governance.QualityGates.GetContractsBoundary().Contracts.Enabled
-	docCount, issues := validateIntentDocuments(intentDir, requireFrontmatter)
+	contractsEnabled := cfg != nil && cfg.Governance.QualityGates.GetContractsBoundary().Contracts.Enabled
+	opts := intentSteelmanOptions{
+		RequireFrontmatter: contractsEnabled,
+		StrictStandard:     contractsEnabled && cfg.Governance.QualityGates.StrictMode,
+	}
+	docCount, issues := validateIntentDocumentsWithOptions(intentDir, opts)
 	if len(issues) > 0 {
 		return &GateResult{
-			GateName: g.Name(), ProbeID: "intent_steelman", Law: 4, Ring: RingSyntactic,
+			GateName: g.Name(), ProbeID: probeIntentSteelman, Law: 4, Ring: RingSyntactic,
 			Passed: false, Message: fmt.Sprintf("Intent specification schema violation(s): %s", strings.Join(issues, "; ")),
-			Remedy: "ensure every Intent Markdown file has valid YAML frontmatter (title, plane, status) and balanced code fences",
+			Remedy: "ensure every Intent Markdown file has canonical 10-key YAML frontmatter, '_spec.md' naming, Test Vectors, balanced code fences, and passes 'nomos directive --lint <file>'",
 		}, nil
 	}
 
 	return &GateResult{
-		GateName: g.Name(), ProbeID: "intent_steelman", Law: 4, Ring: RingSyntactic,
+		GateName: g.Name(), ProbeID: probeIntentSteelman, Law: 4, Ring: RingSyntactic,
 		Passed: true, Message: fmt.Sprintf("verified %d Intent specification document(s) with valid frontmatter and balanced fences", docCount),
 	}, nil
 }
