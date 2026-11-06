@@ -9,6 +9,7 @@ lineage:
   - INT-321
   - INT-862
   - INT-942
+  - INT-945
   - SUB-110
   - SUB-1543
 plane: intent
@@ -16,7 +17,7 @@ ssot_repository: nomos
 status: active
 title: "Polyglot AST Validation & Language-Agnostic Gating Architecture"
 type: spec
-version: "4.2.0"
+version: "4.7.0"
 ---
 
 # Polyglot AST Validation & Language-Agnostic Gating Architecture
@@ -81,7 +82,7 @@ flowchart TD
    - `discoverPlugins` rejects symlinked or world-writable (`mode.Perm()&0002 != 0`) plugin binaries, and `openBrowser` validates `https://github.com/` URL prefixes before invoking the OS browser opener.
 6. **Embedded `.scm` S-Expression Query Binding:** `ParseSCMQuery` compiles embedded `.scm` query files (`go.scm`, `typescript.scm`, `svelte.scm`, `python.scm`, `ruby.scm`, `rust.scm`, `c.scm`, `cpp.scm`, `java.scm`, `kotlin.scm`, `csharp.scm`, `html.scm`, `css.scm`). Queries extract functions, Ruby singleton/endless methods, and branch nodes. They also detect anti-shim stubs (`todo!()`, `unimplemented!()`, `pass`, `raise NotImplementedError`, `throw new UnsupportedOperationException`, `throw new NotImplementedException`). Finally, queries reject skipped tests (`it.skip`, `test.skip`, `describe.skip`, `pytest.mark.skip`, `@unittest.skip`, `xit`, `xdescribe`, `skip`, `#[ignore]`, `@Disabled`, `[Fact(Skip=`).
 7. **Literal, Heredoc & Multiline Template Stripping:** The lexer strips template literals (`` `...` ``), raw strings (`r#"..."#`, `"""..."""`, `'''...'''`, `@"..."`), Ruby heredocs, `=begin`/`=end` blocks, and comments first. Consequently, keywords inside strings, SQL heredocs, or comments never trigger false-positive brace, `end`, or branch matches.
-8. **Per-`source_root` Polyglot Toolchain & Coverage Parity:** `gates_polyglot_toolchain.go` audits TypeScript (`tsc --noEmit`), Python (`python3 -m py_compile`, `pytest`), Ruby (`ruby -c`), and Rust (`cargo check`). It also audits C/C++ (`cmake`, `clang -fsyntax-only`), Java/Kotlin (`gradle check`, `mvn test-compile`), C# (`dotnet build`), and `lcov.info` or `cobertura.xml` against `min_coverage`.
+8. **Per-`source_root` Polyglot Toolchain & Coverage Parity:** `gates_polyglot_toolchain.go` and `gates_polyglot_coverage.go` audit TypeScript (`tsc --noEmit`), Python (`python3 -m py_compile`, `pytest`), Ruby (`RubyVM::InstructionSequence.compile_file`), and Rust (`cargo check`). When a Ruby workspace contains Minitest suites (`test/**/*_test.rb`), `verifyRubyToolchain` executes `bin/rails test` (or `bundle exec rake test` when `Rakefile` is present) and reports `Ruby(compile+minitest)`. Failing Minitest assertions or skipped Minitest summaries (`1+ skips`) abort verification (exit code 1) in `nomos verify`. The suite also audits C/C++ (`cmake`), Java/Kotlin (`gradle testClasses`, `mvn test-compile`), C# (`dotnet build`), and `lcov.info` or `cobertura.xml` against `min_coverage`.
 
 ---
 
@@ -123,6 +124,7 @@ The following deterministic verification vectors validate polyglot AST evaluatio
 | **TC-POLY-005** | `src/lib/util.ts` | Clean code using dynamic config | PASS: Zero findings | Clean-room pass |
 | **TC-POLY-006** | `src/corrupt.ts` | Unclosed template string / syntax error | REJECT: Tree-sitter parse error | Law 7 (Fail-closed parser) |
 | **TC-POLY-007** | `app/models/order.rb` | Empty `def process; end`, `raise NotImplementedError`, or `xit` / `skip` | REJECT: Ruby anti-shim / skipped-test gate (`ruby.scm`) | Law 2 (Non-Verbal Proof) |
+| **TC-POLY-008** | `test/models/order_test.rb` | Rails 8 `bin/rails test` or `bundle exec rake test` suite | PASS (`Ruby(compile+minitest)`); REJECT on failing assertion or `1+ skips` | Law 2 & Law 7 |
 
 ---
 
@@ -131,7 +133,7 @@ The following deterministic verification vectors validate polyglot AST evaluatio
 1. **Compiled Go SSoT Paths:**
    - `substrate/src/nomos/modules/verify/gates_architecture.go` (`MagicStringsGate`, `MagicStringDuplicationGate`).
    - `substrate/src/nomos/modules/verify/gates_security.go` (`IPLeakGate`).
-   - `substrate/src/nomos/modules/verify/gates_polyglot_toolchain.go` (Wazero Tree-sitter WASI runtime, `.scm` evaluators, and polyglot toolchain probes).
+   - `substrate/src/nomos/modules/verify/gates_polyglot_toolchain.go` and `substrate/src/nomos/modules/verify/gates_polyglot_coverage.go` (Wazero Tree-sitter WASI runtime, `.scm` evaluators, and polyglot toolchain probes including `Ruby(compile+minitest)`).
 2. **7x3 Invariant Matrix Coordinates:**
    - `Cell 5.1 (ip_leak, magic_strings, magic_string_duplication)` enforces port, literal, and IP hygiene across polyglot files.
    - `Cell 1.1 (complexity, max_file_loc, cognitive_debt)` and `Cell 2.1 (anti_shim, tdd, dead_code)` enforce polyglot AST structural veracity.
