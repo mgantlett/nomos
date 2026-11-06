@@ -158,3 +158,38 @@ func TestPreCommitHookScript_BlocksRawWorktreeGitCommitWithoutEnvToken(t *testin
 		t.Errorf("expected canonical CLI interception message, got:\n%s", string(out))
 	}
 }
+
+func TestCommitMsgHookScript_ZeroFHSSedFreePureNixOSCompatibility(t *testing.T) {
+	if strings.Contains(CommitMsgHookScript, "sed ") || strings.Contains(CommitMsgHookScript, "awk ") {
+		t.Fatalf("CommitMsgHookScript must not depend on sed or awk in Zero-FHS Pure NixOS containers")
+	}
+	repoDir := InitHermeticGitRepo(t)
+	if err := InstallHooks(repoDir); err != nil {
+		t.Fatalf("InstallHooks failed: %v", err)
+	}
+	minBin := t.TempDir()
+	for _, tool := range []string{"bash", "git", "head", "tail", "tr", "grep"} {
+		src, err := exec.LookPath(tool)
+		if err != nil {
+			t.Fatalf("LookPath(%s): %v", tool, err)
+		}
+		data, rErr := os.ReadFile(src)
+		if rErr != nil {
+			t.Fatalf("read %s: %v", src, rErr)
+		}
+		if wErr := os.WriteFile(filepath.Join(minBin, tool), data, 0755); wErr != nil {
+			t.Fatalf("stage %s: %v", tool, wErr)
+		}
+	}
+	msgFile := filepath.Join(t.TempDir(), "COMMIT_EDITMSG")
+	valid := "[SUB-1847] fix(workspace): remove sed dependency from commit-msg\n\nEliminate external sed subprocess so Pure NixOS containers validate Golden Commits natively.\n\n___\n\nTask: SUB-1847\n"
+	if err := os.WriteFile(msgFile, []byte(valid), 0644); err != nil {
+		t.Fatalf("write msgFile: %v", err)
+	}
+	cmd := exec.Command(filepath.Join(minBin, "bash"), filepath.Join(repoDir, ".git", "hooks", "commit-msg"), msgFile)
+	cmd.Dir = repoDir
+	cmd.Env = []string{"PATH=" + minBin, "HOME=" + t.TempDir()}
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("commit-msg failed in sed/awk-free PATH: %v\n%s", err, string(out))
+	}
+}

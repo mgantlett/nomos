@@ -126,7 +126,8 @@ const CommitMsgHookScript = `#!/usr/bin/env bash
     fi
 
     # 3. Require substantive rationale prose and a canonical 'Task: <KEY>' trailer matching the subject key
-    SUBJECT_KEY=$(printf '%s\n' "$FIRST_LINE" | sed -E 's/^\[((INT|SUB)-[0-9]+(-[a-z0-9-]+)?)\].*$/\1/')
+    SUBJECT_KEY="${FIRST_LINE#\[}"
+    SUBJECT_KEY="${SUBJECT_KEY%%\]*}"
     if ! grep -qE "^Task:[[:space:]]+${SUBJECT_KEY}[[:space:]]*$" "$1"; then
         echo -e "\n\e[31m❌ Commit Blocked: Missing 'Task: ${SUBJECT_KEY}' Git trailer matching subject prefix.\e[0m"
         exit 1
