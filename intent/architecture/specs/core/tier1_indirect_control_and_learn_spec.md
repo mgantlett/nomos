@@ -9,7 +9,7 @@ plane: intent
 status: active
 title: "Tier 1 Indirect-Control Multipliers & Nomos Learn: Episodic Trap Distillation Specification"
 type: spec
-version: "4.4.0"
+version: "4.5.0"
 execution_frontier:
   tasks:
     - key: "INT-821"
@@ -24,6 +24,9 @@ execution_frontier:
     - key: "INT-929"
       plane: "intent"
       summary: "Codify Verified Host Tool-Health Snapshot in PostToolUse Hooks and Graceful Receipt-Trace Parity"
+    - key: "INT-930"
+      plane: "intent"
+      summary: "Codify Configurable Model-Profile Advisory Thresholds on nomos hook"
 ssot_repository: nomos
 ---
 
@@ -123,6 +126,14 @@ To eliminate operational blindness without adding chatter to healthy tool calls 
 - `PostToolUse` (`AfterTool`) remains 100% silent (`{}`) on clean `Bash`, `Read`, and `MCP` tool executions.
 - When `tool_response` carries a verified environmental fault (DNS/egress unreachable, archived Debian `apt` repository 404, read-only filesystem `EROFS`, disk/memory exhaustion `ENOSPC`/OOM, or missing shell executable `exit 127`), `nomos hook post-tool` records the fault class in the session budget/health state file and emits a single deduplicated 1-line `[Nomos Verified Host State]` advisory so the Tier 1 agent pivots immediately instead of repeating blind retries into the 3-strike loop breaker.
 
+### 5.4 Configurable Model-Profile Advisory Thresholds (`nomos hook`)
+Because fixed advisory scaffolding interacts non-uniformly across LLM families while hard safety invariants must never drift (`arXiv:2611.06116`, `arXiv:2611.06254`):
+- All statutory CapBAC, Law 3 boundary, and Law 7 command/binary/hang `deny` gates remain strictly invariant and cannot be weakened via CLI flags.
+- `nomos hook` exposes bounded advisory tuning flags (with matching environment fallbacks `NOMOS_BUDGET_WARN_PCT`, `NOMOS_BUDGET_CRIT_PCT`, `NOMOS_LOOP_STRIKES`, and `NOMOS_ADVISORY_STYLE`):
+  - `--budget-warn-pct <int>` (default `75`, clamped to `[25, 90]`) and `--budget-crit-pct <int>` (default `90`, clamped to `[max(warn+5, 50), 99]`) for wall-clock session budget checkpoints.
+  - `--loop-strikes <int>` (default `3`, clamped to `[2, 10]`) for identical-failure non-polling circuit-breaker threshold (polling commands retain their elevated threshold).
+  - `--advisory-style <standard|terse>` (default `standard`), where `terse` emits compact single-clause advisories to minimize context dilution on terse-sensitive models.
+
 ---
 
 ## 6. Table-Driven Verification Vectors (`CDV-LEARN-SHIELD`)
@@ -140,6 +151,7 @@ To eliminate operational blindness without adding chatter to healthy tool calls 
 | **TV-LRN-09** | Statutory `pitfall` recalled $\ge 3$ times across active tasks (`pattern` excluded) | Tier A $\to$ Tier B graduation surfacing | **PASS** (Surfaced in `HandshakeEvent.graduation_candidates`) |
 | **TV-LRN-10** | Repeated `IDLE` `nomos handshake` followed by `nomos mem dismiss <id>` | Read-only passive `IDLE` recall & lifecycle dismissal | **PASS** (`IDLE` preserves `access_count`; `dismiss` transitions to `tombstoned`) |
 | **TV-LRN-11** | `PostToolUse` observes verified DNS/egress, archived `apt`, `EROFS`, or missing-binary fault | Deduplicated Verified Host State snapshot | **PASS** (Emits once on first fault; silent `{}` on repeat and clean calls) |
+| **TV-LRN-12** | `nomos hook` invoked with `--budget-warn-pct 65 --budget-crit-pct 85 --loop-strikes 4 --advisory-style terse` | Bounded model-profile advisory parameterization | **PASS** (Honors bounded thresholds & terse formatting; hard `deny` gates unchanged) |
 
 ---
 
