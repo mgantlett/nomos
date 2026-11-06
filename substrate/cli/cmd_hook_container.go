@@ -24,9 +24,15 @@ var containerVerifierRoots = []string{
 
 // EvaluateContainerPreToolHook enforces disposable benchmark container guardrails:
 // blocks reward-hacking access to verifier/solution roots, destructive wildcard
-// deletions, credential exfiltration, and 3-strike identical-failure tool loops
+// deletions, credential exfiltration, and identical-failure tool loops
 // while permitting legitimate OS-wide task paths (/etc, /tmp, /var, sqlite3).
 func EvaluateContainerPreToolHook(p *HookPayload) HookDecision {
+	return EvaluateContainerPreToolHookWithProfile(p, resolveHookAdvisoryProfile(0, 0, 0, ""))
+}
+
+// EvaluateContainerPreToolHookWithProfile enforces hard container guardrails alongside
+// the bounded loop circuit-breaker threshold from profile.
+func EvaluateContainerPreToolHookWithProfile(p *HookPayload, profile HookAdvisoryProfile) HookDecision {
 	if p == nil {
 		return HookDecision{Decision: hookDecisionAllow}
 	}
@@ -48,7 +54,7 @@ func EvaluateContainerPreToolHook(p *HookPayload) HookDecision {
 	if dec := evaluateCapabilityFlowGuard(p, baseCwd); dec.Decision == hookDecisionDeny {
 		return dec
 	}
-	return EvaluateLoopCircuitBreaker(p, "")
+	return EvaluateLoopCircuitBreakerWithStrikes(p, "", profile.LoopStrikes)
 }
 
 func evaluateContainerCommandGuard(cmdLine, baseCwd string) HookDecision {

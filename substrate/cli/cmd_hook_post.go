@@ -99,8 +99,8 @@ func isForbiddenGitHooksCmd(cmdLine string) bool {
 }
 
 // evaluatePostToolHostHealth surfaces deduplicated host/tool-health snapshots on verified PostToolUse faults.
-func evaluatePostToolHostHealth(p *HookPayload, hermeticDir string) string {
-	return evaluateVerifiedHostHealth(p, hermeticDir)
+func evaluatePostToolHostHealth(p *HookPayload, hermeticDir, style string) string {
+	return evaluateVerifiedHostHealthWithStyle(p, hermeticDir, style)
 }
 
 // EvaluatePostToolHook runs Law 4 zero-footprint in-memory syntax and AST radar verification on mutated files.

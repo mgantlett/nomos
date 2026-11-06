@@ -53,7 +53,14 @@ func ensureSessionBudgetStamp(p *HookPayload, hermeticDir string, budgetSec int)
 	saveBudgetState(path, st)
 }
 
+// evaluateSessionBudgetRadar evaluates wall-clock session budget checkpoints using the active advisory profile.
 func evaluateSessionBudgetRadar(p *HookPayload, hermeticDir string, budgetSec int) string {
+	return evaluateSessionBudgetRadarWithProfile(p, hermeticDir, budgetSec, resolveHookAdvisoryProfile(0, 0, 0, ""))
+}
+
+// evaluateSessionBudgetRadarWithProfile emits deduplicated warn and critical budget advisories
+// according to the clamped HookAdvisoryProfile thresholds and verbosity style.
+func evaluateSessionBudgetRadarWithProfile(p *HookPayload, hermeticDir string, budgetSec int, profile HookAdvisoryProfile) string {
 	if p == nil || p.IsPostInvoke || budgetSec <= 0 {
 		return ""
 	}
@@ -72,23 +79,25 @@ func evaluateSessionBudgetRadar(p *HookPayload, hermeticDir string, budgetSec in
 	if elapsed < 0 {
 		return ""
 	}
+	warnPct := profile.WarnPct
+	if warnPct <= 0 {
+		warnPct = defaultBudgetWarnPct
+	}
+	critPct := profile.CritPct
+	if critPct <= warnPct {
+		critPct = defaultBudgetCritPct
+	}
 	pct := (elapsed * 100) / budgetSec
-	if pct >= 90 && !st.Warned90 {
+	if pct >= critPct && !st.Warned90 {
 		st.Warned75 = true
 		st.Warned90 = true
 		saveBudgetState(path, st)
-		return fmt.Sprintf(
-			"🚨 [Nomos Budget Radar] %d%% of session time budget elapsed (%ds / %ds): finalize outputs, stop background scratch processes, and run final verification immediately.",
-			pct, elapsed, budgetSec,
-		)
+		return formatBudgetCheckpointAdvisory(pct, elapsed, budgetSec, true, profile.AdvisoryStyle)
 	}
-	if pct >= 75 && !st.Warned75 {
+	if pct >= warnPct && !st.Warned75 {
 		st.Warned75 = true
 		saveBudgetState(path, st)
-		return fmt.Sprintf(
-			"⏱️ [Nomos Budget Radar] %d%% of session time budget elapsed (%ds / %ds): commit or verify a working baseline artifact now before further iteration.",
-			pct, elapsed, budgetSec,
-		)
+		return formatBudgetCheckpointAdvisory(pct, elapsed, budgetSec, false, profile.AdvisoryStyle)
 	}
 	return ""
 }
@@ -163,6 +172,12 @@ func joinHookAdvisories(a, b string) string {
 // evaluateVerifiedHostHealth inspects PostToolUse error outputs for verified environmental faults
 // and emits a single deduplicated host-state advisory per fault class in the session.
 func evaluateVerifiedHostHealth(p *HookPayload, hermeticDir string) string {
+	return evaluateVerifiedHostHealthWithStyle(p, hermeticDir, resolveHookAdvisoryProfile(0, 0, 0, "").AdvisoryStyle)
+}
+
+// evaluateVerifiedHostHealthWithStyle records verified environmental faults once per session
+// and formats the single-turn host-state advisory using the active advisory style.
+func evaluateVerifiedHostHealthWithStyle(p *HookPayload, hermeticDir, style string) string {
 	if p == nil || p.IsPostInvoke || strings.TrimSpace(p.ToolResponseText) == "" {
 		return ""
 	}
@@ -170,9 +185,10 @@ func evaluateVerifiedHostHealth(p *HookPayload, hermeticDir string) string {
 	if faultKey == "" || msg == "" {
 		return ""
 	}
+	rendered := formatHostHealthAdvisory(faultKey, msg, style)
 	path := resolveBudgetStateFilePath(p, hermeticDir)
 	if path == "" {
-		return msg
+		return rendered
 	}
 	st := loadBudgetState(path)
 	if st.HealthAlerts != nil && st.HealthAlerts[faultKey] {
@@ -183,7 +199,7 @@ func evaluateVerifiedHostHealth(p *HookPayload, hermeticDir string) string {
 	}
 	st.HealthAlerts[faultKey] = true
 	saveBudgetState(path, st)
-	return msg
+	return rendered
 }
 
 // classifyHostHealthFault maps deterministic OS, filesystem, and network failure signatures to remedies.

@@ -149,9 +149,15 @@ func DefaultClaudeSettingsHooksJSON() []byte {
 `)
 }
 
-// EvaluateLoopCircuitBreaker enforces a 3-strike identical-failure circuit-breaker
+// EvaluateLoopCircuitBreaker enforces the identical-failure circuit-breaker
 // when the same mutating or shell tool call repeats without workspace mtime progress.
 func EvaluateLoopCircuitBreaker(p *HookPayload, hermeticDir string) HookDecision {
+	return EvaluateLoopCircuitBreakerWithStrikes(p, hermeticDir, resolveHookAdvisoryProfile(0, 0, 0, "").LoopStrikes)
+}
+
+// EvaluateLoopCircuitBreakerWithStrikes enforces a bounded N-strike identical-failure
+// circuit-breaker while preserving the elevated threshold for status/polling commands.
+func EvaluateLoopCircuitBreakerWithStrikes(p *HookPayload, hermeticDir string, strikes int) HookDecision {
 	if p == nil || !isLoopTrackedInvocation(p) {
 		return HookDecision{Decision: "allow"}
 	}
@@ -171,13 +177,24 @@ func EvaluateLoopCircuitBreaker(p *HookPayload, hermeticDir string) HookDecision
 	}
 	saveLoopBreakerState(statePath, next)
 
-	if next.ConsecutiveCount >= maxLoopStrikes(p) {
+	threshold := maxLoopStrikesWithThreshold(p, strikes)
+	if next.ConsecutiveCount >= threshold {
 		return HookDecision{
 			Decision: "deny",
-			Reason:   loopBreakerReason,
+			Reason:   formatLoopBreakerReason(threshold),
 		}
 	}
 	return HookDecision{Decision: "allow"}
+}
+
+func formatLoopBreakerReason(threshold int) string {
+	if threshold == defaultLoopStrikes {
+		return loopBreakerReason
+	}
+	return fmt.Sprintf(
+		"Loop Circuit-Breaker (Law 1): Identical tool call repeated %d consecutive times without workspace state change. Alter parameters or inspect workspace state before retrying.",
+		threshold,
+	)
 }
 
 func isLoopTrackedInvocation(p *HookPayload) bool {
@@ -190,7 +207,7 @@ func isLoopTrackedInvocation(p *HookPayload) bool {
 	return strings.TrimSpace(p.ArgsDigest) != ""
 }
 
-func maxLoopStrikes(p *HookPayload) int {
+func maxLoopStrikesWithThreshold(p *HookPayload, strikes int) int {
 	cmd := strings.ToLower(strings.TrimSpace(p.CommandLine))
 	if cmd != "" {
 		for _, tok := range []string{"status", "poll", "wait", "ps ", "jobs"} {
@@ -199,7 +216,10 @@ func maxLoopStrikes(p *HookPayload) int {
 			}
 		}
 	}
-	return 3
+	if strikes <= 0 {
+		return defaultLoopStrikes
+	}
+	return clampAdvisoryInt(strikes, minLoopStrikes, maxLoopStrikesBound)
 }
 
 func resolveLoopTrackingDir(p *HookPayload, hermeticDir string) string {
@@ -233,16 +253,8 @@ func computeInvocationFingerprint(p *HookPayload) string {
 func resolveLoopStateFilePath(wsDir string) string {
 	sum := sha256.Sum256([]byte(filepath.Clean(wsDir)))
 	name := fmt.Sprintf("nomos-hook-loop-%s.json", hex.EncodeToString(sum[:8]))
-	baseDir, err := os.UserCacheDir()
-	if err != nil || baseDir == "" {
-		baseDir = filepath.Join(os.TempDir(), fmt.Sprintf("nomos-cache-%d", os.Getuid()))
-	}
-	hookDir := filepath.Join(baseDir, "nomos", "hooks")
-	if mkErr := os.MkdirAll(hookDir, 0700); mkErr != nil {
-		return ""
-	}
-	fi, statErr := os.Lstat(hookDir)
-	if statErr != nil || !fi.IsDir() || fi.Mode()&os.ModeSymlink != 0 {
+	hookDir := resolveHookStateCacheDir()
+	if hookDir == "" {
 		return ""
 	}
 	return filepath.Join(hookDir, name)

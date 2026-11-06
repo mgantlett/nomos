@@ -25,6 +25,7 @@ func NewHookCmd() *cobra.Command {
 	var hermeticDir string
 	var containerSandbox bool
 	var budgetSec int
+	var advFlags hookAdvisoryFlags
 
 	cmd := &cobra.Command{
 		Use:   "hook",
@@ -36,12 +37,16 @@ Reads JSON hook payloads from stdin with zero external jq/bash/python dependenci
 
 	cmd.PersistentFlags().StringVar(&hermeticDir, "hermetic-dir", "", "Confine file mutations and shell paths to a container/sandbox root directory")
 	cmd.PersistentFlags().BoolVar(&containerSandbox, "container-sandbox", false, "Enable disposable benchmark container governance (blocks verifier/solution tampering while permitting OS-wide task paths)")
-	cmd.PersistentFlags().IntVar(&budgetSec, "budget-sec", 0, "Optional session wall-clock budget in seconds for 75%/90% PostToolUse checkpoint advisories")
+	cmd.PersistentFlags().IntVar(&budgetSec, "budget-sec", 0, "Optional session wall-clock budget in seconds for PostToolUse checkpoint advisories")
+	cmd.PersistentFlags().IntVar(&advFlags.warnPct, "budget-warn-pct", 0, "Bounded budget warning checkpoint percentage [25..90] (default 75, env NOMOS_BUDGET_WARN_PCT)")
+	cmd.PersistentFlags().IntVar(&advFlags.critPct, "budget-crit-pct", 0, "Bounded budget critical checkpoint percentage [50..99] (default 90, env NOMOS_BUDGET_CRIT_PCT)")
+	cmd.PersistentFlags().IntVar(&advFlags.loopStrikes, "loop-strikes", 0, "Bounded identical-failure loop circuit-breaker threshold [2..10] (default 3, env NOMOS_LOOP_STRIKES)")
+	cmd.PersistentFlags().StringVar(&advFlags.advisoryStyle, "advisory-style", "", "PostToolUse advisory style: standard or terse (default standard, env NOMOS_ADVISORY_STYLE)")
 
 	cmd.AddCommand(
 		newHookSessionStartCmd(&hermeticDir, &budgetSec),
-		newHookPreToolCmd(&hermeticDir, &containerSandbox, &budgetSec),
-		newHookPostToolCmd(&hermeticDir, &containerSandbox, &budgetSec),
+		newHookPreToolCmd(&hermeticDir, &containerSandbox, &budgetSec, &advFlags),
+		newHookPostToolCmd(&hermeticDir, &containerSandbox, &budgetSec, &advFlags),
 	)
 	return cmd
 }
@@ -83,7 +88,7 @@ func newHookSessionStartCmd(hermeticDir *string, budgetSec *int) *cobra.Command 
 	}
 }
 
-func newHookPreToolCmd(hermeticDir *string, containerSandbox *bool, budgetSec *int) *cobra.Command {
+func newHookPreToolCmd(hermeticDir *string, containerSandbox *bool, budgetSec *int, advFlags *hookAdvisoryFlags) *cobra.Command {
 	return &cobra.Command{
 		Use:     "pre-tool",
 		Short:   "Evaluate Law 3 boundary isolation and Law 7 command safety on PreToolUse payload",
@@ -96,14 +101,14 @@ func newHookPreToolCmd(hermeticDir *string, containerSandbox *bool, budgetSec *i
 			}
 			payload := parseHookPayload(raw)
 			ensureSessionBudgetStamp(payload, *hermeticDir, resolveEffectiveBudgetSeconds(*budgetSec))
-			dec := dispatchPreToolHook(payload, *hermeticDir, *containerSandbox)
+			dec := dispatchPreToolHook(payload, *hermeticDir, *containerSandbox, advFlags.resolve())
 			recordPreToolSessionTrace(payload, *hermeticDir, dec.Decision == hookDecisionDeny)
 			return writePreToolResponse(cmd.OutOrStdout(), payload, dec)
 		},
 	}
 }
 
-func newHookPostToolCmd(hermeticDir *string, containerSandbox *bool, budgetSec *int) *cobra.Command {
+func newHookPostToolCmd(hermeticDir *string, containerSandbox *bool, budgetSec *int, advFlags *hookAdvisoryFlags) *cobra.Command {
 	return &cobra.Command{
 		Use:     "post-tool",
 		Short:   "Evaluate Law 4 zero-footprint in-memory AST and syntax radar on PostToolUse payload",
@@ -115,7 +120,7 @@ func newHookPostToolCmd(hermeticDir *string, containerSandbox *bool, budgetSec *
 				return writeEmptyJSON(cmd.OutOrStdout())
 			}
 			payload := parseHookPayload(raw)
-			msg := dispatchPostToolHook(payload, *hermeticDir, *containerSandbox, resolveEffectiveBudgetSeconds(*budgetSec))
+			msg := dispatchPostToolHook(payload, *hermeticDir, *containerSandbox, resolveEffectiveBudgetSeconds(*budgetSec), advFlags.resolve())
 			if msg == "" {
 				return writeEmptyJSON(cmd.OutOrStdout())
 			}
@@ -124,17 +129,17 @@ func newHookPostToolCmd(hermeticDir *string, containerSandbox *bool, budgetSec *
 	}
 }
 
-func dispatchPreToolHook(payload *HookPayload, hermeticDir string, containerSandbox bool) HookDecision {
+func dispatchPreToolHook(payload *HookPayload, hermeticDir string, containerSandbox bool, profile HookAdvisoryProfile) HookDecision {
 	if containerSandbox && hermeticDir == "" {
-		return EvaluateContainerPreToolHook(payload)
+		return EvaluateContainerPreToolHookWithProfile(payload, profile)
 	}
-	return EvaluatePreToolHook(payload, hermeticDir)
+	return EvaluatePreToolHookWithProfile(payload, hermeticDir, profile)
 }
 
-func dispatchPostToolHook(payload *HookPayload, hermeticDir string, containerSandbox bool, budgetSec int) string {
+func dispatchPostToolHook(payload *HookPayload, hermeticDir string, containerSandbox bool, budgetSec int, profile HookAdvisoryProfile) string {
 	recordPostToolSessionTrace(payload, hermeticDir)
-	budgetMsg := evaluateSessionBudgetRadar(payload, hermeticDir, budgetSec)
-	healthMsg := evaluatePostToolHostHealth(payload, hermeticDir)
+	budgetMsg := evaluateSessionBudgetRadarWithProfile(payload, hermeticDir, budgetSec, profile)
+	healthMsg := evaluatePostToolHostHealth(payload, hermeticDir, profile.AdvisoryStyle)
 	var syntaxMsg string
 	if containerSandbox && hermeticDir == "" {
 		syntaxMsg = EvaluateContainerPostToolHook(payload)

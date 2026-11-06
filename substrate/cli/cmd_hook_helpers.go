@@ -13,8 +13,14 @@ import (
 )
 
 // EvaluatePreToolHook enforces Law 3 boundary isolation, Law 7 command safety,
-// and Law 1 3-strike identical-failure loop circuit-breaking on PreToolUse events.
+// and Law 1 identical-failure loop circuit-breaking on PreToolUse events.
 func EvaluatePreToolHook(p *HookPayload, hermeticDir string) HookDecision {
+	return EvaluatePreToolHookWithProfile(p, hermeticDir, resolveHookAdvisoryProfile(0, 0, 0, ""))
+}
+
+// EvaluatePreToolHookWithProfile evaluates hard PreToolUse safety invariants alongside
+// the bounded loop circuit-breaker threshold from profile.
+func EvaluatePreToolHookWithProfile(p *HookPayload, hermeticDir string, profile HookAdvisoryProfile) HookDecision {
 	if p == nil {
 		return HookDecision{Decision: hookDecisionAllow}
 	}
@@ -33,7 +39,7 @@ func EvaluatePreToolHook(p *HookPayload, hermeticDir string) HookDecision {
 	if dec := evaluateCapabilityFlowGuard(p, hermeticDir); dec.Decision == hookDecisionDeny {
 		return dec
 	}
-	return EvaluateLoopCircuitBreaker(p, hermeticDir)
+	return EvaluateLoopCircuitBreakerWithStrikes(p, hermeticDir, profile.LoopStrikes)
 }
 
 func evaluateTargetFilePreToolGuard(p *HookPayload, hermeticDir string) HookDecision {
