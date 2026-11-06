@@ -4,17 +4,18 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-16"
-last_updated: "2026-11-01"
+last_updated: "2026-11-06"
 lineage:
   - INT-840
   - INT-841
   - INT-842
+  - INT-946
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Zero-Source Downstream Developer Experience & Agentic HATEOAS Specification"
 type: spec
-version: "4.0.0"
+version: "4.7.0"
 ---
 
 # Zero-Source Downstream Developer Experience & Agentic HATEOAS Specification
@@ -100,6 +101,12 @@ Remedies never recommend commands prohibited by ambient guards (such as `git sta
 `nomos capabilities [id]` accepts a capability ID, cell ID (`cell_7_1`), or probe ID (`plane_separation`).
 It emits `#CapabilityDetail` with Law, Ring, invariant rules, and canonical remediation steps under Law 6.
 
+### 3.6 Arch Linux & Omarchy AUR Binary Distribution (`nomos-bin`, `INT-946`)
+
+Omarchy and Arch Linux workstations install the precompiled `CGO_ENABLED=0` static `nomos` binary directly via AUR helpers (`yay -S nomos-bin` or `paru -S nomos-bin`).
+`.goreleaser.yaml` defines the canonical `aurs` release target (`nomos-bin`) alongside `packaging/aur/PKGBUILD` for `x86_64` and `aarch64` Linux archives.
+Both GoReleaser and `packaging/aur/PKGBUILD` verify SHA-256 archive digests against published release checksums before installing `/usr/bin/nomos` (`0755`) and Apache-2.0 attribution files (`LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.md`) under `/usr/share/licenses/nomos-bin/`.
+
 ---
 
 ## 4. The 60-Second Zero-Source Lifecycle
@@ -130,6 +137,7 @@ T=55s  $ nomos task sync SUB-1 -F .tmp/walkthrough-SUB-1.md
 | `TC-HAT-04` | `nomos task commit` / `review` / `sync` | Completes 2PC lifecycle with valid next-step guidance | **PASS** |
 | `TC-HAT-05` | `nomos capabilities <id>` on cell or probe | Resolves `#CapabilityDetail` with Law, Ring, and Remedy | **PASS** |
 | `TC-HAT-06` | Audit all 42 gate remedies & hook scripts | Zero `git stash` contradictions or internal Foundry leaks | **PASS** |
+| `TC-HAT-07` | Inspect `.goreleaser.yaml` `aurs` & `packaging/aur/PKGBUILD` | Static `CGO_ENABLED=0` `nomos-bin` package verifies SHA-256 & installs `LICENSE`/`NOTICE` | **PASS** |
 
 ---
 
@@ -141,5 +149,6 @@ T=55s  $ nomos task sync SUB-1 -F .tmp/walkthrough-SUB-1.md
 | Frontmatter directive resolution (`SynthesizeDynamicHandshake`) | `substrate/src/nomos/modules/handshake/handshake.go` | `Cell 4.1 (broken_wire)` |
 | Marker-scoped byte parity (`IntentParityGate`) | `substrate/src/nomos/modules/verify/` | `Cell 4.3 (intent_parity)` |
 | Capability drill-down (`nomos capabilities`) | `substrate/cli/cmd_capabilities.go`, `substrate/cli/cmd_directive.go` | `Cell 6.2 (zero_alias)` |
+| Arch/Omarchy AUR binary package (`nomos-bin`) | `.goreleaser.yaml`, `packaging/aur/PKGBUILD`, `substrate/cli/legal_release_contract_test.go` | `Cell 4.2 (contract_parity)`, `Cell 7.3 (release_provenance)` |
 
 Run `nomos verify` to execute all 42 Definition of Done quality gates and confirm exit code `0`.
