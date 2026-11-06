@@ -4,10 +4,11 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-04"
-last_updated: "2026-11-01"
+last_updated: "2026-11-06"
 lineage:
   - INT-321
   - INT-862
+  - INT-942
   - SUB-110
   - SUB-1543
 plane: intent
@@ -15,7 +16,7 @@ ssot_repository: nomos
 status: active
 title: "Polyglot AST Validation & Language-Agnostic Gating Architecture"
 type: spec
-version: "4.1.0"
+version: "4.2.0"
 ---
 
 # Polyglot AST Validation & Language-Agnostic Gating Architecture
@@ -78,9 +79,9 @@ flowchart TD
    - `install.sh` enforces `set -euo pipefail` and extracts inside an isolated `mktemp -d` directory with `trap` cleanup. It verifies the archive SHA-256 digest against `checksums.txt` (`sha256sum` / `shasum -a 256`) before binary installation.
    - `nomos hook` loop circuit-breaker state files reside in a user-private `0700` directory (`os.UserCacheDir()/nomos/hooks`) verified via `os.Lstat` (`ModeSymlink == 0`).
    - `discoverPlugins` rejects symlinked or world-writable (`mode.Perm()&0002 != 0`) plugin binaries, and `openBrowser` validates `https://github.com/` URL prefixes before invoking the OS browser opener.
-6. **Embedded `.scm` S-Expression Query Binding:** `ParseSCMQuery` compiles embedded `.scm` query files (`go.scm`, `typescript.scm`, `svelte.scm`, `python.scm`, `rust.scm`, `c.scm`, `cpp.scm`, `java.scm`, `kotlin.scm`, `csharp.scm`, `html.scm`, `css.scm`). Queries drive function extraction, branch counting, and anti-shim stub detection (`todo!()`, `unimplemented!()`, `pass`, `raise NotImplementedError`, `throw new UnsupportedOperationException`, `throw new NotImplementedException`). Queries also block skipped-suite reward hacking (`it.skip`, `test.skip`, `describe.skip`, `pytest.mark.skip`, `@unittest.skip`, `#[ignore]`, `@Disabled`, `[Fact(Skip=`).
-7. **Literal & Multiline Template Stripping:** The polyglot lexer strips multiline template literals (`` `...` ``), raw strings (`r#"..."#`, `"""..."""`, `'''...'''`, `@"..."`), and comments first. Consequently, keywords inside string literals or comments never trigger false-positive brace or branch matches.
-8. **Per-`source_root` Polyglot Toolchain & Coverage Parity:** `gates_polyglot_toolchain.go` audits TypeScript (`tsc --noEmit`), Python (`python3 -m py_compile`, `pytest`), and Rust (`cargo check`) across `source_roots`. It also audits C/C++ (`cmake`, `clang -fsyntax-only`), Java/Kotlin (`gradle check`, `mvn test-compile`), C# (`dotnet build`), and `lcov.info` or `cobertura.xml` against `min_coverage`.
+6. **Embedded `.scm` S-Expression Query Binding:** `ParseSCMQuery` compiles embedded `.scm` query files (`go.scm`, `typescript.scm`, `svelte.scm`, `python.scm`, `ruby.scm`, `rust.scm`, `c.scm`, `cpp.scm`, `java.scm`, `kotlin.scm`, `csharp.scm`, `html.scm`, `css.scm`). Queries extract functions, Ruby singleton/endless methods, and branch nodes. They also detect anti-shim stubs (`todo!()`, `unimplemented!()`, `pass`, `raise NotImplementedError`, `throw new UnsupportedOperationException`, `throw new NotImplementedException`). Finally, queries reject skipped tests (`it.skip`, `test.skip`, `describe.skip`, `pytest.mark.skip`, `@unittest.skip`, `xit`, `xdescribe`, `skip`, `#[ignore]`, `@Disabled`, `[Fact(Skip=`).
+7. **Literal, Heredoc & Multiline Template Stripping:** The lexer strips template literals (`` `...` ``), raw strings (`r#"..."#`, `"""..."""`, `'''...'''`, `@"..."`), Ruby heredocs, `=begin`/`=end` blocks, and comments first. Consequently, keywords inside strings, SQL heredocs, or comments never trigger false-positive brace, `end`, or branch matches.
+8. **Per-`source_root` Polyglot Toolchain & Coverage Parity:** `gates_polyglot_toolchain.go` audits TypeScript (`tsc --noEmit`), Python (`python3 -m py_compile`, `pytest`), Ruby (`ruby -c`), and Rust (`cargo check`). It also audits C/C++ (`cmake`, `clang -fsyntax-only`), Java/Kotlin (`gradle check`, `mvn test-compile`), C# (`dotnet build`), and `lcov.info` or `cobertura.xml` against `min_coverage`.
 
 ---
 
@@ -121,6 +122,7 @@ The following deterministic verification vectors validate polyglot AST evaluatio
 | **TC-POLY-004** | `src/lib/auth.ts` | `import "github.com/mgantlett/gsi-sov"` | REJECT: Sovereign IP leak (`ip_leak`) | Law 7 (IP boundary) |
 | **TC-POLY-005** | `src/lib/util.ts` | Clean code using dynamic config | PASS: Zero findings | Clean-room pass |
 | **TC-POLY-006** | `src/corrupt.ts` | Unclosed template string / syntax error | REJECT: Tree-sitter parse error | Law 7 (Fail-closed parser) |
+| **TC-POLY-007** | `app/models/order.rb` | Empty `def process; end`, `raise NotImplementedError`, or `xit` / `skip` | REJECT: Ruby anti-shim / skipped-test gate (`ruby.scm`) | Law 2 (Non-Verbal Proof) |
 
 ---
 
