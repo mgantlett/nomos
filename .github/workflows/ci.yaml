@@ -49,3 +49,10 @@ jobs:
       - name: Audit Bilateral Capabilities & Architectural Engines
         run: |
           nomos capabilities
+
+      - name: Validate GoReleaser v2 Configuration Schema
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: check
