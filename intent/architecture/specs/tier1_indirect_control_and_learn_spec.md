@@ -4,19 +4,21 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-30"
-last_updated: "2026-11-05"
+last_updated: "2026-11-06"
 lineage:
   - INT-821
   - INT-855
   - INT-899
   - INT-929
   - INT-930
+  - INT-938
+  - SUB-1806
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Tier 1 Indirect-Control Multipliers & Nomos Learn: Episodic Trap Distillation Specification"
 type: spec
-version: "4.5.0"
+version: "4.6.0"
 ---
 
 # Tier 1 Indirect-Control Multipliers & Nomos Learn: Episodic Trap Distillation Specification
@@ -158,6 +160,10 @@ Because fixed advisory scaffolding interacts non-uniformly across LLM families w
   - `--loop-strikes <int>` (default `3`, clamped to `[2, 10]`) for identical-failure non-polling circuit-breaker threshold (polling commands retain their elevated threshold).
   - `--advisory-style <standard|terse>` (default `standard`), where `terse` emits compact single-clause advisories to minimize context dilution on terse-sensitive models.
 
+### 5.5 Slow-Step Timeout & Worktree Tool-Churn Advisories (`nomos hook post-tool`)
+- **Remaining-Budget Slow-Step Guard:** Under `--budget-sec`, shell steps taking $\ge \max(45\text{s}, \lfloor \text{budgetSec}/4 \rfloor)$ without `timeout` trigger one `timeout <bound>s` advisory. Budget alerts also print remaining seconds.
+- **Unverified Worktree Tool-Churn Guard:** Inside active task worktrees, `hookSessionTrace` counts tool calls since the last `nomos verify` or `nomos task review` run. At `75` and `150` unverified calls, `PostToolUse` emits a non-blocking advisory nudging early `nomos verify` execution.
+
 ---
 
 ## 6. Table-Driven Verification Vectors
@@ -176,6 +182,7 @@ Because fixed advisory scaffolding interacts non-uniformly across LLM families w
 | `TC-LRN-10` | Repeated `IDLE` `nomos handshake` followed by `nomos mem dismiss <id>` | Read-only passive `IDLE` recall & lifecycle dismissal | **PASS** (`IDLE` preserves `access_count`; `dismiss` transitions to `tombstoned`) |
 | `TC-LRN-11` | `PostToolUse` observes verified DNS/egress, `apt`, `EROFS`, or `exit 127` fault | Deduplicated Verified Host State snapshot | **PASS** (Emits once on first fault; `{}` thereafter) |
 | `TC-LRN-12` | `nomos hook` invoked with `--budget-warn-pct 65 --budget-crit-pct 85 --loop-strikes 4 --advisory-style terse` | Bounded model-profile advisory parameterization | **PASS** (Honors bounded thresholds & terse formatting; hard `deny` gates unchanged) |
+| `TC-LRN-13` | Slow shell step or `75` unverified worktree calls | Slow-step timeout & churn advisories | **PASS** (Emits deduplicated `timeout` or `nomos verify` advisory) |
 
 ---
 

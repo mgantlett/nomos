@@ -4,17 +4,19 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-05"
-last_updated: "2026-11-03"
+last_updated: "2026-11-06"
 lineage:
   - INT-318
   - INT-836
   - INT-911
+  - INT-938
+  - SUB-1806
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Unified Database & Git Notes Topology Contract"
 type: spec
-version: "4.4.1"
+version: "4.5.0"
 ---
 
 # Unified Database & Git Notes Topology Contract
@@ -163,16 +165,27 @@ CREATE INDEX IF NOT EXISTS idx_telemetry_capabilities_type ON telemetry_capabili
 ```go
 package task
 
+// ReleaseHookTrace summarizes verified worktree tool and shell activity sealed at 2PC release (#ReleaseHookTrace).
+type ReleaseHookTrace struct {
+	ToolCallsCount      int      `json:"tool_calls_count"`
+	ShellCommandsCount  int      `json:"shell_commands_count"`
+	TestCommandsCount   int      `json:"test_commands_count"`
+	DeniedInterceptions int      `json:"denied_interceptions"`
+	MutatedFiles        []string `json:"mutated_files,omitempty"`
+}
+
 // ReleaseNotePayload encapsulates the non-repudiation release receipt in Git Notes (#ReleaseNotePayload).
 type ReleaseNotePayload struct {
-	TaskKey            string `json:"task_key"`
-	CommitSHA          string `json:"commit_sha"`
-	Timestamp          string `json:"timestamp"`
-	Phase              string `json:"phase"`
-	DoDGatesPassed     int    `json:"dod_gates_passed"`
-	CapBACTokenID      string `json:"capbac_token_id"`
-	WalkthroughContent string `json:"walkthrough_content"`
-	SHA256Receipt      string `json:"sha256_receipt"`
+	TaskKey            string            `json:"task_key"`
+	CommitSHA          string            `json:"commit_sha"`
+	Timestamp          string            `json:"timestamp"`
+	Phase              string            `json:"phase"`
+	DoDGatesPassed     int               `json:"dod_gates_passed"`
+	CapBACTokenID      string            `json:"capbac_token_id"`
+	SessionID          string            `json:"session_id,omitempty"`
+	HookTrace          *ReleaseHookTrace `json:"hook_trace,omitempty"`
+	WalkthroughContent string            `json:"walkthrough_content"`
+	SHA256Receipt      string            `json:"sha256_receipt"`
 }
 
 // TaskRecord defines the formal specification for Living Ledger task records (#TaskRecord).

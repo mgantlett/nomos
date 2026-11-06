@@ -4,16 +4,18 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-11-03"
-last_updated: "2026-11-03"
+last_updated: "2026-11-06"
 lineage:
   - INT-896
+  - INT-938
   - SUB-1668
+  - SUB-1806
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Tier 1 Agent Session Discovery, Telemetry & Sentinel CLI Specification"
 type: spec
-version: "4.2.0"
+version: "4.3.0"
 ---
 
 # Tier 1 Agent Session Discovery, Telemetry & Sentinel CLI Specification
@@ -39,7 +41,7 @@ Nomos v4 replaces manual journaling with two non-verbal mechanisms:
 | **3** | **The Hermetic Worktree Law** | Sentinel correlates sessions to `worktrees/<repo>-<KEY>` and flags direct trunk mutations. | `evalHermeticWorktree` Sentinel invariant |
 | **4** | **The Single Source of Truth Law** | JSON payloads bind 1:1 to `session.AgentSession`, `session.SessionVisualGraph`, `session.SessionDetail`, and `session.SessionTrajectory`. | Go struct JSON tags & `multi_agent_session_test.go` |
 | **5** | **The Zero-Hardcoded-Path Law** | Transcript directories resolve dynamically from configuration roots or `--brain` / `--root`. | `session.DefaultProviders` |
-| **6** | **The Canonical Singularity Law** | `nomos session` (`name`, `list`, `visual`, `show`) replaces excised `nomos journal`. | `Cell 6.2 (zero_alias)`, `Cell 2.1 (dead_code)` |
+| **6** | **The Canonical Singularity Law** | `nomos session` (`name`, `list`, `visual`, `show`, `export`) replaces excised `nomos journal`. | `Cell 6.2 (zero_alias)`, `Cell 2.1 (dead_code)` |
 | **7** | **The Fail-Closed Pre-Flight Law** | Missing active sessions or empty `session name` arguments reject with `ERR_VALIDATION_FAILED` / `ERR_CORE`. | `NewSessionCmd` argument & discovery guards |
 
 ---
@@ -58,14 +60,14 @@ Nomos v4 replaces manual journaling with two non-verbal mechanisms:
 
 ### 3.2 Zero-Trust Sentinel Scorecard
 `EvaluateSentinel` audits every tool call in the transcript across five statutory probes (20 points each, `0..100`):
-1. Hermetic worktree isolation (`evalHermeticWorktree`)
+1. Hermetic worktree isolation (`evalHermeticWorktree`): tokenizes unquoted shell segments, tracks sequential `cd` and `git -C` paths, and ignores quoted text arguments.
 2. Repository boundary containment (`evalRepoBoundary`)
 3. Non-verbal DoD verification (`evalDoDVerification`)
 4. Database encapsulation under the Database Encapsulation Invariant (`evalDBEncapsulation`)
 5. AST / file budget discipline (`evalASTBudget`)
 
 ### 3.3 Compiled Go SSoT Contracts (`substrate/src/nomos/modules/session/`)
-`session.go`, `session_detail.go`, and `session_trajectory.go` define the authoritative session telemetry structs:
+`session.go`, `session_detail.go`, `session_trajectory.go`, and `session_export.go` define the authoritative session telemetry and dataset structs:
 
 ```go
 package session
@@ -122,9 +124,23 @@ type SessionDetail struct {
 	Persona       string             `json:"persona,omitempty"`
 }
 
+// SessionDatasetRecord joins session telemetry, Sentinel PRM scores, Git Note receipts, and Mneme learnings (#SessionDatasetRecord).
+type SessionDatasetRecord struct {
+	Session        AgentSession       `json:"session"`
+	Sentinel       *SentinelScorecard `json:"sentinel,omitempty"`
+	Trajectory     *SessionTrajectory `json:"trajectory,omitempty"`
+	ToolsSummary   map[string]int     `json:"tools_summary,omitempty"`
+	ReleaseCommit  string             `json:"release_commit,omitempty"`
+	DoDGatesPassed int                `json:"dod_gates_passed,omitempty"`
+	SHA256Receipt  string             `json:"sha256_receipt,omitempty"`
+	PitfallsFixed  []string           `json:"pitfalls_fixed,omitempty"`
+	PatternsMinted []string           `json:"patterns_minted,omitempty"`
+}
+
 func DiscoverSessions(rootOverride, repoRoot string) ([]AgentSession, error)
 func GetSessionDetail(rootOverride, repoRoot, sessionID string) (*SessionDetail, error)
 func InferTrajectory(detail *SessionDetail, rawLines []string) *SessionTrajectory
+func ExportSessionDataset(rootOverride, repoRoot string, limit int) ([]SessionDatasetRecord, error)
 ```
 
 ---
@@ -147,6 +163,10 @@ func InferTrajectory(detail *SessionDetail, rawLines []string) *SessionTrajector
 - **Flags:** `--brain` / `-b <DIR>`, `--root` / `-r <REPO_ROOT>`, `--json`
 - **Semantics:** Examines `SESSION_ID` or the latest active session, rendering turn/tool counts, phase, worktree, Sentinel score, and 7-stage trajectory (`#SessionDetail` JSON).
 
+### 4.5 `nomos session export`
+- **Flags:** `--brain` / `-b <DIR>`, `--root` / `-r <REPO_ROOT>`, `--limit` / `-n <INT>`, `--json`
+- **Semantics:** Joins discovered sessions, Sentinel scorecards, `refs/notes/nomos/releases` receipts, and `mneme.db` pitfalls/patterns into JSONL (default) or JSON array (`--json`) records (`#SessionDatasetRecord`).
+
 ---
 
 ## 5. Table-Driven Verification Vectors
@@ -157,6 +177,8 @@ func InferTrajectory(detail *SessionDetail, rawLines []string) *SessionTrajector
 | `TC-SES-02` | `nomos session name` | `nomos session name ""` (empty name) | Fails closed with `ERR_VALIDATION_FAILED` | Law 7 (Fail-Closed) |
 | `TC-SES-03` | `InferTrajectory` | Transcript containing `nomos handshake`, `nomos task start`, `nomos verify`, and file edits | Reconstructs 7-stage `#SessionTrajectory` with `ORACLE` and `IMPLEMENTATION` marked `COMPLETED` | Law 2 (Non-Verbal Proof) |
 | `TC-SES-04` | `GenerateMermaidVisual` | `nomos session visual --json` | Emits valid `SessionVisualGraph` JSON containing Mermaid graph and `AgentSession` slice | Law 4 (Compiled Go SSoT) |
+| `TC-SES-05` | `evalHermeticWorktree` | `cd worktrees/nomos-SUB-1 && git commit -m "msg"` or `grep "git commit" file.go` | Marks `LAW-3-HERMETIC` `CLEAN` (`100`) and rejects unquoted trunk commits | Law 2 & Law 3 |
+| `TC-SES-06` | `ExportSessionDataset` | `nomos session export --limit 5 --json` | Emits `SessionDatasetRecord` entries joining Sentinel, receipts, and Mneme records | Law 1 & Law 4 |
 
 ---
 

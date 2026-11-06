@@ -4,22 +4,24 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-23"
-last_updated: "2026-11-05"
+last_updated: "2026-11-06"
 lineage:
   - INT-735
   - INT-855
   - INT-899
   - INT-926
   - INT-927
+  - INT-938
   - SUB-1213
   - SUB-1524
   - SUB-1680
+  - SUB-1806
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Nomos Mneme Episodic and Semantic Memory Subsystem Specification"
 type: spec
-version: "4.5.0"
+version: "4.6.0"
 ---
 
 # Nomos Mneme Episodic and Semantic Memory Subsystem Specification
@@ -136,11 +138,12 @@ To eliminate external inference dependencies and CGO libraries, Nomos implements
 
 ### 4.2 Hybrid Ranking Formula
 When searching memories via `nomos mem recall <query>`:
-$$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{LexicalOverlap}) \times \text{TemporalDecay} \times \text{Reinforcement}$$
+$$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{LexicalOverlap}) \times \text{TemporalDecay} \times \text{Reinforcement} \times \text{LocalityBoost}$$
 
 - **Cosine Similarity**: $\frac{A \cdot B}{\|A\| \|B\|}$ evaluating semantic alignment.
 - **Lexical Overlap**: Word token Jaccard-style intersection over query length.
 - **Ebbinghaus Temporal Decay**: $\exp(-\lambda \times \text{age}_{\text{days}})$, with kind-specific $\lambda$ (`axiom`: $0.005$, `pattern`: $0.006$, `pitfall`: $0.008$, `reflection`: $0.02$, `release`/`task`/`commit`: $0.05$).
+- **Repository Locality Boost & Global Axiom Slot Cap**: Scoped searches (`opts.RepoID != ""` and `!opts.IncludeCrossRepo`) apply a $1.25\times$ multiplier to exact `repo_id` matches. Untyped repository queries (`opts.Kind == ""`) cap unscoped `global` `axiom` slots at $\max(1, \lfloor \text{limit} / 3 \rfloor)$ and backfill from overflow only when repository matches are sparse.
 - **Access Reinforcement & Per-Task Deduplication**: Applies $1.0 + 0.05 \times \min(\text{access\_count}, 10)$ during active worktree tasks at most once per `(task_id, memory_id)`. Passive `IDLE` orientation (`nomos handshake`, `nomos status`, `nomos task status`) and `nomos mem recall` run read-only (`SearchOptions.ReadOnly = true`) without inflating `access_count`.
 - **Recurrence-Aware Graduation (`RecallGraduationCandidates`)**: Tier-C structural AST gates (`Cognitive Complexity`, `Function Length`, `File Length`, `Docstring Density`, `Statement Coverage`) graduate only when directory-scoped topic recurrence $\ge 2$. Policy-graduatable statutory pitfalls surface as graduation candidates when topic recurrence $\ge 2$ or task-deduplicated `access_count >= 3`.
 - **Symbol-Delta Pitfall Distillation (`DistillTaskLearnings`)**: When a buffered gate failure cites a repository file, 2PC sync parses verified post-fix AST symbols. Distillation prepends `Refactored <file> [<symbols>]` ahead of walkthrough prose.
@@ -200,6 +203,7 @@ $$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{Lexica
 | `TC-MEM-11` | Symbol-delta pitfall fix distillation | Gate trap cites a repository source file resolved at 2PC sync | `Verified Fix` records concrete refactored file and verified symbols ahead of walkthrough prose. |
 | `TC-MEM-12` | Unscoped one-off pitfall cooling | Single-occurrence pitfall (`recurrence == 1`) older than 14 days during unscoped handshake | Excluded from unscoped `LearnedPitfalls`; retained on scope match or `recurrence >= 2`. |
 | `TC-MEM-13` | Active-default `nomos mem list` | `nomos mem dismiss <id>` followed by `nomos mem list` vs `nomos mem list --status tombstoned` | Excluded from default `nomos mem list` output and visible under `--status tombstoned` or `--status all`. |
+| `TC-MEM-14` | Repo locality boost & axiom cap | Untyped `SearchWithOptions` (`RepoID: "nomos"`, `Limit: 5`) | Boosts `nomos` matches $1.25\times$ and caps `global` axioms to 1. |
 
 ---
 
