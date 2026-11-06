@@ -314,6 +314,7 @@ func executeGateCheckForTask(taskKey string) (*verify.PipelineReport, error) {
 	}
 	pipeline := verify.NewPipeline(verify.DefaultBaselineGates())
 	report, err := pipeline.Execute(ctx)
+	recordVerificationAnomalies(repoRoot, taskKey, "task-review", report, err)
 	if err != nil {
 		return nil, err
 	}

@@ -125,8 +125,9 @@ Sentinel process-reward scorecards, Git Notes release receipts, and Mneme pitfal
 	helpSessionExportExample = `  nomos session export --limit 25
   nomos session export --limit 10 --json`
 
-	helpIssueExample = `  nomos issue --dry-run "CLI flag mismatch"
-  nomos issue "Verify gate timeout" --body "Observed on large monorepo"`
+	helpIssueExample = `  nomos issue "Verify gate timeout"
+  nomos issue --dry-run "CLI flag mismatch"
+  nomos issue "AST parse anomaly" --output .tmp/report.md --body "Observed on monorepo"`
 
 	helpVersionLong = `Display the compiled Nomos Open-Core substrate version, target OS/architecture,
 and Go toolchain provenance.`

@@ -113,6 +113,7 @@ func cleanupAndAnnounceSyncedTask(mgr *workspace.Manager, key string) {
 		uiSuccessStyle.Render("Task"),
 		styleTaskKey(key),
 		uiSuccessStyle.Render("synced and released to trunk"))
+	renderTaskSyncAnomalyAlert(os.Stdout, mgr.RepoRoot, key)
 	recompileSubstrateBinary(mgr.RepoRoot)
 	renderPhaseTransitionNextActions(os.Stdout, types.PhaseSync, key, "", mgr.RepoRoot)
 }

@@ -3,6 +3,11 @@
 package cli
 
 import (
+	"errors"
+	"fmt"
+
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/telemetry"
 	"github.com/spf13/cobra"
 )
@@ -48,10 +53,35 @@ func shouldRecordCommandTelemetry(cmd *cobra.Command) bool {
 	return true
 }
 
-// Execute parses command-line arguments and runs the root command.
-func Execute() error {
+// Execute parses command-line arguments, recovers internal runtime panics into the local
+// diagnostic ring buffer, and executes the authoritative root command.
+func Execute() (execErr error) {
+	repoRoot, rErr := workspace.FindRepoRoot("")
+	if rErr != nil {
+		repoRoot = "."
+	}
+	defer func() {
+		if rec := recover(); rec != nil {
+			RecordSubstrateAnomaly(repoRoot, "", "nomos", anomalyKindPanic, "cli.Execute", fmt.Sprint(rec), 0)
+			execErr = types.NewNomosError(types.ErrCodeCore, "recovered internal substrate panic: %v", rec).
+				WithRemedy("run 'nomos issue' to inspect and export a scrubbed local diagnostic report")
+		}
+	}()
+
 	rootCmd := NewRootCmd()
-	return rootCmd.Execute()
+	execErr = rootCmd.Execute()
+	recordRootExecutionAnomaly(repoRoot, execErr)
+	return execErr
+}
+
+func recordRootExecutionAnomaly(repoRoot string, err error) {
+	if err == nil {
+		return
+	}
+	var nErr *types.NomosError
+	if errors.As(err, &nErr) && (nErr.Code == types.ErrCodeCore || nErr.Code == types.ErrCodeSubstrate) {
+		RecordSubstrateAnomaly(repoRoot, "", "nomos", anomalyKindSubstrateError, nErr.Code, nErr.Description, 0)
+	}
 }
 
 func registerSubcommands(root *cobra.Command) {
