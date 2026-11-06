@@ -4,13 +4,15 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-12"
-last_updated: "2026-11-03"
+last_updated: "2026-11-06"
+lineage:
+  - INT-944
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Nomos Launchpad: Invisible Harness & Capability Telemetry Specification"
 type: spec
-version: "4.2.0"
+version: "4.7.0"
 ---
 
 # Nomos Launchpad: Invisible Harness & Capability Telemetry Specification
@@ -44,8 +46,8 @@ This specification formalizes the **Invisible Harness Paradigm** and the **Capab
 ## 3. The Invisible Harness Architecture
 
 The Invisible Harness ensures that Nomos operates silently in the background with **zero custom slash commands, zero conversational workflow playbooks, and zero skill walls**:
-- **Zero-Config Bootstrap (`nomos init`)**: Scaffolds `AGENTS.md`, `CLAUDE.md`, `.agents/hooks.json`, `.agents/scripts/`, and `config.ResolveConfigPath()` configuration in $< 2$ seconds while pruning legacy `.agents/workflows/` files.
-- **Ambient Session Orientation & Defense Hooks (`nomos hook session-start`, `nomos hook pre-tool`, `nomos hook post-tool`)**: Automatically executes `nomos handshake` at session start and installs CapBAC `pre-commit` and `commit-msg` hooks. If an agent attempts direct mutation on protected trunk (`main`), the hook intercepts the mutation and emits remedy `nomos task chore "<title>"`.
+- **Zero-Config Bootstrap (`nomos init`)**: Scaffolds `AGENTS.md`, `CLAUDE.md`, `.agents/hooks.json`, `.agents/scripts/`, `.opencode/plugins/nomos.ts`, and `config.ResolveConfigPath()` configuration in $< 2$ seconds while pruning legacy `.agents/workflows/` files. Existing `.claude/settings.json` manifests merge additively, and co-located user plugins inside `.opencode/plugins/` remain untouched across repeated `nomos init` runs.
+- **Ambient Session Orientation & Defense Hooks (`nomos hook session-start`, `nomos hook pre-tool`, `nomos hook post-tool`)**: Automatically executes `nomos handshake` at session start and installs CapBAC `pre-commit` and `commit-msg` hooks. In OpenCode, `.opencode/plugins/nomos.ts` binds `"tool.execute.before"` and `"tool.execute.after"` directly to `nomos hook pre-tool` and `nomos hook post-tool` in $< 5\text{ms}$ via `spawnSync`. Denied mutations throw a blocking `Error` with actionable remedy `nomos task chore "<title>"`, while post-tool AST advisories append cleanly to `output.output`.
 - **One-Step Maintenance Chores (`nomos task chore`)**: Incepts the task, registers it in the SQLite Living Ledger, provisions a transient worktree, and enters the `EDIT` phase atomically.
 - **Microsecond DoD Evaluations**: All 42 DoD quality gates execute in parallel compiled Go routines, verifying entire codebases in $< 1.5$ seconds.
 
@@ -144,6 +146,8 @@ Nomos partitions developer onboarding into three progressive passes to eliminate
 | `TC-LAUNCH-002` | `nomos task chore` | `nomos task chore "Fix parser edge case"` | Task created with `SUB-` key, transient worktree mounted, phase transitioned to `EDIT` | Law 3 & Law 6 (Canonical Singularity) |
 | `TC-LAUNCH-003` | `RecordInvocationWithDetails` | `RecordWorkflowInvocationSafe(dbPath, "wf-handshake", "Nomos Handshake", "human_workflow")` | Row persisted in `telemetry_capabilities` matching `telemetry.CapabilityMetrics` | Law 4 (Compiled Go SSoT) |
 | `TC-LAUNCH-004` | Telemetry Ingestion Failure | Unwritable database path | Function returns gracefully without application panic | Fail-Safe Telemetry |
+| `TC-LAUNCH-005` | `nomos init` OpenCode Scaffolding | Workspace containing custom `.opencode/plugins/custom.ts` | Idempotently writes `.opencode/plugins/nomos.ts` while preserving `custom.ts` byte-for-byte | Law 1 & Law 6 |
+| `TC-LAUNCH-006` | `.opencode/plugins/nomos.ts` Runtime | OpenCode `tool.execute.before` and `tool.execute.after` events | Invokes `nomos hook pre-tool` and `nomos hook post-tool` in `<5ms`; throws `Error` on `deny` | Law 1 & Law 3 |
 
 ---
 
