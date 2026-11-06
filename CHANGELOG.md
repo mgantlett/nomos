@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [v4.10.1] - 2026-11-06
+
+> GoReleaser v2 AUR Schema Alignment & Precompiled Multi-Arch Release Artifacts (Apache 2.0)
+
+### Release Pipeline Hardening (`.goreleaser.yaml`, `release.yaml`)
+- **GoReleaser v2 `config.AUR` Schema Parity**: Removes unsupported `options` array from `.goreleaser.yaml` `aurs:` (relying on GoReleaser v2's native `!strip` PKGBUILD template) and guards `AUR_KEY` lookup via `index .Env "AUR_KEY"` so GitHub Release tarballs, `checksums.txt`, and rendered AUR `PKGBUILD` artifacts build deterministically whether or not `secrets.AUR_KEY` is configured.
+
+---
+
 ## [v4.10.0] - 2026-11-06
 
 > Ambient OpenCode Plugin Hooks, First-Class Rails 8 Minitest Runner, Arch/Omarchy `nomos-bin` AUR Packaging, Pure NixOS Zero-FHS Hooks & Tree-Hash Toolchain Receipt Caching (Apache 2.0)

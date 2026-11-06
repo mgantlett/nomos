@@ -61,4 +61,5 @@ jobs:
           args: release --clean --release-notes "${{ runner.temp }}/release-notes.md"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUR_KEY: ${{ secrets.AUR_KEY }}
           GORELEASER_CURRENT_TAG: ${{ inputs.tag || github.ref_name }}
