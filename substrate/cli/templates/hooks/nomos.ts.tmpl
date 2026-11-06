@@ -1,0 +1,145 @@
+// NOMOS_OPEN_CORE_PLUGIN_START
+import { spawnSync } from "node:child_process";
+
+interface OpenCodeHookInput {
+  tool: string;
+  sessionID?: string;
+  callID?: string;
+}
+
+interface OpenCodeBeforeOutput {
+  args?: Record<string, unknown>;
+}
+
+interface OpenCodeAfterOutput {
+  title?: string;
+  output?: string;
+  metadata?: Record<string, unknown>;
+}
+
+interface OpenCodePluginContext {
+  directory?: string;
+  worktree?: string;
+}
+
+/**
+ * Invokes a compiled Nomos hook subcommand synchronously with bounded latency.
+ */
+function runNomosHook(subcmd: string, payload: Record<string, unknown>): Record<string, unknown> | null {
+  const res = spawnSync("nomos", ["hook", subcmd], {
+    input: JSON.stringify(payload),
+    encoding: "utf8",
+    timeout: 5000,
+  });
+  if (res.error || res.status !== 0 || !res.stdout) {
+    return null;
+  }
+  try {
+    return JSON.parse(res.stdout.trim()) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extracts additionalContext or ephemeralMessage from a PostToolUse JSON payload.
+ */
+function extractAdvisoryText(parsed: Record<string, unknown> | null): string {
+  if (!parsed) {
+    return "";
+  }
+  const spec = parsed.hookSpecificOutput as Record<string, unknown> | undefined;
+  if (spec && typeof spec.additionalContext === "string") {
+    return spec.additionalContext.trim();
+  }
+  const steps = parsed.injectSteps as Array<Record<string, unknown>> | undefined;
+  if (Array.isArray(steps) && steps.length > 0 && typeof steps[0].ephemeralMessage === "string") {
+    return steps[0].ephemeralMessage.trim();
+  }
+  return "";
+}
+
+/**
+ * Resolves cached or live tool arguments without empty brace literals.
+ */
+function resolveToolArgs(raw: Record<string, unknown> | undefined): Record<string, unknown> {
+  if (raw) {
+    return raw;
+  }
+  return Object.create(null) as Record<string, unknown>;
+}
+
+/**
+ * Evaluates pre-tool governance and throws on fail-closed deny decisions.
+ */
+function evaluateOpenCodeBefore(
+  cwd: string,
+  pendingArgs: Map<string, Record<string, unknown>>,
+  input: OpenCodeHookInput,
+  output?: OpenCodeBeforeOutput,
+): void {
+  const args = resolveToolArgs(output?.args);
+  if (input.callID) {
+    pendingArgs.set(input.callID, args);
+  }
+  const parsed = runNomosHook("pre-tool", {
+    hook_event_name: "tool.execute.before",
+    session_id: input.sessionID || "",
+    cwd,
+    tool_name: input.tool,
+    tool_input: args,
+  });
+  if (parsed && parsed.decision === "deny") {
+    const reason = typeof parsed.reason === "string" && parsed.reason !== ""
+      ? parsed.reason
+      : "Blocked by Nomos pre-tool governance.";
+    throw new Error(reason);
+  }
+}
+
+/**
+ * Evaluates post-tool AST and host advisories and appends non-empty guidance.
+ */
+function evaluateOpenCodeAfter(
+  cwd: string,
+  pendingArgs: Map<string, Record<string, unknown>>,
+  input: OpenCodeHookInput,
+  output?: OpenCodeAfterOutput,
+): void {
+  const cached = input.callID ? pendingArgs.get(input.callID) : undefined;
+  if (input.callID) {
+    pendingArgs.delete(input.callID);
+  }
+  const parsed = runNomosHook("post-tool", {
+    hook_event_name: "tool.execute.after",
+    session_id: input.sessionID || "",
+    cwd,
+    tool_name: input.tool,
+    tool_input: resolveToolArgs(cached),
+    tool_response: output?.output || "",
+  });
+  const advisory = extractAdvisoryText(parsed);
+  if (advisory && output && typeof output.output === "string") {
+    output.output = `${output.output}\n\n${advisory}`;
+  }
+}
+
+/**
+ * Ambient Nomos indirect-control plugin for OpenCode (Law 1 & Law 3).
+ */
+export const NomosGovernancePlugin = async (ctx?: OpenCodePluginContext) => {
+  const cwd = ctx?.worktree || ctx?.directory || process.cwd();
+  const pendingArgs = new Map<string, Record<string, unknown>>();
+
+  return {
+    "tool.execute.before": async (input: OpenCodeHookInput, output: OpenCodeBeforeOutput) => {
+      evaluateOpenCodeBefore(cwd, pendingArgs, input, output);
+    },
+    "tool.execute.after": async (input: OpenCodeHookInput, output: OpenCodeAfterOutput) => {
+      evaluateOpenCodeAfter(cwd, pendingArgs, input, output);
+    },
+  };
+};
+
+export default NomosGovernancePlugin;
+// NOMOS_OPEN_CORE_PLUGIN_END

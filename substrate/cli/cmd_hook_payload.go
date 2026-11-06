@@ -28,8 +28,8 @@ type HookPayload struct {
 var (
 	readOnlyTools = map[string]bool{
 		"read": true, "read_file": true, "view_file_outline": true, "view_code_item": true,
-		"grep_search": true, "find_by_name": true, "list_dir": true, "list_directory": true,
-		"glob": true, "grep": true, "search_file_content": true,
+		"grep_search": true, "find_by_name": true, "list_dir": true, "list_directory": true, "list": true,
+		"glob": true, "grep": true, "search_file_content": true, "lsp": true,
 		"bash": true, "run_command": true, "execute_command": true, "run_shell_command": true,
 	}
 	geminiSpecificTools = map[string]bool{
@@ -54,6 +54,7 @@ func parseHookPayload(raw []byte) *HookPayload {
 	p.SessionID = firstNonEmpty(
 		extractStringField(m, "session_id"),
 		extractStringField(m, "sessionId"),
+		extractStringField(m, "sessionID"),
 	)
 	_, p.IsPostInvoke = m["invocationNum"]
 	p.Cwd = extractStringField(m, "cwd")
@@ -62,6 +63,7 @@ func parseHookPayload(raw []byte) *HookPayload {
 		extractNestedString(m, "toolCall", "name"),
 		extractStringField(m, "tool_name"),
 		extractStringField(m, "toolName"),
+		extractStringField(m, "tool"),
 	)
 	p.IsClaudeEvent, p.IsGeminiEvent = classifyHookEventFamily(
 		extractStringField(m, "hook_event_name"),
@@ -79,6 +81,9 @@ func parseHookPayload(raw []byte) *HookPayload {
 func classifyHookEventFamily(eventName, toolName string, hasToolInput, hasSessionID bool) (bool, bool) {
 	lowerEvent := strings.ToLower(strings.TrimSpace(eventName))
 	lowerTool := strings.ToLower(strings.TrimSpace(toolName))
+	if lowerEvent == "tool.execute.before" || lowerEvent == "tool.execute.after" {
+		return false, false
+	}
 	if lowerEvent == "beforetool" || lowerEvent == "aftertool" {
 		return false, true
 	}
@@ -95,13 +100,15 @@ func classifyHookEventFamily(eventName, toolName string, hasToolInput, hasSessio
 }
 
 const (
-	hookFieldToolCall  = "toolCall"
-	hookFieldToolInput = "tool_input"
-	hookFieldArgs      = "args"
-	hookFieldCommand   = "command"
-	hookFieldFilePath  = "file_path"
-	hookFieldDirPath   = "dir_path"
-	hookFieldPath      = "path"
+	hookFieldToolCall      = "toolCall"
+	hookFieldToolInput     = "tool_input"
+	hookFieldArgs          = "args"
+	hookFieldCommand       = "command"
+	hookFieldFilePath      = "file_path"
+	hookFieldFilePathCamel = "filePath"
+	hookFieldDirPath       = "dir_path"
+	hookFieldPath          = "path"
+	hookFieldPatchText     = "patchText"
 )
 
 func extractArgsDigestField(m map[string]any) string {
@@ -127,15 +134,42 @@ func extractTargetFileField(m map[string]any) string {
 		extractDeepString(m, hookFieldToolCall, hookFieldArgs, "TargetFile"),
 		extractDeepString(m, hookFieldToolCall, hookFieldArgs, "Path"),
 		extractDeepString(m, hookFieldToolCall, hookFieldArgs, hookFieldFilePath),
+		extractDeepString(m, hookFieldToolCall, hookFieldArgs, hookFieldFilePathCamel),
 		extractDeepString(m, hookFieldToolCall, hookFieldArgs, hookFieldPath),
 		extractNestedString(m, hookFieldToolInput, hookFieldFilePath),
+		extractNestedString(m, hookFieldToolInput, hookFieldFilePathCamel),
 		extractNestedString(m, hookFieldToolInput, hookFieldDirPath),
 		extractNestedString(m, hookFieldToolInput, hookFieldPath),
 		extractNestedString(m, hookFieldToolInput, "notebook_path"),
 		extractNestedString(m, hookFieldArgs, hookFieldFilePath),
+		extractNestedString(m, hookFieldArgs, hookFieldFilePathCamel),
 		extractNestedString(m, hookFieldArgs, hookFieldDirPath),
 		extractNestedString(m, hookFieldArgs, hookFieldPath),
+		extractPatchTargetFile(m),
 	)
+}
+
+func extractPatchTargetFile(m map[string]any) string {
+	patch := firstNonEmpty(
+		extractNestedString(m, hookFieldToolInput, hookFieldPatchText),
+		extractNestedString(m, hookFieldArgs, hookFieldPatchText),
+		extractDeepString(m, hookFieldToolCall, hookFieldArgs, hookFieldPatchText),
+	)
+	if patch == "" {
+		return ""
+	}
+	for _, line := range strings.Split(patch, "\n") {
+		trimmed := strings.TrimSpace(line)
+		for _, prefix := range []string{"*** Update File:", "*** Add File:", "*** Delete File:"} {
+			if strings.HasPrefix(trimmed, prefix) {
+				candidate := strings.TrimSpace(strings.TrimPrefix(trimmed, prefix))
+				if candidate != "" {
+					return candidate
+				}
+			}
+		}
+	}
+	return ""
 }
 
 func extractCommandField(m map[string]any) string {

@@ -97,7 +97,8 @@ func initializeGitGovernance(absDir string) (bool, bool) {
 	}
 
 	createdCommit := false
-	addCmd := workspace.SafeGitCommand(absDir, "add", ".gitignore", "nomos.yaml", "AGENTS.md", "CLAUDE.md", ".agents")
+	openCodePluginRel := filepath.Join(".opencode", "plugins", "nomos.ts")
+	addCmd := workspace.SafeGitCommand(absDir, "add", ".gitignore", "nomos.yaml", "AGENTS.md", "CLAUDE.md", ".agents", openCodePluginRel)
 	if aErr := addCmd.Run(); aErr != nil {
 		fmt.Printf("⚠️ failed staging governance files: %v\n", aErr)
 	}
@@ -291,6 +292,9 @@ func scaffoldAmbientHooks(dir string) error {
 		if cErr := scaffoldOrMergeHookManifestFile(claudeSettingsPath, DefaultClaudeSettingsHooksJSON()); cErr != nil {
 			return cErr
 		}
+	}
+	if oErr := scaffoldOpenCodePlugin(dir); oErr != nil {
+		return oErr
 	}
 
 	scripts := []string{"session-start.sh", "worktree-guard.sh", "nomos-build-guard.sh", "post-edit-radar.sh"}

@@ -212,6 +212,15 @@ func assertScaffoldedHooks(t *testing.T, dir string) {
 			t.Errorf("expected %s to be a pure zero-jq exec launcher, got:\n%s", sc, string(body))
 		}
 	}
+
+	ocPlugin := filepath.Join(dir, ".opencode", "plugins", "nomos.ts")
+	ocBody, ocErr := os.ReadFile(ocPlugin)
+	if ocErr != nil {
+		t.Fatalf("expected OpenCode plugin %s to exist: %v", ocPlugin, ocErr)
+	}
+	if !strings.Contains(string(ocBody), `"tool.execute.before"`) || !strings.Contains(string(ocBody), `"tool.execute.after"`) {
+		t.Errorf("expected OpenCode before/after hooks in nomos.ts, got:\n%s", string(ocBody))
+	}
 }
 
 func TestExecuteInit_PrunesLegacyWorkflows(t *testing.T) {
