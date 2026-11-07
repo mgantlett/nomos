@@ -63,6 +63,18 @@ channels to preserve native OS error provenance, and run zero-footprint in-memor
 syntax and budget radar checks on modified source files.`
 	helpHookPostToolExample = `  echo '{"tool_name":"Edit","tool_input":{"file_path":"worktrees/repo-SUB-1/app.go"}}' | nomos hook post-tool`
 
+	helpHookStopLong = `Ingest a JSON Stop or AfterAgent turn-termination payload from stdin, honor
+stop_hook_active re-entry safety, block unverified active EDIT worktree exits until
+nomos verify executes, and block container-sandbox exits with syntax or verifier-path faults.`
+	helpHookStopExample = `  echo '{"hook_event_name":"Stop","cwd":"worktrees/repo-SUB-1"}' | nomos hook stop
+  echo '{"hook_event_name":"AfterAgent","cwd":"/app"}' | nomos hook stop --container-sandbox`
+
+	helpHookInstallLong = `Additively install or merge Nomos lifecycle hooks (SessionStart, PreToolUse,
+PostToolUse, and Stop/AfterAgent) for Claude Code, Gemini CLI, and OpenCode into
+project-scoped or user-scoped configuration manifests without clobbering existing hooks.`
+	helpHookInstallExample = `  nomos hook install --claude --user
+  nomos hook install --gemini --opencode --dir ./my-service`
+
 	helpDirectiveExample = `  nomos directive
   nomos directive plan_03_nomos_controlled_technical_english.md
   nomos directive --lexicon --domain steering

@@ -29,8 +29,8 @@ func NewHookCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "hook",
-		Short: "Execute compiled zero-dependency agent lifecycle hooks (session-start, pre-tool, post-tool)",
-		Long: `Native compiled Go hook interceptors for Tier 1 coding agents (Claude Code, Cursor, Antigravity).
+		Short: "Execute compiled zero-dependency agent lifecycle hooks (session-start, pre-tool, post-tool, stop, install)",
+		Long: `Native compiled Go hook interceptors for Tier 1 coding agents (Claude Code, Gemini CLI, OpenCode, Cursor, Antigravity).
 Reads JSON hook payloads from stdin with zero external jq/bash/python dependencies.`,
 		Example: helpHookExample,
 	}
@@ -47,6 +47,8 @@ Reads JSON hook payloads from stdin with zero external jq/bash/python dependenci
 		newHookSessionStartCmd(&hermeticDir, &budgetSec),
 		newHookPreToolCmd(&hermeticDir, &containerSandbox, &budgetSec, &advFlags),
 		newHookPostToolCmd(&hermeticDir, &containerSandbox, &budgetSec, &advFlags),
+		newHookStopCmd(&hermeticDir, &containerSandbox),
+		newHookInstallCmd(),
 	)
 	return cmd
 }

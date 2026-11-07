@@ -193,3 +193,33 @@ func TestCommitMsgHookScript_ZeroFHSSedFreePureNixOSCompatibility(t *testing.T) 
 		t.Fatalf("commit-msg failed in sed/awk-free PATH: %v\n%s", err, string(out))
 	}
 }
+
+func TestEnsureOriginNotesRefspecs_AdditivePushAndFetch(t *testing.T) {
+	remoteBare := filepath.Join(t.TempDir(), "remote.git")
+	if out, err := SafeGitCommand(t.TempDir(), "init", "--bare", remoteBare).CombinedOutput(); err != nil {
+		t.Fatalf("bare init failed: %v\n%s", err, string(out))
+	}
+	repoDir := InitHermeticGitRepo(t)
+	if out, err := SafeGitCommand(repoDir, "remote", "add", "origin", remoteBare).CombinedOutput(); err != nil {
+		t.Fatalf("remote add failed: %v\n%s", err, string(out))
+	}
+	if err := InstallHooks(repoDir); err != nil {
+		t.Fatalf("InstallHooks failed: %v", err)
+	}
+	// Repeat call to verify idempotency.
+	if _, err := EnsureHooksInstalled(repoDir); err != nil {
+		t.Fatalf("EnsureHooksInstalled failed: %v", err)
+	}
+	pushOut, err := SafeGitCommand(repoDir, "config", "--get-all", "remote.origin.push").Output()
+	if err != nil {
+		t.Fatalf("expected remote.origin.push entries: %v", err)
+	}
+	pushLines := strings.Fields(string(pushOut))
+	if len(pushLines) != 2 || pushLines[0] != "HEAD" || pushLines[1] != "refs/notes/nomos/*:refs/notes/nomos/*" {
+		t.Fatalf("unexpected remote.origin.push lines: %v", pushLines)
+	}
+	fetchOut, fErr := SafeGitCommand(repoDir, "config", "--get-all", "remote.origin.fetch").Output()
+	if fErr != nil || !strings.Contains(string(fetchOut), "+refs/notes/nomos/*:refs/notes/nomos/*") {
+		t.Fatalf("expected notes fetch refspec in remote.origin.fetch, got %q (err=%v)", string(fetchOut), fErr)
+	}
+}

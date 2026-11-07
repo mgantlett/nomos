@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -15,6 +14,7 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/capbac"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/treesitter"
 )
 
 var wildRmPattern = regexp.MustCompile(`(?i)(?:^|[;&|]\s*|\bsudo\s+)rm\s+(?:(?:-[a-z]*r[a-z]*|--recursive)\s+(?:/|\*+|~|\.\.?)(?:\s|$|/)|(?:-[a-z]+\s+)*[^\n;|&]*\*)`)
@@ -133,12 +133,40 @@ func isPostToolTargetInScope(resolved, hermeticDir string) bool {
 
 func validateStructuredFileInMemory(resolved string) string {
 	ext := strings.ToLower(filepath.Ext(resolved))
-	if ext == ".py" {
-		return validatePythonASTInMemory(resolved)
-	}
-	if ext != ".json" && ext != ".jsonl" {
+	switch ext {
+	case ".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".rs":
+		return validatePolyglotSyntaxInMemory(resolved, ext)
+	case ".json", ".jsonl":
+		return validateJSONFileInMemory(resolved, ext)
+	default:
 		return ""
 	}
+}
+
+func validatePolyglotSyntaxInMemory(resolved, ext string) string {
+	data, err := os.ReadFile(resolved)
+	if err != nil {
+		return ""
+	}
+	base := filepath.Base(resolved)
+	var sErr error
+	switch ext {
+	case ".py":
+		sErr = treesitter.ValidatePythonSyntax(base, data)
+	case ".rs":
+		sErr = treesitter.ValidateBraceSyntax("rust", base, data)
+	case ".ts", ".tsx":
+		sErr = treesitter.ValidateBraceSyntax("typescript", base, data)
+	default:
+		sErr = treesitter.ValidateBraceSyntax("javascript", base, data)
+	}
+	if sErr != nil {
+		return fmt.Sprintf("🚨 [Nomos AST Radar] %s: %s", base, sErr.Error())
+	}
+	return ""
+}
+
+func validateJSONFileInMemory(resolved, ext string) string {
 	data, err := os.ReadFile(resolved)
 	if err != nil {
 		return ""
@@ -160,21 +188,6 @@ func validateStructuredFileInMemory(resolved string) string {
 		}
 	}
 	return ""
-}
-
-func validatePythonASTInMemory(resolved string) string {
-	pyBin, err := exec.LookPath("python3")
-	if err != nil {
-		return ""
-	}
-	cmd := exec.Command(pyBin, "-B", "-c", "import ast,sys; ast.parse(open(sys.argv[1],encoding='utf-8').read())", resolved)
-	out, runErr := cmd.CombinedOutput()
-	if runErr == nil {
-		return ""
-	}
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-	last := lines[len(lines)-1]
-	return fmt.Sprintf("🚨 [Nomos AST Radar] %s: %s", filepath.Base(resolved), last)
 }
 
 func evaluateFastRadarInMemory(resolved, baseCwd string) string {

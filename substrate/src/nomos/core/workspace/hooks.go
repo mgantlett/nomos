@@ -219,6 +219,7 @@ func InstallHooks(repoRoot string) error {
 	if err := os.WriteFile(filepath.Join(hooksDir, "pre-push"), []byte(PrePushHookScript), 0755); err != nil {
 		return types.NewNomosError(types.ErrCodeBoundary, "failed writing pre-push hook: %v", err)
 	}
+	EnsureOriginNotesRefspecs(cleanRoot)
 	return nil
 }
 
@@ -246,10 +247,46 @@ func EnsureHooksInstalled(repoRoot string) (bool, error) {
 	if hookMatches(preCommit, PreCommitHookScript) &&
 		hookMatches(commitMsg, CommitMsgHookScript) &&
 		hookMatches(prePush, PrePushHookScript) {
+		EnsureOriginNotesRefspecs(cleanRoot)
 		return false, nil // all hooks present, executable, and canonical
 	}
 
 	return true, InstallHooks(cleanRoot)
+}
+
+const (
+	nomosNotesPushRefspec  = "refs/notes/nomos/*:refs/notes/nomos/*"
+	nomosNotesFetchRefspec = "+refs/notes/nomos/*:refs/notes/nomos/*"
+)
+
+// EnsureOriginNotesRefspecs idempotently configures additive push and fetch refspecs
+// for refs/notes/nomos/* when an origin remote exists, preserving default HEAD pushes.
+func EnsureOriginNotesRefspecs(repoRoot string) {
+	if strings.TrimSpace(repoRoot) == "" {
+		return
+	}
+	originOut, err := SafeGitCommand(repoRoot, "config", "--get", "remote.origin.url").Output()
+	if err != nil || strings.TrimSpace(string(originOut)) == "" {
+		return
+	}
+	pushOut, pErr := SafeGitCommand(repoRoot, "config", "--get-all", "remote.origin.push").Output()
+	pushLines := strings.TrimSpace(string(pushOut))
+	if pErr != nil || !strings.Contains(pushLines, "refs/notes/nomos/") {
+		if pushLines == "" {
+			if rErr := SafeGitCommand(repoRoot, "config", "--add", "remote.origin.push", "HEAD").Run(); rErr != nil {
+				return
+			}
+		}
+		if rErr := SafeGitCommand(repoRoot, "config", "--add", "remote.origin.push", nomosNotesPushRefspec).Run(); rErr != nil {
+			return
+		}
+	}
+	fetchOut, fErr := SafeGitCommand(repoRoot, "config", "--get-all", "remote.origin.fetch").Output()
+	if fErr == nil && !strings.Contains(string(fetchOut), "refs/notes/nomos/") {
+		if rErr := SafeGitCommand(repoRoot, "config", "--add", "remote.origin.fetch", nomosNotesFetchRefspec).Run(); rErr != nil {
+			return
+		}
+	}
 }
 
 func hookMatches(path, expected string) bool {

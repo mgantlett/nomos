@@ -18,16 +18,48 @@ const (
 	IntentTwinModeFeat = "feat"
 	// IntentTwinModeStrict requires a Twin: INT-<N> trailer on all SUB commits.
 	IntentTwinModeStrict = "strict"
+
+	// EgressModeStandard allows outbound HTTP/HTTPS while enforcing SSRF, secret, and PII airlocks (default).
+	EgressModeStandard = "standard"
+	// EgressModeOffline denies all outbound agent HTTP/HTTPS egress on PreToolUse.
+	EgressModeOffline = "offline"
+	// EgressModeAllowlist restricts outbound agent HTTP/HTTPS egress to AllowedEgressDomains.
+	EgressModeAllowlist = "allowlist"
 )
 
 // BoundaryConfig declares architectural package and CLI command boundary protections.
 type BoundaryConfig struct {
-	Enforce            bool     `yaml:"enforce" json:"enforce"`
-	ProhibitedPackages []string `yaml:"prohibited_packages,omitempty" json:"prohibited_packages,omitempty"`
-	ProhibitedCommands []string `yaml:"prohibited_commands,omitempty" json:"prohibited_commands,omitempty"`
-	LockDependencies   bool     `yaml:"lock_dependencies,omitempty" json:"lock_dependencies,omitempty"`
-	AllowedMCPServers  []string `yaml:"allowed_mcp_servers,omitempty" json:"allowed_mcp_servers,omitempty"`
-	BlockedMCPServers  []string `yaml:"blocked_mcp_servers,omitempty" json:"blocked_mcp_servers,omitempty"`
+	Enforce              bool     `yaml:"enforce" json:"enforce"`
+	ProhibitedPackages   []string `yaml:"prohibited_packages,omitempty" json:"prohibited_packages,omitempty"`
+	ProhibitedCommands   []string `yaml:"prohibited_commands,omitempty" json:"prohibited_commands,omitempty"`
+	LockDependencies     bool     `yaml:"lock_dependencies,omitempty" json:"lock_dependencies,omitempty"`
+	AllowedMCPServers    []string `yaml:"allowed_mcp_servers,omitempty" json:"allowed_mcp_servers,omitempty"`
+	BlockedMCPServers    []string `yaml:"blocked_mcp_servers,omitempty" json:"blocked_mcp_servers,omitempty"`
+	EgressMode           string   `yaml:"egress_mode,omitempty" json:"egress_mode,omitempty"`
+	AllowedEgressDomains []string `yaml:"allowed_egress_domains,omitempty" json:"allowed_egress_domains,omitempty"`
+	BlockedEgressDomains []string `yaml:"blocked_egress_domains,omitempty" json:"blocked_egress_domains,omitempty"`
+}
+
+// EffectiveEgressMode returns normalized egress_mode, defaulting to "standard" (@intent: #BoundaryConfig).
+func (b *BoundaryConfig) EffectiveEgressMode() string {
+	if b == nil {
+		return EgressModeStandard
+	}
+	norm := strings.ToLower(strings.TrimSpace(b.EgressMode))
+	if norm == "" {
+		return EgressModeStandard
+	}
+	return norm
+}
+
+// IsValidEgressMode reports whether mode is a valid BoundaryConfig.EgressMode setting (@intent: #BoundaryConfig).
+func IsValidEgressMode(mode string) bool {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "", EgressModeStandard, EgressModeOffline, EgressModeAllowlist:
+		return true
+	default:
+		return false
+	}
 }
 
 // ContractsConfig defines contract schema and backend verification roots.
@@ -260,6 +292,9 @@ func ValidateConfig(cfg *EcosystemConfig) error {
 	}
 	if _, ok := IntentTwinModeRank(cfg.Governance.QualityGates.IntentTwinMode); !ok {
 		return fmt.Errorf("intent_twin_mode must be off, feat, or strict, got %q", cfg.Governance.QualityGates.IntentTwinMode)
+	}
+	if !IsValidEgressMode(cfg.Governance.Boundary.EgressMode) {
+		return fmt.Errorf("egress_mode must be standard, offline, or allowlist, got %q", cfg.Governance.Boundary.EgressMode)
 	}
 	return nil
 }

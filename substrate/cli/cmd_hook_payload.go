@@ -14,12 +14,15 @@ type HookPayload struct {
 	SessionID        string
 	ToolName         string
 	TargetFile       string
+	TargetURL        string
+	WrittenContent   string
 	CommandLine      string
 	ArgsDigest       string
 	ToolResponseText string
 	Cwd              string
 	WorkspacePaths   []string
 	HasToolInput     bool
+	StopHookActive   bool
 	IsClaudeEvent    bool
 	IsGeminiEvent    bool
 	IsPostInvoke     bool
@@ -35,6 +38,13 @@ var (
 	geminiSpecificTools = map[string]bool{
 		"run_shell_command": true, "write_file": true, "replace": true,
 		"list_directory": true, "search_file_content": true, "google_web_search": true,
+	}
+	claudeHookEvents = map[string]bool{
+		"pretooluse": true, "posttooluse": true, "sessionstart": true,
+		"stop": true, "subagentstop": true,
+	}
+	geminiHookEvents = map[string]bool{
+		"beforetool": true, "aftertool": true, "afteragent": true,
 	}
 	systemRootPrefixes = []string{"/etc", "/usr", "/bin", "/sbin", "/var", "/proc", "/sys", "/dev", "/boot"}
 )
@@ -71,7 +81,10 @@ func parseHookPayload(raw []byte) *HookPayload {
 		p.HasToolInput,
 		hasSessionID,
 	)
+	p.StopHookActive = extractBoolField(m, "stop_hook_active") || extractBoolField(m, "stopHookActive")
 	p.TargetFile = extractTargetFileField(m)
+	p.TargetURL = extractTargetURLField(m)
+	p.WrittenContent = extractWrittenContentField(m)
 	p.CommandLine = extractCommandField(m)
 	p.ArgsDigest = extractArgsDigestField(m)
 	p.ToolResponseText = extractToolResponseText(m)
@@ -84,16 +97,10 @@ func classifyHookEventFamily(eventName, toolName string, hasToolInput, hasSessio
 	if lowerEvent == "tool.execute.before" || lowerEvent == "tool.execute.after" {
 		return false, false
 	}
-	if lowerEvent == "beforetool" || lowerEvent == "aftertool" {
+	if geminiHookEvents[lowerEvent] || (lowerEvent == "" && geminiSpecificTools[lowerTool]) {
 		return false, true
 	}
-	if lowerEvent == "" && geminiSpecificTools[lowerTool] {
-		return false, true
-	}
-	if lowerEvent == "pretooluse" || lowerEvent == "posttooluse" || lowerEvent == "sessionstart" {
-		return true, false
-	}
-	if lowerEvent == "" && hasToolInput && hasSessionID {
+	if claudeHookEvents[lowerEvent] || (lowerEvent == "" && hasToolInput && hasSessionID) {
 		return true, false
 	}
 	return false, false
@@ -179,6 +186,39 @@ func extractCommandField(m map[string]any) string {
 		extractNestedString(m, hookFieldToolInput, hookFieldCommand),
 		extractNestedString(m, hookFieldArgs, hookFieldCommand),
 	)
+}
+
+func extractTargetURLField(m map[string]any) string {
+	return firstNonEmpty(
+		extractDeepString(m, hookFieldToolCall, hookFieldArgs, "url"),
+		extractDeepString(m, hookFieldToolCall, hookFieldArgs, "URL"),
+		extractDeepString(m, hookFieldToolCall, hookFieldArgs, "uri"),
+		extractNestedString(m, hookFieldToolInput, "url"),
+		extractNestedString(m, hookFieldToolInput, "uri"),
+		extractNestedString(m, hookFieldArgs, "url"),
+		extractNestedString(m, hookFieldArgs, "uri"),
+	)
+}
+
+func extractWrittenContentField(m map[string]any) string {
+	return firstNonEmpty(
+		extractDeepString(m, hookFieldToolCall, hookFieldArgs, "Content"),
+		extractDeepString(m, hookFieldToolCall, hookFieldArgs, "Replacement"),
+		extractDeepString(m, hookFieldToolCall, hookFieldArgs, "content"),
+		extractDeepString(m, hookFieldToolCall, hookFieldArgs, hookFieldPatchText),
+		extractNestedString(m, hookFieldToolInput, "content"),
+		extractNestedString(m, hookFieldToolInput, "new_string"),
+		extractNestedString(m, hookFieldToolInput, hookFieldPatchText),
+		extractNestedString(m, hookFieldArgs, "content"),
+		extractNestedString(m, hookFieldArgs, "new_string"),
+	)
+}
+
+func extractBoolField(m map[string]any, key string) bool {
+	if b, ok := m[key].(bool); ok {
+		return b
+	}
+	return false
 }
 
 func extractStringField(m map[string]any, key string) string {

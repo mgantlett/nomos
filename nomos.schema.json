@@ -18,8 +18,22 @@
           "description": "Package import and CLI command boundary protections.",
           "type": "object",
           "properties": {
+            "allowed_egress_domains": {
+              "description": "Explicit allowlist of permitted outbound domains when egress_mode is allowlist.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
             "allowed_mcp_servers": {
               "description": "Explicit allowlist of permitted MCP server identifiers on PreToolUse.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "blocked_egress_domains": {
+              "description": "Explicit denylist of prohibited outbound domains blocked on PreToolUse.",
               "type": "array",
               "items": {
                 "type": "string"
@@ -31,6 +45,16 @@
               "items": {
                 "type": "string"
               }
+            },
+            "egress_mode": {
+              "description": "Outbound agent HTTP/HTTPS egress policy on PreToolUse: standard (default), offline, or allowlist.",
+              "type": "string",
+              "enum": [
+                "standard",
+                "offline",
+                "allowlist"
+              ],
+              "default": "standard"
             },
             "enforce": {
               "description": "Enforce declared boundary constraints during verification.",

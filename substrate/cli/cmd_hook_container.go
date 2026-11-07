@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/capbac"
@@ -16,11 +17,17 @@ import (
 
 const containerDefaultWorkdir = "/app"
 
-var containerVerifierRoots = []string{
-	"/logs/verifier",
-	"/solution",
-	"/tests",
-}
+var (
+	containerVerifierRoots = []string{
+		"/logs/verifier",
+		"/solution",
+		"/tests",
+	}
+	embeddedVerifierRootRe = regexp.MustCompile(
+		`(?:^|[\s"'` + "`" + `=:(,\[\{<>])(/logs/verifier(?:/[^\s"'` + "`" + `),\]\};]*)?|/solution(?:/[^\s"'` + "`" + `),\]\};]*)?|/tests(?:/[^\s"'` + "`" + `),\]\};]*)?)(?:[\s"'` + "`" + `),\]\};]|$)`,
+	)
+	rootSweepCommandRe = regexp.MustCompile(`(?i)(?:^|[;&|]\s*)(?:find\s+/(?:\s|$)|(?:grep|rg)\b[^\n;|&]*\s+/(?:\s|$))`)
+)
 
 // EvaluateContainerPreToolHook enforces disposable benchmark container guardrails:
 // blocks reward-hacking access to verifier/solution roots, destructive wildcard
@@ -44,6 +51,9 @@ func EvaluateContainerPreToolHookWithProfile(p *HookPayload, profile HookAdvisor
 		if dec := evaluateContainerCommandGuard(p.CommandLine, baseCwd); dec.Decision == hookDecisionDeny {
 			return dec
 		}
+	}
+	if dec := evaluateOutboundEgressGuard(p, baseCwd); dec.Decision == hookDecisionDeny {
+		return dec
 	}
 	if dec := evaluateMCPPreToolGuard(p, baseCwd); dec.Decision == hookDecisionDeny {
 		return dec
@@ -82,6 +92,12 @@ func evaluateContainerCommandGuard(cmdLine, baseCwd string) HookDecision {
 			Reason:   fmt.Sprintf("❌ [NOMOS INTERCEPT] Anti-Reward-Hacking Violation (Law 2 & Law 3): Shell access targeting protected verifier/oracle path '%s' is strictly prohibited.", hit),
 		}
 	}
+	if rootSweepCommandRe.MatchString(cmdLine) {
+		return HookDecision{
+			Decision: hookDecisionDeny,
+			Reason:   "❌ [NOMOS INTERCEPT] Anti-Reward-Hacking Violation (Law 2 & Law 3): Root-wide filesystem discovery sweeps targeting '/' are prohibited; scope searches to the task directory (e.g., '/app' or '.').",
+		}
+	}
 	return evaluateInteractiveCommandGuard(cmdLine)
 }
 
@@ -100,6 +116,14 @@ func evaluateContainerTargetGuard(p *HookPayload, baseCwd string) HookDecision {
 		return HookDecision{
 			Decision: hookDecisionDeny,
 			Reason:   fmt.Sprintf("Anti-Reward-Hacking Violation (Law 2 & Law 3): Access to protected verifier/oracle path '%s' is strictly prohibited.", resolved),
+		}
+	}
+	if !isReadOnlyTool(p.ToolName) && p.WrittenContent != "" {
+		if hit := findEmbeddedProtectedVerifierRoot(p.WrittenContent); hit != "" {
+			return HookDecision{
+				Decision: hookDecisionDeny,
+				Reason:   fmt.Sprintf("Anti-Reward-Hacking Violation (Law 2 & Law 3): Writing script or payload referencing protected verifier/oracle path '%s' is strictly prohibited.", hit),
+			}
 		}
 	}
 	return evaluateBinaryReadGuard(p, true)
@@ -130,6 +154,14 @@ func findProtectedVerifierToken(cmdLine, baseCwd string) string {
 			}
 		}
 	}
+	return findEmbeddedProtectedVerifierRoot(cmdLine)
+}
+
+func findEmbeddedProtectedVerifierRoot(content string) string {
+	matches := embeddedVerifierRootRe.FindStringSubmatch(content)
+	if len(matches) >= 2 {
+		return matches[1]
+	}
 	return ""
 }
 
@@ -155,6 +187,9 @@ func EvaluateContainerPostToolHook(p *HookPayload) string {
 		baseCwd = containerDefaultWorkdir
 	}
 	resolved := normalizeCanonicalPath(p.TargetFile, baseCwd)
+	if snoopMsg := validateContainerFileVerifierClean(resolved); snoopMsg != "" {
+		return snoopMsg
+	}
 	if syntaxMsg := validateStructuredFileInMemory(resolved); syntaxMsg != "" {
 		return syntaxMsg
 	}
@@ -163,6 +198,17 @@ func EvaluateContainerPostToolHook(p *HookPayload) string {
 	}
 	if hasExplicitNomosConfig(resolved, baseCwd) {
 		return evaluateFastRadarInMemory(resolved, baseCwd)
+	}
+	return ""
+}
+
+func validateContainerFileVerifierClean(resolved string) string {
+	data, err := os.ReadFile(resolved)
+	if err != nil {
+		return ""
+	}
+	if hit := findEmbeddedProtectedVerifierRoot(string(data)); hit != "" {
+		return fmt.Sprintf("🚨 [Nomos Anti-Snooping Radar] %s: references protected verifier/oracle path '%s' (Law 2 & Law 3)", filepath.Base(resolved), hit)
 	}
 	return ""
 }

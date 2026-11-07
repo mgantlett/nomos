@@ -17,15 +17,16 @@ import (
 
 // hookSessionTrace summarizes verified tool and shell activity inside an active task worktree.
 type hookSessionTrace struct {
-	WorktreeRoot        string   `json:"worktree_root"`
-	ToolCallsCount      int      `json:"tool_calls_count"`
-	ShellCommandsCount  int      `json:"shell_commands_count"`
-	TestCommandsCount   int      `json:"test_commands_count"`
-	DeniedInterceptions int      `json:"denied_interceptions"`
-	UnverifiedCalls     int      `json:"unverified_calls,omitempty"`
-	WarnedChurn75       bool     `json:"warned_churn_75,omitempty"`
-	WarnedChurn150      bool     `json:"warned_churn_150,omitempty"`
-	MutatedFiles        []string `json:"mutated_files,omitempty"`
+	WorktreeRoot         string   `json:"worktree_root"`
+	ToolCallsCount       int      `json:"tool_calls_count"`
+	ShellCommandsCount   int      `json:"shell_commands_count"`
+	TestCommandsCount    int      `json:"test_commands_count"`
+	DeniedInterceptions  int      `json:"denied_interceptions"`
+	UnverifiedCalls      int      `json:"unverified_calls,omitempty"`
+	DirtyUnverifiedEdits bool     `json:"dirty_unverified_edits,omitempty"`
+	WarnedChurn75        bool     `json:"warned_churn_75,omitempty"`
+	WarnedChurn150       bool     `json:"warned_churn_150,omitempty"`
+	MutatedFiles         []string `json:"mutated_files,omitempty"`
 }
 
 var (
@@ -96,6 +97,7 @@ func evaluateWorktreeChurnAdvisory(p *HookPayload, hermeticDir, style string) st
 
 func resetWorktreeChurnCounters(tr *hookSessionTrace) {
 	tr.UnverifiedCalls = 0
+	tr.DirtyUnverifiedEdits = false
 	tr.WarnedChurn75 = false
 	tr.WarnedChurn150 = false
 }
@@ -140,6 +142,7 @@ func recordTracePayloadDetails(tr *hookSessionTrace, p *HookPayload, wtRoot stri
 		resolved := normalizeCanonicalPath(p.TargetFile, wtRoot)
 		rel := strings.TrimPrefix(resolved, wtRoot+"/")
 		tr.MutatedFiles = appendUniqueBounded(tr.MutatedFiles, rel, 64)
+		tr.DirtyUnverifiedEdits = true
 	}
 }
 
@@ -259,7 +262,9 @@ func saveHookSessionTrace(path string, tr hookSessionTrace) {
 	if err != nil {
 		return
 	}
-	_ = os.WriteFile(path, data, 0600)
+	if wErr := os.WriteFile(path, data, 0600); wErr != nil {
+		return
+	}
 }
 
 // clearHookSessionTrace removes transient worktree hook trace state after 2PC release or abort.

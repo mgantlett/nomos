@@ -44,6 +44,9 @@ var configFieldDescriptions = map[string]string{
 	"lock_dependencies":            "Reject unapproved dependency graph mutations in worktrees.",
 	"allowed_mcp_servers":          "Explicit allowlist of permitted MCP server identifiers on PreToolUse.",
 	"blocked_mcp_servers":          "Explicit denylist of prohibited MCP server identifiers on PreToolUse.",
+	"egress_mode":                  "Outbound agent HTTP/HTTPS egress policy on PreToolUse: standard (default), offline, or allowlist.",
+	"allowed_egress_domains":       "Explicit allowlist of permitted outbound domains when egress_mode is allowlist.",
+	"blocked_egress_domains":       "Explicit denylist of prohibited outbound domains blocked on PreToolUse.",
 	"quality_gates":                "Static AST, test hygiene, and cross-plane verification settings.",
 	"forbidden_literals":           "Hardcoded string or path literals rejected by Law 5.",
 	"forbidden_shims":              "Stub or placeholder patterns rejected by the Anti-Shim Gate.",
@@ -135,6 +138,10 @@ func reflectStructSchema(t reflect.Type, defVal reflect.Value) *JSONSchemaNode {
 		if name == "intent_twin_mode" {
 			propNode.Enum = []string{IntentTwinModeOff, IntentTwinModeFeat, IntentTwinModeStrict}
 			propNode.Default = IntentTwinModeOff
+		}
+		if name == "egress_mode" {
+			propNode.Enum = []string{EgressModeStandard, EgressModeOffline, EgressModeAllowlist}
+			propNode.Default = EgressModeStandard
 		}
 		applyNumericBounds(name, propNode)
 		props[name] = propNode

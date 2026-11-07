@@ -30,6 +30,10 @@ func EvaluatePreToolHookWithProfile(p *HookPayload, hermeticDir string, profile 
 			return dec
 		}
 	}
+	wsRoot := resolveCanonicalHookWorkspace(p, hermeticDir)
+	if dec := evaluateOutboundEgressGuard(p, wsRoot); dec.Decision == hookDecisionDeny {
+		return dec
+	}
 	if dec := evaluateMCPPreToolGuard(p, hermeticDir); dec.Decision == hookDecisionDeny {
 		return dec
 	}
