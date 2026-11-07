@@ -1,6 +1,9 @@
 .vscode/
 .idea/
 *.swp
+*.tmp
+*.bak
+*.orig
 worktrees/
 dist/
 bin/

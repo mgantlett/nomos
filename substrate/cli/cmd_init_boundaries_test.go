@@ -26,7 +26,7 @@ func TestScaffoldNomosBoundaries_AnchorsAndCreatesGitExclude(t *testing.T) {
 			t.Fatalf("failed reading %s: %v", rel, err)
 		}
 		content := string(raw)
-		for _, expected := range []string{"/worktrees/", "/.tmp/", localNomosPattern, "/go.work", "/go.work.sum"} {
+		for _, expected := range []string{"/worktrees/", "/.tmp/", localNomosPattern, "/go.work", "/go.work.sum", "*.tmp", "*.bak", "*.orig", "*.swp"} {
 			if !strings.Contains(content, expected) {
 				t.Errorf("expected %s in %s, got:\n%s", expected, rel, content)
 			}

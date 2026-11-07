@@ -16,6 +16,10 @@ func canonicalBoundaryPatterns() []string {
 		"/" + constants.DirNomosHome + "/",
 		"/go.work",
 		"/go.work.sum",
+		"*.tmp",
+		"*.bak",
+		"*.orig",
+		"*.swp",
 	}
 }
 

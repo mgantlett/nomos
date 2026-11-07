@@ -66,7 +66,7 @@ func evaluateCommandGuard(cmdLine, baseCwd, hermeticDir string) HookDecision {
 			return dec
 		}
 	}
-	return HookDecision{Decision: hookDecisionAllow}
+	return evaluateTrunkShellRedirectGuard(cmdLine, baseCwd, hermeticDir)
 }
 
 func isForbiddenSQLiteCmd(cmdLine string) bool {

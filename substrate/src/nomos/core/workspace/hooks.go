@@ -219,6 +219,7 @@ func InstallHooks(repoRoot string) error {
 	if err := os.WriteFile(filepath.Join(hooksDir, "pre-push"), []byte(PrePushHookScript), 0755); err != nil {
 		return types.NewNomosError(types.ErrCodeBoundary, "failed writing pre-push hook: %v", err)
 	}
+	EnsureGitExcludeBoundaries(cleanRoot)
 	EnsureOriginNotesRefspecs(cleanRoot)
 	return nil
 }
@@ -247,11 +248,74 @@ func EnsureHooksInstalled(repoRoot string) (bool, error) {
 	if hookMatches(preCommit, PreCommitHookScript) &&
 		hookMatches(commitMsg, CommitMsgHookScript) &&
 		hookMatches(prePush, PrePushHookScript) {
+		EnsureGitExcludeBoundaries(cleanRoot)
 		EnsureOriginNotesRefspecs(cleanRoot)
 		return false, nil // all hooks present, executable, and canonical
 	}
 
 	return true, InstallHooks(cleanRoot)
+}
+
+var canonicalExcludeEntries = []string{
+	"/worktrees/",
+	"/.tmp/",
+	"*.tmp",
+	"*.bak",
+	"*.orig",
+	"*.swp",
+}
+
+// EnsureGitExcludeBoundaries self-heals canonical scratch and worktree patterns in .git/info/exclude.
+func EnsureGitExcludeBoundaries(repoRoot string) {
+	if strings.TrimSpace(repoRoot) == "" {
+		return
+	}
+	gitDir, err := resolveGitCommonDir(repoRoot)
+	if err != nil {
+		return
+	}
+	infoDir := filepath.Join(gitDir, "info")
+	if mkErr := os.MkdirAll(infoDir, 0755); mkErr != nil {
+		return
+	}
+	excludePath := filepath.Join(infoDir, "exclude")
+	existingBytes, rErr := os.ReadFile(excludePath)
+	var existing string
+	if rErr == nil {
+		existing = string(existingBytes)
+	}
+	var missing []string
+	for _, pat := range canonicalExcludeEntries {
+		if !excludeContainsPattern(existing, pat) {
+			missing = append(missing, pat)
+		}
+	}
+	if len(missing) == 0 {
+		return
+	}
+	var sb strings.Builder
+	sb.WriteString(existing)
+	if len(existing) > 0 && !strings.HasSuffix(existing, "\n") {
+		sb.WriteString("\n")
+	}
+	sb.WriteString("# Nomos Self-Healed Scratch & Worktree Boundaries\n")
+	for _, m := range missing {
+		sb.WriteString(m + "\n")
+	}
+	if wErr := os.WriteFile(excludePath, []byte(sb.String()), 0644); wErr != nil {
+		return
+	}
+}
+
+func excludeContainsPattern(existing, pattern string) bool {
+	trimmedAnchor := strings.TrimPrefix(pattern, "/")
+	for _, raw := range strings.Split(existing, "\n") {
+		line := strings.TrimSpace(raw)
+		if line == pattern || (trimmedAnchor != "" && line == trimmedAnchor) {
+			return true
+		}
+	}
+	return false
 }
 
 const (

@@ -287,3 +287,47 @@ func TestHookPostTool_PureGoPolyglotSyntaxAndNoEditRunnerLoop(t *testing.T) {
 		}
 	}
 }
+
+func TestHookPreTool_TrunkShellRedirectBlockedOutsideWorktree(t *testing.T) {
+	t.Setenv("NOMOS_HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+
+	repoDir := workspace.InitHermeticGitRepo(t)
+	if err := os.WriteFile(filepath.Join(repoDir, "nomos.yaml"), []byte("project: demo\ndefault_branch: main\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	wtDir := filepath.Join(repoDir, "worktrees", "demo-SUB-1")
+	if err := os.MkdirAll(wtDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Shell redirect writing onto protected trunk root is denied.
+	denyRoot := executeHookCmd(t, []string{"pre-tool"}, map[string]any{
+		"cwd": repoDir, "tool_name": "Bash", "tool_input": map[string]any{"command": "echo leaked > trunk_leak.go"},
+	})
+	if dec := parseDecision(t, denyRoot); dec.Decision != "deny" || !strings.Contains(dec.Reason, "Hermetic Worktree Violation") {
+		t.Fatalf("expected trunk shell redirect to be denied, got %+v", dec)
+	}
+
+	extTmp, err := os.MkdirTemp("", "nomos-ext-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(extTmp) })
+
+	// Redirects to .tmp/, external OS temp dirs, /dev/null, quoted '>' strings, and cd into worktrees/ remain allowed.
+	for _, okCmd := range []string{
+		"echo scratch > .tmp/notes.md",
+		"echo ext > " + filepath.Join(extTmp, "out.txt"),
+		"nomos status >/dev/null 2>&1",
+		`python3 -c "assert 5 > 3"`,
+		"cd " + wtDir + " && echo ok > inside.go",
+	} {
+		out := executeHookCmd(t, []string{"pre-tool"}, map[string]any{
+			"cwd": repoDir, "tool_name": "Bash", "tool_input": map[string]any{"command": okCmd},
+		})
+		if dec := parseDecision(t, out); dec.Decision != "allow" {
+			t.Fatalf("expected command %q to be allowed, got %+v", okCmd, dec)
+		}
+	}
+}

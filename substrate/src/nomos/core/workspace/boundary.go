@@ -71,6 +71,9 @@ func ValidateUncommittedTaskBoundaries(repoRoot, currentBranch string, uncommitt
 }
 
 func validateFileBoundary(repoRoot, currentBranch, f, activeTaskKey string) error {
+	if IsScratchArtifactPath(f) {
+		return types.NewNomosError(types.ErrCodeBoundary, "worktree boundary violation: scratch artifact %q cannot be staged or committed; store temporary files under .tmp/ or delete before committing (Law 3)", f)
+	}
 	base := filepath.Base(f)
 	dir := filepath.Dir(f)
 	if (strings.Contains(base, "walkthrough") || strings.Contains(base, "scratch")) && dir == "." {
@@ -83,4 +86,22 @@ func validateFileBoundary(repoRoot, currentBranch, f, activeTaskKey string) erro
 		}
 	}
 	return ValidateWorktreeTaskBoundary(repoRoot, currentBranch, target, activeTaskKey)
+}
+
+// IsScratchArtifactPath reports whether relPath is a forbidden temporary or backup file outside .tmp/.
+func IsScratchArtifactPath(relPath string) bool {
+	norm := strings.TrimPrefix(filepath.ToSlash(strings.TrimSpace(relPath)), "./")
+	if norm == "" || norm == ".tmp" || strings.HasPrefix(norm, ".tmp/") || strings.Contains(norm, "/.tmp/") {
+		return false
+	}
+	base := strings.ToLower(filepath.Base(norm))
+	if base == ".ds_store" || strings.HasSuffix(base, "~") {
+		return true
+	}
+	for _, suffix := range []string{".tmp", ".bak", ".orig", ".swp"} {
+		if strings.HasSuffix(base, suffix) {
+			return true
+		}
+	}
+	return false
 }

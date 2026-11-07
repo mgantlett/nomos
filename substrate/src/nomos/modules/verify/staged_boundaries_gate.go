@@ -3,6 +3,8 @@ package verify
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
@@ -25,6 +27,15 @@ func (g *StagedBoundariesGate) Evaluate(ctx *VerifyContext) (*GateResult, error)
 			GateName: g.Name(),
 			Passed:   false,
 			Message:  fmt.Sprintf("failed to list uncommitted files: %v", err),
+		}, nil
+	}
+
+	if scratchErr := findCommittedScratchArtifact(ctx, root); scratchErr != nil {
+		return &GateResult{
+			GateName: g.Name(),
+			Passed:   false,
+			Message:  scratchErr.Error(),
+			Remedy:   "remove committed scratch artifacts (*.tmp, *.bak, *.orig, *.swp) via 'git rm <file>' and keep temporary files inside .tmp/",
 		}, nil
 	}
 
@@ -108,4 +119,19 @@ func validateStagedFilesAgainstBranch(repoRoot, worktreeRoot string, stagedFiles
 		root = repoRoot
 	}
 	return workspace.ValidateUncommittedBoundaries(root, currentBranch, stagedFiles)
+}
+
+func findCommittedScratchArtifact(ctx *VerifyContext, root string) error {
+	if ctx == nil {
+		return nil
+	}
+	for _, f := range getModifiedFilesInScope(ctx, root) {
+		if !workspace.IsScratchArtifactPath(f) {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(root, f)); err == nil {
+			return fmt.Errorf("worktree boundary violation: scratch artifact %q committed in task diff (Law 3)", f)
+		}
+	}
+	return nil
 }
