@@ -51,14 +51,12 @@ To maintain uncompromising realism and avoid metaphor degradation:
 
 ## 3. Mathematical Formulations
 
-```text
-                                  SOFTWARE PHYSICS TENSOR
-                                             │
-         ┌───────────────────┬───────────────┴───────────────┬───────────────────┐
-         ▼                   ▼                               ▼                   ▼
-    1. FILE MASS     2. VISCOSITY & DRAG             3. CONTINUOUS         4. 2PC RE-ENTRY
-     & INERTIA        (Shannon Entropy)                COLLISION              ENVELOPE
-   (McCabe/AST)         (Information)                 (CCD Graphs)          (42 DoD Gates)
+```mermaid
+flowchart TD
+    Tensor["SOFTWARE PHYSICS TENSOR"] --> Mass["1. FILE MASS & INERTIA<br/>(McCabe / AST)"]
+    Tensor --> Drag["2. VISCOSITY & DRAG<br/>(Shannon Information Entropy)"]
+    Tensor --> CCD["3. CONTINUOUS COLLISION<br/>(CCD Worktree Graphs)"]
+    Tensor --> Reentry["4. 2PC RE-ENTRY ENVELOPE<br/>(42 DoD Gates)"]
 ```
 
 ### 3.1 Kinematics, File Mass & Inertia
@@ -123,14 +121,11 @@ Between any two concurrent worktrees $W_i$ and $W_j$:
 $$C(W_i, W_j) = \left( \text{ExportsMutated}(W_i) \cap \text{ImportsReferenced}(W_j) \right) \cup \left( \text{ExportsMutated}(W_j) \cap \text{ImportsReferenced}(W_i) \right)$$
 
 #### Collision Threat Levels:
-```text
-┌──────────────────────┬───────────────────────────────────────────┬───────────────────────────────────────┐
-│ Threat Level         │ Mathematical Condition                    │ Substrate Action                      │
-├──────────────────────┼───────────────────────────────────────────┼───────────────────────────────────────┤
-│ GREEN (Clear)        │ C(W_i, W_j) = ∅ ∧ FilesTouched ∩ Files = ∅│ Unconstrained parallel flight         │
-│ YELLOW (Advisory)    │ FilesTouched(W_i) ∩ FilesTouched(W_j) ≠ ∅ │ Proximity warning to both agents      │
-│ RED (Collision Imminent) │ C(W_i, W_j) ≠ ∅                           │ Immediate TCAS alert & lock resolution│
-└──────────────────────┴───────────────────────────────────────────┴───────────────────────────────────────┘
+```mermaid
+flowchart TD
+    Sweep["CCD Worktree Pair Sweep (W_i, W_j)"] -->|"C(W_i, W_j) = empty and FilesTouched disjoint"| Green["GREEN (Clear)<br/>Unconstrained parallel flight"]
+    Sweep -->|"C(W_i, W_j) = empty and FilesTouched overlap"| Yellow["YELLOW (Advisory)<br/>Proximity warning to both agents"]
+    Sweep -->|"C(W_i, W_j) non-empty (API export/import clash)"| Red["RED (Collision Imminent)<br/>Immediate TCAS alert & lock resolution"]
 ```
 
 When CCD detects a RED collision during active editing, the substrate alerts the orchestrator before either agent commits.

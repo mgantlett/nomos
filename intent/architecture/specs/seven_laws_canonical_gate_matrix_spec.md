@@ -58,13 +58,11 @@ A canonical invariant cell $\mathcal{C}(L_i, R_j)$ holds zero, one, or multiple 
 
 The architecture partitions system verification across three orthogonal defense rings:
 
-```
-                              THE 7 LAWS OF NOMOS
-                                       │
-      ┌────────────────────────────────┼────────────────────────────────┐
-      ▼                                ▼                                ▼
-Ring 1: SYNTACTIC                Ring 2: DYNAMIC                 Ring 3: CRYPTOGRAPHIC
-(AST & Static Structure)         (Runtime & State Machines)      (Receipts & Attestations)
+```mermaid
+flowchart TD
+    Laws["THE 7 LAWS OF NOMOS"] --> Ring1["Ring 1: SYNTACTIC<br/>(AST & Static Structure)"]
+    Laws --> Ring2["Ring 2: DYNAMIC<br/>(Runtime & State Machines)"]
+    Laws --> Ring3["Ring 3: CRYPTOGRAPHIC<br/>(Receipts & Attestations)"]
 ```
 
 1. **Ring 1: Syntactic AST (Static Space)**:

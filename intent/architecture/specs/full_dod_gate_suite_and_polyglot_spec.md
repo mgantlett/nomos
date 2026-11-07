@@ -45,20 +45,14 @@ This specification codifies all 42 statutory sensor probes across the 7x3 Canoni
 | **6** | **The Canonical Singularity Law** | Commits, CLI flags, filesystem trees, and task keys enforce zero-alias canonical singularity. | `Cell 6.1` (`syntactic`), `Cell 6.2` (`dynamic`), `Cell 6.3` (`cryptographic`) |
 | **7** | **The Fail-Closed Pre-Flight Law** | Secret scans, plane separation, unchecked error guards, and threshold locks fail closed. | `Cell 7.1` (`syntactic`), `Cell 7.2` (`dynamic`), `Cell 7.3` (`cryptographic`) |
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                       THE 7x3 CANONICAL MATRIX                             │
-├──────────────────────────┬─────────────────┬────────────────┬───────────────┤
-│ Statutory Law            │ Syntactic Ring  │ Dynamic Ring   │ Crypto Ring   │
-├──────────────────────────┼─────────────────┼────────────────┼───────────────┤
-│ 1: Dual-Core Inversion   │ Cell 1.1        │ Cell 1.2       │ Cell 1.3      │
-│ 2: Non-Verbal Proof      │ Cell 2.1        │ Cell 2.2       │ Cell 2.3      │
-│ 3: Hermetic Worktree     │ Cell 3.1        │ Cell 3.2       │ Cell 3.3      │
-│ 4: Single Source Truth   │ Cell 4.1        │ Cell 4.2       │ Cell 4.3      │
-│ 5: Zero-Hardcoded-Path   │ Cell 5.1        │ Cell 5.2       │ Cell 5.3      │
-│ 6: Canonical Singularity │ Cell 6.1        │ Cell 6.2       │ Cell 6.3      │
-│ 7: Fail-Closed Preflight │ Cell 7.1        │ Cell 7.2       │ Cell 7.3      │
-└──────────────────────────┴─────────────────┴────────────────┴───────────────┘
+```mermaid
+flowchart LR
+    Laws["7 Statutory Laws<br/>1: Dual-Core Inversion<br/>2: Non-Verbal Proof<br/>3: Hermetic Worktree<br/>4: Single Source of Truth<br/>5: Zero-Hardcoded-Path<br/>6: Canonical Singularity<br/>7: Fail-Closed Pre-Flight"] --> R1["Syntactic Ring<br/>Cells 1.1 - 7.1<br/>(AST & Static Structure)"]
+    Laws --> R2["Dynamic Ring<br/>Cells 1.2 - 7.2<br/>(Compilers, Tests & State)"]
+    Laws --> R3["Cryptographic Ring<br/>Cells 1.3 - 7.3<br/>(CapBAC, Parity & Git Notes)"]
+    R1 --> Verdict["nomos verify<br/>21 Canonical Cells · 42 Probes"]
+    R2 --> Verdict
+    R3 --> Verdict
 ```
 
 ---

@@ -52,19 +52,11 @@ This contract formalizes:
 
 ## 3. Persistence Layers & State Taxonomy
 
-```
-                         ┌──────────────────────────────┐
-                         │  2PC SYNC (nomos task sync)  │
-                         └──────────────┬───────────────┘
-          ┌─────────────────────────────┼─────────────────────────────┐
-          ▼                             ▼                             ▼
-┌─────────────────────────┐ ┌───────────────────────────┐ ┌─────────────────────────┐
-│ RELEASE PROVENANCE (GIT)│ │   NOMOS MNEME (mneme.db)  │ │   RUNTIME COORDINATOR   │
-│ - Protected main tree   │ │ - Standalone memory SSoT  │ │    (nomos_global.db)    │
-│ - refs/notes/nomos/     │ │ - Advisory & statutory    │ │ - tasks (DAG wavefront) │
-│   releases (SHA-256     │ │   memories (64-dim + lex) │ │ - leases (CapBAC)       │
-│   ReleaseNotePayload)   │ │ - Repo-scoped dedup & GC  │ │ - telemetry_capabilities│
-└─────────────────────────┘ └───────────────────────────┘ └─────────────────────────┘
+```mermaid
+flowchart TD
+    Sync["2PC SYNC (nomos task sync)"] --> Git["RELEASE PROVENANCE (GIT)<br/>- Protected main tree<br/>- refs/notes/nomos/releases (SHA-256 ReleaseNotePayload)"]
+    Sync --> Mneme["NOMOS MNEME (mneme.db)<br/>- Standalone memory SSoT<br/>- Advisory & statutory memories (64-dim + lex)<br/>- Repo-scoped dedup & GC"]
+    Sync --> Coord["RUNTIME COORDINATOR (nomos_global.db)<br/>- tasks (DAG wavefront)<br/>- leases (CapBAC)<br/>- telemetry_capabilities"]
 ```
 
 ### 3.1 Git Notes Namespaces

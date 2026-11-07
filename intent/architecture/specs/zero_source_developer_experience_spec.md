@@ -111,18 +111,13 @@ Both GoReleaser and `packaging/aur/PKGBUILD` verify SHA-256 archive digests agai
 
 ## 4. The 60-Second Zero-Source Lifecycle
 
-```text
-T=0s   $ nomos init
-         └── Scaffolds AGENTS.md, CLAUDE.md, nomos.yaml, .agents/hooks.json, .agents/scripts/
-T=5s   $ nomos handshake
-         └── Emits IDLE envelope, valid embedded directives, and Next Actions
-T=15s  $ nomos task chore "Add payment validator"
-         └── Mints SUB-1, creates worktree, enters EDIT, prints Next Actions with worktree path
-T=35s  [Tier 1 agent edits files inside isolated task worktree]
-T=45s  $ nomos verify
-         └── Evaluates 42 DoD gates against polyglot workspace (exit code 0)
-T=55s  $ nomos task sync SUB-1 -F .tmp/walkthrough-SUB-1.md
-         └── Executes 2PC merge, writes Git Notes receipt, prunes worktree, emits IDLE Next Actions
+```mermaid
+flowchart TD
+    T0["T=0s · nomos init<br/>Scaffolds AGENTS.md, CLAUDE.md, nomos.yaml, .agents/hooks.json, .agents/scripts/"] --> T5["T=5s · nomos handshake<br/>Emits IDLE envelope, embedded directives, and Next Actions"]
+    T5 --> T15["T=15s · nomos task chore 'Add payment validator'<br/>Mints SUB-1, creates isolated worktree, enters EDIT"]
+    T15 --> T35["T=35s · Isolated Worktree Mutation<br/>Tier 1 agent edits files strictly inside task worktree"]
+    T35 --> T45["T=45s · nomos verify<br/>Evaluates 42 DoD gates against polyglot workspace (exit code 0)"]
+    T45 --> T55["T=55s · nomos task sync SUB-1 -F .tmp/walkthrough-SUB-1.md<br/>Executes 2PC merge, writes Git Notes receipt, prunes worktree, returns to IDLE"]
 ```
 
 ---
