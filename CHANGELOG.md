@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [v4.11.0] - 2026-11-07
+
+> Turn-Termination `nomos hook stop` Gate, Outbound Egress Airlock, Additive `nomos hook install`, Scratch-Artifact & Trunk-Redirect Guards, GoReleaser v2 Schema Gate & Mermaid Spec Diagrams (Apache 2.0)
+
+### Indirect-Control Ambient Hook Suite (`nomos hook`, `nomos.yaml`)
+- **Turn-Termination Anti-Phantom Gate (`nomos hook stop`)**: Blocks unverified active `EDIT` worktree exits until `nomos verify` clears `DirtyUnverifiedEdits`, rejects `--container-sandbox` exits containing syntax errors or protected verifier mutations, and honors `stop_hook_active: true` for single-pass re-entry safety.
+- **Additive Multi-Harness Installer (`nomos hook install`)**: Non-destructively merges `SessionStart`, `PreToolUse`, `PostToolUse`, and `Stop` hook bindings across Claude Code (`.claude/settings.json`), Gemini CLI (`.gemini/settings.json`), OpenCode (`.opencode/plugins/nomos.ts`), and Cursor (`--global` or `--project`) while preserving existing user configuration.
+- **Outbound Egress Airlock & Loop Circuit-Breaker (`nomos hook pre-tool`, `nomos hook post-tool`)**: Inspects outbound HTTP/shell calls against cloud metadata SSRF endpoints (`169.254.169.254`, `metadata.google.internal`, `fd00:ec2::254`), inline credential exfiltration tokens, and declarative `egress_allowlist` domains in `nomos.yaml` (`nomos.schema.json`), alongside upgraded loop-signature circuit breaking and additive Git Notes refspec sync.
+
+### Hermetic Boundary & Scratch-Artifact Enforcement (`nomos verify`, `nomos init`)
+- **Scratch-Artifact DoD Gate (`StagedBoundariesGate`)**: Rejects staged or committed `*.tmp`, `*.bak`, `*.orig`, `*.swp`, `*~`, and `.DS_Store` scratch artifacts outside `.tmp/` across both uncommitted index state and active task branch commits (`ERR_BOUNDARY`), paired with self-healing `.gitignore` and `.git/info/exclude` defaults.
+- **Protected-Trunk Shell Redirect Guard (`cmd_hook_trunk_guard.go`)**: Blocks shell redirections (`>`, `>>`, `tee`, `sed -i`, `cp`, `mv`) targeting protected `main` trunk paths during `PreToolUse` before filesystem mutation occurs.
+
+### Release Pipeline & Canonical Spec Architecture (`release.yaml`, `intent/architecture/specs/`)
+- **Strict GoReleaser v2 Schema Gate & Patch Note Rollup**: Enforces `yaml.Decoder.KnownFields(true)` against GoReleaser v2 config structs in `goreleaser_contract_test.go`, runs `goreleaser check` in CI on every push/PR, and rolls parent `vX.Y.0` milestone notes into `vX.Y.Z` patch releases so `/releases/latest` stays self-contained.
+- **Machine-Verified Mermaid Architecture Diagrams**: Converts ASCII box-drawing architecture diagrams across Open-Core specifications into standard `flowchart` Mermaid v11 blocks validated against orphan-state and syntax invariants.
+
+---
+
 ## [v4.10.1] - 2026-11-06
 
 > GoReleaser v2 AUR Schema Alignment & Precompiled Multi-Arch Release Artifacts (Apache 2.0)

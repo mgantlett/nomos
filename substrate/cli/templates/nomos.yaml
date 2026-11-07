@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/mgantlett/nomos/v4.10.1/nomos.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mgantlett/nomos/v4.11.0/nomos.schema.json
 # ==============================================================================
 # Nomos Ecosystem Configuration (nomos.yaml)
 # Single Source of Truth (SSoT) for Deterministic AI Agent Governance (Law 4)
