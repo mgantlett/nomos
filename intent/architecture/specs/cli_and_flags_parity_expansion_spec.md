@@ -4,13 +4,13 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-17"
-last_updated: "2026-11-01"
+last_updated: "2026-11-06"
 plane: intent
 ssot_repository: nomos
 status: active
 title: "CLI and Flag Surface Parity Contract Expansion Specification"
 type: spec
-version: "4.0.0"
+version: "4.1.0"
 ---
 
 # CLI and Flag Surface Parity Contract Expansion Specification
@@ -165,6 +165,8 @@ func ValidateCobraCommandCompositeLit(comp *ast.CompositeLit) []string
 | **`TC-CLI-05`** | Negated command line `"never run nomos worktree directly"` | **PASS**: Filtered by negative assertion parser. |
 | **`TC-CLI-06`** | Global persistent flag invocation `nomos status --json` | **PASS**: Verified against `MergedFlags(c)`. |
 | **`TC-CLI-07`** | Static `&cobra.Command{}` missing `Long` or `Example` in `substrate/cli` | **FAIL CLOSED**: Rejected by `ScanCobraSurfaceCompletenessInDir` (`Cell 6.2 (zero_alias)`, `INV-PARITY-011`). |
+| **`TC-CLI-08`** | Additive hook installer `nomos hook install --claude --gemini --opencode --user --json` | **PASS**: Command and flags verified in Cobra registry (`cmd_hook_install.go`). |
+| **`TC-CLI-09`** | Turn-exit verification gate `nomos hook stop --container-sandbox` | **PASS**: Command and inherited flags verified in Cobra registry (`cmd_hook_stop.go`). |
 
 ---
 
@@ -175,6 +177,6 @@ func ValidateCobraCommandCompositeLit(comp *ast.CompositeLit) []string
 | **Cobra AST Completeness & Alias Scanner** | `substrate/src/nomos/modules/verify/cli_surface_audit.go` | `Cell 6.2 (zero_alias)` |
 | **Unreachable Command Scanner** | `substrate/src/nomos/modules/verify/gates_governance.go` | `Cell 2.1 (dead_code)` |
 | **Open-Core Command Boundary** | `substrate/src/nomos/modules/verify/gates_architecture.go` | `Cell 1.1 (boundary)` |
-| **Root Cobra Registry** | `substrate/cli/root.go` | `Cell 6.2 (zero_alias)` |
+| **Root & Lifecycle Hook Cobra Registry** | `substrate/cli/root.go`, `substrate/cli/cmd_hook.go`, `substrate/cli/cmd_hook_stop.go`, `substrate/cli/cmd_hook_install.go` | `Cell 6.2 (zero_alias)` |
 
 Deterministic verification executes via `nomos verify` and passes all 42 Definition of Done quality gates with exit code `0`.

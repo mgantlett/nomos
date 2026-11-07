@@ -4,16 +4,18 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-06"
-last_updated: "2026-11-01"
+last_updated: "2026-11-06"
 lineage:
   - INT-327
   - SUB-327
+  - INT-954
+  - SUB-1894
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Hermetic Worktree and Git Hygiene Specification"
 type: spec
-version: "4.0.0"
+version: "4.1.0"
 ---
 
 # Hermetic Worktree and Git Hygiene Specification
@@ -77,6 +79,12 @@ func ValidateWorktreeBoundary(repoRoot, currentBranch, targetFile string) error
 // ValidateUncommittedBoundaries checks that none of the mutated files violate worktree isolation boundaries.
 func ValidateUncommittedBoundaries(repoRoot, currentBranch string, uncommittedFiles []string) error
 
+// IsScratchArtifactPath reports whether a relative repository path is a forbidden scratch file outside .tmp/.
+func IsScratchArtifactPath(relPath string) bool
+
+// EnsureGitExcludeBoundaries self-heals canonical scratch and worktree patterns in .git/info/exclude.
+func EnsureGitExcludeBoundaries(repoRoot string)
+
 // LockTrunk sets read-only filesystem permissions on the root repository trunk (Law 3).
 func LockTrunk(repoRoot string) error
 
@@ -118,8 +126,10 @@ During `nomos verify`, three dedicated Definition of Done probes enforce hermeti
 | Matrix Coordinate | Probe Key | Associated Invariant | Enforcement Logic |
 | :--- | :--- | :--- | :--- |
 | `Cell 3.2` | `hermetic_worktree` | Law 3 | Verifies execution inside an isolated `nomos-<KEY>` worktree rather than trunk. |
-| `Cell 3.1` | `staged_boundaries` | Law 3 / Law 7 | Runs `ValidateUncommittedBoundaries` and rejects root file mutations on trunk. |
+| `Cell 3.1` | `staged_boundaries` | Law 3 / Law 7 | Rejects root trunk mutations and scratch artifacts (`*.tmp`, `*.bak`, `*.orig`, `*.swp`). |
 | `Cell 3.2` | `git_hygiene` | Law 1 / Law 6 | Scans Go ASTs and rejects `exec.Command("git", ...)` bypassing `workspace.SafeGitCommand`. |
+
+`nomos init` and `EnsureHooksInstalled` append `*.tmp`, `*.bak`, `*.orig`, and `*.swp` to Git exclude manifests. `nomos hook pre-tool` blocks shell redirects (`>` / `>>`) targeting protected trunk paths outside `/worktrees/` and `.tmp/`.
 
 ---
 
@@ -131,6 +141,8 @@ During `nomos verify`, three dedicated Definition of Done probes enforce hermeti
 | `TC-WT-002` | Mutation within isolated task worktree | `ValidateWorktreeBoundary(root, "main", "root/worktrees/nomos-SUB-747/file.go")` | Passes boundary validation (`err == nil`) for isolated execution. | PASS |
 | `TC-WT-003` | Root clutter violation (`walkthrough.md`) | Staging `walkthrough.md` directly at `repoRoot` | `ValidateUncommittedBoundaries` rejects root scratch files outside `.tmp/`. | PASS |
 | `TC-WT-004` | Git subprocess environment sanitization | `SafeGitCommand(dir, "status")` | Sanitizes environment and clears `GIT_DIR` and `GIT_WORK_TREE` overrides. | PASS |
+| `TC-WT-005` | Scratch artifact DoD rejection (`*.tmp`) | Force-staging or committing `schema.json.tmp` | `StagedBoundariesGate` fails closed and instructs removing scratch artifacts. | PASS |
+| `TC-WT-006` | Protected trunk shell redirect block | `echo x > trunk.go` on protected root | `nomos hook pre-tool` denies trunk file redirection outside `/worktrees/` and `.tmp/`. | PASS |
 
 ---
 
