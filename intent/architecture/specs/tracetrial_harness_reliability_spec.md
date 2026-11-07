@@ -4,7 +4,7 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-11-01"
-last_updated: "2026-11-04"
+last_updated: "2026-11-06"
 lineage:
   - INT-858
   - INT-863
@@ -14,6 +14,7 @@ lineage:
   - INT-907
   - INT-908
   - INT-922
+  - INT-953
   - SUB-1527
   - SUB-1546
   - SUB-1560
@@ -22,12 +23,13 @@ lineage:
   - SUB-1696
   - SUB-1708
   - SUB-1710
+  - SUB-1890
 plane: intent
 ssot_repository: nomos
 status: active
 title: "TraceTrial-Bench 7-Pillar Harness Reliability & Fail-Closed Stress Specification"
 type: spec
-version: "4.1.1"
+version: "4.2.0"
 ---
 
 # TraceTrial-Bench 7-Pillar Harness Reliability & Fail-Closed Stress Specification
@@ -63,25 +65,29 @@ In `substrate/src/nomos/modules/verify/gate.go`, `TimedEvaluate(g Gate, ctx *Ver
 - A runtime panic `r` converts into a typed `NomosError` (`ERR_CORE`: `"gate <Name> panicked during evaluation (fail-closed abort): <r>"`).
 - `Pipeline.Execute` treats any non-nil `err` from `TimedEvaluate` as an immediate abort, leaving trunk untouched.
 
-### 2.3 Native Compiled `nomos hook` Subcommands & Container Mode (`INT-863` / `SUB-1546`)
-Nomos ships zero-dependency Go subcommands (`nomos hook session-start`, `nomos hook pre-tool`, `nomos hook post-tool`) removing external `jq`, `bash`, or `python3` requirements:
+### 2.3 Native Compiled `nomos hook` Subcommands & Container Mode (`INT-863` / `INT-953` / `SUB-1890`)
+Nomos ships zero-dependency Go subcommands (`session-start`, `pre-tool`, `post-tool`, `stop`, `install`) removing `jq`, `bash`, or `python3` requirements:
 
-1. **Unified JSON Payload Ingestion:** Each subcommand parses standard `stdin` hook payloads from Claude Code (`tool_name`, `tool_input`), Cursor, and Antigravity (`toolCall.name`, `toolCall.args`, `cwd`).
+1. **Unified JSON Payload Ingestion:** Each subcommand parses `stdin` payloads from Claude Code, Gemini CLI, OpenCode, Cursor, and Antigravity, including `TargetURL` and `stop_hook_active`.
 2. **PreToolUse Guards (`nomos hook pre-tool` - Law 3 & Law 7):**
    - **Unexpanded Variable Guard:** Rejects native file-edit tool calls whose target path contains unexpanded `$VAR`, `${VAR}`, or leading `~` tokens.
-   - **Boundary Containment:** Standard mode rejects writes outside `/worktrees/`, `/.tmp/`, and `/brain/` with a HATEOAS remedy (`nomos task chore "<title>"`). Passing `--hermetic-dir <dir>` confines writes to `<dir>` while protecting OS roots (`/etc`, `/usr`, `/bin`, `/var`, `/proc`, `/sys`, `/dev`, `/boot`). Passing `--container-sandbox` permits container OS paths while blocking verifier and oracle roots (`/logs/verifier`, `/solution`, `/tests`).
+   - **Boundary Containment & Verifier-Path Guard:** Standard mode rejects writes outside `/worktrees/`, `/.tmp/`, and `/brain/` with remedy `nomos task chore "<title>"`. Passing `--hermetic-dir <dir>` confines writes to `<dir>` while protecting OS roots (`/etc`, `/usr`, `/bin`, `/var`, `/proc`, `/sys`, `/dev`, `/boot`). Passing `--container-sandbox` blocks `/logs/verifier`, `/solution`, and `/tests` across direct paths, inline scripts (`python3 -c`), and root sweeps (`find / `).
+   - **Outbound Egress, SSRF & PII/Secret Airlock (`BoundaryConfig`):** Rejects metadata SSRF (`169.254.169.254`, `metadata.google.internal`), secret tokens, and git `user.email` URL leaks across HTTP tools and `curl`/`wget`. Also enforces `egress_mode` (`standard`, `offline`, `allowlist`), `allowed_egress_domains`, and `blocked_egress_domains` from `nomos.yaml`.
    - **Command Safety & Encapsulation Guard:** Inspects shell tool invocations (`Bash`, `bash`, `run_command`, `execute_command`) and denies:
      - Wildcard or root recursive deletions (`rm -rf /`, `rm -rf /*`, `rm -rf *`, `rm -rf ~`, `rm -rf ..`).
      - Quote-aware `go install` of `nomos` or `nomos-*` outside a clean `IDLE` primary `main` trunk, or with `@latest` / `-overlay` / `-modfile` / `-C` flags (Law 4).
      - Direct `sqlite3` mutations or queries against `.nomos` or `.db` files under Law 1 and the Database Encapsulation Invariant.
      - Stateful `git stash` mutations (allowing read-only `git stash list` / `git stash clear`).
      - Tampering with `.git/hooks` defense scripts (`rm`, `unlink`, `chmod`, `mv`).
-3. **PostToolUse Channel Purity (`nomos hook post-tool` - Law 4):**
+3. **PostToolUse Channel Purity & Pure-Go Tree-Sitter Syntax Radar (`nomos hook post-tool` - Law 1 & Law 4):**
    - **Silent Non-Edit Channels:** Emits `{}` immediately for `Bash`, `Read`, and `MCP` calls so native OS errors (`EACCES`, `ENOENT`) remain unmasked.
-   - **In-Memory Syntax & Radar Verification:** Validates edited `.go`, `.py`, `.json`, `.jsonl`, and `.yaml` files in memory without writing `.tmp/` scratch files.
-4. **Additive Hook Chaining & 3-Strike Circuit-Breaker (`INT-868` / `SUB-1560`):**
-   - **Additive Hook Chaining:** `nomos init` and `nomos hook` chain existing `.claude/settings.json` hooks additively instead of shadowing task-local `O` and `T` plugins.
-   - **3-Strike Loop Breaker:** `nomos hook pre-tool` hashes `(tool_name, sha256(canonical_args), workspace_mtime_digest)`. Three identical consecutive calls without a `workspace_mtime_digest` mutation trigger a 1-line remediation directive halting the retry loop.
+   - **Pure-Go Polyglot Syntax & Verifier Guard:** Validates edited `.go`, `.py`, `.ts`, `.js`, `.rs`, `.json`, and `.jsonl` files in memory without external `python3` subprocesses. In `--container-sandbox` mode, written scripts containing `/logs/verifier`, `/solution`, or `/tests` paths trigger immediate anti-snooping advisories.
+4. **Turn-Termination Anti-Phantom Gate (`nomos hook stop` - Law 2):**
+   - Honors `stop_hook_active: true` to guarantee single-pass re-entry termination without infinite loops.
+   - Blocks unverified `EDIT` worktree exits until `nomos verify` runs, and blocks `--container-sandbox` exits on syntax or verifier-path violations.
+5. **Additive Hook Chaining, `nomos hook install`, & Stateful Loop Breaker (`INT-868` / `INT-953`):**
+   - **Additive Hook Chaining & User Install:** `nomos init` and `nomos hook install` merge Claude Code, Gemini CLI, and OpenCode hooks additively across project or `--user` scopes.
+   - **3-Strike & No-Edit Verification Loop Breaker:** `nomos hook pre-tool` halts both 3-strike identical calls and consecutive runner invocations executed without intervening workspace file edits.
 
 ---
 

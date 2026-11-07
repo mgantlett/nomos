@@ -97,12 +97,15 @@ package config
 
 // BoundaryConfig declares architectural package and CLI command boundary protections.
 type BoundaryConfig struct {
-	Enforce            bool     `yaml:"enforce" json:"enforce"`
-	ProhibitedPackages []string `yaml:"prohibited_packages,omitempty" json:"prohibited_packages,omitempty"`
-	ProhibitedCommands []string `yaml:"prohibited_commands,omitempty" json:"prohibited_commands,omitempty"`
-	LockDependencies   bool     `yaml:"lock_dependencies,omitempty" json:"lock_dependencies,omitempty"`
-	AllowedMCPServers  []string `yaml:"allowed_mcp_servers,omitempty" json:"allowed_mcp_servers,omitempty"`
-	BlockedMCPServers  []string `yaml:"blocked_mcp_servers,omitempty" json:"blocked_mcp_servers,omitempty"`
+	Enforce              bool     `yaml:"enforce" json:"enforce"`
+	ProhibitedPackages   []string `yaml:"prohibited_packages,omitempty" json:"prohibited_packages,omitempty"`
+	ProhibitedCommands   []string `yaml:"prohibited_commands,omitempty" json:"prohibited_commands,omitempty"`
+	LockDependencies     bool     `yaml:"lock_dependencies,omitempty" json:"lock_dependencies,omitempty"`
+	AllowedMCPServers    []string `yaml:"allowed_mcp_servers,omitempty" json:"allowed_mcp_servers,omitempty"`
+	BlockedMCPServers    []string `yaml:"blocked_mcp_servers,omitempty" json:"blocked_mcp_servers,omitempty"`
+	EgressMode           string   `yaml:"egress_mode,omitempty" json:"egress_mode,omitempty"`
+	AllowedEgressDomains []string `yaml:"allowed_egress_domains,omitempty" json:"allowed_egress_domains,omitempty"`
+	BlockedEgressDomains []string `yaml:"blocked_egress_domains,omitempty" json:"blocked_egress_domains,omitempty"`
 }
 
 // AgentTier specifies the canonical classification of a coding agent.
