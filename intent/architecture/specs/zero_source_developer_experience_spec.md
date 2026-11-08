@@ -4,18 +4,19 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-16"
-last_updated: "2026-11-06"
+last_updated: "2026-11-08"
 lineage:
   - INT-840
   - INT-841
   - INT-842
   - INT-946
+  - INT-1913
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Zero-Source Downstream Developer Experience & Agentic HATEOAS Specification"
 type: spec
-version: "4.7.0"
+version: "4.8.0"
 ---
 
 # Zero-Source Downstream Developer Experience & Agentic HATEOAS Specification
@@ -107,6 +108,14 @@ Omarchy and Arch Linux workstations install the precompiled `CGO_ENABLED=0` stat
 `.goreleaser.yaml` defines the canonical `aurs` release target (`nomos-bin`) alongside `packaging/aur/PKGBUILD` for `x86_64` and `aarch64` Linux archives.
 Both GoReleaser and `packaging/aur/PKGBUILD` verify SHA-256 archive digests against published release checksums before installing `/usr/bin/nomos` (`0755`) and Apache-2.0 attribution files (`LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.md`) under `/usr/share/licenses/nomos-bin/`.
 
+### 3.7 Brownfield Workspace Auto-Detection (`INT-1913`)
+
+`nomos init` scans the target workspace for existing polyglot implementation files before writing `nomos.yaml`.
+Empty greenfield workspaces receive `strict_mode: true` by default.
+Workspaces containing existing implementation source files receive `strict_mode: false` automatically.
+When existing implementation files reside exclusively inside top-level source directories, `nomos init` populates `substrate_source_roots` automatically.
+Downstream brownfield repositories pass baseline verification with exit code 0 immediately after `nomos init`.
+
 ---
 
 ## 4. The 60-Second Zero-Source Lifecycle
@@ -133,6 +142,7 @@ flowchart TD
 | `TC-HAT-05` | `nomos capabilities <id>` on cell or probe | Resolves `#CapabilityDetail` with Law, Ring, and Remedy | **PASS** |
 | `TC-HAT-06` | Audit all 42 gate remedies & hook scripts | Zero `git stash` contradictions or internal Foundry leaks | **PASS** |
 | `TC-HAT-07` | Inspect `.goreleaser.yaml` `aurs` & `packaging/aur/PKGBUILD` | Static `CGO_ENABLED=0` `nomos-bin` package verifies SHA-256 & installs `LICENSE`/`NOTICE` | **PASS** |
+| `TC-HAT-08` | `nomos init` in non-empty brownfield repository | Emits `strict_mode: false` and passes baseline `nomos verify` | **PASS** |
 
 ---
 

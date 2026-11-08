@@ -4,10 +4,11 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-24"
-last_updated: "2026-11-01"
+last_updated: "2026-11-08"
 lineage:
   - INT-737
   - INT-862
+  - INT-1913
   - SUB-1215
   - SUB-1543
 plane: intent
@@ -15,7 +16,7 @@ ssot_repository: nomos
 status: active
 title: "Full 42 DoD Gate Suite and Polyglot Verification Architecture Specification"
 type: spec
-version: "4.1.0"
+version: "4.2.0"
 ---
 
 # Full 42 DoD Gate Suite and Polyglot Verification Architecture Specification
@@ -210,6 +211,16 @@ type PipelineReport struct {
 | **Symlink Tolerance** | $0$ (strictly forbidden) | `zero_filesystem_alias` |
 | **Unchecked Error Discard Tolerance** | $0$ (strictly forbidden) | `unchecked_errors` |
 
+### 5.1 Monotonic Baseline Delta Ratchet in Brownfield Mode (`INT-1913`)
+
+When `nomos.yaml` sets `strict_mode: false`, `nomos verify` enforces a monotonic baseline ratchet against `default_branch`:
+- Empty Git worktrees in brownfield mode evaluate zero untouched legacy files and return exit code 0.
+- Pre-existing files compare AST metrics against `default_branch` via `max(threshold, baseline)` for function complexity, function LOC, and file CDS.
+- Pre-existing files above `max_file_loc` allow bounded modular helper extraction up to `baseline_loc + max_func_loc` while rejecting `CDS` regressions.
+- Newly added files and newly added functions enforce statutory thresholds (`<= 400` file LOC, `<= 60` function LOC, `<= 15` complexity, `<= 45` CDS).
+- `anti_shim`, `unchecked_errors`, `docstrings`, and `coverage` reject newly introduced regressions while tolerating untouched baseline debt.
+- `tdd` and polyglot toolchains scope execution to modified packages and relevant suites inside active brownfield worktrees.
+
 ---
 
 ## 6. Table-Driven Verification Vectors
@@ -221,6 +232,8 @@ type PipelineReport struct {
 | `TC-DOD-03` | `Cell 6.2 (zero_filesystem_alias)` | Symbolic link committed inside repository tree | `FAIL` (`ERR_SYMLINK_FORBIDDEN`) |
 | `TC-DOD-04` | `Cell 7.1 (plane_separation)` / `Cell 7.1 (secret)` | Cross-plane `INT-*`/`SUB-*` edit or inline credential literal | `FAIL` (Fail-closed pre-flight block) |
 | `TC-DOD-05` | Full 7x3 Matrix (`42` probes) | Clean Go + WASM Tree-sitter polyglot workspace | `PASS` (Exit 0, `42/42` satisfied) |
+| `TC-DOD-06` | `Cell 1.1` (`strict_mode: false`) | Clean helper fix in legacy `1200`-LOC file with untouched `V(G)=28` | `PASS` (Exit 0, `dV(G) <= 0`) |
+| `TC-DOD-07` | `Cell 1.1` (`strict_mode: false`) | Legacy `V(G)=28` function grows to `V(G)=30` in worktree | `FAIL` (Exit 1, ratchet breach) |
 
 ---
 
