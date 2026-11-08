@@ -29,14 +29,26 @@ func TestSynthesizeBrownfieldTopology_PolyglotRepo(t *testing.T) {
 		bigParser.WriteString("def step_" + strings.Repeat("x", 18) + "():\n    return 1\n")
 	}
 	mustWrite("sqlglot/parser.py", bigParser.String())
+	var coreEntry strings.Builder
+	for i := 0; i < 140; i++ {
+		coreEntry.WriteString("def route_" + strings.Repeat("y", 18) + "():\n    return 2\n")
+	}
+	mustWrite("sqlglot/core_router.py", coreEntry.String())
 	mustWrite("sqlglot/helper.py", "def ensure_list(v):\n    return [v]\n")
 	mustWrite("sqlglot/dialects/duckdb.py", "class DuckDB:\n    pass\n")
 	mustWrite("tests/test_parser.py", "import unittest\n")
+
+	// Noise paths that must be excluded from SourceRoots, SharedModules, and Core Modules
+	mustWrite("_examples/graphql/server.py", bigParser.String())
+	mustWrite("typings/index.test-d.ts", strings.Repeat("export type T = string;\n", 200))
+	mustWrite("internal/toml-test/runner.py", bigParser.String())
+	mustWrite("generated/proto_dump.py", bigParser.String())
 
 	cfg := &config.EcosystemConfig{
 		Governance: config.GovernanceConfig{
 			QualityGates: config.QualityGatesConfig{
 				StrictMode: false,
+				Exclude:    []string{"generated"},
 			},
 		},
 	}
@@ -44,6 +56,9 @@ func TestSynthesizeBrownfieldTopology_PolyglotRepo(t *testing.T) {
 	topo := handshake.SynthesizeBrownfieldTopology(dir, cfg)
 	if topo == nil {
 		t.Fatal("expected non-nil BrownfieldTopologyBrief when strict_mode=false")
+	}
+	if topo.VerifyScope != config.VerifyScopeDiff {
+		t.Fatalf("expected default verify_scope=%s, got %s", config.VerifyScopeDiff, topo.VerifyScope)
 	}
 	if topo.TDDMode != config.TDDModeRatchet || topo.CoverageMode != config.CoverageModeLive {
 		t.Fatalf("unexpected governance modes: tdd=%s cov=%s", topo.TDDMode, topo.CoverageMode)
@@ -54,11 +69,16 @@ func TestSynthesizeBrownfieldTopology_PolyglotRepo(t *testing.T) {
 	if len(topo.TestRunners) == 0 || topo.TestRunners[0] != "python3 -m unittest" {
 		t.Fatalf("expected unittest runner, got %v", topo.TestRunners)
 	}
+	for _, root := range topo.SourceRoots {
+		if strings.Contains(root, "_examples") || strings.Contains(root, "typings") || strings.Contains(root, "generated") {
+			t.Fatalf("unexpected noise directory in SourceRoots: %v", topo.SourceRoots)
+		}
+	}
 	if len(topo.SharedModules) == 0 || topo.SharedModules[0] != "sqlglot/helper.py" {
 		t.Fatalf("expected sqlglot/helper.py in shared modules, got %v", topo.SharedModules)
 	}
-	if len(topo.Hotspots) == 0 || topo.Hotspots[0].Path != "sqlglot/parser.py" {
-		t.Fatalf("expected sqlglot/parser.py hotspot, got %v", topo.Hotspots)
+	if len(topo.Hotspots) != 2 || topo.Hotspots[0].Path != "sqlglot/parser.py" || topo.Hotspots[1].Path != "sqlglot/core_router.py" {
+		t.Fatalf("expected parser.py and core_router.py (>=120 LOC) without noise dirs, got %+v", topo.Hotspots)
 	}
 
 	strictCfg := &config.EcosystemConfig{

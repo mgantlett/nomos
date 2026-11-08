@@ -10,18 +10,19 @@ import (
 	"strings"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 )
 
 const (
 	modeBrownfieldRatchet = "brownfield_ratchet"
-	hotspotMinLines       = 300
-	hotspotMinBytes       = 6000
+	hotspotMinLines       = 120
+	hotspotMinBytes       = 2400
 	maxSourceRoots        = 8
 	maxSharedModules      = 6
-	maxHotspotFiles       = 5
+	maxHotspotFiles       = 6
 )
 
-// BrownfieldHotspot identifies a high-LOC legacy source file governed by monotonic ratcheting.
+// BrownfieldHotspot identifies a core source module surfaced during cold-start orientation.
 type BrownfieldHotspot struct {
 	Path  string `json:"path"`
 	Lines int    `json:"lines"`
@@ -30,6 +31,7 @@ type BrownfieldHotspot struct {
 // BrownfieldTopologyBrief provides a compact cold-start repository map for brownfield sessions.
 type BrownfieldTopologyBrief struct {
 	GovernanceMode string              `json:"governance_mode"`
+	VerifyScope    string              `json:"verify_scope,omitempty"`
 	TDDMode        string              `json:"tdd_mode"`
 	CoverageMode   string              `json:"coverage_mode"`
 	Languages      []string            `json:"languages"`
@@ -41,6 +43,7 @@ type BrownfieldTopologyBrief struct {
 }
 
 type topologyAccumulator struct {
+	excludes      []string
 	langCounts    map[string]int
 	dirCounts     map[string]int
 	testRoots     map[string]bool
@@ -56,6 +59,7 @@ func SynthesizeBrownfieldTopology(treeRoot string, cfg *config.EcosystemConfig) 
 		return nil
 	}
 	acc := &topologyAccumulator{
+		excludes:   cfg.Governance.QualityGates.Exclude,
 		langCounts: make(map[string]int),
 		dirCounts:  make(map[string]int),
 		testRoots:  make(map[string]bool),
@@ -72,6 +76,7 @@ func SynthesizeBrownfieldTopology(treeRoot string, cfg *config.EcosystemConfig) 
 	}
 	return &BrownfieldTopologyBrief{
 		GovernanceMode: modeBrownfieldRatchet,
+		VerifyScope:    cfg.Governance.QualityGates.EffectiveVerifyScope(),
 		TDDMode:        cfg.Governance.QualityGates.EffectiveTDDMode(),
 		CoverageMode:   cfg.Governance.QualityGates.EffectiveCoverageMode(),
 		Languages:      langs,
@@ -101,9 +106,12 @@ func visitTopologyNode(root, path string, d fs.DirEntry, err error, acc *topolog
 		return nil
 	}
 	if d.IsDir() {
-		if path != root && isSkippedTopologyDir(d.Name()) {
+		if path != root && (isSkippedTopologyDir(d.Name()) || workspace.IsExcluded(path, true, d.Name(), acc.excludes)) {
 			return filepath.SkipDir
 		}
+		return nil
+	}
+	if workspace.IsExcluded(path, false, d.Name(), acc.excludes) {
 		return nil
 	}
 	rel, rErr := filepath.Rel(root, path)
@@ -135,17 +143,21 @@ func recordTopologyTestPath(slashRel string, acc *topologyAccumulator) {
 func recordTopologySourceFile(absPath, slashRel string, d fs.DirEntry, lang string, acc *topologyAccumulator) {
 	acc.langCounts[lang]++
 	parts := strings.Split(slashRel, "/")
+	nonPkgTop := len(parts) > 1 && isNonPackageTopDir(parts[0])
 	if len(parts) == 1 {
 		if !isBuildOrConfigScript(d.Name()) {
 			acc.hasRootSource = true
 		}
-	} else if !isNonPackageTopDir(parts[0]) {
+	} else if !nonPkgTop {
 		acc.dirCounts[parts[0]+"/"]++
 		if len(parts) >= 3 {
 			acc.dirCounts[parts[0]+"/"+parts[1]+"/"]++
 		}
 	}
-	if isSharedUtilityFilename(d.Name()) && !isNonPackageTopDir(parts[0]) {
+	if nonPkgTop || (len(parts) == 1 && isBuildOrConfigScript(d.Name())) {
+		return
+	}
+	if isSharedUtilityFilename(d.Name()) {
 		acc.sharedMods = append(acc.sharedMods, slashRel)
 	}
 	info, iErr := d.Info()

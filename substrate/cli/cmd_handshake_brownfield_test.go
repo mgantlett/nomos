@@ -18,6 +18,7 @@ func TestPlainHandshakeBanner_BrownfieldTopology(t *testing.T) {
 		StrictMode: false,
 		BrownfieldTopology: &handshake.BrownfieldTopologyBrief{
 			GovernanceMode: "brownfield_ratchet",
+			VerifyScope:    "diff",
 			TDDMode:        "ratchet",
 			CoverageMode:   "live",
 			Languages:      []string{"javascript"},
@@ -31,14 +32,20 @@ func TestPlainHandshakeBanner_BrownfieldTopology(t *testing.T) {
 
 	out := formatPlainHandshakeBanner(ev)
 	for _, needle := range []string{
-		"BROWNFIELD RATCHET (tdd=ratchet, cov=live)",
+		"BROWNFIELD (scope=diff, tdd=ratchet, cov=live)",
 		"javascript | test: npm test (node --test)",
 		"lib/ (tests: tests/)",
 		"lib/error.js",
+		"Core Modules",
 		"lib/command.js (2792 LOC)",
 	} {
 		if !strings.Contains(out, needle) {
 			t.Fatalf("expected %q in brownfield plain handshake banner, got:\n%s", needle, out)
+		}
+	}
+	for _, forbidden := range []string{"Ratchet Invariant", "Ratchet Hotspots", "Do not increase function V(G)"} {
+		if strings.Contains(out, forbidden) {
+			t.Fatalf("did not expect upfront warning %q in navigation-first handshake banner, got:\n%s", forbidden, out)
 		}
 	}
 }

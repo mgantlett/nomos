@@ -142,6 +142,7 @@ func dispatchPostToolHook(payload *HookPayload, hermeticDir string, containerSan
 	recordPostToolSessionTrace(payload, hermeticDir)
 	budgetMsg := evaluateSessionBudgetRadarWithProfile(payload, hermeticDir, budgetSec, profile)
 	churnMsg := evaluateWorktreeChurnAdvisory(payload, hermeticDir, profile.AdvisoryStyle)
+	pacingMsg := evaluateReadSpiralAdvisory(payload, hermeticDir, profile.AdvisoryStyle)
 	healthMsg := evaluatePostToolHostHealth(payload, hermeticDir, profile.AdvisoryStyle)
 	var syntaxMsg string
 	if containerSandbox && hermeticDir == "" {
@@ -149,7 +150,7 @@ func dispatchPostToolHook(payload *HookPayload, hermeticDir string, containerSan
 	} else {
 		syntaxMsg = EvaluatePostToolHook(payload, hermeticDir)
 	}
-	combined := joinHookAdvisories(budgetMsg, churnMsg)
+	combined := joinHookAdvisories(joinHookAdvisories(budgetMsg, churnMsg), pacingMsg)
 	return joinHookAdvisories(joinHookAdvisories(combined, healthMsg), syntaxMsg)
 }
 

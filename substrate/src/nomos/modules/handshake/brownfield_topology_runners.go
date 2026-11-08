@@ -20,8 +20,8 @@ var nonPackageTopDirs = map[string]bool{
 	"docs": true, "doc": true, "examples": true, "example": true,
 	"benchmarks": true, "benchmark": true, "bench": true, "scripts": true,
 	"hack": true, "contrib": true, "packaging": true, "deploy": true,
-	"assets": true, "intent": true, "test": true, "tests": true,
-	"__tests__": true, "spec": true, "specs": true,
+	"assets": true, "intent": true, "typings": true, "types": true,
+	"test": true, "tests": true, "__tests__": true, "spec": true, "specs": true,
 }
 
 var dedicatedTestDirs = map[string]bool{
@@ -32,11 +32,16 @@ func isSkippedTopologyDir(name string) bool {
 	if strings.HasPrefix(name, ".") {
 		return true
 	}
-	return skippedTopologyDirs[strings.ToLower(name)]
+	lower := strings.ToLower(name)
+	if strings.HasPrefix(lower, "_") && lower != "__tests__" {
+		return true
+	}
+	return skippedTopologyDirs[lower]
 }
 
 func isNonPackageTopDir(name string) bool {
-	return nonPackageTopDirs[strings.ToLower(name)]
+	clean := strings.TrimLeft(strings.ToLower(name), "_")
+	return nonPackageTopDirs[clean]
 }
 
 func isDedicatedTestDir(name string) bool {
@@ -45,7 +50,7 @@ func isDedicatedTestDir(name string) bool {
 
 func classifyTopologyLanguage(name string) string {
 	lower := strings.ToLower(name)
-	if strings.HasSuffix(lower, ".d.ts") {
+	if strings.HasSuffix(lower, ".d.ts") || strings.HasSuffix(lower, ".test-d.ts") {
 		return ""
 	}
 	switch filepath.Ext(lower) {
@@ -78,8 +83,10 @@ func classifyTopologyLanguage(name string) string {
 
 func isTopologyTestFile(slashRel, name string) bool {
 	lower := strings.ToLower(name)
-	for _, seg := range strings.Split(strings.ToLower(slashRel), "/") {
-		if dedicatedTestDirs[seg] {
+	segs := strings.Split(strings.ToLower(slashRel), "/")
+	for i := 0; i < len(segs)-1; i++ {
+		seg := segs[i]
+		if dedicatedTestDirs[seg] || strings.HasSuffix(seg, "-test") || strings.HasSuffix(seg, "_test") {
 			return true
 		}
 	}

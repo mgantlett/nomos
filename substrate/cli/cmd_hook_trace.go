@@ -23,9 +23,12 @@ type hookSessionTrace struct {
 	TestCommandsCount    int      `json:"test_commands_count"`
 	DeniedInterceptions  int      `json:"denied_interceptions"`
 	UnverifiedCalls      int      `json:"unverified_calls,omitempty"`
+	ConsecutiveReadCalls int      `json:"consecutive_read_calls,omitempty"`
 	DirtyUnverifiedEdits bool     `json:"dirty_unverified_edits,omitempty"`
 	WarnedChurn75        bool     `json:"warned_churn_75,omitempty"`
 	WarnedChurn150       bool     `json:"warned_churn_150,omitempty"`
+	WarnedReadSpiral12   bool     `json:"warned_read_spiral_12,omitempty"`
+	WarnedReadSpiral20   bool     `json:"warned_read_spiral_20,omitempty"`
 	MutatedFiles         []string `json:"mutated_files,omitempty"`
 }
 
