@@ -195,9 +195,32 @@ func TestPG12BrownfieldFastFileRadar(t *testing.T) {
 	if err := os.WriteFile(target, []byte(grown), 0644); err != nil {
 		t.Fatal(err)
 	}
-	resBreach, _ := EvaluateFastFileRadar(dir, target)
-	if len(resBreach.Breaches) == 0 {
-		t.Fatalf("expected breach when exceeding brownfield baseline LOC, got warnings=%v", resBreach.Warnings)
+	resBreach, bErr := EvaluateFastFileRadar(dir, target)
+	if bErr != nil || len(resBreach.Breaches) == 0 {
+		t.Fatalf("expected breach when exceeding brownfield baseline LOC, err=%v warnings=%v", bErr, resBreach.Warnings)
 	}
 }
+
+func TestPG12FastFileRadarOverloadedFunctionBaseline(t *testing.T) {
+	dir := initTestGitRepo(t)
+	nomosYAML := "project: bf-overload\ndefault_branch: main\ngovernance:\n  quality_gates:\n    strict_mode: false\n    thresholds:\n      max_cyclomatic_complexity: 3\n"
+	if err := os.WriteFile(filepath.Join(dir, "nomos.yaml"), []byte(nomosYAML), 0644); err != nil {
+		t.Fatal(err)
+	}
+	src := "def _builder(a, b, c):\n    if a and b and c:\n        if a > 1 or b > 1 or c > 1:\n            return a + b + c\n    return 0\n\ndef _builder(x):\n    return x\n"
+	target := filepath.Join(dir, "snowflake.py")
+	if err := os.WriteFile(target, []byte(src), 0644); err != nil {
+		t.Fatal(err)
+	}
+	commitAllTestGit(t, dir, "overloaded _builder baseline")
+
+	res, err := EvaluateFastFileRadar(dir, target)
+	if err != nil {
+		t.Fatalf("EvaluateFastFileRadar error: %v", err)
+	}
+	if len(res.Breaches) > 0 {
+		t.Fatalf("expected zero breaches on untouched overloaded baseline function, got %v", res.Breaches)
+	}
+}
+
 

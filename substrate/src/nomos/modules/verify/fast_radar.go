@@ -133,10 +133,7 @@ func evaluateRatchetedFastBudgets(rep, baseRep *FileDebtReport, t Thresholds, re
 	if rep.DebtScore > 0 {
 		checkRatchetedMetric("cognitive debt", rep.DebtScore, baseRep.DebtScore, t.MaxCDS, res)
 	}
-	baseFns := make(map[string]FunctionDebt, len(baseRep.Functions))
-	for _, bfn := range baseRep.Functions {
-		baseFns[bfn.Name] = bfn
-	}
+	baseFns := indexBaselineFunctionDebts(baseRep.Functions)
 	for _, fn := range rep.Functions {
 		bfn, existed := baseFns[fn.Name]
 		if !existed {
@@ -147,6 +144,21 @@ func evaluateRatchetedFastBudgets(rep, baseRep *FileDebtReport, t Thresholds, re
 		checkRatchetedMetric(fmt.Sprintf("func %s LOC", fn.Name), fn.LOC, bfn.LOC, t.MaxFuncLOC, res)
 		checkRatchetedMetric(fmt.Sprintf("func %s complexity", fn.Name), fn.Complexity, bfn.Complexity, t.MaxComplexity, res)
 	}
+}
+
+func indexBaselineFunctionDebts(funcs []FunctionDebt) map[string]FunctionDebt {
+	byName := make(map[string]FunctionDebt, len(funcs))
+	for _, bfn := range funcs {
+		prev, exists := byName[bfn.Name]
+		if !exists {
+			byName[bfn.Name] = bfn
+			continue
+		}
+		prev.LOC = maxInt(prev.LOC, bfn.LOC)
+		prev.Complexity = maxInt(prev.Complexity, bfn.Complexity)
+		byName[bfn.Name] = prev
+	}
+	return byName
 }
 
 func checkRatchetedMetric(label string, val, baseVal, limit int, res *FastFileRadarResult) {
