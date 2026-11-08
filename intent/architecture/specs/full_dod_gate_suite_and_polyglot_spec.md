@@ -9,6 +9,7 @@ lineage:
   - INT-737
   - INT-862
   - INT-1913
+  - INT-1915
   - SUB-1215
   - SUB-1543
 plane: intent
@@ -16,7 +17,7 @@ ssot_repository: nomos
 status: active
 title: "Full 42 DoD Gate Suite and Polyglot Verification Architecture Specification"
 type: spec
-version: "4.2.0"
+version: "4.3.0"
 ---
 
 # Full 42 DoD Gate Suite and Polyglot Verification Architecture Specification
@@ -66,10 +67,10 @@ The Nomos DoD verification engine binds 42 statutory sensor probes across the 7 
 
 #### Law 1: Dual-Core Inversion (Governance & Control)
 - **Cell 1.1 (Syntactic)**:
-  - `complexity`: AST cyclomatic complexity per function ($\le 15$).
+  - `complexity`: AST cyclomatic complexity per function ($\le 15$) across all 11 supported languages (`Go, TypeScript/JS/TSX/JSX, Svelte, Python, Ruby, Rust, C/C++, Java, Kotlin, C#`).
   - `max_file_loc`: Maximum lines of code per file ($\le 400$).
-  - `cognitive_debt`: Cognitive Debt Score (CDS) calculated from control flow nests ($\le 45$).
-  - `boundary`: Enforces repository-local workspace boundary, preventing traversal out of workspace root.
+  - `cognitive_debt`: Cognitive Debt Score (CDS) calculated from control flow nests, structural clones, parameter arity, and decomposition blueprints ($\le 45$).
+  - `boundary`: Enforces repository-local package and import boundaries (`import`, `from`, `require`, `use`, `#include`, `using`) across all 11 supported languages.
   - `ui_anti_mask`: Detects UI shims masking unfinished functionality.
 - **Cell 1.2 (Dynamic)**:
   - `phase_discipline`: Enforces valid state machine phase transitions (`IDLE` $\to$ `PLAN` $\to$ `EDIT` $\to$ `REVIEW` $\to$ `SYNC` $\to$ `LEARN`).
@@ -78,14 +79,14 @@ The Nomos DoD verification engine binds 42 statutory sensor probes across the 7 
 
 #### Law 2: Non-Verbal Proof (Epistemology & Verification)
 - **Cell 2.1 (Syntactic)**:
-  - `tdd`: Validates that new or modified implementation source files possess accompanying `_test.go` verification suites.
-  - `anti_shim`: AST-level inspection rejecting trivial functions returning literal `Passed: true` or constant dummy values.
+  - `tdd`: Validates that implementation modules across all 11 supported languages possess paired verification suites (`*_test.go`, `test_*.py`, `*.test.ts`, `*_test.rb`, `#[cfg(test)]`, `*Test.java`, `*Tests.cs`).
+  - `anti_shim`: AST-level inspection rejecting trivial functions returning literal `Passed: true`, empty bodies, or skipped suite annotations.
   - `docstrings`: Validates exported function docstring density ($\ge 10\%$).
-  - `dead_code`: Detects unreachable functions, unused local variables, and obsolete declarations.
+  - `dead_code`: Detects unreachable CLI commands, unexecuted gates, and orphan unimported internal Go and polyglot modules.
   - `uasset_dependency`: Audits binary asset links and schema dependencies.
 - **Cell 2.2 (Dynamic)**:
-  - `go_toolchain`: Machine compilation verification (`go test`, `go vet`).
-  - `coverage`: Enforces statement verification coverage gating ($\ge 55\%$).
+  - `go_toolchain`: Executes polyglot compilation and suite verification (`go test`, `pytest`/`unittest`, `node --check`/`tsc`, `minitest`, `cargo test`, `cmake`/`ctest`, `gradle`/`mvn`, `dotnet test`).
+  - `coverage`: Enforces statement coverage gating ($\ge 55\%$) across Go `coverprofile`, `lcov.info`, Cobertura XML, SimpleCov JSON, and Python `trace` ratchets.
   - `visual_regression`: Verifies UI components against baseline visual renders.
 - **Cell 2.3 (Cryptographic)**:
   - `review_receipt`: Cryptographically verifies human/agent review attestation before merge.
@@ -137,7 +138,7 @@ The Nomos DoD verification engine binds 42 statutory sensor probes across the 7 
   - `config_immutability`: Machine-enforces immutability of sealed system configuration files.
   - `plane_separation`: Enforces that `SUB-*` tasks never mutate `intent/` and `INT-*` tasks never mutate `substrate/`.
 - **Cell 7.2 (Dynamic)**:
-  - `unchecked_errors`: Rejects unchecked error discards via `_ = ...` or `, _ :=`.
+  - `unchecked_errors`: Rejects silent error discards across Go (`_ = call()`), Python (bare/silent `except: pass`), TS/JS/Svelte/JVM/C#/C++ (empty `catch {}`), Rust (`let _ = call()`), and Ruby (`rescue nil` / empty `rescue`).
 - **Cell 7.3 (Cryptographic)**:
   - `threshold_integrity`: Cryptographically prevents `nomos.yaml` (`config.ThresholdsConfig`) threshold relaxation without explicit debt-task authorization.
 
@@ -147,11 +148,12 @@ The Nomos DoD verification engine binds 42 statutory sensor probes across the 7 
 
 In Nomos v4, polyglot verification executes natively in pure Go without external C toolchains:
 1. **Go Source Analysis**: Standard library `go/parser`, `go/ast`, and `go/token`. Fast, zero dependencies, memory safe.
-2. **Polyglot Tree-sitter WASM Analysis**: Embeds `wazero` (`wazero.CompilationCache`) and `.scm` query evaluators for `Go, TypeScript, TSX, JavaScript, Svelte, Python, Rust, C, C++, Java, Kotlin, C#` (`substrate/src/nomos/modules/verify/treesitter/`).
-3. **Anti-Shim & Skip-Guard Detection**: Evaluates `.scm` captures to reject stubbed functions (`todo!()`, `unimplemented!()`, `pass`, `NotImplementedError`, `UnsupportedOperationException`, `NotImplementedException`) and skipped suite annotations (`it.skip`, `pytest.mark.skip`, `#[ignore]`, `@Disabled`, `[Fact(Skip=)]`).
-4. **Per-`source_root` Native Toolchains & Coverage Ratchets**: Audits `source_roots` via `tsc`, `pytest`, `cargo`, `clang`/`cmake`, `gradle`/`maven`, and `dotnet` across `coverprofile`, `lcov.info`, and `cobertura.xml` ratchets.
-5. **Markdown & Schema Analysis**: Lexical stream scanner for Markdown relative links, YAML frontmatter, and balanced fences, paired with Go-reflected Draft 2020-12 JSON Schema parity (`nomos.schema.json`).
-6. **Configuration & Script Analysis**: Standard library decoders (`yaml.v3` with `KnownFields(true)`, `encoding/json`) and shell analyzers.
+2. **Polyglot Tree-sitter WASM & Lexical Analysis**: Embeds `wazero` linear-memory line and delimiter bytecode alongside `.scm` query bindings across all 11 languages (`substrate/src/nomos/modules/verify/treesitter/`). Scanners strip comments, docstrings, and string literals before branch evaluation, and mask nested function spans to prevent double-counting.
+3. **Anti-Shim, Unchecked-Error & Skip-Guard Detection**: Evaluates `.scm` captures to reject stubbed functions (`todo!()`, `pass`, `NotImplementedError`) and skipped suite annotations (`it.skip`, `pytest.mark.skip`, `#[ignore]`, `@Disabled`). Scanners also reject silent error discards (`_ = call()`, bare `except: pass`, empty `catch {}`, `let _ = call()`, `rescue nil`).
+4. **Full Polyglot Toolchain & Coverage Parity**: Executes syntax compilation and verification suites across Go, Python, JS/TS, Ruby, Rust, C/C++, JVM, and C#. `CoverageGate` evaluates `coverprofile`, `lcov.info`, Cobertura XML, SimpleCov JSON, and Python `trace` coverage under unified ratchets.
+5. **Polyglot Blueprints, Blast-Radius Maps & Post-Tool Radar**: Enforces parameter arity (`> 8`) and syntax-aware seam extraction across brace (`{}`), indentation (`Python`), and `end`-block (`Ruby`) languages. `ImpactMap` resolves 1-hop dependents (`import`, `from`, `require`, `use`, `#include`, `using`) and paired suites, while `FastFileRadar` honors brownfield baseline ratchets.
+6. **Markdown & Schema Analysis**: Lexical stream scanner for Markdown relative links, YAML frontmatter, and balanced fences, paired with Go-reflected Draft 2020-12 JSON Schema parity (`nomos.schema.json`).
+7. **Configuration & Script Analysis**: Standard library decoders (`yaml.v3` with `KnownFields(true)`, `encoding/json`) and shell analyzers.
 
 ### 4.1 Compiled Go Gate & Threshold SSoT Contracts
 
@@ -234,6 +236,11 @@ When `nomos.yaml` sets `strict_mode: false`, `nomos verify` enforces a monotonic
 | `TC-DOD-05` | Full 7x3 Matrix (`42` probes) | Clean Go + WASM Tree-sitter polyglot workspace | `PASS` (Exit 0, `42/42` satisfied) |
 | `TC-DOD-06` | `Cell 1.1` (`strict_mode: false`) | Clean helper fix in legacy `1200`-LOC file with untouched `V(G)=28` | `PASS` (Exit 0, `dV(G) <= 0`) |
 | `TC-DOD-07` | `Cell 1.1` (`strict_mode: false`) | Legacy `V(G)=28` function grows to `V(G)=30` in worktree | `FAIL` (Exit 1, ratchet breach) |
+| `TC-DOD-08` | `Cell 2.2 (go_toolchain)` | Pure JS repo without `tsconfig.json` or Python repo with stdlib `unittest` only | `PASS` / `FAIL` via `node --check` + JS test runner and `python -m unittest` |
+| `TC-DOD-09` | `Cell 2.2 (coverage)` / `Cell 2.1 (tdd)` | Non-Go workspace with LCOV/Cobertura/Python coverage or brand-new untested polyglot module | Enforces `MinCoverage` (or brownfield ratchet) and rejects untested modules |
+| `TC-DOD-10` | `Cell 1.1 (complexity)` | Python docstring containing `"if x and y or z"` or nested `def inner():` | Zero docstring branch inflation; zero nested double-counting |
+| `TC-DOD-11` | `Cell 7.2 (unchecked_errors)` / `Cell 1.1 (boundary)` | Silent `except: pass`, empty `catch {}`, `let _ = call()`, or prohibited polyglot import | `FAIL` (Exit 1, net-new violation rejected) |
+| `TC-DOD-12` | `FastFileRadar` (`strict_mode: false`) | Post-tool edit on legacy `1200`-LOC file with `dLOC <= 0` and `dCDS <= 0` | Zero false statutory breach; emits baseline delta context |
 
 ---
 
