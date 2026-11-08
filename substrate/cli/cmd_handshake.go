@@ -67,6 +67,10 @@ Just-In-Time (JIT) Phase Invariant Envelopes under indirect control.`,
 }
 
 func renderHandshakeBanner(event *handshake.HandshakeEvent, installed bool) {
+	if event != nil && !event.StrictMode && event.BrownfieldTopology != nil {
+		renderBrownfieldHandshakeBanner(event, event.BrownfieldTopology)
+		return
+	}
 	hookMsg := "VERIFIED"
 	if installed {
 		hookMsg = "AUTO-INSTALLED (pre-commit, commit-msg, pre-push)"

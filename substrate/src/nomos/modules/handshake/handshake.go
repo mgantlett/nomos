@@ -39,9 +39,11 @@ type HandshakeEvent struct {
 	VerifiedPatterns     []string                 `json:"verified_patterns,omitempty"`
 	GraduationCandidates []string                 `json:"graduation_candidates,omitempty"`
 	ImpactSummary        []string                 `json:"impact_summary,omitempty"`
-	NextActions      []types.ActionAffordance `json:"next_actions,omitempty"`
-	DeprecatedTerms  map[string]string        `json:"deprecated_terms,omitempty"`
-	Timestamp        string                   `json:"timestamp,omitempty"`
+	StrictMode           bool                     `json:"strict_mode"`
+	BrownfieldTopology   *BrownfieldTopologyBrief `json:"brownfield_topology,omitempty"`
+	NextActions          []types.ActionAffordance `json:"next_actions,omitempty"`
+	DeprecatedTerms      map[string]string        `json:"deprecated_terms,omitempty"`
+	Timestamp            string                   `json:"timestamp,omitempty"`
 }
 
 // DirectiveFrontmatter defines the authoritative schema for JIT directives (#DirectiveFrontmatter).
@@ -85,6 +87,7 @@ func SynthesizeDynamicHandshake(repoRoot string) (*HandshakeEvent, error) {
 	directives := loadPhaseDirectives(primaryRoot, phase)
 	modifiedFiles, impactSummary := computeActiveTaskImpact(treeRoot, activeTask)
 	pitfalls, patterns, graduations := recallMnemeHandshakeContext(primaryRoot, activeTask, modifiedFiles)
+	strictMode, bfTopology := resolveHandshakeGovernance(treeRoot, primaryRoot)
 
 	wtRoot := ""
 	if activeTask != "" && strings.Contains(filepath.ToSlash(treeRoot), "/worktrees/") {
@@ -109,6 +112,8 @@ func SynthesizeDynamicHandshake(repoRoot string) (*HandshakeEvent, error) {
 		VerifiedPatterns:     patterns,
 		GraduationCandidates: graduations,
 		ImpactSummary:        impactSummary,
+		StrictMode:           strictMode,
+		BrownfieldTopology:   bfTopology,
 		NextActions:          nextActions,
 		Timestamp:            time.Now().UTC().Format(time.RFC3339),
 	}

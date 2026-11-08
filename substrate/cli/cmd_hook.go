@@ -250,6 +250,7 @@ func formatPlainHandshakeBanner(ev *handshake.HandshakeEvent) string {
 		b.WriteString(fmt.Sprintf("  Workspace Phase   : %s (Trunk baseline)\n", ev.Phase))
 	}
 	b.WriteString(fmt.Sprintf("  DoD Quality Gates : %d deterministic gates active\n", ev.GateCount))
+	appendPlainBrownfieldTopology(&b, ev)
 	if len(ev.ReadyWavefront) > 0 {
 		b.WriteString(fmt.Sprintf("  Ready Wavefront   : [%s]\n", strings.Join(ev.ReadyWavefront, ", ")))
 	}
