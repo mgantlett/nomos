@@ -112,10 +112,14 @@ func canUseToolchainReceiptCache(ctx *VerifyContext) bool {
 }
 
 func executeGoTestWithCoverage(ctx *VerifyContext, root, targetDir, snapshotKey string) *ToolchainSuiteReceipt {
+	return executeGoTestWithPackages(ctx, root, targetDir, snapshotKey, resolveGoTestPackages(ctx, root, targetDir))
+}
+
+func executeGoTestWithPackages(ctx *VerifyContext, root, targetDir, snapshotKey string, pkgs []string) *ToolchainSuiteReceipt {
 	cmdCtx, cancel := context.WithTimeout(context.Background(), goToolchainTimeout)
 	defer cancel()
 
-	args := append([]string{"test", "-cover"}, resolveGoTestPackages(ctx, root, targetDir)...)
+	args := append([]string{"test", "-cover"}, pkgs...)
 	cmd := exec.CommandContext(cmdCtx, "go", args...)
 	cmd.Dir = targetDir
 	cmd.Env = buildGoToolchainEnv(root, targetDir)
@@ -153,6 +157,9 @@ func buildGoToolchainEnv(root, targetDir string) []string {
 }
 
 func resolveGoTestPackages(ctx *VerifyContext, root, targetDir string) []string {
+	if modPkgs := resolveModifiedGoPackages(ctx, root, targetDir); len(modPkgs) > 0 {
+		return modPkgs
+	}
 	cfg := resolveVerifyConfig(ctx)
 	if cfg == nil || cfg.Governance.QualityGates.StrictMode || len(cfg.Governance.QualityGates.SubstrateSourceRoots) == 0 {
 		return []string{"./..."}

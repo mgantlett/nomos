@@ -162,12 +162,22 @@ func (g *AntiShimGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		if rErr != nil {
 			relPath = path
 		}
-		violations = append(violations, scanCustomForbiddenShims(path, relPath, forbiddenShims)...)
+		var fileViolations []string
+		fileViolations = append(fileViolations, scanCustomForbiddenShims(path, relPath, forbiddenShims)...)
 		if !strings.HasSuffix(path, ".go") {
-			violations = append(violations, scanPolyglotAntiShim(path, relPath)...)
-			return nil
+			fileViolations = append(fileViolations, scanPolyglotAntiShim(path, relPath)...)
+		} else {
+			fileViolations = append(fileViolations, scanGoFileAntiShim(fset, path, relPath)...)
 		}
-		violations = append(violations, scanGoFileAntiShim(fset, path, relPath)...)
+		violations = append(violations, filterNetNewLineViolations(ctx, root, path, fileViolations, func(baseBytes []byte) []string {
+			return scanTempBaselineViolations(path, baseBytes, func(tmpPath string) []string {
+				out := scanCustomForbiddenShims(tmpPath, relPath, forbiddenShims)
+				if !strings.HasSuffix(path, ".go") {
+					return append(out, scanPolyglotAntiShim(tmpPath, relPath)...)
+				}
+				return append(out, scanGoFileAntiShim(token.NewFileSet(), tmpPath, relPath)...)
+			})
+		})...)
 		return nil
 	})
 	if err != nil {

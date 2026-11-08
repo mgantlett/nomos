@@ -192,8 +192,7 @@ func scaffoldNomosConfig(dir string) error {
 	}
 	projectName := filepath.Base(dir)
 	branch := detectDefaultBranch(dir)
-	content := strings.ReplaceAll(string(tmplBytes), "{{.ProjectName}}", projectName)
-	content = strings.ReplaceAll(content, "{{.DefaultBranch}}", branch)
+	content := renderScaffoldedNomosYAML(dir, string(tmplBytes), projectName, branch)
 	return os.WriteFile(configPath, []byte(content), 0644)
 }
 

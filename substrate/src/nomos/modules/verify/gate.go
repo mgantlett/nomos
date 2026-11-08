@@ -252,11 +252,18 @@ func WalkTargetFiles(ctx *VerifyContext, root string, fn filepath.WalkFunc) erro
 		return walkExplicitRelativeFiles(resolveUnattestedRangeFiles(ctx, workDir), absWorkDir, absRoot, excludes, fn)
 	}
 	if !isWorktreeContext(ctx, workDir) {
+		if ctx != nil && !ctx.AllFiles && isBrownfieldRatchetActive(ctx) && hasGitMetadata(absWorkDir) {
+			modified := getModifiedFilesInScope(ctx, workDir)
+			return walkExplicitRelativeFiles(modified, absWorkDir, absRoot, excludes, fn)
+		}
 		return workspace.WalkWithExcludes(root, excludes, fn)
 	}
 
 	modified := getModifiedFilesInScope(ctx, workDir)
 	if len(modified) == 0 {
+		if isBrownfieldRatchetActive(ctx) && (hasGitMetadata(absWorkDir) || (ctx != nil && hasGitMetadata(ctx.RepoRoot))) {
+			return nil
+		}
 		return workspace.WalkWithExcludes(root, excludes, fn)
 	}
 	return walkExplicitRelativeFiles(modified, absWorkDir, absRoot, excludes, fn)

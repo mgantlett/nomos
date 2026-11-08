@@ -174,11 +174,8 @@ func (g *DeadCodeGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		}, nil
 	}
 
-	cliDir := filepath.Join(root, "substrate", "cli")
-	if _, err := os.Stat(cliDir); os.IsNotExist(err) {
-		cliDir = filepath.Join(root, "cli")
-	}
-	if _, err := os.Stat(cliDir); os.IsNotExist(err) {
+	cliDir := resolveNomosInternalCLIDir(ctx, root)
+	if cliDir == "" {
 		return &GateResult{
 			GateName: g.Name(), ProbeID: "dead_code", Law: 2, Ring: RingSyntactic,
 			Passed: true, Message: "no CLI directory detected; skipping reachability check",

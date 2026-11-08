@@ -37,7 +37,18 @@ func (g *UncheckedErrorsGate) Evaluate(ctx *VerifyContext) (*GateResult, error) 
 		if rErr != nil {
 			rel = path
 		}
-		checkUncheckedErrorsInFile(node, fset, rel, &violations)
+		var fileViolations []string
+		checkUncheckedErrorsInFile(node, fset, rel, &fileViolations)
+		violations = append(violations, filterNetNewLineViolations(ctx, root, path, fileViolations, func(baseBytes []byte) []string {
+			baseFset := token.NewFileSet()
+			baseNode, bErr := parser.ParseFile(baseFset, path, baseBytes, 0)
+			if bErr != nil {
+				return nil
+			}
+			var baseV []string
+			checkUncheckedErrorsInFile(baseNode, baseFset, rel, &baseV)
+			return baseV
+		})...)
 		return nil
 	})
 	if err != nil {

@@ -96,7 +96,7 @@ func (g *CognitiveDebtGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		return nil, types.NewNomosError(types.ErrCodeCore, "cognitive debt walk failed: %v", err)
 	}
 
-	violations := EnrichCDSViolations(root, metrics, sources, thresh, isWorktreeContext(ctx, root))
+	violations := evaluateRatchetedCDSViolations(ctx, root, metrics, sources, thresh)
 	if len(violations) > 0 {
 		return &GateResult{
 			GateName: g.Name(), Passed: false,
@@ -136,7 +136,7 @@ func (g *MaxFileLOCGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		return nil, types.NewNomosError(types.ErrCodeCore, "file loc walk failed: %v", err)
 	}
 
-	violations := EnrichFileLOCViolations(root, metrics, thresh)
+	violations := EnrichFileLOCViolations(root, filterRatchetedFileLOC(ctx, root, metrics, thresh), thresh)
 	if len(violations) > 0 {
 		return &GateResult{
 			GateName: g.Name(), Passed: false,
@@ -201,7 +201,8 @@ func (g *ComplexityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		return nil, types.NewNomosError(types.ErrCodeCore, "complexity walk failed: %v", err)
 	}
 
-	violations := EnrichComplexityViolations(root, funcMetrics, thresh, isWorktreeContext(ctx, root))
+	ratchetedFuncs, checkArity := filterRatchetedComplexity(ctx, root, funcMetrics, thresh)
+	violations := EnrichComplexityViolations(root, ratchetedFuncs, thresh, checkArity)
 	if len(violations) > 0 {
 		return &GateResult{
 			GateName: g.Name(), Passed: false,

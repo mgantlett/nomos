@@ -30,7 +30,7 @@ func (g *SecretGate) Name() string { return "Secret & Credential Leak Invariant"
 // Evaluate scans workspace files for unencrypted secrets and private keys.
 func (g *SecretGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	root := resolveSecurityRoot(ctx)
-	leaks, err := scanSecrets(root)
+	leaks, err := scanSecretsScoped(ctx, root)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +218,7 @@ func (g *BrokenWireGate) Name() string { return "Broken Wire & Link Invariant (L
 // Evaluate scans markdown files for broken relative links.
 func (g *BrokenWireGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	root := resolveSecurityRoot(ctx)
-	broken, err := scanBrokenLinks(root)
+	broken, err := scanBrokenLinksScoped(ctx, root)
 	if err != nil {
 		return nil, err
 	}

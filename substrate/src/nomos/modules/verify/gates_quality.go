@@ -100,7 +100,8 @@ func (g *CoverageGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	}
 
 	rec := evaluateSharedGoSuite(ctx, root, targetDir)
-	return buildCoverageGateResult(g.Name(), rec, resolveThresholds(ctx).MinCoverage), nil
+	effThreshold := resolveEffectiveCoverageThreshold(ctx, root, targetDir, resolveThresholds(ctx).MinCoverage, rec.AvgCoverage)
+	return buildCoverageGateResult(g.Name(), rec, effThreshold), nil
 }
 
 func buildCoverageGateResult(gateName string, rec *ToolchainSuiteReceipt, threshold float64) *GateResult {
@@ -192,6 +193,12 @@ func countDocstrings(ctx *VerifyContext, srcDir string) (int, int, []string) {
 		rel, rErr := filepath.Rel(srcDir, path)
 		if rErr != nil {
 			rel = path
+		}
+		if rTot, rDoc, rMiss, handled := countRatchetedDocstringsForFile(ctx, srcDir, path, rel); handled {
+			total += rTot
+			documented += rDoc
+			missing = append(missing, rMiss...)
+			return nil
 		}
 		if !strings.HasSuffix(path, ".go") {
 			pTotal, pDoc, pMiss := countPolyglotDocstrings(path, rel)

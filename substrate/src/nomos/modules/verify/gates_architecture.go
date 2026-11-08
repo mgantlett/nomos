@@ -151,11 +151,8 @@ func (g *ZeroAliasGate) Name() string { return "CLI Zero-Alias & Deprecation Inv
 // Evaluate inspects CLI command tree to verify canonical singularity.
 func (g *ZeroAliasGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	root := resolveArchRoot(ctx)
-	cliDir := filepath.Join(root, "substrate", "cli")
-	if _, err := os.Stat(cliDir); os.IsNotExist(err) {
-		cliDir = filepath.Join(root, "cli")
-	}
-	if _, err := os.Stat(cliDir); os.IsNotExist(err) {
+	cliDir := resolveNomosInternalCLIDir(ctx, root)
+	if cliDir == "" {
 		return &GateResult{
 			GateName: g.Name(), ProbeID: "zero_alias", Law: 6, Ring: RingDynamic,
 			Passed: true, Message: "no CLI directory detected; zero-alias gate satisfied",
@@ -242,6 +239,12 @@ func (g *MagicStringsGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		}
 		content := string(data)
 		if rawPortRegex.MatchString(content) || localhostRegex.MatchString(content) {
+			if baseBytes, ok := loadBaselineFileBytes(ctx, targetDir, path); ok {
+				baseStr := string(baseBytes)
+				if rawPortRegex.MatchString(baseStr) || localhostRegex.MatchString(baseStr) {
+					return nil
+				}
+			}
 			rel, rErr := filepath.Rel(targetDir, path)
 			if rErr != nil {
 				rel = path

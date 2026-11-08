@@ -1,9 +1,11 @@
-// Package verify implements the deterministic Definition of Done (DoD) quality gate pipeline.
+// Package verify implements brownfield scoping for TDD, coverage, security, and broken-wire gates.
 package verify
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -57,14 +59,13 @@ func isSkippedTDDDirName(name string, skipCmdDir bool) bool {
 }
 
 func shouldScopeTDDToModifiedPackages(ctx *VerifyContext, root string) bool {
-	if ctx == nil || ctx.AllFiles || ctx.IsBaseline {
+	if !isBrownfieldRatchetActive(ctx) {
 		return false
 	}
-	cfg := resolveVerifyConfig(ctx)
-	if cfg == nil || cfg.Governance.QualityGates.StrictMode {
-		return false
+	if isWorktreeContext(ctx, root) {
+		return true
 	}
-	return isWorktreeContext(ctx, root)
+	return hasGitMetadata(root)
 }
 
 func findUntestedPackagesScoped(ctx *VerifyContext, root string, targetDirs []string, explicitRoots bool) ([]string, error) {
@@ -96,30 +97,136 @@ func findUntestedPackagesScoped(ctx *VerifyContext, root string, targetDirs []st
 func evaluateModifiedPackageTDD(ctx *VerifyContext, root string, excludes []string, skipCmd bool) ([]string, bool) {
 	modified := getModifiedFilesInScope(ctx, root)
 	if len(modified) == 0 {
+		if hasGitMetadata(root) || (ctx != nil && hasGitMetadata(ctx.RepoRoot)) {
+			return nil, true
+		}
 		return nil, false
 	}
-	pkgDirs := make(map[string]struct{})
+	goDirs := make(map[string]struct{})
+	var polyFiles []string
 	for _, rel := range modified {
-		if !strings.HasSuffix(rel, ".go") {
+		if !isPolyglotTargetFile(rel) {
 			continue
 		}
 		absDir := filepath.Dir(filepath.Join(root, rel))
-		if shouldInspectModifiedPkgDir(root, absDir, excludes, skipCmd) {
-			pkgDirs[absDir] = struct{}{}
+		if !shouldInspectModifiedPkgDir(root, absDir, excludes, skipCmd) {
+			continue
+		}
+		if strings.HasSuffix(rel, ".go") {
+			goDirs[absDir] = struct{}{}
+		} else if isPolyglotTDDTrackedExt(filepath.Ext(rel)) {
+			polyFiles = append(polyFiles, rel)
 		}
 	}
-	if len(pkgDirs) == 0 {
-		return nil, true
-	}
 	var untested []string
-	for dir := range pkgDirs {
+	for dir := range goDirs {
 		hasGo, hasTest := inspectPackageFiles(dir)
 		if hasGo && !hasTest {
 			untested = append(untested, relativeOrFullPath(root, dir))
 		}
 	}
+	untested = append(untested, findUntestedPolyglotModules(root, modified, polyFiles)...)
 	sort.Strings(untested)
 	return untested, true
+}
+
+func isPolyglotTDDTrackedExt(ext string) bool {
+	switch strings.ToLower(ext) {
+	case ".py", ".ts", ".tsx", ".js", ".jsx", ".rs":
+		return true
+	}
+	return false
+}
+
+func findUntestedPolyglotModules(root string, modified, polyFiles []string) []string {
+	if len(polyFiles) == 0 || !hasPolyglotTestManifest(root) {
+		return nil
+	}
+	if hasModifiedTestFile(modified) || hasRepositoryPolyglotTests(root) {
+		return nil
+	}
+	seen := make(map[string]struct{})
+	var missing []string
+	for _, rel := range polyFiles {
+		absPath := filepath.Join(root, rel)
+		if strings.HasSuffix(rel, ".rs") && hasInlineRustTestModule(absPath) {
+			continue
+		}
+		dirRel := filepath.ToSlash(filepath.Dir(rel))
+		if _, ok := seen[dirRel]; !ok {
+			seen[dirRel] = struct{}{}
+			missing = append(missing, dirRel)
+		}
+	}
+	return missing
+}
+
+func hasPolyglotTestManifest(root string) bool {
+	for _, m := range []string{"pyproject.toml", "pytest.ini", "tox.ini", "Cargo.toml"} {
+		if _, err := os.Stat(filepath.Join(root, m)); err == nil {
+			return true
+		}
+	}
+	if data, err := os.ReadFile(filepath.Join(root, "package.json")); err == nil {
+		return strings.Contains(string(data), "\"test\"")
+	}
+	return false
+}
+
+func hasModifiedTestFile(modified []string) bool {
+	for _, rel := range modified {
+		if isPolyglotTestFilePath(rel) {
+			return true
+		}
+	}
+	return false
+}
+
+func isPolyglotTestFilePath(rel string) bool {
+	slash := strings.ToLower(filepath.ToSlash(rel))
+	base := filepath.Base(slash)
+	if strings.HasPrefix(base, "test_") || strings.HasSuffix(base, "_test.py") || strings.HasSuffix(base, "_test.go") {
+		return true
+	}
+	for _, suf := range []string{".test.ts", ".spec.ts", ".test.tsx", ".spec.tsx", ".test.js", ".spec.js"} {
+		if strings.HasSuffix(base, suf) {
+			return true
+		}
+	}
+	return strings.HasPrefix(slash, "tests/") || strings.HasPrefix(slash, "test/") || strings.Contains(slash, "/__tests__/")
+}
+
+func hasRepositoryPolyglotTests(root string) bool {
+	for _, d := range []string{"tests", "test", "__tests__", "spec"} {
+		if fi, err := os.Stat(filepath.Join(root, d)); err == nil && fi.IsDir() {
+			return true
+		}
+	}
+	found := false
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d == nil || found {
+			return nil
+		}
+		if d.IsDir() {
+			if path != root && isSkippableSecurityDir(d.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if isPolyglotTestFilePath(d.Name()) {
+			found = true
+		}
+		return nil
+	})
+	return found
+}
+
+func hasInlineRustTestModule(absPath string) bool {
+	data, err := os.ReadFile(absPath)
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(data), "#[cfg(test)]") || strings.Contains(string(data), "#[test]")
 }
 
 func shouldInspectModifiedPkgDir(root, absDir string, excludes []string, skipCmd bool) bool {
@@ -170,4 +277,44 @@ func relativeOrFullPath(base, target string) string {
 		return target
 	}
 	return filepath.ToSlash(rel)
+}
+
+func scanSecretsScoped(ctx *VerifyContext, root string) ([]string, error) {
+	if !isBrownfieldRatchetActive(ctx) || (ctx != nil && ctx.AllFiles) || !hasGitMetadata(root) {
+		return scanSecrets(root)
+	}
+	leaks := scanUnignoredEnvFiles(root)
+	err := WalkTargetFiles(ctx, root, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil || info == nil || info.IsDir() {
+			return nil
+		}
+		if isIgnoredSecretFile(path) || (isProhibitedEnvFileName(info.Name()) && isGitIgnoredPath(root, path)) {
+			return nil
+		}
+		if data, rErr := os.ReadFile(path); rErr == nil {
+			if label := matchSecretTokenLabel(string(data)); label != "" {
+				leaks = append(leaks, relativeOrFullPath(root, path)+" ("+label+")")
+			}
+		}
+		return nil
+	})
+	return leaks, err
+}
+
+func scanBrokenLinksScoped(ctx *VerifyContext, root string) ([]string, error) {
+	if !isBrownfieldRatchetActive(ctx) || (ctx != nil && ctx.AllFiles) || !hasGitMetadata(root) {
+		return scanBrokenLinks(root)
+	}
+	var broken []string
+	linkRegex := regexp.MustCompile(`\[[^\]]+\]\(([^)]+)\)`)
+	err := WalkTargetFiles(ctx, root, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil || info == nil || info.IsDir() || !strings.HasSuffix(path, ".md") {
+			return nil
+		}
+		if data, rErr := os.ReadFile(path); rErr == nil {
+			broken = append(broken, checkLinksInContent(root, path, string(data), linkRegex)...)
+		}
+		return nil
+	})
+	return broken, err
 }

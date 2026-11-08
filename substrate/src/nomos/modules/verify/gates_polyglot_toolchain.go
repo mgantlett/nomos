@@ -78,7 +78,7 @@ func isRustImpactPath(lower string) bool {
 }
 
 func verifyPythonToolchain(ctx *VerifyContext, root string) (string, *GateResult) {
-	pyBin, err := exec.LookPath("python3")
+	pyBin, err := resolvePythonBinary(root, "python3")
 	if err != nil {
 		return "", nil
 	}
@@ -87,7 +87,7 @@ func verifyPythonToolchain(ctx *VerifyContext, root string) (string, *GateResult
 		return "", nil
 	}
 
-	cmdCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	cmdCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	pyCheckScript := "import sys\nfor p in sys.argv[1:]:\n    with open(p, 'rb') as f:\n        compile(f.read(), p, 'exec')\n"
@@ -100,14 +100,18 @@ func verifyPythonToolchain(ctx *VerifyContext, root string) (string, *GateResult
 	}
 
 	if hasPythonTests(root) {
-		if pytestBin, pErr := exec.LookPath("pytest"); pErr == nil {
-			tCmd := exec.CommandContext(cmdCtx, pytestBin, "-q", "--tb=short", "-p", "no:cacheprovider")
-			tCmd.Dir = root
-			tCmd.Env = append(os.Environ(), "PYTHONDONTWRITEBYTECODE=1", "NOMOS_IN_TOOLCHAIN_GATE=1")
-			if out, tErr := tCmd.CombinedOutput(); tErr != nil {
-				return "", toolchainFailure("Python pytest suite failed", string(out), "resolve failing Python unit tests (pytest -q)")
+		targets, shouldRun := resolveScopedPytestTargets(ctx, root)
+		if shouldRun {
+			if pytestBin, pErr := resolvePythonBinary(root, "pytest"); pErr == nil {
+				pytestArgs := append([]string{"-q", "--tb=short", "-p", "no:cacheprovider"}, targets...)
+				tCmd := exec.CommandContext(cmdCtx, pytestBin, pytestArgs...)
+				tCmd.Dir = root
+				tCmd.Env = append(os.Environ(), "PYTHONDONTWRITEBYTECODE=1", "NOMOS_IN_TOOLCHAIN_GATE=1")
+				if out, tErr := tCmd.CombinedOutput(); tErr != nil {
+					return "", toolchainFailure("Python pytest suite failed", string(out), "resolve failing Python unit tests (pytest -q)")
+				}
+				return "Python(compile+pytest)", nil
 			}
-			return "Python(compile+pytest)", nil
 		}
 	}
 	return "Python(compile)", nil
