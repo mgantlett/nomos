@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [v4.12.0] - 2026-11-08
+
+> Zero-Config Brownfield Auto-Detection & Monotonic AST Ratchet, Full 11-Language Polyglot Verification Parity, Switchable `nomos.yaml` Brownfield Modes, Navigation-First Handshake & Read-Spiral Gyroscope (Apache 2.0)
+
+### Zero-Config Brownfield Onboarding & Monotonic AST Ratcheting (`nomos init`, `nomos verify`, `nomos.yaml`)
+- **Automatic Brownfield Detection (`nomos init`)**: Detects non-empty repositories lacking dual-hemisphere `intent/` + `substrate/` roots, configures `strict_mode: false` automatically, and discovers active top-level source directories out of the box without Day-1 directory migrations.
+- **Monotonic AST Merge-Base Ratchet (`git merge-base`)**: Under `strict_mode: false`, ratchets file LOC (`>400`), function LOC (`>60`), McCabe cyclomatic complexity `V(G)` (`>15`), Cognitive Debt Score (`CDS`), structural clones, magic-string duplication, forbidden path literals, and unchecked error hygiene strictly against the trunk baseline so legacy God files pass untouched while net complexity or debt regressions fail closed with exact `[BASELINE main: ... | delta ...]` diagnostics.
+- **Declaratively Switchable Brownfield Modes (`nomos.yaml`, `nomos.schema.json`)**: Adds granular brownfield switches under `governance.quality_gates`: `verify_scope` (`"diff"` | `"repo"`), `tdd_mode` (`"off"` | `"ratchet"` | `"diff"` | `"strict"`), `coverage_mode` (`"off"` | `"artifact"` | `"live"`), and `tdd_exclude` glob patterns.
+
+### Full 11-Language Polyglot Verification Parity (`nomos verify`)
+- **11-Language Structural AST, Anti-Shim & Error-Hygiene Parity**: Closes all 12 polyglot verification gaps across Go, Rust, C/C++, Python, Ruby, TypeScript, JavaScript, Svelte (`.svelte` `<script>` extraction), Java, Kotlin, and C-Sharp, including overloaded-signature baseline metric retention (`max(V(G), LOC)`) so TypeScript/C++/JVM overloads never mask real complexity growth.
+- **Zero-Dependency Live & Artifact Statement Coverage**: Adds zero-dependency `NODE_V8_COVERAGE` live statement coverage probes for JS/TS, zero-dependency `python3 -m trace` fallback alongside `coverage.py` / LCOV / Cobertura XML, Ruby `Coverage` / SimpleCov ingestion, and JaCoCo XML / Cobertura report verification for Java, Kotlin, C-Sharp, Rust, and C/C++.
+
+### Navigation-First Brownfield Handshake & Read-Spiral Pacing (`nomos handshake`, `nomos hook post-tool`)
+- **Noise-Filtered Cold-Start Topology Brief (`SynthesizeBrownfieldTopology`)**: Emits `Governance Mode: BROWNFIELD (scope=diff, tdd=ratchet, cov=live)`, lowers `Core Modules` discovery to `>= 120` LOC, removes upfront prompt scolding that induced reasoning-model analysis paralysis, and filters `_`-prefixed demo directories (`_examples/`), `typings/`, `.test-d.ts`, `*-test` harnesses, and `quality_gates.exclude` globs from cold-start orientation.
+- **Worktree Read-Spiral Gyroscope (`cmd_hook_pacing.go`)**: Tracks consecutive read/search calls (`Read`, `Grep`, `Glob`, read-only shell searches) inside active `EDIT` worktrees and emits non-blocking 1-line pacing nudges at `12` and `20` consecutive reads without a source edit, resetting immediately upon any file mutation.
+
+---
+
 ## [v4.11.0] - 2026-11-07
 
 > Turn-Termination `nomos hook stop` Gate, Outbound Egress Airlock, Additive `nomos hook install`, Scratch-Artifact & Trunk-Redirect Guards, GoReleaser v2 Schema Gate & Mermaid Spec Diagrams (Apache 2.0)
