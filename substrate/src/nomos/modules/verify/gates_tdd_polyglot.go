@@ -10,14 +10,20 @@ import (
 )
 
 var tddImplIgnoredNames = map[string]bool{
-	"__init__.py": true, "mod.rs": true, "lib.rs": true, "main.rs": true,
+	"__init__.py": true, "conftest.py": true, "setup.py": true,
+	"mod.rs": true, "lib.rs": true, "main.rs": true,
 	"index.ts": true, "index.js": true, "types.ts": true, "constants.ts": true,
+	"app.d.ts": true, "ambient.d.ts": true, "env.d.ts": true,
 }
 
 func resolveEffectiveTDDMode(ctx *VerifyContext) string {
 	cfg := resolveVerifyConfig(ctx)
-	if cfg != nil && strings.TrimSpace(cfg.Governance.QualityGates.TDDMode) != "" && (ctx == nil || !ctx.Strict) {
-		return cfg.Governance.QualityGates.EffectiveTDDMode()
+	if cfg != nil && strings.TrimSpace(cfg.Governance.QualityGates.TDDMode) != "" {
+		mode := cfg.Governance.QualityGates.EffectiveTDDMode()
+		if mode == config.TDDModeOff && ctx != nil && ctx.Strict {
+			return config.TDDModeStrict
+		}
+		return mode
 	}
 	if ctx != nil && ctx.Strict {
 		return config.TDDModeStrict
@@ -56,13 +62,13 @@ func hasGoPairedTestsForModified(root, absDir string, modified []string) bool {
 
 func isPolyglotImplFileForTDD(name string) bool {
 	lower := strings.ToLower(name)
-	if isPolyglotTestFilePath(lower) || strings.HasSuffix(lower, ".d.ts") || tddImplIgnoredNames[lower] {
+	if isPolyglotTestFilePath(lower) || strings.HasSuffix(lower, ".d.ts") || tddImplIgnoredNames[lower] || isNonLogicToolConfigFile(lower) {
 		return false
 	}
 	return isPolyglotTDDTrackedExt(filepath.Ext(lower))
 }
 
-func inspectPolyglotDirForStrictTDD(root, dir string) (bool, bool) {
+func inspectPolyglotDirForStrictTDD(ctx *VerifyContext, root, dir string) (bool, bool) {
 	if !hasPolyglotTestManifest(root) && !hasRepositoryPolyglotTests(root) {
 		return false, false
 	}
@@ -71,6 +77,7 @@ func inspectPolyglotDirForStrictTDD(root, dir string) (bool, bool) {
 		return false, false
 	}
 	implFiles, hasLocalTest := classifyPolyglotDirEntries(entries)
+	implFiles = filterNonExcludedImplFiles(ctx, root, dir, implFiles)
 	if len(implFiles) == 0 {
 		return false, false
 	}
@@ -146,7 +153,7 @@ func evaluateBrownfieldPolyglotTDD(ctx *VerifyContext, root string, modified, po
 }
 
 func isPolyglotFileSatisfyingBrownfieldTDD(ctx *VerifyContext, root, rel, mode string, hasModTest, hasRepoSuite, hasManifest bool) bool {
-	if !isPolyglotImplFileForTDD(filepath.Base(rel)) {
+	if !isPolyglotImplFileForTDD(filepath.Base(rel)) || isTDDExcludedRel(ctx, root, rel) {
 		return true
 	}
 	absPath := filepath.Join(root, rel)
@@ -158,6 +165,9 @@ func isPolyglotFileSatisfyingBrownfieldTDD(ctx *VerifyContext, root, rel, mode s
 	}
 	if mode == config.TDDModeDiff {
 		return false
+	}
+	if mode == config.TDDModeStrict {
+		return !hasManifest && !hasRepoSuite
 	}
 	_, existedOnBaseline := loadBaselineFileBytes(ctx, root, absPath)
 	if existedOnBaseline && (hasRepoSuite || !hasManifest) {

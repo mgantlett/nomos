@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 )
 
@@ -60,11 +61,17 @@ func isSkippedTDDDirName(name string, skipCmdDir bool) bool {
 
 func shouldScopeTDDToModifiedPackages(ctx *VerifyContext, root string) bool {
 	mode := resolveEffectiveTDDMode(ctx)
-	if mode == "strict" || mode == "off" {
+	if mode == config.TDDModeOff {
+		return false
+	}
+	if resolveEffectiveVerifyScope(ctx) == config.VerifyScopeRepo && mode == config.TDDModeStrict {
 		return false
 	}
 	if isWorktreeContext(ctx, root) {
 		return true
+	}
+	if mode == config.TDDModeStrict {
+		return false
 	}
 	return hasGitMetadata(root)
 }
@@ -80,7 +87,7 @@ func findUntestedPackagesScoped(ctx *VerifyContext, root string, targetDirs []st
 	seen := make(map[string]struct{})
 	var untested []string
 	for _, srcDir := range targetDirs {
-		pkgs, err := walkUntestedPackages(root, srcDir, excludes, !explicitRoots)
+		pkgs, err := walkUntestedPackages(ctx, root, srcDir, excludes, !explicitRoots)
 		if err != nil {
 			return nil, err
 		}
@@ -100,18 +107,18 @@ func evaluateModifiedPackageTDD(ctx *VerifyContext, root string, excludes []stri
 	if len(modified) == 0 {
 		return nil, hasGitMetadata(root) || (ctx != nil && hasGitMetadata(ctx.RepoRoot))
 	}
-	goDirs, polyFiles := partitionModifiedTDDTargets(root, modified, excludes, skipCmd)
+	goDirs, polyFiles := partitionModifiedTDDTargets(ctx, root, modified, excludes, skipCmd)
 	untested := evaluateModifiedGoDirsTDD(ctx, root, goDirs, modified)
 	untested = append(untested, evaluateBrownfieldPolyglotTDD(ctx, root, modified, polyFiles)...)
 	sort.Strings(untested)
 	return untested, true
 }
 
-func partitionModifiedTDDTargets(root string, modified, excludes []string, skipCmd bool) (map[string]struct{}, []string) {
+func partitionModifiedTDDTargets(ctx *VerifyContext, root string, modified, excludes []string, skipCmd bool) (map[string]struct{}, []string) {
 	goDirs := make(map[string]struct{})
 	var polyFiles []string
 	for _, rel := range modified {
-		if !isPolyglotTargetFile(rel) {
+		if !isPolyglotTargetFile(rel) || (!isPolyglotTestFilePath(rel) && isTDDExcludedRel(ctx, root, rel)) {
 			continue
 		}
 		absDir := filepath.Dir(filepath.Join(root, rel))
@@ -239,7 +246,7 @@ func shouldInspectModifiedPkgDir(root, absDir string, excludes []string, skipCmd
 	return true
 }
 
-func walkUntestedPackages(root, srcDir string, excludes []string, skipCmd bool) ([]string, error) {
+func walkUntestedPackages(ctx *VerifyContext, root, srcDir string, excludes []string, skipCmd bool) ([]string, error) {
 	var untested []string
 	err := filepath.Walk(srcDir, func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil || info == nil || !info.IsDir() {
@@ -251,22 +258,22 @@ func walkUntestedPackages(root, srcDir string, excludes []string, skipCmd bool) 
 		if path != srcDir && isSkippedTDDDirName(info.Name(), skipCmd) {
 			return filepath.SkipDir
 		}
-		hasGo, hasTest := inspectPackageFiles(path)
-		if hasGo && !hasTest {
-			base := srcDir
-			if root != "" && srcDir != root {
-				base = root
-			}
-			untested = append(untested, relativeOrFullPath(base, path))
+		base := srcDir
+		if root != "" && srcDir != root {
+			base = root
+		}
+		relDir := relativeOrFullPath(base, path)
+		if isTDDExcludedRel(ctx, base, relDir) {
 			return nil
 		}
-		hasPoly, hasPolyTest := inspectPolyglotDirForStrictTDD(root, path)
+		hasGo, hasTest := inspectPackageFiles(path)
+		if hasGo && !hasTest {
+			untested = append(untested, relDir)
+			return nil
+		}
+		hasPoly, hasPolyTest := inspectPolyglotDirForStrictTDD(ctx, root, path)
 		if hasPoly && !hasPolyTest {
-			base := srcDir
-			if root != "" && srcDir != root {
-				base = root
-			}
-			untested = append(untested, relativeOrFullPath(base, path))
+			untested = append(untested, relDir)
 		}
 		return nil
 	})

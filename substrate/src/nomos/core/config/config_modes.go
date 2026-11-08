@@ -1,16 +1,21 @@
-// Package config defines switchable TDD and statement coverage enforcement modes for nomos.yaml.
+// Package config defines switchable verification scope, TDD, and statement coverage enforcement modes for nomos.yaml.
 package config
 
 import "strings"
 
 const (
+	// VerifyScopeDiff evaluates only modified or unattested files and packages inside task worktrees (default).
+	VerifyScopeDiff = "diff"
+	// VerifyScopeRepo scans 100% of repository files and packages even inside task worktrees.
+	VerifyScopeRepo = "repo"
+
 	// TDDModeOff disables paired-test enforcement (permitted only when strict_mode is false).
 	TDDModeOff = "off"
 	// TDDModeRatchet requires paired tests on net-new modules while permitting legacy baseline edits.
 	TDDModeRatchet = "ratchet"
 	// TDDModeDiff requires every modified or added source file in the diff to have a paired or modified test.
 	TDDModeDiff = "diff"
-	// TDDModeStrict requires 100% of source directories/modules in the workspace to possess unit tests.
+	// TDDModeStrict requires 100% of source directories/modules in scope to possess unit tests.
 	TDDModeStrict = "strict"
 
 	// CoverageModeOff disables statement coverage enforcement (permitted only when strict_mode is false).
@@ -20,6 +25,32 @@ const (
 	// CoverageModeLive executes zero-dependency live coverage probes (Go, Python trace, Node V8, Ruby Coverage) and parses artifacts.
 	CoverageModeLive = "live"
 )
+
+// EffectiveVerifyScope returns the active worktree verification scope, defaulting to "diff" (@intent: #QualityGatesConfig).
+func (q *QualityGatesConfig) EffectiveVerifyScope() string {
+	if q == nil {
+		return VerifyScopeDiff
+	}
+	norm := strings.ToLower(strings.TrimSpace(q.VerifyScope))
+	if norm == "" {
+		return VerifyScopeDiff
+	}
+	return norm
+}
+
+// VerifyScopeRank returns strictness rank (1=diff, 2=repo) and validity (@intent: #QualityGatesConfig).
+func VerifyScopeRank(scope string) (int, bool) {
+	switch strings.ToLower(strings.TrimSpace(scope)) {
+	case "":
+		return -1, true
+	case VerifyScopeDiff:
+		return 1, true
+	case VerifyScopeRepo:
+		return 2, true
+	default:
+		return -1, false
+	}
+}
 
 // EffectiveTDDMode returns the active TDD mode, defaulting to "strict" in strict_mode and "ratchet" in brownfield mode (@intent: #QualityGatesConfig).
 func (q *QualityGatesConfig) EffectiveTDDMode() string {
@@ -81,4 +112,3 @@ func CoverageModeRank(mode string) (int, bool) {
 		return -1, false
 	}
 }
-

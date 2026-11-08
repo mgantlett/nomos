@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 )
 
@@ -87,7 +88,7 @@ func getModifiedPolyglotFiles(ctx *VerifyContext) (map[string]bool, error) {
 	if hasCommitRangeScope(ctx) {
 		return collectRangePolyglotFiles(ctx), nil
 	}
-	if ctx.IsBaseline {
+	if ctx.IsBaseline || resolveEffectiveVerifyScope(ctx) == config.VerifyScopeRepo {
 		return nil, nil
 	}
 

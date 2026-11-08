@@ -157,7 +157,7 @@ func collectScopePolyglotFiles(ctx *VerifyContext, workDir string, fileSet map[s
 }
 
 func collectScopeStatusFiles(workDir string, fileSet map[string]struct{}) {
-	out, err := workspace.RunSafeGit(workDir, "status", "--porcelain")
+	out, err := workspace.RunSafeGit(workDir, "status", "--porcelain", "-uall")
 	if err != nil {
 		return
 	}
@@ -250,6 +250,9 @@ func WalkTargetFiles(ctx *VerifyContext, root string, fn filepath.WalkFunc) erro
 
 	if hasCommitRangeScope(ctx) {
 		return walkExplicitRelativeFiles(resolveUnattestedRangeFiles(ctx, workDir), absWorkDir, absRoot, excludes, fn)
+	}
+	if resolveEffectiveVerifyScope(ctx) == config.VerifyScopeRepo {
+		return workspace.WalkWithExcludes(root, excludes, fn)
 	}
 	if !isWorktreeContext(ctx, workDir) {
 		if ctx != nil && !ctx.AllFiles && isBrownfieldRatchetActive(ctx) && hasGitMetadata(absWorkDir) {

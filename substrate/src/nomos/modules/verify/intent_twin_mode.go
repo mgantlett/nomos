@@ -125,5 +125,34 @@ func checkTestGateModeDowngrade(trunkCfg, wtCfg *config.EcosystemConfig) string 
 	if tcOK && wcOK && wcRank < tcRank {
 		return fmt.Sprintf("worktree nomos.yaml illegally downgrades governance.quality_gates.coverage_mode from trunk baseline (%s -> %s)", trunkCov, wtCov)
 	}
+	return checkVerifyScopeAndTDDExcludeDowngrade(trunkCfg, wtCfg)
+}
+
+func checkVerifyScopeAndTDDExcludeDowngrade(trunkCfg, wtCfg *config.EcosystemConfig) string {
+	if _, ok := config.VerifyScopeRank(wtCfg.Governance.QualityGates.VerifyScope); !ok {
+		return fmt.Sprintf("worktree nomos.yaml contains invalid governance.quality_gates.verify_scope %q", wtCfg.Governance.QualityGates.VerifyScope)
+	}
+	trunkScope := trunkCfg.Governance.QualityGates.EffectiveVerifyScope()
+	wtScope := wtCfg.Governance.QualityGates.EffectiveVerifyScope()
+	tsRank, tsOK := config.VerifyScopeRank(trunkScope)
+	wsRank, wsOK := config.VerifyScopeRank(wtScope)
+	if tsOK && wsOK && wsRank < tsRank {
+		return fmt.Sprintf("worktree nomos.yaml illegally downgrades governance.quality_gates.verify_scope from trunk baseline (%s -> %s)", trunkScope, wtScope)
+	}
+	if !trunkCfg.Governance.QualityGates.StrictMode {
+		return ""
+	}
+	allowed := make(map[string]struct{}, len(trunkCfg.Governance.QualityGates.TDDExclude))
+	for _, ex := range trunkCfg.Governance.QualityGates.TDDExclude {
+		allowed[normalizeSlashPath(ex)] = struct{}{}
+	}
+	for _, ex := range wtCfg.Governance.QualityGates.TDDExclude {
+		norm := normalizeSlashPath(ex)
+		if norm != "" {
+			if _, exists := allowed[norm]; !exists {
+				return fmt.Sprintf("worktree nomos.yaml illegally expands governance.quality_gates.tdd_exclude beyond trunk baseline (%s)", ex)
+			}
+		}
+	}
 	return ""
 }

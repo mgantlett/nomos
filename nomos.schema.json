@@ -261,6 +261,13 @@
                 "type": "string"
               }
             },
+            "tdd_exclude": {
+              "description": "Workspace-relative glob patterns excluded from paired unit test enforcement in TDDGate.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
             "tdd_mode": {
               "description": "Paired unit test enforcement policy: strict (default when strict_mode=true), ratchet (default when strict_mode=false), diff (require paired or modified test on every touched file), or off.",
               "type": "string",
@@ -334,6 +341,15 @@
                 }
               },
               "additionalProperties": false
+            },
+            "verify_scope": {
+              "description": "Default verification scope inside task worktrees: diff (default, evaluate modified files and packages) or repo (scan full repository on every verification).",
+              "type": "string",
+              "enum": [
+                "diff",
+                "repo"
+              ],
+              "default": "diff"
             }
           },
           "additionalProperties": false

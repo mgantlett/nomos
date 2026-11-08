@@ -116,8 +116,10 @@ type QualityGatesConfig struct {
 	HasForbiddenLiteralsOverride bool                     `yaml:"-" json:"-"`
 	ForbiddenShims               []string                 `yaml:"forbidden_shims,omitempty" json:"forbidden_shims,omitempty"`
 	StrictMode                   bool                     `yaml:"strict_mode" json:"strict_mode"`
+	VerifyScope                  string                   `yaml:"verify_scope,omitempty" json:"verify_scope,omitempty"`
 	IntentTwinMode               string                   `yaml:"intent_twin_mode,omitempty" json:"intent_twin_mode,omitempty"`
 	TDDMode                      string                   `yaml:"tdd_mode,omitempty" json:"tdd_mode,omitempty"`
+	TDDExclude                   []string                 `yaml:"tdd_exclude,omitempty" json:"tdd_exclude,omitempty"`
 	CoverageMode                 string                   `yaml:"coverage_mode,omitempty" json:"coverage_mode,omitempty"`
 	PolyglotToolchains           *bool                    `yaml:"polyglot_toolchains,omitempty" json:"polyglot_toolchains,omitempty"`
 	Exclude                      []string                 `yaml:"exclude,omitempty" json:"exclude,omitempty"`
@@ -291,6 +293,9 @@ func ValidateConfig(cfg *EcosystemConfig) error {
 	}
 	if thresholds.MaxFuncLOC <= 0 {
 		return fmt.Errorf("max_func_loc must be greater than zero, got %d", thresholds.MaxFuncLOC)
+	}
+	if _, ok := VerifyScopeRank(cfg.Governance.QualityGates.VerifyScope); !ok {
+		return fmt.Errorf("verify_scope must be diff or repo, got %q", cfg.Governance.QualityGates.VerifyScope)
 	}
 	if _, ok := IntentTwinModeRank(cfg.Governance.QualityGates.IntentTwinMode); !ok {
 		return fmt.Errorf("intent_twin_mode must be off, feat, or strict, got %q", cfg.Governance.QualityGates.IntentTwinMode)
