@@ -13,16 +13,14 @@ import (
 )
 
 func isCCppImpactPath(lower string) bool {
-	switch filepath.Ext(lower) {
-	case ".c", ".h", ".cpp", ".cc", ".cxx", ".hpp":
+	if isCFamilyExt(filepath.Ext(lower)) {
 		return true
 	}
 	return filepath.Base(lower) == "cmakelists.txt"
 }
 
 func isJVMImpactPath(lower string) bool {
-	switch filepath.Ext(lower) {
-	case ".java", ".kt", ".kts":
+	if isJVMFamilyExt(filepath.Ext(lower)) {
 		return true
 	}
 	base := filepath.Base(lower)
@@ -31,12 +29,12 @@ func isJVMImpactPath(lower string) bool {
 
 func isCSharpImpactPath(lower string) bool {
 	ext := filepath.Ext(lower)
-	return ext == ".cs" || ext == ".csproj" || ext == ".sln"
+	return ext == extCS || ext == ".csproj" || ext == ".sln"
 }
 
 func isRubyImpactPath(lower string) bool {
 	ext := filepath.Ext(lower)
-	if ext == ".rb" || ext == ".rake" {
+	if ext == extRB || ext == extRake {
 		return true
 	}
 	base := filepath.Base(lower)
@@ -77,7 +75,7 @@ func verifyRubyToolchain(ctx *VerifyContext, root string) (string, *GateResult) 
 
 // hasRubyMinitestSuite reports whether root/test contains any *_test.rb Minitest files.
 func hasRubyMinitestSuite(root string) bool {
-	testDir := filepath.Join(root, "test")
+	testDir := filepath.Join(root, dirTest)
 	fi, err := os.Stat(testDir)
 	if err != nil || !fi.IsDir() {
 		return false
@@ -109,20 +107,20 @@ func resolveRubyMinitestCommand(root, rubyBin string) (string, []string, bool) {
 	railsBinstub := filepath.Join(root, "bin", "rails")
 	if fi, err := os.Stat(railsBinstub); err == nil && !fi.IsDir() {
 		if fi.Mode().Perm()&0111 != 0 {
-			return railsBinstub, []string{"test"}, true
+			return railsBinstub, []string{dirTest}, true
 		}
-		return rubyBin, []string{filepath.Join("bin", "rails"), "test"}, true
+		return rubyBin, []string{filepath.Join("bin", "rails"), dirTest}, true
 	}
 	if !fileExistsInDir(root, "Rakefile") {
 		return "", nil, false
 	}
 	if fileExistsInDir(root, "Gemfile") {
 		if bundleBin, bErr := exec.LookPath("bundle"); bErr == nil {
-			return bundleBin, []string{"exec", "rake", "test"}, true
+			return bundleBin, []string{"exec", "rake", dirTest}, true
 		}
 	}
 	if rakeBin, rErr := exec.LookPath("rake"); rErr == nil {
-		return rakeBin, []string{"test"}, true
+		return rakeBin, []string{dirTest}, true
 	}
 	return "", nil, false
 }
@@ -155,22 +153,7 @@ func hasSkippedMinitestOutput(output string) bool {
 }
 
 func verifyCCppToolchain(root string) (string, *GateResult) {
-	if _, err := os.Stat(filepath.Join(root, "CMakeLists.txt")); err != nil {
-		return "", nil
-	}
-	cmakeBin, err := exec.LookPath("cmake")
-	if err != nil {
-		return "", nil
-	}
-	cmdCtx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(cmdCtx, cmakeBin, "--version")
-	cmd.Dir = root
-	if out, cErr := cmd.CombinedOutput(); cErr != nil {
-		return "", toolchainFailure("C/C++ cmake probe failed", string(out), "verify CMakeLists.txt and cmake installation")
-	}
-	return "C/C++(cmake)", nil
+	return verifyCCppBuildAndSyntax(nil, root)
 }
 
 func verifyJVMToolchain(root string) (string, *GateResult) {
@@ -181,34 +164,51 @@ func verifyJVMToolchain(root string) (string, *GateResult) {
 	}
 	cmdCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
+	runTests := hasJVMTests(root)
 
 	if hasGradle {
-		gradleBin, err := exec.LookPath("gradle")
-		if err != nil {
+		gradleBin := filepath.Join(root, "gradlew")
+		if !fileExists(gradleBin) {
+			var err error
+			if gradleBin, err = exec.LookPath("gradle"); err != nil {
+				return "", nil
+			}
+		}
+		goal, label := "testClasses", "JVM(gradle)"
+		if runTests {
+			goal, label = dirTest, "JVM(gradle+test)"
+		}
+		cmd := exec.CommandContext(cmdCtx, gradleBin, goal, "--quiet")
+		cmd.Dir = root
+		cmd.Env = append(os.Environ(), envToolchainGateKV)
+		if out, gErr := cmd.CombinedOutput(); gErr != nil {
+			return "", toolchainFailure("JVM gradle "+goal+" failed", string(out), "resolve Java/Kotlin compiler or test errors")
+		}
+		return label, nil
+	}
+	mvnBin := filepath.Join(root, "mvnw")
+	if !fileExists(mvnBin) {
+		var err error
+		if mvnBin, err = exec.LookPath("mvn"); err != nil {
 			return "", nil
 		}
-		cmd := exec.CommandContext(cmdCtx, gradleBin, "testClasses", "--quiet")
-		cmd.Dir = root
-		if out, gErr := cmd.CombinedOutput(); gErr != nil {
-			return "", toolchainFailure("JVM gradle testClasses failed", string(out), "resolve Java/Kotlin compilation errors (gradle testClasses)")
-		}
-		return "JVM(gradle)", nil
 	}
-	mvnBin, err := exec.LookPath("mvn")
-	if err != nil {
-		return "", nil
+	goal, label := "test-compile", "JVM(maven)"
+	if runTests {
+		goal, label = dirTest, "JVM(maven+test)"
 	}
-	cmd := exec.CommandContext(cmdCtx, mvnBin, "test-compile", "-q")
+	cmd := exec.CommandContext(cmdCtx, mvnBin, goal, "-q")
 	cmd.Dir = root
+	cmd.Env = append(os.Environ(), envToolchainGateKV)
 	if out, mErr := cmd.CombinedOutput(); mErr != nil {
-		return "", toolchainFailure("JVM maven test-compile failed", string(out), "resolve Java/Kotlin compilation errors (mvn test-compile)")
+		return "", toolchainFailure("JVM maven "+goal+" failed", string(out), "resolve Java/Kotlin compiler or test errors")
 	}
-	return "JVM(maven)", nil
+	return label, nil
 }
 
 func verifyCSharpToolchain(root string) (string, *GateResult) {
-	matches, err := filepath.Glob(filepath.Join(root, "*.csproj"))
-	if err != nil || len(matches) == 0 {
+	projects, hasTests := findCSharpProjects(root)
+	if len(projects) == 0 {
 		return "", nil
 	}
 	dotnetBin, err := exec.LookPath("dotnet")
@@ -218,12 +218,17 @@ func verifyCSharpToolchain(root string) (string, *GateResult) {
 	cmdCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(cmdCtx, dotnetBin, "build", "--nologo", "-v", "q")
-	cmd.Dir = root
-	if out, dErr := cmd.CombinedOutput(); dErr != nil {
-		return "", toolchainFailure("C# dotnet build failed", string(out), "resolve C# compiler errors (dotnet build)")
+	subcmd, label := "build", "C#(dotnet)"
+	if hasTests {
+		subcmd, label = dirTest, "C#(dotnet+test)"
 	}
-	return "C#(dotnet)", nil
+	cmd := exec.CommandContext(cmdCtx, dotnetBin, subcmd, "--nologo", "-v", "q")
+	cmd.Dir = root
+	cmd.Env = append(os.Environ(), envToolchainGateKV)
+	if out, dErr := cmd.CombinedOutput(); dErr != nil {
+		return "", toolchainFailure("C# dotnet "+subcmd+" failed", string(out), "resolve C# compiler or unit test errors (dotnet "+subcmd+")")
+	}
+	return label, nil
 }
 
 func fileExistsInDir(dir, name string) bool {

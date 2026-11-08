@@ -102,3 +102,28 @@ func checkIntentTwinModeDowngrade(trunkCfg, wtCfg *config.EcosystemConfig) strin
 	}
 	return ""
 }
+
+func checkTestGateModeDowngrade(trunkCfg, wtCfg *config.EcosystemConfig) string {
+	if trunkCfg == nil || wtCfg == nil {
+		return ""
+	}
+	if _, ok := config.TDDModeRank(wtCfg.Governance.QualityGates.TDDMode); !ok {
+		return fmt.Sprintf("worktree nomos.yaml contains invalid governance.quality_gates.tdd_mode %q", wtCfg.Governance.QualityGates.TDDMode)
+	}
+	if _, ok := config.CoverageModeRank(wtCfg.Governance.QualityGates.CoverageMode); !ok {
+		return fmt.Sprintf("worktree nomos.yaml contains invalid governance.quality_gates.coverage_mode %q", wtCfg.Governance.QualityGates.CoverageMode)
+	}
+	trunkTDD, wtTDD := trunkCfg.Governance.QualityGates.EffectiveTDDMode(), wtCfg.Governance.QualityGates.EffectiveTDDMode()
+	tRank, tOK := config.TDDModeRank(trunkTDD)
+	wRank, wOK := config.TDDModeRank(wtTDD)
+	if tOK && wOK && wRank < tRank {
+		return fmt.Sprintf("worktree nomos.yaml illegally downgrades governance.quality_gates.tdd_mode from trunk baseline (%s -> %s)", trunkTDD, wtTDD)
+	}
+	trunkCov, wtCov := trunkCfg.Governance.QualityGates.EffectiveCoverageMode(), wtCfg.Governance.QualityGates.EffectiveCoverageMode()
+	tcRank, tcOK := config.CoverageModeRank(trunkCov)
+	wcRank, wcOK := config.CoverageModeRank(wtCov)
+	if tcOK && wcOK && wcRank < tcRank {
+		return fmt.Sprintf("worktree nomos.yaml illegally downgrades governance.quality_gates.coverage_mode from trunk baseline (%s -> %s)", trunkCov, wtCov)
+	}
+	return ""
+}

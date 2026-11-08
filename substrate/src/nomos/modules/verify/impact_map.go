@@ -98,9 +98,9 @@ func ComputeWorkspaceImpact(worktreeDir string, modifiedFiles []string) []string
 
 func isTestSourceFile(rel string) bool {
 	base := filepath.Base(rel)
-	return strings.HasSuffix(base, "_test.go") ||
-		strings.HasPrefix(base, "test_") ||
-		strings.HasSuffix(base, "_test.py") ||
+	return strings.HasSuffix(base, suffixGoTest) ||
+		strings.HasPrefix(base, prefixPyTest) ||
+		strings.HasSuffix(base, suffixPyTest) ||
 		isRubyTestFile(base) ||
 		isJSTestOrDeclFile(base) ||
 		isNativeTestFile(base)
@@ -136,53 +136,19 @@ func buildSingleFileImpact(root, rel string, goReverse map[string][]string, seen
 	return fmt.Sprintf("%s -> %s", rel, strings.Join(parts, " | "))
 }
 
-func resolvePairedTestStatus(root, rel string) string {
-	ext := filepath.Ext(rel)
-	stem := strings.TrimSuffix(filepath.Base(rel), ext)
-	dir := filepath.Dir(rel)
-
-	var candidates []string
-	switch ext {
-	case ".go":
-		candidates = []string{filepath.Join(dir, stem+"_test.go")}
-	case ".py":
-		candidates = []string{
-			filepath.Join(dir, "test_"+stem+".py"),
-			filepath.Join(dir, stem+"_test.py"),
-			filepath.Join("tests", "test_"+stem+".py"),
-		}
-	case ".rb":
-		candidates = rubyPairedTestCandidates(dir, stem)
-	case ".ts", ".tsx", ".js", ".jsx":
-		candidates = []string{
-			filepath.Join(dir, stem+".test"+ext),
-			filepath.Join(dir, stem+".spec"+ext),
-		}
-	default:
-		return "source modified"
-	}
-
-	for _, c := range candidates {
-		if _, err := os.Stat(filepath.Join(root, c)); err == nil {
-			return "paired test: " + filepath.Base(c)
-		}
-	}
-	return "no paired unit test"
-}
-
 func rubyPairedTestCandidates(dir, stem string) []string {
 	out := []string{
 		filepath.Join(dir, stem+"_test.rb"),
 		filepath.Join(dir, stem+"_spec.rb"),
-		filepath.Join("test", stem+"_test.rb"),
-		filepath.Join("spec", stem+"_spec.rb"),
+		filepath.Join(dirTest, stem+"_test.rb"),
+		filepath.Join(dirSpec, stem+"_spec.rb"),
 	}
 	slashDir := filepath.ToSlash(dir)
 	if strings.HasPrefix(slashDir, "app/") {
 		sub := strings.TrimPrefix(slashDir, "app/")
 		out = append(out,
-			filepath.Join("test", sub, stem+"_test.rb"),
-			filepath.Join("spec", sub, stem+"_spec.rb"),
+			filepath.Join(dirTest, sub, stem+"_test.rb"),
+			filepath.Join(dirSpec, sub, stem+"_spec.rb"),
 		)
 	}
 	return out
@@ -208,7 +174,7 @@ func buildGoReverseImportIndex(root string) map[string][]string {
 	index := make(map[string]map[string]bool)
 	fset := token.NewFileSet()
 
-	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+	if wErr := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d == nil {
 			return nil
 		}
@@ -218,30 +184,39 @@ func buildGoReverseImportIndex(root string) map[string][]string {
 			}
 			return nil
 		}
-		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-			return nil
-		}
-		node, pErr := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
-		if pErr != nil {
-			return nil
-		}
-		relDir := "."
-		if r, rErr := filepath.Rel(root, filepath.Dir(path)); rErr == nil {
-			relDir = filepath.ToSlash(r)
-		}
-		for _, imp := range node.Imports {
-			if imp.Path == nil {
-				continue
-			}
-			impVal := strings.Trim(imp.Path.Value, "\"")
-			if index[impVal] == nil {
-				index[impVal] = make(map[string]bool)
-			}
-			index[impVal][relDir] = true
-		}
+		recordGoFileImports(fset, root, path, index)
 		return nil
-	})
+	}); wErr != nil {
+		return nil
+	}
+	return flattenGoReverseIndex(index)
+}
 
+func recordGoFileImports(fset *token.FileSet, root, path string, index map[string]map[string]bool) {
+	if !strings.HasSuffix(path, extGo) || strings.HasSuffix(path, suffixGoTest) {
+		return
+	}
+	node, pErr := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
+	if pErr != nil {
+		return
+	}
+	relDir := "."
+	if r, rErr := filepath.Rel(root, filepath.Dir(path)); rErr == nil {
+		relDir = filepath.ToSlash(r)
+	}
+	for _, imp := range node.Imports {
+		if imp.Path == nil {
+			continue
+		}
+		impVal := strings.Trim(imp.Path.Value, "\"")
+		if index[impVal] == nil {
+			index[impVal] = make(map[string]bool)
+		}
+		index[impVal][relDir] = true
+	}
+}
+
+func flattenGoReverseIndex(index map[string]map[string]bool) map[string][]string {
 	flat := make(map[string][]string, len(index))
 	for imp, callers := range index {
 		list := make([]string, 0, len(callers))
@@ -274,47 +249,7 @@ func lookupGoReverseImporters(pkgDir string, goReverse map[string][]string) []st
 }
 
 var ignoredPolyglotStems = map[string]bool{
-	"index": true, "main": true, "__init__": true,
-}
-
-func countPolyglotStemImporters(root, targetRel string) int {
-	ext := filepath.Ext(targetRel)
-	stem := strings.TrimSuffix(filepath.Base(targetRel), ext)
-	if len(stem) < 3 || ignoredPolyglotStems[stem] {
-		return 0
-	}
-	count := 0
-	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d == nil {
-			return nil
-		}
-		if d.IsDir() {
-			if isSkippableSecurityDir(d.Name()) && path != root {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if fileImportsPolyglotStem(root, path, targetRel, ext, stem) {
-			count++
-		}
-		return nil
-	})
-	return count
-}
-
-func fileImportsPolyglotStem(root, path, targetRel, ext, stem string) bool {
-	if filepath.Ext(path) != ext {
-		return false
-	}
-	if rel, rErr := filepath.Rel(root, path); rErr == nil && filepath.ToSlash(rel) == targetRel {
-		return false
-	}
-	data, rErr := os.ReadFile(path)
-	if rErr != nil {
-		return false
-	}
-	content := string(data)
-	return strings.Contains(content, stem) && strings.Contains(content, "import")
+	"index": true, "main": true, "__init__": true, "mod": true, "lib": true,
 }
 
 func limitSlice(items []string, max int) []string {

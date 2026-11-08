@@ -25,14 +25,19 @@ var langScannerMap = map[string]func(string, []byte) ([]FunctionMetric, error){
 
 // ExtractFunctions parses source code according to language semantics and extracts function metrics.
 func ExtractFunctions(lang, filePath string, content []byte) ([]FunctionMetric, error) {
-	if _, err := LoadSCMQuery(lang); err != nil && lang != "markdown" && lang != "yaml" {
-		return nil, err
-	}
 	if scanner, ok := langScannerMap[lang]; ok {
+		if _, err := ValidateFunctionSCMContract(lang); err != nil {
+			return nil, err
+		}
 		return scanner(filePath, content)
 	}
 	switch lang {
-	case "markdown", "yaml", "html", "css":
+	case "markdown", "yaml":
+		return []FunctionMetric{}, nil
+	case "html", "css":
+		if _, err := LoadSCMQuery(lang); err != nil {
+			return nil, err
+		}
 		return []FunctionMetric{}, nil
 	default:
 		return nil, fmt.Errorf("unsupported language: %s", lang)
@@ -108,8 +113,7 @@ func evaluateGoFunc(fn *ast.FuncDecl, fset *token.FileSet, filePath string) Func
 }
 
 var (
-	tsFuncRegex  = regexp.MustCompile(`(?m)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\s*(\w+)?|const\s+(\w+)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[a-zA-Z0-9_$]+)\s*=>|(\w+)\s*\([^)]*\)\s*:\s*[^={]+=>|(\w+)\s*\([^)]*\)\s*(?::\s*[^={]+\s*)?\{)`)
-	pyFuncRegex  = regexp.MustCompile(`^[ \t]*(?:async\s+)?def\s+(\w+)\s*\(`)
+	tsFuncRegex  = regexp.MustCompile(`(?m)(?:export\s+)?(?:default\s+)?(?:(?:public|private|protected|static|readonly|override|async|get|set)\s+)*(?:function\s*\*?\s*(\w+)?|(?:const|let|var)\s+(\w+)\s*(?::[^=]+)?=\s*(?:async\s*)?(?:\([^)]*\)|[a-zA-Z0-9_$]+)\s*(?::[^=]+)?=>|(\w+)\s*(?:<[^>]*>)?\s*\([^)]*\)\s*:\s*[^={]+=>|(\w+)\s*(?:<[^>]*>)?\s*\([^)]*\)\s*(?::\s*[^={]+\s*)?\{)`)
 	svelteScript = regexp.MustCompile(`(?s)<script(?:\s+lang=["'](ts|js)["'])?\s*>(.*?)</script>`)
 )
 
@@ -119,38 +123,51 @@ func scanTypeScript(filePath string, content []byte, lineOffset int) ([]Function
 	}
 	lines := strings.Split(string(content), "\n")
 	cleanLines := strings.Split(stripCLikeLiterals(string(content), true), "\n")
-	var metrics []FunctionMetric
-
-	for i, cleanLine := range cleanLines {
-		if strings.TrimSpace(cleanLine) == "" {
-			continue
-		}
-		if match := tsFuncRegex.FindStringSubmatch(cleanLine); len(match) > 0 {
-			name := resolveTSFuncName(match)
-			if name == "" {
-				continue
-			}
-			startLine := i + 1 + lineOffset
-			bodyLines, endLine, bErr := extractTSBody(cleanLines, i)
-			if bErr != nil {
-				return nil, bErr
-			}
-			origBody := lines[i:endLine]
-			hasDoc := checkTSDoc(lines, i)
-			comp := calculateTSComplexity(bodyLines)
-
-			metrics = append(metrics, FunctionMetric{
-				File:       filePath,
-				Line:       startLine,
-				Name:       name,
-				Complexity: comp,
-				LOC:        endLine - i,
-				Documented: hasDoc,
-				EmptyBlock: isTSEmptyBody(origBody),
-			})
-		}
+	spans, err := collectTSFuncSpans(cleanLines)
+	if err != nil {
+		return nil, err
+	}
+	metrics := make([]FunctionMetric, 0, len(spans))
+	for _, sp := range spans {
+		masked := maskNestedLines(cleanLines, sp.startIdx, sp.endIdx, spans)
+		origBody := lines[sp.startIdx : sp.endIdx+1]
+		metrics = append(metrics, FunctionMetric{
+			File:       filePath,
+			Line:       sp.startIdx + 1 + lineOffset,
+			Name:       sp.name,
+			Complexity: calculateTSComplexity(masked),
+			LOC:        sp.endIdx - sp.startIdx + 1,
+			Documented: checkTSDoc(lines, sp.startIdx),
+			EmptyBlock: isTSEmptyBody(origBody),
+		})
 	}
 	return metrics, nil
+}
+
+func collectTSFuncSpans(cleanLines []string) ([]funcSpan, error) {
+	var spans []funcSpan
+	skipUntilHeader := -1
+	for i := 0; i < len(cleanLines); i++ {
+		if i <= skipUntilHeader || strings.TrimSpace(cleanLines[i]) == "" {
+			continue
+		}
+		header, headerEnd := collapseHeaderLines(cleanLines, i)
+		match := tsFuncRegex.FindStringSubmatch(header)
+		if len(match) == 0 {
+			continue
+		}
+		name := resolveTSFuncName(match)
+		if name == "" {
+			continue
+		}
+		_, endLine, bErr := extractTSBody(cleanLines, i)
+		if bErr != nil {
+			return nil, bErr
+		}
+		skipUntilHeader = headerEnd
+		spans = append(spans, funcSpan{name: name, startIdx: i, headerEnd: headerEnd, endIdx: endLine - 1})
+	}
+	return spans, nil
 }
 
 var tsControlKeywords = map[string]bool{
@@ -170,16 +187,16 @@ func resolveTSFuncName(match []string) string {
 	return ""
 }
 
-func extractTSBody(lines []string, startIdx int) ([]string, int, error) {
+func extractTSBody(cleanLines []string, startIdx int) ([]string, int, error) {
 	depth := 0
 	started := false
 	var body []string
 	endIdx := startIdx
 
-	for i := startIdx; i < len(lines); i++ {
-		body = append(body, lines[i])
+	for i := startIdx; i < len(cleanLines); i++ {
+		body = append(body, cleanLines[i])
 		endIdx = i
-		for _, ch := range stripCLikeLiterals(lines[i], true) {
+		for _, ch := range cleanLines[i] {
 			if ch == '{' {
 				depth++
 				started = true
@@ -241,110 +258,6 @@ func scanSvelte(filePath string, content []byte) ([]FunctionMetric, error) {
 	return metrics, nil
 }
 
-func scanPython(filePath string, content []byte) ([]FunctionMetric, error) {
-	if err := ValidatePythonSyntax(filePath, content); err != nil {
-		return nil, err
-	}
-	lines := strings.Split(string(content), "\n")
-	var metrics []FunctionMetric
-
-	for i, line := range lines {
-		if match := pyFuncRegex.FindStringSubmatch(line); len(match) > 1 {
-			name := match[1]
-			baseIndent := countIndent(line)
-			sigEndIdx := advancePySignatureEnd(lines, i)
-			bodyLines, endIdx := extractPyBody(lines, sigEndIdx, baseIndent)
-			hasDoc := checkPyDoc(lines, i, sigEndIdx)
-			comp := calculatePyComplexity(bodyLines)
-
-			metrics = append(metrics, FunctionMetric{
-				File:       filePath,
-				Line:       i + 1,
-				Name:       name,
-				Complexity: comp,
-				LOC:        endIdx - i + 1,
-				Documented: hasDoc,
-				EmptyBlock: isPyEmptyBody(bodyLines),
-			})
-		}
-	}
-	return metrics, nil
-}
-
-func advancePySignatureEnd(lines []string, startIdx int) int {
-	depth := 0
-	for i := startIdx; i < len(lines); i++ {
-		for _, ch := range lines[i] {
-			if ch == '(' {
-				depth++
-			} else if ch == ')' {
-				depth--
-			}
-		}
-		if depth <= 0 && strings.Contains(lines[i], ":") {
-			return i
-		}
-	}
-	return startIdx
-}
-
-func countIndent(line string) int {
-	indent := 0
-	for _, ch := range line {
-		if ch == ' ' {
-			indent++
-		} else if ch == '\t' {
-			indent += 4
-		} else {
-			break
-		}
-	}
-	return indent
-}
-
-func extractPyBody(lines []string, startIdx, baseIndent int) ([]string, int) {
-	var body []string
-	endIdx := startIdx
-
-	for i := startIdx + 1; i < len(lines); i++ {
-		trimmed := strings.TrimSpace(lines[i])
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			endIdx = i
-			body = append(body, lines[i])
-			continue
-		}
-		if countIndent(lines[i]) <= baseIndent {
-			break
-		}
-		endIdx = i
-		body = append(body, lines[i])
-	}
-	return body, endIdx
-}
-
-func checkPyDoc(lines []string, startIdx, sigEndIdx int) bool {
-	if startIdx > 0 && strings.HasPrefix(strings.TrimSpace(lines[startIdx-1]), "#") {
-		return true
-	}
-	if sigEndIdx+1 < len(lines) {
-		next := strings.TrimSpace(lines[sigEndIdx+1])
-		if strings.HasPrefix(next, `"""`) || strings.HasPrefix(next, `'''`) {
-			return true
-		}
-	}
-	return false
-}
-
-func calculatePyComplexity(bodyLines []string) int {
-	comp := 1
-	body := strings.Join(bodyLines, "\n")
-	branchWords := []string{" if ", "\tif ", " elif ", "\telif ", " for ", "\tfor ", " while ", "\twhile ", " except:", " except ", " and ", " or "}
-	for _, word := range branchWords {
-		comp += strings.Count(body, word)
-	}
-	return comp
-}
-
 func isTSEmptyBody(bodyLines []string) bool {
 	joined := strings.Join(bodyLines, " ")
 	firstBrace := strings.Index(joined, "{")
@@ -359,22 +272,5 @@ func isTSEmptyBody(bodyLines []string) bool {
 	}
 	body := strings.TrimSpace(joined)
 	return body == "{}" || body == ""
-}
-
-func isPyEmptyBody(bodyLines []string) bool {
-	if len(bodyLines) == 0 {
-		return true
-	}
-	for _, line := range bodyLines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		if trimmed == "pass" || trimmed == "..." || strings.HasPrefix(trimmed, "raise NotImplementedError") {
-			return true
-		}
-		return false
-	}
-	return true
 }
 

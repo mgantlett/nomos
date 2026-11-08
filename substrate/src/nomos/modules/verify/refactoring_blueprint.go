@@ -7,7 +7,6 @@ import (
 	"go/parser"
 	"go/token"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -26,7 +25,7 @@ func PrescribeFunctionSeams(filePath string, src []byte, funcName string, funcLi
 	if strings.HasSuffix(filePath, ".go") {
 		return prescribeGoFunctionSeams(filePath, src, funcName)
 	}
-	return prescribePolyglotFunctionSeams(src, funcLine)
+	return prescribePolyglotFunctionSeams(filePath, src, funcLine)
 }
 
 func prescribeGoFunctionSeams(filePath string, src []byte, funcName string) []string {
@@ -157,51 +156,6 @@ func countGoLogicalOps(body *ast.BlockStmt) int {
 	return ops
 }
 
-func prescribePolyglotFunctionSeams(src []byte, funcLine int) []string {
-	lines := strings.Split(string(src), "\n")
-	startIdx := funcLine - 1
-	if startIdx < 0 || startIdx >= len(lines) {
-		return nil
-	}
-	bodyLines, endIdx := slicePolyglotFuncBody(lines, startIdx)
-	bodyText := strings.Join(bodyLines, "\n")
-
-	var seams []string
-	fallbacks := strings.Count(bodyText, "||") + strings.Count(bodyText, "??") + strings.Count(bodyText, " ? ")
-	if fallbacks >= 5 {
-		seams = append(seams, fmt.Sprintf("[SEAM: %d inline fallback/ternary branches (|| / ?? / ?:) -> replace with typed default object / Object.assign]", fallbacks))
-	}
-	span := endIdx - startIdx + 1
-	if span >= 20 {
-		mid := startIdx + span/2
-		seams = append(seams, fmt.Sprintf("[SEAM lines %d-%d (%d LOC body) -> split around line %d into cohesive helper functions]", funcLine, endIdx+1, span, mid+1))
-	}
-	return seams
-}
-
-func slicePolyglotFuncBody(lines []string, startIdx int) ([]string, int) {
-	depth := 0
-	started := false
-	maxIdx := startIdx + 120
-	if maxIdx > len(lines) {
-		maxIdx = len(lines)
-	}
-	for i := startIdx; i < maxIdx; i++ {
-		for _, ch := range lines[i] {
-			if ch == '{' {
-				depth++
-				started = true
-			} else if ch == '}' {
-				depth--
-			}
-		}
-		if started && depth <= 0 {
-			return lines[startIdx : i+1], i
-		}
-	}
-	return lines[startIdx:maxIdx], maxIdx - 1
-}
-
 // PrescribeFileDecomposition generates a baseline delta and ranks the top 3 extraction candidates in a file.
 // @intent: #FileMetric
 func PrescribeFileDecomposition(root, relPath string, src []byte, currentLOC, currentCDS, maxComp, maxFuncLOC int) string {
@@ -256,8 +210,6 @@ func computeGitBaselineDelta(root, relPath string, currentLOC, currentCDS, maxCo
 	return msg
 }
 
-var tsParamSigRegex = regexp.MustCompile(`(?m)(?:function\s+(\w+)\s*\(([^)]*)\)|const\s+(\w+)\s*=\s*(?:async\s*)?\(([^)]*)\)\s*=>)`)
-
 // EvaluateParameterArityViolations enforces the maximum parameter count per function to prevent low-cohesion splits.
 // @intent: #FunctionMetric
 func EvaluateParameterArityViolations(relPath string, src []byte, maxParams int) []string {
@@ -267,11 +219,7 @@ func EvaluateParameterArityViolations(relPath string, src []byte, maxParams int)
 	if strings.HasSuffix(relPath, ".go") {
 		return scanGoParamViolations(relPath, src, maxParams)
 	}
-	ext := strings.ToLower(filepath.Ext(relPath))
-	if ext == ".ts" || ext == ".tsx" || ext == ".js" || ext == ".svelte" {
-		return scanTSParamViolations(relPath, src, maxParams)
-	}
-	return nil
+	return scanPolyglotParamViolations(relPath, src, maxParams)
 }
 
 func scanGoParamViolations(relPath string, src []byte, maxParams int) []string {
@@ -292,32 +240,4 @@ func scanGoParamViolations(relPath string, src []byte, maxParams int) []string {
 		}
 	}
 	return violations
-}
-
-func scanTSParamViolations(relPath string, src []byte, maxParams int) []string {
-	text := string(src)
-	matches := tsParamSigRegex.FindAllStringSubmatchIndex(text, -1)
-	var violations []string
-	for _, m := range matches {
-		name, paramStr := extractTSMatchNameAndParams(text, m)
-		if name == "" || paramStr == "" {
-			continue
-		}
-		count := len(strings.Split(paramStr, ","))
-		if count > maxParams {
-			line := strings.Count(text[:m[0]], "\n") + 1
-			violations = append(violations, fmt.Sprintf("%s:%d (%s) parameter count %d exceeds max %d -> [SEAM: encapsulate parameters into an options interface/object]", relPath, line, name, count, maxParams))
-		}
-	}
-	return violations
-}
-
-func extractTSMatchNameAndParams(text string, m []int) (string, string) {
-	if m[2] >= 0 && m[4] >= 0 {
-		return text[m[2]:m[3]], strings.TrimSpace(text[m[4]:m[5]])
-	}
-	if m[6] >= 0 && m[8] >= 0 {
-		return text[m[6]:m[7]], strings.TrimSpace(text[m[8]:m[9]])
-	}
-	return "", ""
 }

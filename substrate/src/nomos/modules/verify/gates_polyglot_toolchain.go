@@ -26,9 +26,9 @@ func evaluatePolyglotToolchains(ctx *VerifyContext, root string) ([]string, *Gat
 	probes := []polyProbe{
 		{isPythonImpactPath, func() (string, *GateResult) { return verifyPythonToolchain(ctx, root) }},
 		{isRubyImpactPath, func() (string, *GateResult) { return verifyRubyToolchain(ctx, root) }},
-		{isTypeScriptImpactPath, func() (string, *GateResult) { return verifyTypeScriptToolchain(root) }},
+		{isTypeScriptImpactPath, func() (string, *GateResult) { return verifyJSAndTypeScriptToolchain(ctx, root) }},
 		{isRustImpactPath, func() (string, *GateResult) { return verifyRustToolchain(root) }},
-		{isCCppImpactPath, func() (string, *GateResult) { return verifyCCppToolchain(root) }},
+		{isCCppImpactPath, func() (string, *GateResult) { return verifyCCppBuildAndSyntax(ctx, root) }},
 		{isJVMImpactPath, func() (string, *GateResult) { return verifyJVMToolchain(root) }},
 		{isCSharpImpactPath, func() (string, *GateResult) { return verifyCSharpToolchain(root) }},
 	}
@@ -64,8 +64,7 @@ func isPythonImpactPath(lower string) bool {
 }
 
 func isTypeScriptImpactPath(lower string) bool {
-	switch filepath.Ext(lower) {
-	case ".ts", ".tsx", ".js", ".jsx", ".svelte":
+	if isJSFamilyExt(filepath.Ext(lower)) {
 		return true
 	}
 	base := filepath.Base(lower)
@@ -94,7 +93,7 @@ func verifyPythonToolchain(ctx *VerifyContext, root string) (string, *GateResult
 	args := append([]string{"-B", "-c", pyCheckScript}, pyFiles...)
 	cmd := exec.CommandContext(cmdCtx, pyBin, args...)
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), "PYTHONDONTWRITEBYTECODE=1", "NOMOS_IN_TOOLCHAIN_GATE=1")
+	cmd.Env = append(os.Environ(), envPyNoBytecodeKV, envToolchainGateKV)
 	if out, cErr := cmd.CombinedOutput(); cErr != nil {
 		return "", toolchainFailure("Python syntax compilation failed", string(out), "fix Python syntax errors (python3 -m py_compile)")
 	}
@@ -106,12 +105,13 @@ func verifyPythonToolchain(ctx *VerifyContext, root string) (string, *GateResult
 				pytestArgs := append([]string{"-q", "--tb=short", "-p", "no:cacheprovider"}, targets...)
 				tCmd := exec.CommandContext(cmdCtx, pytestBin, pytestArgs...)
 				tCmd.Dir = root
-				tCmd.Env = append(os.Environ(), "PYTHONDONTWRITEBYTECODE=1", "NOMOS_IN_TOOLCHAIN_GATE=1")
+				tCmd.Env = append(os.Environ(), envPyNoBytecodeKV, envToolchainGateKV)
 				if out, tErr := tCmd.CombinedOutput(); tErr != nil {
 					return "", toolchainFailure("Python pytest suite failed", string(out), "resolve failing Python unit tests (pytest -q)")
 				}
 				return "Python(compile+pytest)", nil
 			}
+			return runPythonUnittestFallback(cmdCtx, pyBin, root, targets)
 		}
 	}
 	return "Python(compile)", nil
@@ -176,7 +176,7 @@ func hasPythonTests(root string) bool {
 			return nil
 		}
 		name := d.Name()
-		if (strings.HasPrefix(name, "test_") && strings.HasSuffix(name, ".py")) || strings.HasSuffix(name, "_test.py") {
+		if (strings.HasPrefix(name, prefixPyTest) && strings.HasSuffix(name, extPy)) || strings.HasSuffix(name, suffixPyTest) {
 			found = true
 		}
 		return nil
@@ -187,24 +187,7 @@ func hasPythonTests(root string) bool {
 }
 
 func verifyTypeScriptToolchain(root string) (string, *GateResult) {
-	tsconfig := filepath.Join(root, "tsconfig.json")
-	tscBin := filepath.Join(root, "node_modules", ".bin", "tsc")
-	if _, err := os.Stat(tsconfig); err != nil {
-		return "", nil
-	}
-	if _, err := os.Stat(tscBin); err != nil {
-		return "", nil
-	}
-	cmdCtx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(cmdCtx, tscBin, "--noEmit")
-	cmd.Dir = root
-	cmd.Env = append(os.Environ(), "NOMOS_IN_TOOLCHAIN_GATE=1")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return "", toolchainFailure("TypeScript typecheck failed", string(out), "resolve TypeScript compiler errors (tsc --noEmit)")
-	}
-	return "TypeScript(tsc)", nil
+	return verifyJSAndTypeScriptToolchain(nil, root)
 }
 
 func verifyRustToolchain(root string) (string, *GateResult) {
@@ -218,9 +201,18 @@ func verifyRustToolchain(root string) (string, *GateResult) {
 	cmdCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
+	if hasRustTests(root) {
+		tCmd := exec.CommandContext(cmdCtx, cargoBin, dirTest, "--no-fail-fast", "--quiet")
+		tCmd.Dir = root
+		tCmd.Env = append(os.Environ(), envToolchainGateKV)
+		if out, tErr := tCmd.CombinedOutput(); tErr != nil {
+			return "", toolchainFailure("Rust cargo test failed", string(out), "resolve failing Rust unit tests or borrow errors (cargo test)")
+		}
+		return "Rust(cargo+test)", nil
+	}
 	cmd := exec.CommandContext(cmdCtx, cargoBin, "check", "--quiet")
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), "NOMOS_IN_TOOLCHAIN_GATE=1")
+	cmd.Env = append(os.Environ(), envToolchainGateKV)
 	if out, cErr := cmd.CombinedOutput(); cErr != nil {
 		return "", toolchainFailure("Rust cargo check failed", string(out), "resolve Rust borrow/type errors (cargo check)")
 	}

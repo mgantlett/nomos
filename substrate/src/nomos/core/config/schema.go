@@ -52,6 +52,8 @@ var configFieldDescriptions = map[string]string{
 	"forbidden_shims":              "Stub or placeholder patterns rejected by the Anti-Shim Gate.",
 	"strict_mode":                  "Enforce statutory baseline thresholds without relaxation.",
 	"intent_twin_mode":             "Cross-plane INT twin enforcement for SUB commits: off (default), feat (require INT twin on feat commits), or strict (require INT twin on all SUB commits).",
+	"tdd_mode":                     "Paired unit test enforcement policy: strict (default when strict_mode=true), ratchet (default when strict_mode=false), diff (require paired or modified test on every touched file), or off.",
+	"coverage_mode":                "Statement coverage enforcement policy: live (default zero-dep live probes plus artifacts), artifact (on-disk coverage reports only), or off.",
 	"polyglot_toolchains":          "Enable automatic polyglot test/linter toolchain discovery.",
 	"exclude":                      "Workspace-relative glob patterns excluded from AST gates.",
 	"intent_source_roots":          "Directories classified under the Intent plane (Law 7).",
@@ -135,14 +137,7 @@ func reflectStructSchema(t reflect.Type, defVal reflect.Value) *JSONSchemaNode {
 		if desc, ok := configFieldDescriptions[name]; ok && propNode.Description == "" {
 			propNode.Description = desc
 		}
-		if name == "intent_twin_mode" {
-			propNode.Enum = []string{IntentTwinModeOff, IntentTwinModeFeat, IntentTwinModeStrict}
-			propNode.Default = IntentTwinModeOff
-		}
-		if name == "egress_mode" {
-			propNode.Enum = []string{EgressModeStandard, EgressModeOffline, EgressModeAllowlist}
-			propNode.Default = EgressModeStandard
-		}
+		applyStringEnumMetadata(name, propNode)
 		applyNumericBounds(name, propNode)
 		props[name] = propNode
 	}
@@ -151,6 +146,23 @@ func reflectStructSchema(t reflect.Type, defVal reflect.Value) *JSONSchemaNode {
 		Type:                 "object",
 		Properties:           props,
 		AdditionalProperties: &closed,
+	}
+}
+
+func applyStringEnumMetadata(name string, propNode *JSONSchemaNode) {
+	switch name {
+	case "intent_twin_mode":
+		propNode.Enum = []string{IntentTwinModeOff, IntentTwinModeFeat, IntentTwinModeStrict}
+		propNode.Default = IntentTwinModeOff
+	case "tdd_mode":
+		propNode.Enum = []string{TDDModeOff, TDDModeRatchet, TDDModeDiff, TDDModeStrict}
+		propNode.Default = TDDModeStrict
+	case "coverage_mode":
+		propNode.Enum = []string{CoverageModeOff, CoverageModeArtifact, CoverageModeLive}
+		propNode.Default = CoverageModeLive
+	case "egress_mode":
+		propNode.Enum = []string{EgressModeStandard, EgressModeOffline, EgressModeAllowlist}
+		propNode.Default = EgressModeStandard
 	}
 }
 

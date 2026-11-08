@@ -117,6 +117,8 @@ type QualityGatesConfig struct {
 	ForbiddenShims               []string                 `yaml:"forbidden_shims,omitempty" json:"forbidden_shims,omitempty"`
 	StrictMode                   bool                     `yaml:"strict_mode" json:"strict_mode"`
 	IntentTwinMode               string                   `yaml:"intent_twin_mode,omitempty" json:"intent_twin_mode,omitempty"`
+	TDDMode                      string                   `yaml:"tdd_mode,omitempty" json:"tdd_mode,omitempty"`
+	CoverageMode                 string                   `yaml:"coverage_mode,omitempty" json:"coverage_mode,omitempty"`
 	PolyglotToolchains           *bool                    `yaml:"polyglot_toolchains,omitempty" json:"polyglot_toolchains,omitempty"`
 	Exclude                      []string                 `yaml:"exclude,omitempty" json:"exclude,omitempty"`
 	IntentSourceRoots            []string                 `yaml:"intent_source_roots,omitempty" json:"intent_source_roots,omitempty"`
@@ -292,6 +294,12 @@ func ValidateConfig(cfg *EcosystemConfig) error {
 	}
 	if _, ok := IntentTwinModeRank(cfg.Governance.QualityGates.IntentTwinMode); !ok {
 		return fmt.Errorf("intent_twin_mode must be off, feat, or strict, got %q", cfg.Governance.QualityGates.IntentTwinMode)
+	}
+	if _, ok := TDDModeRank(cfg.Governance.QualityGates.TDDMode); !ok {
+		return fmt.Errorf("tdd_mode must be off, ratchet, diff, or strict, got %q", cfg.Governance.QualityGates.TDDMode)
+	}
+	if _, ok := CoverageModeRank(cfg.Governance.QualityGates.CoverageMode); !ok {
+		return fmt.Errorf("coverage_mode must be off, artifact, or live, got %q", cfg.Governance.QualityGates.CoverageMode)
 	}
 	if !IsValidEgressMode(cfg.Governance.Boundary.EgressMode) {
 		return fmt.Errorf("egress_mode must be standard, offline, or allowlist, got %q", cfg.Governance.Boundary.EgressMode)

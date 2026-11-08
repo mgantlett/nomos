@@ -27,30 +27,41 @@ func scanBraceLanguage(filePath string, content []byte, spec braceScanSpec) ([]F
 	}
 	origLines := strings.Split(string(content), "\n")
 	cleanLines := strings.Split(stripCLikeLiterals(string(content), spec.langName != "rust"), "\n")
-	var metrics []FunctionMetric
-	for i, cleanLine := range cleanLines {
-		if m := spec.funcRegex.FindStringSubmatch(cleanLine); len(m) > 1 {
-			name := m[1]
-			if tsControlKeywords[name] {
-				continue
-			}
-			cleanBody, endIdx := extractBraceBody(cleanLines, i)
-			origBody := origLines[i : endIdx+1]
-			hasDoc := checkPrecedingDoc(origLines, i, spec.docPrefixes...)
-			comp := calculateBranchCount(cleanBody, spec.branchToks)
-			empty := isBraceEmpty(origBody, spec.shimMarkers...)
-			metrics = append(metrics, FunctionMetric{
-				File:       filePath,
-				Line:       i + 1,
-				Name:       name,
-				Complexity: comp,
-				LOC:        endIdx - i + 1,
-				Documented: hasDoc,
-				EmptyBlock: empty,
-			})
-		}
+	spans := collectBraceFuncSpans(cleanLines, spec.funcRegex)
+	metrics := make([]FunctionMetric, 0, len(spans))
+	for _, sp := range spans {
+		masked := maskNestedLines(cleanLines, sp.startIdx, sp.endIdx, spans)
+		origBody := origLines[sp.startIdx : sp.endIdx+1]
+		metrics = append(metrics, FunctionMetric{
+			File:       filePath,
+			Line:       sp.startIdx + 1,
+			Name:       sp.name,
+			Complexity: calculateBranchCount(masked, spec.branchToks),
+			LOC:        sp.endIdx - sp.startIdx + 1,
+			Documented: checkPrecedingDoc(origLines, sp.startIdx, spec.docPrefixes...),
+			EmptyBlock: isBraceEmpty(origBody, spec.shimMarkers...),
+		})
 	}
 	return metrics, nil
+}
+
+func collectBraceFuncSpans(cleanLines []string, funcRegex *regexp.Regexp) []funcSpan {
+	var spans []funcSpan
+	skipUntilHeader := -1
+	for i := 0; i < len(cleanLines); i++ {
+		if i <= skipUntilHeader || strings.TrimSpace(cleanLines[i]) == "" {
+			continue
+		}
+		header, headerEnd := collapseHeaderLines(cleanLines, i)
+		m := funcRegex.FindStringSubmatch(header)
+		if len(m) < 2 || tsControlKeywords[m[1]] {
+			continue
+		}
+		_, endIdx := extractBraceBody(cleanLines, i)
+		skipUntilHeader = headerEnd
+		spans = append(spans, funcSpan{name: m[1], startIdx: i, headerEnd: headerEnd, endIdx: endIdx})
+	}
+	return spans
 }
 
 func scanRust(filePath string, content []byte) ([]FunctionMetric, error) {
@@ -102,17 +113,16 @@ func scanCSharp(filePath string, content []byte) ([]FunctionMetric, error) {
 	})
 }
 
-func extractBraceBody(lines []string, startLine int) ([]string, int) {
+func extractBraceBody(cleanLines []string, startLine int) ([]string, int) {
 	braceDepth := 0
 	foundFirst := false
 	var body []string
 	endLine := startLine
 
-	for j := startLine; j < len(lines); j++ {
-		l := lines[j]
+	for j := startLine; j < len(cleanLines); j++ {
+		l := cleanLines[j]
 		body = append(body, l)
-		cleanLine := stripCLikeLiterals(l, false)
-		for _, ch := range cleanLine {
+		for _, ch := range l {
 			if ch == '{' {
 				braceDepth++
 				foundFirst = true

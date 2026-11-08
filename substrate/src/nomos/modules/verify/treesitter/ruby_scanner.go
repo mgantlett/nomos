@@ -47,41 +47,47 @@ func scanRuby(filePath string, content []byte) ([]FunctionMetric, error) {
 	}
 	origLines := strings.Split(string(content), "\n")
 	cleanLines := strings.Split(stripRubyLiterals(string(content)), "\n")
-	var metrics []FunctionMetric
-
+	var spans []funcSpan
 	for i, cleanLine := range cleanLines {
 		m := rubyDefRe.FindStringSubmatch(cleanLine)
 		if len(m) < 2 {
 			continue
 		}
-		metrics = append(metrics, buildRubyMethodMetric(filePath, origLines, cleanLines, i, m[1]))
+		endIdx := i
+		if !isRubyEndlessDef(cleanLine) {
+			endIdx = findRubyBlockEnd(cleanLines, i)
+		}
+		spans = append(spans, funcSpan{name: m[1], startIdx: i, headerEnd: i, endIdx: endIdx})
+	}
+	metrics := make([]FunctionMetric, 0, len(spans))
+	for _, sp := range spans {
+		metrics = append(metrics, buildRubyMethodMetric(filePath, origLines, cleanLines, sp, spans))
 	}
 	return metrics, nil
 }
 
-func buildRubyMethodMetric(filePath string, origLines, cleanLines []string, startIdx int, name string) FunctionMetric {
-	cleanHeader := cleanLines[startIdx]
-	hasDoc := checkRubyDoc(origLines, startIdx)
+func buildRubyMethodMetric(filePath string, origLines, cleanLines []string, sp funcSpan, spans []funcSpan) FunctionMetric {
+	cleanHeader := cleanLines[sp.startIdx]
+	hasDoc := checkRubyDoc(origLines, sp.startIdx)
 	if isRubyEndlessDef(cleanHeader) {
 		return FunctionMetric{
 			File:       filePath,
-			Line:       startIdx + 1,
-			Name:       name,
+			Line:       sp.startIdx + 1,
+			Name:       sp.name,
 			Complexity: calculateRubyComplexity([]string{cleanHeader}),
 			LOC:        1,
 			Documented: hasDoc,
-			EmptyBlock: isRubyShimExpr(extractRubyEndlessBody(origLines[startIdx])),
+			EmptyBlock: isRubyShimExpr(extractRubyEndlessBody(origLines[sp.startIdx])),
 		}
 	}
-	endIdx := findRubyBlockEnd(cleanLines, startIdx)
-	cleanBody := cleanLines[startIdx : endIdx+1]
-	origBody := origLines[startIdx : endIdx+1]
+	maskedBody := maskNestedLines(cleanLines, sp.startIdx, sp.endIdx, spans)
+	origBody := origLines[sp.startIdx : sp.endIdx+1]
 	return FunctionMetric{
 		File:       filePath,
-		Line:       startIdx + 1,
-		Name:       name,
-		Complexity: calculateRubyComplexity(cleanBody),
-		LOC:        endIdx - startIdx + 1,
+		Line:       sp.startIdx + 1,
+		Name:       sp.name,
+		Complexity: calculateRubyComplexity(maskedBody),
+		LOC:        sp.endIdx - sp.startIdx + 1,
 		Documented: hasDoc,
 		EmptyBlock: isRubyEmptyBody(origBody),
 	}

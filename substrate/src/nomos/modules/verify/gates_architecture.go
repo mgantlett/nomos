@@ -80,6 +80,7 @@ func scanBoundaryLeaks(root string, prohibited []string) []string {
 		}
 		return nil
 	})
+	violations = append(violations, scanPolyglotBoundaryLeaks(root, prohibited)...)
 	return violations
 }
 

@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 )
 
 // FastFileRadarResult reports single-file AST budget proximity and immediate breaches (#QualityGatesConfig).
@@ -29,7 +31,10 @@ func EvaluateFastFileRadar(repoRoot, filePath string) (*FastFileRadarResult, err
 	if err != nil || fi.IsDir() {
 		return res, nil
 	}
-	if rootRel, rErr := filepath.Rel(repoRoot, absPath); rErr == nil && rootRel != "" && !strings.HasPrefix(rootRel, "..") {
+	wtRoot := resolveRadarWorktreeRoot(repoRoot, absPath)
+	if rootRel, rErr := filepath.Rel(wtRoot, absPath); rErr == nil && rootRel != "" && !strings.HasPrefix(rootRel, "..") {
+		res.File = filepath.ToSlash(rootRel)
+	} else if rootRel, rErr := filepath.Rel(repoRoot, absPath); rErr == nil && rootRel != "" && !strings.HasPrefix(rootRel, "..") {
 		res.File = filepath.ToSlash(rootRel)
 	}
 
@@ -38,15 +43,25 @@ func EvaluateFastFileRadar(repoRoot, filePath string) (*FastFileRadarResult, err
 		return res, nil
 	}
 
-	ctx := &VerifyContext{RepoRoot: repoRoot, WorktreePath: filepath.Dir(absPath)}
-	evaluateFastSecretAndEnv(repoRoot, absPath, res.File, string(data), res)
-	evaluateFastForbiddenLiterals(ctx, repoRoot, absPath, res)
+	ctx := &VerifyContext{RepoRoot: repoRoot, WorktreePath: wtRoot}
+	evaluateFastSecretAndEnv(wtRoot, absPath, res.File, string(data), res)
+	evaluateFastForbiddenLiterals(ctx, wtRoot, absPath, res)
 
 	if !isSupportedPolyglotSourceFile(absPath) || strings.HasSuffix(absPath, "_test.go") {
 		return res, nil
 	}
-	evaluateFastASTBudgets(ctx, absPath, data, res)
+	evaluateFastASTBudgets(ctx, wtRoot, absPath, data, res)
 	return res, nil
+}
+
+func resolveRadarWorktreeRoot(repoRoot, absPath string) string {
+	if wt, err := workspace.FindWorkingTreeRoot(filepath.Dir(absPath)); err == nil && wt != "" {
+		return wt
+	}
+	if repoRoot != "" {
+		return repoRoot
+	}
+	return filepath.Dir(absPath)
 }
 
 func evaluateFastSecretAndEnv(repoRoot, absPath, relFile, content string, res *FastFileRadarResult) {
@@ -62,7 +77,7 @@ func evaluateFastSecretAndEnv(repoRoot, absPath, relFile, content string, res *F
 	}
 }
 
-func evaluateFastForbiddenLiterals(ctx *VerifyContext, repoRoot, absPath string, res *FastFileRadarResult) {
+func evaluateFastForbiddenLiterals(ctx *VerifyContext, wtRoot, absPath string, res *FastFileRadarResult) {
 	if !isScannableSourceFile(absPath) {
 		return
 	}
@@ -80,12 +95,12 @@ func evaluateFastForbiddenLiterals(ctx *VerifyContext, repoRoot, absPath string,
 	if len(clean) == 0 {
 		return
 	}
-	for _, hit := range scanFileForLiterals(repoRoot, absPath, clean) {
-		res.Breaches = append(res.Breaches, hit)
-	}
+	hits := scanFileForLiterals(wtRoot, absPath, clean)
+	hits = filterRatchetedForbiddenLiterals(ctx, wtRoot, absPath, clean, hits)
+	res.Breaches = append(res.Breaches, hits...)
 }
 
-func evaluateFastASTBudgets(ctx *VerifyContext, absPath string, data []byte, res *FastFileRadarResult) {
+func evaluateFastASTBudgets(ctx *VerifyContext, wtRoot, absPath string, data []byte, res *FastFileRadarResult) {
 	t := resolveThresholds(ctx)
 	rep, err := AnalyzeFileDebt(absPath, data, t.MaxComplexity, t.MaxFuncLOC)
 	if err != nil || rep == nil {
@@ -93,6 +108,15 @@ func evaluateFastASTBudgets(ctx *VerifyContext, absPath string, data []byte, res
 	}
 	res.TotalLOC = rep.TotalLOC
 	res.DebtScore = rep.DebtScore
+
+	if isBrownfieldRatchetActive(ctx) {
+		if baseBytes, ok := loadBaselineFileBytes(ctx, wtRoot, absPath); ok {
+			if baseRep, bErr := AnalyzeFileDebt(absPath, baseBytes, t.MaxComplexity, t.MaxFuncLOC); bErr == nil && baseRep != nil {
+				evaluateRatchetedFastBudgets(rep, baseRep, t, res)
+				return
+			}
+		}
+	}
 
 	checkBudgetMetric("file LOC", rep.TotalLOC, t.MaxFileLOC, res)
 	if rep.DebtScore > 0 {
@@ -102,6 +126,43 @@ func evaluateFastASTBudgets(ctx *VerifyContext, absPath string, data []byte, res
 		checkBudgetMetric(fmt.Sprintf("func %s LOC", fn.Name), fn.LOC, t.MaxFuncLOC, res)
 		checkBudgetMetric(fmt.Sprintf("func %s complexity", fn.Name), fn.Complexity, t.MaxComplexity, res)
 	}
+}
+
+func evaluateRatchetedFastBudgets(rep, baseRep *FileDebtReport, t Thresholds, res *FastFileRadarResult) {
+	checkRatchetedMetric("file LOC", rep.TotalLOC, baseRep.TotalLOC, t.MaxFileLOC, res)
+	if rep.DebtScore > 0 {
+		checkRatchetedMetric("cognitive debt", rep.DebtScore, baseRep.DebtScore, t.MaxCDS, res)
+	}
+	baseFns := make(map[string]FunctionDebt, len(baseRep.Functions))
+	for _, bfn := range baseRep.Functions {
+		baseFns[bfn.Name] = bfn
+	}
+	for _, fn := range rep.Functions {
+		bfn, existed := baseFns[fn.Name]
+		if !existed {
+			checkBudgetMetric(fmt.Sprintf("func %s LOC", fn.Name), fn.LOC, t.MaxFuncLOC, res)
+			checkBudgetMetric(fmt.Sprintf("func %s complexity", fn.Name), fn.Complexity, t.MaxComplexity, res)
+			continue
+		}
+		checkRatchetedMetric(fmt.Sprintf("func %s LOC", fn.Name), fn.LOC, bfn.LOC, t.MaxFuncLOC, res)
+		checkRatchetedMetric(fmt.Sprintf("func %s complexity", fn.Name), fn.Complexity, bfn.Complexity, t.MaxComplexity, res)
+	}
+}
+
+func checkRatchetedMetric(label string, val, baseVal, limit int, res *FastFileRadarResult) {
+	if limit <= 0 {
+		return
+	}
+	ceil := maxInt(limit, baseVal)
+	if val > ceil {
+		res.Breaches = append(res.Breaches, fmt.Sprintf("%s %d/%d (exceeds brownfield baseline %d)", label, val, ceil, baseVal))
+		return
+	}
+	if baseVal > limit {
+		res.Warnings = append(res.Warnings, fmt.Sprintf("%s %d (brownfield baseline %d, delta %+d)", label, val, baseVal, val-baseVal))
+		return
+	}
+	checkBudgetMetric(label, val, limit, res)
 }
 
 func checkBudgetMetric(label string, val, limit int, res *FastFileRadarResult) {

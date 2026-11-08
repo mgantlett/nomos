@@ -269,6 +269,13 @@ func (g *ThresholdIntegrityGate) Evaluate(ctx *VerifyContext) (*GateResult, erro
 			Remedy: "restore canonical thresholds (max_complexity<=15, max_file_loc<=400, max_func_loc<=60, min_coverage>=55%) or set governance.quality_gates.strict_mode: false for brownfield onboarding",
 		}, nil
 	}
+	if cfg != nil && (cfg.Governance.QualityGates.EffectiveTDDMode() == config.TDDModeOff || cfg.Governance.QualityGates.EffectiveCoverageMode() == config.CoverageModeOff) {
+		return &GateResult{
+			GateName: g.Name(), ProbeID: probeThresholdIntegrity, Law: 7, Ring: RingCryptographic,
+			Passed: false, Message: "tdd_mode and coverage_mode cannot be disabled (off) while strict_mode=true",
+			Remedy: "set tdd_mode/coverage_mode to strict/live or set governance.quality_gates.strict_mode: false",
+		}, nil
+	}
 
 	return &GateResult{
 		GateName: g.Name(), ProbeID: probeThresholdIntegrity, Law: 7, Ring: RingCryptographic,
@@ -295,6 +302,9 @@ func checkWorktreeGovernanceDowngrade(ctx *VerifyContext, wtCfg *config.Ecosyste
 	}
 	if twinIssue := checkIntentTwinModeDowngrade(trunkCfg, wtCfg); twinIssue != "" {
 		return twinIssue
+	}
+	if modeIssue := checkTestGateModeDowngrade(trunkCfg, wtCfg); modeIssue != "" {
+		return modeIssue
 	}
 	return ""
 }

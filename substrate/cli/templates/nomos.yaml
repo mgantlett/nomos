@@ -50,6 +50,15 @@ governance:
         # Options: "off" (default), "feat" (require INT twin on feat commits), "strict" (all SUB commits).
         # intent_twin_mode: "off"
 
+        # Optional: Paired unit test enforcement mode (TDDGate).
+        # Options: "strict" (default when strict_mode=true), "ratchet" (default when strict_mode=false),
+        # "diff" (every modified or added file requires a paired/modified test), "off" (strict_mode=false only).
+        # tdd_mode: "strict"
+
+        # Optional: Statement coverage measurement mode (CoverageGate).
+        # Options: "live" (default zero-dep live probes + artifacts), "artifact" (disk reports only), "off" (strict_mode=false only).
+        # coverage_mode: "live"
+
         # Automatically execute local polyglot syntax & test toolchains when present
         # (Python py_compile/pytest, TypeScript tsc --noEmit, Rust cargo check).
         polyglot_toolchains: true

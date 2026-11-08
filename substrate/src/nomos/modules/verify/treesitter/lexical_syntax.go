@@ -16,6 +16,14 @@ var (
 // ValidateBraceSyntax verifies balanced braces and parentheses outside comments and string literals.
 func ValidateBraceSyntax(lang, filePath string, content []byte) error {
 	cleaned := stripCLikeLiterals(string(content), lang != "rust")
+	if eng := peekDefaultEngine(); eng != nil {
+		if ok, handled := eng.scanDelimiterBalanceWasm(cleaned); handled {
+			if !ok {
+				return fmt.Errorf("%s syntax error: unbalanced or unclosed delimiter in %s", lang, filePath)
+			}
+			return nil
+		}
+	}
 	braces, parens := 0, 0
 	for _, ch := range cleaned {
 		braces, parens = stepBraceParen(ch, braces, parens)
@@ -56,7 +64,12 @@ func stripCLikeLiterals(src string, singleQuoteStrings bool) string {
 			continue
 		}
 		if next, ok := skipQuotedSpan(src, i, singleQuoteStrings); ok {
+			span := src[i+1:]
+			if next < len(src) {
+				span = src[i+1 : next]
+			}
 			out.WriteByte(' ')
+			out.WriteString(strings.Repeat("\n", strings.Count(span, "\n")))
 			i = next
 			continue
 		}
@@ -234,7 +247,12 @@ func skipPyQuote(src string, i int, out *strings.Builder) (int, bool) {
 		return i + 5 + end, true
 	}
 	if next, ok := skipQuotedSpan(src, i, true); ok {
+		span := src[i+1:]
+		if next < len(src) {
+			span = src[i+1 : next]
+		}
 		out.WriteByte(' ')
+		out.WriteString(strings.Repeat("\n", strings.Count(span, "\n")))
 		return next, true
 	}
 	return i, false

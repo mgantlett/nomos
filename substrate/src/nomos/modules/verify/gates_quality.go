@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/treesitter"
 )
 
@@ -29,6 +30,12 @@ func (g *TDDGate) Name() string { return "TDD Test Pair Invariant" }
 
 // Evaluate verifies that all implementation packages possess at least one test suite.
 func (g *TDDGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+	if resolveEffectiveTDDMode(ctx) == config.TDDModeOff {
+		return &GateResult{
+			GateName: g.Name(), ProbeID: "tdd", Law: 2, Ring: RingSyntactic,
+			Passed: true, Message: "paired unit test enforcement disabled via tdd_mode=off",
+		}, nil
+	}
 	root := resolveQualityRoot(ctx)
 	targetDirs, explicitRoots := resolveSubstrateTargetDirs(ctx, root)
 	if len(targetDirs) == 0 {
@@ -47,7 +54,7 @@ func (g *TDDGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 			GateName: g.Name(), ProbeID: "tdd", Law: 2, Ring: RingSyntactic,
 			Passed:  false,
 			Message: fmt.Sprintf("%d package(s) missing unit test suites: %s", len(untested), strings.Join(untested, ", ")),
-			Remedy:  "author table-driven unit tests (*_test.go) for all packages",
+			Remedy:  "author table-driven unit tests (*_test.go, test_*.py, *.test.ts, *_test.rb, #[cfg(test)], *Test.java, *Tests.cs) for all modules",
 		}, nil
 	}
 	return &GateResult{
@@ -83,9 +90,15 @@ func (g *CoverageGate) Name() string { return "Statement Coverage Invariant (Law
 
 // Evaluate calculates statement coverage across packages and validates thresholds.
 func (g *CoverageGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+	if resolveEffectiveCoverageMode(ctx) == config.CoverageModeOff {
+		return &GateResult{
+			GateName: g.Name(), ProbeID: probeIDCoverage, Law: 2, Ring: RingDynamic,
+			Passed: true, Message: "statement coverage enforcement disabled via coverage_mode=off",
+		}, nil
+	}
 	if os.Getenv(envSkipToolchainGate) == "1" || os.Getenv(envInToolchainGate) == "1" {
 		return &GateResult{
-			GateName: g.Name(), ProbeID: "coverage", Law: 2, Ring: RingDynamic,
+			GateName: g.Name(), ProbeID: probeIDCoverage, Law: 2, Ring: RingDynamic,
 			Passed: true, Message: "coverage execution bypassed in toolchain gate context",
 		}, nil
 	}
@@ -93,10 +106,7 @@ func (g *CoverageGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	root := resolveQualityRoot(ctx)
 	targetDir := resolveGoTargetDir(root)
 	if targetDir == "" {
-		return &GateResult{
-			GateName: g.Name(), ProbeID: "coverage", Law: 2, Ring: RingDynamic,
-			Passed: true, Message: "no Go module detected in scope",
-		}, nil
+		return evaluatePolyglotCoverageGate(g.Name(), ctx, root), nil
 	}
 
 	rec := evaluateSharedGoSuite(ctx, root, targetDir)

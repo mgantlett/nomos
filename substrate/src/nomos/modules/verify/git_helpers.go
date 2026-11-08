@@ -22,7 +22,20 @@ func isExcludedPolyglotDir(clean string) bool {
 }
 
 func isJSTestOrDeclFile(path string) bool {
-	return strings.HasSuffix(path, ".d.ts") || strings.HasSuffix(path, ".test.ts") || strings.HasSuffix(path, ".spec.ts")
+	lower := strings.ToLower(path)
+	if strings.HasSuffix(lower, ".d.ts") {
+		return true
+	}
+	for _, suf := range []string{
+		".test.ts", ".spec.ts", ".test.tsx", ".spec.tsx",
+		".test.js", ".spec.js", ".test.jsx", ".spec.jsx",
+		".test.mjs", ".spec.mjs", ".test.cjs", ".spec.cjs",
+	} {
+		if strings.HasSuffix(lower, suf) {
+			return true
+		}
+	}
+	return false
 }
 
 func isRubyTestFile(path string) bool {
@@ -39,7 +52,7 @@ func isNativeTestFile(path string) bool {
 func isSupportedPolyglotSourceFile(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
-	case ".go", ".ts", ".tsx", ".js", ".jsx", ".svelte", ".rs", ".py", ".rb", ".rake", ".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".java", ".kt", ".kts", ".cs":
+	case extGo, extTS, extTSX, extJS, extJSX, extMJS, extCJS, extSvelte, extRS, extPy, extRB, extRake, extC, extCPP, extCC, extCXX, extH, extHPP, extJava, extKT, extKTS, extCS:
 		return true
 	default:
 		return false

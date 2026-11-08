@@ -59,7 +59,8 @@ func isSkippedTDDDirName(name string, skipCmdDir bool) bool {
 }
 
 func shouldScopeTDDToModifiedPackages(ctx *VerifyContext, root string) bool {
-	if !isBrownfieldRatchetActive(ctx) {
+	mode := resolveEffectiveTDDMode(ctx)
+	if mode == "strict" || mode == "off" {
 		return false
 	}
 	if isWorktreeContext(ctx, root) {
@@ -97,11 +98,16 @@ func findUntestedPackagesScoped(ctx *VerifyContext, root string, targetDirs []st
 func evaluateModifiedPackageTDD(ctx *VerifyContext, root string, excludes []string, skipCmd bool) ([]string, bool) {
 	modified := getModifiedFilesInScope(ctx, root)
 	if len(modified) == 0 {
-		if hasGitMetadata(root) || (ctx != nil && hasGitMetadata(ctx.RepoRoot)) {
-			return nil, true
-		}
-		return nil, false
+		return nil, hasGitMetadata(root) || (ctx != nil && hasGitMetadata(ctx.RepoRoot))
 	}
+	goDirs, polyFiles := partitionModifiedTDDTargets(root, modified, excludes, skipCmd)
+	untested := evaluateModifiedGoDirsTDD(ctx, root, goDirs, modified)
+	untested = append(untested, evaluateBrownfieldPolyglotTDD(ctx, root, modified, polyFiles)...)
+	sort.Strings(untested)
+	return untested, true
+}
+
+func partitionModifiedTDDTargets(root string, modified, excludes []string, skipCmd bool) (map[string]struct{}, []string) {
 	goDirs := make(map[string]struct{})
 	var polyFiles []string
 	for _, rel := range modified {
@@ -112,63 +118,50 @@ func evaluateModifiedPackageTDD(ctx *VerifyContext, root string, excludes []stri
 		if !shouldInspectModifiedPkgDir(root, absDir, excludes, skipCmd) {
 			continue
 		}
-		if strings.HasSuffix(rel, ".go") {
+		if strings.HasSuffix(rel, extGo) {
 			goDirs[absDir] = struct{}{}
 		} else if isPolyglotTDDTrackedExt(filepath.Ext(rel)) {
 			polyFiles = append(polyFiles, rel)
 		}
 	}
+	return goDirs, polyFiles
+}
+
+func evaluateModifiedGoDirsTDD(ctx *VerifyContext, root string, goDirs map[string]struct{}, modified []string) []string {
 	var untested []string
+	diffMode := resolveEffectiveTDDMode(ctx) == "diff"
+	hasModTest := hasModifiedTestFile(modified)
 	for dir := range goDirs {
 		hasGo, hasTest := inspectPackageFiles(dir)
-		if hasGo && !hasTest {
+		if hasGo && (!hasTest || (diffMode && !hasModTest && !hasGoPairedTestsForModified(root, dir, modified))) {
 			untested = append(untested, relativeOrFullPath(root, dir))
 		}
 	}
-	untested = append(untested, findUntestedPolyglotModules(root, modified, polyFiles)...)
-	sort.Strings(untested)
-	return untested, true
+	return untested
 }
 
 func isPolyglotTDDTrackedExt(ext string) bool {
 	switch strings.ToLower(ext) {
-	case ".py", ".ts", ".tsx", ".js", ".jsx", ".rs":
+	case extPy, extTS, extTSX, extJS, extJSX, extMJS, extCJS, extSvelte, extRB, extRS, extC, extCPP, extCC, extCXX, extJava, extKT, extCS:
 		return true
 	}
 	return false
 }
 
-func findUntestedPolyglotModules(root string, modified, polyFiles []string) []string {
-	if len(polyFiles) == 0 || !hasPolyglotTestManifest(root) {
-		return nil
-	}
-	if hasModifiedTestFile(modified) || hasRepositoryPolyglotTests(root) {
-		return nil
-	}
-	seen := make(map[string]struct{})
-	var missing []string
-	for _, rel := range polyFiles {
-		absPath := filepath.Join(root, rel)
-		if strings.HasSuffix(rel, ".rs") && hasInlineRustTestModule(absPath) {
-			continue
-		}
-		dirRel := filepath.ToSlash(filepath.Dir(rel))
-		if _, ok := seen[dirRel]; !ok {
-			seen[dirRel] = struct{}{}
-			missing = append(missing, dirRel)
-		}
-	}
-	return missing
-}
-
 func hasPolyglotTestManifest(root string) bool {
-	for _, m := range []string{"pyproject.toml", "pytest.ini", "tox.ini", "Cargo.toml"} {
+	for _, m := range []string{
+		"pyproject.toml", "pytest.ini", "tox.ini", "setup.py", "Cargo.toml",
+		"Gemfile", "Rakefile", "CMakeLists.txt", "pom.xml", "build.gradle", "build.gradle.kts",
+	} {
 		if _, err := os.Stat(filepath.Join(root, m)); err == nil {
 			return true
 		}
 	}
+	if projects, hasSDK := findCSharpProjects(root); len(projects) > 0 || hasSDK {
+		return true
+	}
 	if data, err := os.ReadFile(filepath.Join(root, "package.json")); err == nil {
-		return strings.Contains(string(data), "\"test\"")
+		return strings.Contains(string(data), "\"test\"") || strings.Contains(string(data), "\"scripts\"")
 	}
 	return false
 }
@@ -185,15 +178,15 @@ func hasModifiedTestFile(modified []string) bool {
 func isPolyglotTestFilePath(rel string) bool {
 	slash := strings.ToLower(filepath.ToSlash(rel))
 	base := filepath.Base(slash)
-	if strings.HasPrefix(base, "test_") || strings.HasSuffix(base, "_test.py") || strings.HasSuffix(base, "_test.go") {
+	if strings.HasPrefix(base, prefixPyTest) || strings.HasSuffix(base, suffixPyTest) || strings.HasSuffix(base, suffixGoTest) {
 		return true
 	}
-	for _, suf := range []string{".test.ts", ".spec.ts", ".test.tsx", ".spec.tsx", ".test.js", ".spec.js"} {
-		if strings.HasSuffix(base, suf) {
-			return true
-		}
+	if isRubyTestFile(base) || isNativeTestFile(rel) || (!strings.HasSuffix(base, ".d.ts") && isJSTestOrDeclFile(base)) {
+		return true
 	}
-	return strings.HasPrefix(slash, "tests/") || strings.HasPrefix(slash, "test/") || strings.Contains(slash, "/__tests__/")
+	return strings.HasPrefix(slash, "tests/") || strings.HasPrefix(slash, "test/") ||
+		strings.HasPrefix(slash, "spec/") || strings.HasPrefix(slash, "src/test/") ||
+		strings.Contains(slash, "/__tests__/") || strings.Contains(slash, "/tests/")
 }
 
 func hasRepositoryPolyglotTests(root string) bool {
@@ -260,6 +253,15 @@ func walkUntestedPackages(root, srcDir string, excludes []string, skipCmd bool) 
 		}
 		hasGo, hasTest := inspectPackageFiles(path)
 		if hasGo && !hasTest {
+			base := srcDir
+			if root != "" && srcDir != root {
+				base = root
+			}
+			untested = append(untested, relativeOrFullPath(base, path))
+			return nil
+		}
+		hasPoly, hasPolyTest := inspectPolyglotDirForStrictTDD(root, path)
+		if hasPoly && !hasPolyTest {
 			base := srcDir
 			if root != "" && srcDir != root {
 				base = root

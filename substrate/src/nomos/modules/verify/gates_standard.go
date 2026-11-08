@@ -42,17 +42,17 @@ func isPolyglotTargetFile(path string) bool {
 		return false
 	}
 	switch strings.ToLower(filepath.Ext(path)) {
-	case ".go":
-		return !strings.HasSuffix(path, "_test.go")
-	case ".ts", ".tsx", ".js", ".jsx":
+	case extGo:
+		return !strings.HasSuffix(path, suffixGoTest)
+	case extTS, extTSX, extJS, extJSX, extMJS, extCJS:
 		return !isJSTestOrDeclFile(path)
-	case ".svelte":
+	case extSvelte:
 		return true
-	case ".py":
-		return !strings.HasPrefix(filepath.Base(path), "test_") && !strings.HasSuffix(path, "_test.py")
-	case ".rb", ".rake":
+	case extPy:
+		return !strings.HasPrefix(filepath.Base(path), prefixPyTest) && !strings.HasSuffix(path, suffixPyTest)
+	case extRB, extRake:
 		return !isRubyTestFile(path)
-	case ".rs", ".c", ".h", ".cpp", ".cc", ".cxx", ".hpp", ".java", ".kt", ".kts", ".cs":
+	case extRS, extC, extH, extCPP, extCC, extCXX, extHPP, extJava, extKT, extKTS, extCS:
 		return !isNativeTestFile(path)
 	default:
 		return false

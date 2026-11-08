@@ -71,6 +71,24 @@ func LoadSCMQuery(lang string) (*SCMQuerySpec, error) {
 	return spec, nil
 }
 
+// ValidateFunctionSCMContract verifies that a function-bearing language's .scm query binds @func.name, @func.doc, and @branch.
+// @intent full_dod_gate_suite_and_polyglot_spec.md #SCMQuerySpec
+func ValidateFunctionSCMContract(lang string) (*SCMQuerySpec, error) {
+	spec, err := LoadSCMQuery(lang)
+	if err != nil {
+		return nil, err
+	}
+	for _, capName := range []string{"func.name", "func.doc", "branch"} {
+		if !spec.Captures[capName] {
+			return nil, fmt.Errorf("incomplete .scm capture contract for %s: missing @%s", lang, capName)
+		}
+	}
+	if len(spec.BranchNodes) == 0 {
+		return nil, fmt.Errorf("incomplete .scm branch contract for %s: zero AST branch nodes", lang)
+	}
+	return spec, nil
+}
+
 func validateSCMSyntax(queryPath, src string) error {
 	cleaned := stripSCMCommentsAndStrings(src)
 	if cleaned == "" && len(strings.TrimSpace(src)) > 0 {

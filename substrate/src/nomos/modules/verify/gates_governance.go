@@ -149,6 +149,8 @@ func scanPolyglotFileForLiterals(path, rel string, patterns []string) []string {
 	return found
 }
 
+const probeIDDeadCode = "dead_code"
+
 // DeadCodeGate verifies reachable CLI commands, canonical gate registration, and package imports (Cell 2.1, Law 2).
 type DeadCodeGate struct{}
 
@@ -159,7 +161,7 @@ func (g *DeadCodeGate) Name() string { return "Dead-Code Reachability Gate (Law 
 func (g *DeadCodeGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	if unexecuted := findUnexecutedRegisteredGates(); len(unexecuted) > 0 {
 		return &GateResult{
-			GateName: g.Name(), ProbeID: "dead_code", Law: 2, Ring: RingSyntactic,
+			GateName: g.Name(), ProbeID: probeIDDeadCode, Law: 2, Ring: RingSyntactic,
 			Passed:  false,
 			Message: fmt.Sprintf("detected %d registered gate(s) excluded from CanonicalGateOrder: %s", len(unexecuted), strings.Join(unexecuted, ", ")),
 			Remedy:  "wire gate IDs into CanonicalGateOrder or remove phantom gate registrations",
@@ -169,17 +171,25 @@ func (g *DeadCodeGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	root := resolveQualityRoot(ctx)
 	if orphanPkgs := findUnimportedInternalPackages(root); len(orphanPkgs) > 0 {
 		return &GateResult{
-			GateName: g.Name(), ProbeID: "dead_code", Law: 2, Ring: RingSyntactic,
+			GateName: g.Name(), ProbeID: probeIDDeadCode, Law: 2, Ring: RingSyntactic,
 			Passed:  false,
 			Message: fmt.Sprintf("detected %d unimported internal Go package(s): %s", len(orphanPkgs), strings.Join(orphanPkgs, ", ")),
 			Remedy:  "remove orphan Go packages or import them into active substrate modules",
+		}, nil
+	}
+	if orphanMods := findUnimportedPolyglotModules(ctx, root); len(orphanMods) > 0 {
+		return &GateResult{
+			GateName: g.Name(), ProbeID: probeIDDeadCode, Law: 2, Ring: RingSyntactic,
+			Passed:  false,
+			Message: fmt.Sprintf("detected %d unimported internal polyglot module(s): %s", len(orphanMods), strings.Join(orphanMods, ", ")),
+			Remedy:  "remove orphan polyglot modules or import them into active modules",
 		}, nil
 	}
 
 	cliDir := resolveNomosInternalCLIDir(ctx, root)
 	if cliDir == "" {
 		return &GateResult{
-			GateName: g.Name(), ProbeID: "dead_code", Law: 2, Ring: RingSyntactic,
+			GateName: g.Name(), ProbeID: probeIDDeadCode, Law: 2, Ring: RingSyntactic,
 			Passed: true, Message: "no CLI directory detected; skipping reachability check",
 		}, nil
 	}
@@ -187,7 +197,7 @@ func (g *DeadCodeGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	unreachable := findUnreachableCommands(cliDir)
 	if len(unreachable) > 0 {
 		return &GateResult{
-			GateName: g.Name(), ProbeID: "dead_code", Law: 2, Ring: RingSyntactic,
+			GateName: g.Name(), ProbeID: probeIDDeadCode, Law: 2, Ring: RingSyntactic,
 			Passed:  false,
 			Message: fmt.Sprintf("detected %d unreachable command constructors: %s", len(unreachable), strings.Join(unreachable, ", ")),
 			Remedy:  "wire command constructors into root command tree in root.go",
@@ -195,7 +205,7 @@ func (g *DeadCodeGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	}
 
 	return &GateResult{
-		GateName: g.Name(), ProbeID: "dead_code", Law: 2, Ring: RingSyntactic,
+		GateName: g.Name(), ProbeID: probeIDDeadCode, Law: 2, Ring: RingSyntactic,
 		Passed: true, Message: "all CLI command constructors, registered gates, and internal packages are reachable",
 	}, nil
 }

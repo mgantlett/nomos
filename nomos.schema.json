@@ -196,6 +196,16 @@
               },
               "additionalProperties": false
             },
+            "coverage_mode": {
+              "description": "Statement coverage enforcement policy: live (default zero-dep live probes plus artifacts), artifact (on-disk coverage reports only), or off.",
+              "type": "string",
+              "enum": [
+                "off",
+                "artifact",
+                "live"
+              ],
+              "default": "live"
+            },
             "exclude": {
               "description": "Workspace-relative glob patterns excluded from AST gates.",
               "type": "array",
@@ -250,6 +260,17 @@
               "items": {
                 "type": "string"
               }
+            },
+            "tdd_mode": {
+              "description": "Paired unit test enforcement policy: strict (default when strict_mode=true), ratchet (default when strict_mode=false), diff (require paired or modified test on every touched file), or off.",
+              "type": "string",
+              "enum": [
+                "off",
+                "ratchet",
+                "diff",
+                "strict"
+              ],
+              "default": "strict"
             },
             "thresholds": {
               "description": "Numerical AST complexity, size, clone, and coverage bounds.",

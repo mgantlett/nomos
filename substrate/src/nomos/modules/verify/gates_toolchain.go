@@ -26,7 +26,11 @@ func (g *UncheckedErrorsGate) Evaluate(ctx *VerifyContext) (*GateResult, error) 
 	fset := token.NewFileSet()
 
 	err := WalkTargetFiles(ctx, root, func(path string, info os.FileInfo, walkErr error) error {
-		if walkErr != nil || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+		if walkErr != nil || info == nil || info.IsDir() || !isPolyglotTargetFile(path) {
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") {
+			violations = append(violations, evaluatePolyglotUncheckedFile(ctx, root, path)...)
 			return nil
 		}
 		node, pErr := parser.ParseFile(fset, path, nil, 0)
