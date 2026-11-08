@@ -197,3 +197,32 @@ func extractExportedDocMap(path string, content []byte) map[string]bool {
 	}
 	return res
 }
+
+func collectBaselineStringLiterals(ctx *VerifyContext, targetDir, path string, fset *token.FileSet, baseCounts map[string]map[string]int) {
+	baseBytes, ok := loadBaselineFileBytes(ctx, targetDir, path)
+	if !ok {
+		return
+	}
+	if !strings.HasSuffix(path, ".go") {
+		collectPolyglotStringLiteralsFromBytes(path, baseBytes, baseCounts)
+		return
+	}
+	collectGoStringLiteralsFromSrc(fset, path, baseBytes, baseCounts)
+}
+
+func filterRatchetedForbiddenLiterals(ctx *VerifyContext, root, path string, patterns, cur []string) []string {
+	rel, rErr := filepath.Rel(root, path)
+	if rErr != nil {
+		rel = path
+	}
+	return filterNetNewLineViolations(ctx, root, path, cur, func(baseBytes []byte) []string {
+		return scanTempBaselineViolations(path, baseBytes, func(tmpPath string) []string {
+			raw := scanFileForLiterals(filepath.Dir(tmpPath), tmpPath, patterns)
+			tmpBase := filepath.Base(tmpPath)
+			for i, item := range raw {
+				raw[i] = strings.Replace(item, tmpBase, rel, 1)
+			}
+			return raw
+		})
+	})
+}

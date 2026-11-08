@@ -137,3 +137,43 @@ func TestBrownfieldPolyglotPythonTDDScoping(t *testing.T) {
 		t.Fatalf("expected TDDGate to pass once Python tests/test_billing.py exists, got %+v err=%v", passRes, err)
 	}
 }
+
+func TestBrownfieldMagicStringAndForbiddenLiteralRatchet(t *testing.T) {
+	repo := t.TempDir()
+	_ = workspace.SafeGitCommand(repo, "init", "-b", "main").Run()
+	_ = workspace.SafeGitCommand(repo, "config", "user.email", "test@nomos.local").Run()
+	_ = workspace.SafeGitCommand(repo, "config", "user.name", "Nomos Py").Run()
+
+	mustWriteGoFixture(t, filepath.Join(repo, "nomos.yaml"), "project: sql-demo\ndefault_branch: main\ngovernance:\n  quality_gates:\n    strict_mode: false\n    substrate_source_roots:\n      - sqlglot\n")
+	basePy := strings.Repeat("x = \"CUSTOM_MAGIC_TOKEN\"\n", 14) + "fixture = \"/Users/legacy/sample.sql\"\ndef parse(v: str) -> str:\n    return v\n"
+	mustWriteGoFixture(t, filepath.Join(repo, "sqlglot", "parser.py"), basePy)
+	_ = workspace.SafeGitCommand(repo, "add", ".").Run()
+	_ = workspace.SafeGitCommand(repo, "commit", "-m", "chore: baseline").Run()
+
+	wt := filepath.Join(repo, "worktrees", "sql-demo-SUB-3")
+	if out, err := workspace.SafeGitCommand(repo, "worktree", "add", "-b", "feature/SUB-3", wt, "main").CombinedOutput(); err != nil {
+		t.Fatalf("git worktree add: %v (%s)", err, string(out))
+	}
+	mustWriteGoFixture(t, filepath.Join(wt, "sqlglot", "parser.py"), basePy+"\ndef allow_in() -> bool:\n    return True\n")
+
+	ctx := &VerifyContext{RepoRoot: repo, WorktreePath: wt, TaskID: "SUB-3", Phase: "REVIEW"}
+	dupRes, err := (&MagicStringDuplicationGate{}).Evaluate(ctx)
+	if err != nil || !dupRes.Passed {
+		t.Fatalf("expected MagicStringDuplicationGate to allow pre-existing literal count, got %+v err=%v", dupRes, err)
+	}
+	litRes, err := (&ForbiddenLiteralsGate{}).Evaluate(ctx)
+	if err != nil || !litRes.Passed {
+		t.Fatalf("expected ForbiddenLiteralsGate to allow pre-existing fixture literal, got %+v err=%v", litRes, err)
+	}
+
+	// Adding a 15th occurrence or a brand-new /Users/ literal must fail closed!
+	mustWriteGoFixture(t, filepath.Join(wt, "sqlglot", "parser.py"), basePy+"y = \"CUSTOM_MAGIC_TOKEN\"\nz = \"/Users/newleak/x\"\n")
+	dupFail, _ := (&MagicStringDuplicationGate{}).Evaluate(ctx)
+	if dupFail.Passed {
+		t.Fatalf("expected MagicStringDuplicationGate to block net-new literal duplication")
+	}
+	litFail, _ := (&ForbiddenLiteralsGate{}).Evaluate(ctx)
+	if litFail.Passed {
+		t.Fatalf("expected ForbiddenLiteralsGate to block net-new forbidden literal")
+	}
+}

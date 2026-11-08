@@ -287,11 +287,13 @@ func (g *MagicStringDuplicationGate) Evaluate(ctx *VerifyContext) (*GateResult, 
 	}
 
 	counts := make(map[string]map[string]int)
+	baseCounts := make(map[string]map[string]int)
 	fset := token.NewFileSet()
 	WalkTargetFiles(ctx, targetDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info == nil || info.IsDir() || !isPolyglotTargetFile(path) {
 			return nil
 		}
+		collectBaselineStringLiterals(ctx, targetDir, path, fset, baseCounts)
 		if !strings.HasSuffix(path, ".go") {
 			collectPolyglotStringLiterals(path, counts)
 			return nil
@@ -304,7 +306,8 @@ func (g *MagicStringDuplicationGate) Evaluate(ctx *VerifyContext) (*GateResult, 
 	var duplicates []string
 	for pkg, m := range counts {
 		for str, cnt := range m {
-			if cnt > maxDup {
+			ceil := maxInt(maxDup, baseCounts[pkg][str])
+			if cnt > ceil {
 				duplicates = append(duplicates, fmt.Sprintf("%s: %q repeated %d times", pkg, str, cnt))
 			}
 		}

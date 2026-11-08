@@ -156,7 +156,11 @@ func extractTypeAliasesFromFile(fset *token.FileSet, subDir, path string) []stri
 }
 
 func collectGoStringLiterals(fset *token.FileSet, path string, counts map[string]map[string]int) {
-	node, pErr := parser.ParseFile(fset, path, nil, 0)
+	collectGoStringLiteralsFromSrc(fset, path, nil, counts)
+}
+
+func collectGoStringLiteralsFromSrc(fset *token.FileSet, path string, src any, counts map[string]map[string]int) {
+	node, pErr := parser.ParseFile(fset, path, src, 0)
 	if pErr != nil {
 		return
 	}
@@ -202,6 +206,10 @@ func collectPolyglotStringLiterals(path string, counts map[string]map[string]int
 	if err != nil {
 		return
 	}
+	collectPolyglotStringLiteralsFromBytes(path, data, counts)
+}
+
+func collectPolyglotStringLiteralsFromBytes(path string, data []byte, counts map[string]map[string]int) {
 	source := string(data)
 	if strings.EqualFold(filepath.Ext(path), ".svelte") {
 		source = extractSvelteScriptSource(source)

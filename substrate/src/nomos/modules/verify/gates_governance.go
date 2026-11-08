@@ -54,7 +54,9 @@ func (g *ForbiddenLiteralsGate) Evaluate(ctx *VerifyContext) (*GateResult, error
 		if walkErr != nil || info.IsDir() || !isScannableSourceFile(path) {
 			return nil
 		}
-		violations = append(violations, scanFileForLiterals(root, path, cleanPatterns)...)
+		cur := scanFileForLiterals(root, path, cleanPatterns)
+		cur = filterRatchetedForbiddenLiterals(ctx, root, path, cleanPatterns, cur)
+		violations = append(violations, cur...)
 		return nil
 	})
 	if err != nil {
