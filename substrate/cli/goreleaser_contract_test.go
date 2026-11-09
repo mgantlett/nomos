@@ -142,11 +142,20 @@ func TestGoReleaserV2StrictSchemaAndEnvSafety(t *testing.T) {
 	}
 }
 
-func TestReleaseWorkflowPatchNotesRollup(t *testing.T) {
+func runRenderReleaseNotes(t *testing.T, repoRoot string, tag string) (string, error) {
+	t.Helper()
 	bashBin, err := exec.LookPath("bash")
 	if err != nil {
-		return
+		return "", err
 	}
+	scriptPath := filepath.Join(repoRoot, "packaging", "render-release-notes.sh")
+	cmd := exec.Command(bashBin, scriptPath, tag)
+	cmd.Dir = repoRoot
+	out, runErr := cmd.CombinedOutput()
+	return string(out), runErr
+}
+
+func TestReleaseWorkflowPatchNotesRollup(t *testing.T) {
 	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatalf("resolve repo root: %v", err)
@@ -155,46 +164,56 @@ func TestReleaseWorkflowPatchNotesRollup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read release.yaml: %v", err)
 	}
-	if !strings.Contains(string(relYaml), "Included `%s` Milestone Features") {
-		t.Fatalf("expected release.yaml to roll up parent vX.Y.0 milestone features on patch releases")
+	if !strings.Contains(string(relYaml), "packaging/render-release-notes.sh") {
+		t.Fatalf("expected release.yaml to invoke canonical packaging/render-release-notes.sh")
 	}
 
-	tmpOut := t.TempDir()
-	script := `set -euo pipefail
-TAG="$1"
-extract_section() {
-  awk -v tag="[$1]" '
-    index($0, "## " tag) == 1 { flag=1; next }
-    flag && /^## \[/ { exit }
-    flag { print }
-  ' CHANGELOG.md | sed '/^---$/d'
-}
-extract_section "$TAG" > "$RUNNER_TEMP/release-notes.md"
-if printf '%s\n' "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[1-9][0-9]*$'; then
-  MINOR_BASE="${TAG%.*}.0"
-  extract_section "$MINOR_BASE" > "$RUNNER_TEMP/minor-notes.md"
-  if [ -s "$RUNNER_TEMP/minor-notes.md" ]; then
-    {
-      printf '\n---\n\n## Included ` + "`%s`" + ` Milestone Features\n\n' "$MINOR_BASE"
-      cat "$RUNNER_TEMP/minor-notes.md"
-    } >> "$RUNNER_TEMP/release-notes.md"
-  fi
-fi`
-
-	cmd := exec.Command(bashBin, "-c", script, "release-notes-test", "v4.10.1")
-	cmd.Dir = repoRoot
-	cmd.Env = append(os.Environ(), "RUNNER_TEMP="+tmpOut)
-	if out, cErr := cmd.CombinedOutput(); cErr != nil {
-		t.Fatalf("release notes extraction failed: %v (%s)", cErr, string(out))
+	patchNotes, pErr := runRenderReleaseNotes(t, repoRoot, "v4.10.1")
+	if pErr != nil {
+		t.Fatalf("render v4.10.1 release notes failed: %v (%s)", pErr, patchNotes)
 	}
-	notesBytes, rErr := os.ReadFile(filepath.Join(tmpOut, "release-notes.md"))
-	if rErr != nil {
-		t.Fatalf("read generated release-notes.md: %v", rErr)
-	}
-	notes := string(notesBytes)
-	for _, want := range []string{"GoReleaser v2 `config.AUR` Schema Parity", "Included `v4.10.0` Milestone Features", ".opencode/plugins/nomos.ts"} {
-		if !strings.Contains(notes, want) {
-			t.Errorf("expected patch release notes for v4.10.1 to contain %q, got:\n%s", want, notes)
+	for _, want := range []string{
+		"GoReleaser v2 `config.AUR` Schema Parity",
+		"## Included `v4.10.0` Milestone Features",
+		".opencode/plugins/nomos.ts",
+		"## Changelog",
+		"[SUB-1858]",
+		"**Full Changelog**: https://github.com/mgantlett/nomos/compare/v4.10.0...v4.10.1",
+	} {
+		if !strings.Contains(patchNotes, want) {
+			t.Errorf("expected v4.10.1 notes to contain %q, got:\n%s", want, patchNotes)
 		}
+	}
+}
+
+func TestReleaseNotesHybridLedgerAndFailClosed(t *testing.T) {
+	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("resolve repo root: %v", err)
+	}
+
+	minorNotes, mErr := runRenderReleaseNotes(t, repoRoot, "v4.12.0")
+	if mErr != nil {
+		t.Fatalf("render v4.12.0 release notes failed: %v (%s)", mErr, minorNotes)
+	}
+	intIdx := strings.Index(minorNotes, "[INT-1913]")
+	subIdx := strings.Index(minorNotes, "[SUB-1914]")
+	if intIdx < 0 || subIdx < 0 || intIdx >= subIdx {
+		t.Fatalf("expected chronological INT->SUB commit ledger in v4.12.0 notes, got:\n%s", minorNotes)
+	}
+	if !strings.Contains(minorNotes, "compare/v4.11.0...v4.12.0") {
+		t.Errorf("expected compare link v4.11.0...v4.12.0 in v4.12.0 notes")
+	}
+
+	genesisNotes, gErr := runRenderReleaseNotes(t, repoRoot, "v4.0.0")
+	if gErr != nil {
+		t.Fatalf("render v4.0.0 release notes failed: %v (%s)", gErr, genesisNotes)
+	}
+	if !strings.Contains(genesisNotes, "## Changelog") || strings.Contains(genesisNotes, "compare/") {
+		t.Errorf("expected genesis v4.0.0 notes to include Changelog without compare link, got:\n%s", genesisNotes)
+	}
+
+	if _, badErr := runRenderReleaseNotes(t, repoRoot, "v99.99.99"); badErr == nil {
+		t.Fatalf("expected missing SemVer tag v99.99.99 to fail closed")
 	}
 }
