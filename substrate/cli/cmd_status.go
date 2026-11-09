@@ -20,19 +20,20 @@ import (
 
 // StatusReport models the unified status snapshot for machine and human consumption.
 type StatusReport struct {
-	Phase            string                   `json:"phase"`
-	Project          string                   `json:"project,omitempty"`
-	RepoRoot         string                   `json:"repo_root"`
-	ActiveBranch     string                   `json:"active_branch"`
-	IsWorktree       bool                     `json:"is_worktree"`
-	DatabasePath     string                   `json:"database_path"`
-	DatabaseStatus   string                   `json:"database_status"`
-	TotalTasks       int                      `json:"total_tasks"`
-	ActiveTasks      int                      `json:"active_tasks"`
-	PendingTasks     int                      `json:"pending_tasks"`
-	WavefrontCount   int                      `json:"wavefront_count"`
-	RemoteAheadCount int                      `json:"remote_ahead_count"`
-	NextActions      []types.ActionAffordance `json:"next_actions,omitempty"`
+	Phase            string                     `json:"phase"`
+	Project          string                     `json:"project,omitempty"`
+	RepoRoot         string                     `json:"repo_root"`
+	ActiveBranch     string                     `json:"active_branch"`
+	IsWorktree       bool                       `json:"is_worktree"`
+	DatabasePath     string                     `json:"database_path"`
+	DatabaseStatus   string                     `json:"database_status"`
+	TotalTasks       int                        `json:"total_tasks"`
+	ActiveTasks      int                        `json:"active_tasks"`
+	PendingTasks     int                        `json:"pending_tasks"`
+	WavefrontCount   int                        `json:"wavefront_count"`
+	RemoteAheadCount int                        `json:"remote_ahead_count"`
+	StaleObligations []task.StaleSpecObligation `json:"stale_obligations,omitempty"`
+	NextActions      []types.ActionAffordance   `json:"next_actions,omitempty"`
 }
 
 // NewStatusCmd constructs the top-level 'nomos status' command.
@@ -96,19 +97,9 @@ func collectStatusReportWithScope(allProjects bool) *StatusReport {
 		total, active, pending, wavefront = 0, 0, 0, 0
 	}
 
-	phase := string(types.PhaseIdle)
-	var nextActions []types.ActionAffordance
-	if ev, hErr := handshake.SynthesizeDynamicHandshake(treeRoot); hErr == nil && ev != nil {
-		phase = string(ev.Phase)
-		nextActions = ev.NextActions
-	} else if isWorktree {
-		phase = string(types.PhaseEdit)
-		nextActions = types.BuildPhaseNextActions(types.PhaseEdit, "", treeRoot, nil, nil)
-	} else {
-		nextActions = types.BuildPhaseNextActions(types.PhaseIdle, "", "", nil, nil)
-	}
-
+	phase, nextActions := resolveStatusPhaseAndActions(treeRoot, isWorktree)
 	remoteAhead := resolveRemoteAheadCount(repoRoot)
+	staleObligations := resolveStaleObligations(repoRoot)
 
 	return &StatusReport{
 		Phase:            phase,
@@ -123,8 +114,27 @@ func collectStatusReportWithScope(allProjects bool) *StatusReport {
 		PendingTasks:     pending,
 		WavefrontCount:   wavefront,
 		RemoteAheadCount: remoteAhead,
+		StaleObligations: staleObligations,
 		NextActions:      nextActions,
 	}
+}
+
+func resolveStatusPhaseAndActions(treeRoot string, isWorktree bool) (string, []types.ActionAffordance) {
+	if ev, hErr := handshake.SynthesizeDynamicHandshake(treeRoot); hErr == nil && ev != nil {
+		return string(ev.Phase), ev.NextActions
+	}
+	if isWorktree {
+		return string(types.PhaseEdit), types.BuildPhaseNextActions(types.PhaseEdit, "", treeRoot, nil, nil)
+	}
+	return string(types.PhaseIdle), types.BuildPhaseNextActions(types.PhaseIdle, "", "", nil, nil)
+}
+
+func resolveStaleObligations(repoRoot string) []task.StaleSpecObligation {
+	computedStale, err := task.ComputeStaleSpecObligations(repoRoot, "")
+	if err != nil {
+		return nil
+	}
+	return computedStale
 }
 
 func resolveBranchName(repoRoot string) string {
@@ -225,8 +235,19 @@ func renderStatusReport(out io.Writer, r *StatusReport) {
 	} else {
 		fmt.Fprintln(out, kvLine("Remote Sync", 15, uiSuccessStyle.Render("✅ Synced with origin")))
 	}
+	renderStaleObligationsLine(out, r.StaleObligations)
 	renderNextActions(out, r.NextActions)
 	fmt.Fprintln(out, uiRule(ruleNarrow))
+}
+
+func renderStaleObligationsLine(out io.Writer, stale []task.StaleSpecObligation) {
+	if len(stale) == 0 {
+		return
+	}
+	warn := fmt.Sprintf("%s  %s",
+		uiWarnStyle.Render(fmt.Sprintf("⚠️  %d spec(s) updated since last SUB-* receipt", len(stale))),
+		uiMutedStyle.Render("("+stale[0].SpecPath+")"))
+	fmt.Fprintln(out, kvLine("Obligations", 15, warn))
 }
 
 func formatWorktreeFlag(isWT bool) string {

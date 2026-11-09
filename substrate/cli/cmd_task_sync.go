@@ -94,7 +94,11 @@ func finalizeSync(key, walkthroughPath string, report *verify.PipelineReport) er
 		return err
 	}
 
-	recordReleaseReceipt(mgr.RepoRoot, wtPath, key, walkthroughPath, now, report)
+	var specDigests map[string]string
+	if strings.HasPrefix(key, "SUB-") {
+		specDigests = task.CollectReferencedSpecDigests(mgr.RepoRoot, touchedFiles, t.TwinKey)
+	}
+	recordReleaseReceipt(mgr.RepoRoot, wtPath, key, walkthroughPath, now, report, specDigests)
 	revokeActiveLease(key)
 	distillAndMaintainOnSync(mgr.RepoRoot, key, walkthroughPath, touchedFiles)
 	clearHookSessionTrace(wtPath)
@@ -152,7 +156,7 @@ func fastForwardTrunkMerge(repoRoot, branch string) error {
 	return nil
 }
 
-func recordReleaseReceipt(repoRoot, wtPath, key, walkthroughPath, now string, report *verify.PipelineReport) {
+func recordReleaseReceipt(repoRoot, wtPath, key, walkthroughPath, now string, report *verify.PipelineReport, specDigests map[string]string) {
 	revCmd := workspace.SafeGitCommand(repoRoot, "rev-parse", "HEAD")
 	revOut, err := revCmd.Output()
 	if err != nil {
@@ -180,6 +184,7 @@ func recordReleaseReceipt(repoRoot, wtPath, key, walkthroughPath, now string, re
 		CapBACTokenID:      tokenID,
 		SessionID:          resolveTaskSyncSessionID(repoRoot, key),
 		HookTrace:          buildReleaseHookTraceSnapshot(wtPath),
+		SpecDigests:        specDigests,
 		WalkthroughContent: walkthroughContent,
 		SHA256Receipt:      receipt,
 	}

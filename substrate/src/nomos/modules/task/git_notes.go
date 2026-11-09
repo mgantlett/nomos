@@ -37,6 +37,7 @@ type ReleaseNotePayload struct {
 	CapBACTokenID      string            `json:"capbac_token_id"`
 	SessionID          string            `json:"session_id,omitempty"`
 	HookTrace          *ReleaseHookTrace `json:"hook_trace,omitempty"`
+	SpecDigests        map[string]string `json:"spec_digests,omitempty"`
 	WalkthroughContent string            `json:"walkthrough_content"`
 	SHA256Receipt      string            `json:"sha256_receipt"`
 }
@@ -57,6 +58,15 @@ func ValidateReleaseNote(p ReleaseNotePayload) error {
 	}
 	if !regexSHA256.MatchString(p.SHA256Receipt) {
 		return types.NewNomosError(types.ErrCodeValidationFailed, "invalid SHA256 receipt: must be 64-char hex")
+	}
+	return validateSpecDigestMap(p.SpecDigests)
+}
+
+func validateSpecDigestMap(digests map[string]string) error {
+	for specPath, digest := range digests {
+		if specPath == "" || !regexSHA256.MatchString(digest) {
+			return types.NewNomosError(types.ErrCodeValidationFailed, "invalid spec_digests entry for %q: digest must be 64-char hex", specPath)
+		}
 	}
 	return nil
 }

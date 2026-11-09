@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/task"
 )
 
 var (
@@ -69,7 +71,29 @@ func evaluateConfiguredObligations(gateName string, ctx *VerifyContext, root, ta
 			}
 		}
 	}
+	if contracts.FailOnStaleObligations {
+		if staleFailure := checkStaleSpecObligations(gateName, root); staleFailure != nil {
+			return staleFailure
+		}
+	}
 	return nil
+}
+
+func checkStaleSpecObligations(gateName, root string) *GateResult {
+	stale, err := task.ComputeStaleSpecObligations(root, "")
+	if err != nil || len(stale) == 0 {
+		return nil
+	}
+	var items []string
+	for _, s := range stale {
+		items = append(items, fmt.Sprintf("%s (last verified by %s)", s.SpecPath, s.LastVerifiedBy))
+	}
+	return &GateResult{
+		GateName: gateName, ProbeID: "intent_traceability", Law: 4, Ring: RingCryptographic,
+		Passed:  false,
+		Message: fmt.Sprintf("stale specification obligation(s) detected: %s", strings.Join(items, "; ")),
+		Remedy:  "execute and sync a downstream SUB-* task referencing the updated specification to refresh spec_digests in refs/notes/nomos/releases (Law 4)",
+	}
 }
 
 // VerifySpecTypeSignatures checks exported Go structs in fenced specification code blocks
