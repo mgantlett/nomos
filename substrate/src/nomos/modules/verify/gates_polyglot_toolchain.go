@@ -220,14 +220,28 @@ func verifyRustToolchain(root string) (string, *GateResult) {
 }
 
 func toolchainFailure(prefix, rawOut, remedy string) *GateResult {
-	msg := strings.TrimSpace(rawOut)
-	if len(msg) > 400 {
-		msg = msg[:400] + "..."
-	}
+	msg := extractSalientToolchainWindow(rawOut, 400)
 	return &GateResult{
 		GateName: "Go Toolchain Gate",
 		Passed:   false,
 		Message:  fmt.Sprintf("%s: %s", prefix, msg),
 		Remedy:   remedy,
 	}
+}
+
+func extractSalientToolchainWindow(rawOut string, maxLen int) string {
+	msg := strings.TrimSpace(rawOut)
+	if len(msg) <= maxLen {
+		return msg
+	}
+	for _, marker := range []string{"\nnot ok ", "\nFAIL ", "\nFAIL\t", "AssertionError", "SyntaxError", "TypeError", "Error:"} {
+		if idx := strings.Index(msg, marker); idx >= 0 {
+			window := strings.TrimSpace(msg[idx:])
+			if len(window) > maxLen {
+				return window[:maxLen] + "..."
+			}
+			return window
+		}
+	}
+	return msg[:maxLen] + "..."
 }
