@@ -3,14 +3,20 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/mgantlett/nomos/substrate/cli"
 )
 
 func main() {
-	if err := cli.Execute(); err != nil {
-		fmt.Fprint(os.Stderr, cli.FormatCLIError(err))
-		os.Exit(1)
+	os.Exit(run(cli.Execute, os.Stderr))
+}
+
+func run(execFn func() error, stderr io.Writer) int {
+	if err := execFn(); err != nil {
+		fmt.Fprint(stderr, cli.FormatCLIError(err))
+		return 1
 	}
+	return 0
 }

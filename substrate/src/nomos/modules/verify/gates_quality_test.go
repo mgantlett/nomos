@@ -73,7 +73,12 @@ func TestTDDGate_BrownfieldSubstrateRootsAndTestdataSkip(t *testing.T) {
 		t.Errorf("expected legacy and testdata packages to be excluded, got: %s", resFail.Message)
 	}
 
-	mustWriteGoFixture(t, filepath.Join(root, "cmd", "scanner", "mcp", "handler_test.go"), "package mcp\nimport \"testing\"\nfunc TestHandle(t *testing.T) {}\n")
+	mustWriteGoFixture(t, filepath.Join(root, "cmd", "scanner", "mcp", "handler_test.go"), "package mcp\nimport \"testing\"\nfunc TestHollow(t *testing.T) {}\n")
+	if resHollow, hErr := g.Evaluate(ctx); hErr != nil || resHollow.Passed {
+		t.Fatalf("expected TDDGate to reject hollow *_test.go referencing zero package symbols, got err=%v res=%+v", hErr, resHollow)
+	}
+
+	mustWriteGoFixture(t, filepath.Join(root, "cmd", "scanner", "mcp", "handler_test.go"), "package mcp\nimport \"testing\"\nfunc TestHandle(t *testing.T) { _ = Handle() }\n")
 	resPass, err := g.Evaluate(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

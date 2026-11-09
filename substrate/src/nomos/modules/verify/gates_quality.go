@@ -79,6 +79,9 @@ func inspectPackageFiles(dir string) (bool, bool) {
 			hasGo = true
 		}
 	}
+	if hasGo && hasTest {
+		hasTest = hasCoupledGoPackageTests(dir)
+	}
 	return hasGo, hasTest
 }
 

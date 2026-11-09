@@ -203,6 +203,7 @@ func (g *ComplexityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 
 	ratchetedFuncs, checkArity := filterRatchetedComplexity(ctx, root, funcMetrics, thresh)
 	violations := EnrichComplexityViolations(root, ratchetedFuncs, thresh, checkArity)
+	violations = append(violations, evaluateTestComplexityViolations(ctx, root)...)
 	if len(violations) > 0 {
 		return &GateResult{
 			GateName: g.Name(), Passed: false,

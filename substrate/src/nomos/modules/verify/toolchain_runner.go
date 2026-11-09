@@ -119,7 +119,12 @@ func executeGoTestWithPackages(ctx *VerifyContext, root, targetDir, snapshotKey 
 	cmdCtx, cancel := context.WithTimeout(context.Background(), goToolchainTimeout)
 	defer cancel()
 
-	args := append([]string{"test", "-cover"}, pkgs...)
+	runProfile := prepareGoCoverProfileRunPath(root)
+	args := []string{"test", "-cover"}
+	if runProfile != "" {
+		args = append(args, "-coverprofile="+runProfile)
+	}
+	args = append(args, pkgs...)
 	cmd := exec.CommandContext(cmdCtx, "go", args...)
 	cmd.Dir = targetDir
 	cmd.Env = buildGoToolchainEnv(root, targetDir)
@@ -127,6 +132,7 @@ func executeGoTestWithPackages(ctx *VerifyContext, root, targetDir, snapshotKey 
 	outStr := string(out)
 
 	if err != nil {
+		cleanupRunCoverProfile(runProfile)
 		return &ToolchainSuiteReceipt{
 			SnapshotSHA256: snapshotKey,
 			GoPassed:       false,
@@ -135,6 +141,7 @@ func executeGoTestWithPackages(ctx *VerifyContext, root, targetDir, snapshotKey 
 		}
 	}
 
+	persistGoCoverProfile(ctx, root, runProfile, pkgs)
 	return &ToolchainSuiteReceipt{
 		SnapshotSHA256: snapshotKey,
 		GoPassed:       true,
