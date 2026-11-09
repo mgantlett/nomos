@@ -95,10 +95,11 @@ func RecallRepoPatternsForTask(repoRoot, taskKey, queryHint string, touchedFiles
 	return recallRepoPatternsWithTask(repoRoot, taskKey, queryHint, touchedFiles, limit, true)
 }
 
-func collectRecalledContents(store *Store, repoRoot, taskKey string, candidates []*Memory, recordAccess bool) []string {
+func collectRecalledContents(store *Store, repoRoot, taskKey, targetScope string, candidates []*Memory, recordAccess bool) []string {
 	out := make([]string, 0, len(candidates))
 	for _, c := range candidates {
-		if recordAccess && shouldRecordTaskAccess(repoRoot, taskKey, c.ID) {
+		scopedMatch := targetScope != "" && targetScope != workspaceScopeLabel && strings.Contains(c.Topic, targetScope)
+		if recordAccess && scopedMatch && shouldRecordTaskAccess(repoRoot, taskKey, c.ID) {
 			if aErr := store.RecordAccess(c.ID); aErr != nil {
 				// best effort
 			}
@@ -108,8 +109,8 @@ func collectRecalledContents(store *Store, repoRoot, taskKey string, candidates 
 	return out
 }
 
-func synthesizeTrapResolution(repoRoot string, entry GateTrapEntry, touchedFiles []string, fallbackSummary string) string {
-	relFile := locateTrappedRepoFile(repoRoot, entry.Message, touchedFiles)
+func synthesizeTrapResolution(repoRoot string, entry GateTrapEntry, salient string, touchedFiles []string, walkthrough, fallbackSummary string) string {
+	relFile := locateTrappedRepoFile(repoRoot, salient, entry.Message, touchedFiles)
 	if relFile == "" {
 		return fallbackSummary
 	}
@@ -120,22 +121,60 @@ func synthesizeTrapResolution(repoRoot string, entry GateTrapEntry, touchedFiles
 	}
 	symbols := extractAllFileSymbols(absPath, data)
 	base := filepath.Base(relFile)
-	if len(symbols) == 0 {
-		return fmt.Sprintf("Refactored %s - %s", base, fallbackSummary)
+	matchedNote := findMatchingWalkthroughLine(walkthrough, base)
+	prefix := fmt.Sprintf("Refactored %s", base)
+	if len(symbols) > 0 {
+		prefix = fmt.Sprintf("Refactored %s [%s]", base, strings.Join(symbols, ", "))
 	}
-	return fmt.Sprintf("Refactored %s [%s] - %s", base, strings.Join(symbols, ", "), fallbackSummary)
+	if matchedNote != "" {
+		return fmt.Sprintf("%s - %s", prefix, matchedNote)
+	}
+	if len(symbols) > 0 {
+		return prefix
+	}
+	return fmt.Sprintf("%s - %s", prefix, fallbackSummary)
 }
 
-func locateTrappedRepoFile(repoRoot, message string, touchedFiles []string) string {
-	for _, m := range trapRelPathPattern.FindAllStringSubmatch(message, 6) {
-		if len(m) > 1 {
-			cand := strings.TrimPrefix(filepath.ToSlash(strings.TrimSpace(m[1])), "./")
-			if isRecognizedRepoFile(repoRoot, cand, touchedFiles) {
-				return cand
-			}
+func findMatchingWalkthroughLine(walkthrough, base string) string {
+	lowerBase := strings.ToLower(strings.TrimSpace(base))
+	stem := strings.TrimSuffix(lowerBase, strings.ToLower(filepath.Ext(lowerBase)))
+	for _, raw := range strings.Split(walkthrough, "\n") {
+		line := cleanWalkthroughProseLine(raw)
+		if len(line) < 8 {
+			continue
+		}
+		lowerLine := strings.ToLower(line)
+		if (lowerBase != "" && strings.Contains(lowerLine, lowerBase)) || (len(stem) >= 5 && strings.Contains(lowerLine, stem)) {
+			return truncateEllipsis(line, 120)
 		}
 	}
-	for _, m := range trapBaseLinePattern.FindAllStringSubmatch(message, 6) {
+	return ""
+}
+
+func locateTrappedRepoFile(repoRoot, salient, fullMessage string, touchedFiles []string) string {
+	if found := scanMessageForTrappedFile(repoRoot, salient, touchedFiles); found != "" {
+		return found
+	}
+	return scanMessageForTrappedFile(repoRoot, fullMessage, touchedFiles)
+}
+
+func scanMessageForTrappedFile(repoRoot, message string, touchedFiles []string) string {
+	for _, m := range trapRelPathPattern.FindAllStringSubmatch(message, 12) {
+		if len(m) < 2 {
+			continue
+		}
+		cand := resolveCandidateRelPath(repoRoot, m[1])
+		if len(touchedFiles) > 0 {
+			if isTouchedRepoFile(repoRoot, cand, touchedFiles) {
+				return cand
+			}
+			continue
+		}
+		if isRecognizedRepoFile(repoRoot, cand, nil) {
+			return cand
+		}
+	}
+	for _, m := range trapBaseLinePattern.FindAllStringSubmatch(message, 8) {
 		if len(m) > 1 {
 			for _, tf := range touchedFiles {
 				norm := normalizePatternPath(repoRoot, tf)

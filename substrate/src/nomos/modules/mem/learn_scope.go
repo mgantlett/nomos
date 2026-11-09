@@ -47,25 +47,35 @@ func DeriveTrapScope(repoRoot, message string, touchedFiles []string) string {
 }
 
 func extractMessageRelPathScope(repoRoot, message string, touchedFiles []string) string {
-	for _, match := range trapRelPathPattern.FindAllStringSubmatch(message, 8) {
+	matches := trapRelPathPattern.FindAllStringSubmatch(message, 16)
+	var fallback string
+	for _, match := range matches {
 		if len(match) < 2 {
 			continue
 		}
-		cand := strings.TrimPrefix(filepath.ToSlash(strings.TrimSpace(match[1])), "./")
-		if repoRoot != "" && filepath.IsAbs(match[1]) {
-			if rel, err := filepath.Rel(repoRoot, match[1]); err == nil && !strings.HasPrefix(rel, "..") {
-				cand = filepath.ToSlash(rel)
-			}
-		}
-		if isRecognizedRepoFile(repoRoot, cand, touchedFiles) {
+		cand := resolveCandidateRelPath(repoRoot, match[1])
+		if isTouchedRepoFile(repoRoot, cand, touchedFiles) {
 			return dirToScopeLabel(filepath.ToSlash(filepath.Dir(cand)))
 		}
+		if fallback == "" && isRecognizedRepoFile(repoRoot, cand, touchedFiles) {
+			fallback = dirToScopeLabel(filepath.ToSlash(filepath.Dir(cand)))
+		}
 	}
-	return ""
+	return fallback
 }
 
-func isRecognizedRepoFile(repoRoot, cand string, touchedFiles []string) bool {
-	if strings.HasPrefix(cand, "github.com/") || strings.HasPrefix(cand, "golang.org/") {
+func resolveCandidateRelPath(repoRoot, raw string) string {
+	cand := strings.TrimPrefix(filepath.ToSlash(strings.TrimSpace(raw)), "./")
+	if repoRoot != "" && filepath.IsAbs(raw) {
+		if rel, err := filepath.Rel(repoRoot, raw); err == nil && !strings.HasPrefix(rel, "..") {
+			cand = filepath.ToSlash(rel)
+		}
+	}
+	return cand
+}
+
+func isTouchedRepoFile(repoRoot, cand string, touchedFiles []string) bool {
+	if cand == "" || strings.HasPrefix(cand, "github.com/") || strings.HasPrefix(cand, "golang.org/") {
 		return false
 	}
 	for _, tf := range touchedFiles {
@@ -73,6 +83,16 @@ func isRecognizedRepoFile(repoRoot, cand string, touchedFiles []string) bool {
 		if norm == cand || strings.HasSuffix(norm, "/"+cand) {
 			return true
 		}
+	}
+	return false
+}
+
+func isRecognizedRepoFile(repoRoot, cand string, touchedFiles []string) bool {
+	if strings.HasPrefix(cand, "github.com/") || strings.HasPrefix(cand, "golang.org/") {
+		return false
+	}
+	if isTouchedRepoFile(repoRoot, cand, touchedFiles) {
+		return true
 	}
 	if repoRoot != "" {
 		if fi, err := os.Stat(filepath.Join(repoRoot, filepath.FromSlash(cand))); err == nil && !fi.IsDir() {
@@ -116,5 +136,35 @@ func dirToScopeLabel(dir string) string {
 		return "root"
 	}
 	return dir
+}
+
+func selectTouchedDiagnosticLine(lines []string, repoRoot string, touchedFiles []string) string {
+	if len(touchedFiles) == 0 || len(lines) == 0 {
+		return ""
+	}
+	for i, line := range lines {
+		if i == 0 && len(lines) > 1 && strings.HasSuffix(line, ":") {
+			continue
+		}
+		if lineMentionsTouchedFile(repoRoot, line, touchedFiles) {
+			return combineColonHeaderWithDetail(lines[0], line)
+		}
+	}
+	return ""
+}
+
+func lineMentionsTouchedFile(repoRoot, line string, touchedFiles []string) bool {
+	for _, m := range trapRelPathPattern.FindAllStringSubmatch(line, 4) {
+		if len(m) > 1 && isTouchedRepoFile(repoRoot, resolveCandidateRelPath(repoRoot, m[1]), touchedFiles) {
+			return true
+		}
+	}
+	for _, tf := range touchedFiles {
+		base := filepath.Base(normalizePatternPath(repoRoot, tf))
+		if base != "" && strings.Contains(line, base+":") {
+			return true
+		}
+	}
+	return false
 }
 

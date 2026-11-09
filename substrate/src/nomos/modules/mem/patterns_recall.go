@@ -45,11 +45,12 @@ func recallRepoPatternsWithTask(repoRoot, taskKey, queryHint string, touchedFile
 		return nil
 	}
 
-	rankRepoPatterns(candidates, DeriveDirectoryScope(repoRoot, touchedFiles), queryHint)
+	targetScope := DeriveDirectoryScope(repoRoot, touchedFiles)
+	rankRepoPatterns(candidates, targetScope, queryHint)
 	if len(candidates) > limit {
 		candidates = candidates[:limit]
 	}
-	return collectRecalledContents(store, repoRoot, taskKey, candidates, recordAccess)
+	return collectRecalledContents(store, repoRoot, taskKey, targetScope, candidates, recordAccess)
 }
 
 func filterActiveRepoPatterns(all []*Memory, repoID string) []*Memory {
@@ -156,10 +157,17 @@ func isBuiltInStructuralASTTopic(topic string) bool {
 	lower := strings.ToLower(strings.TrimSpace(topic))
 	prefixes := []string{
 		"pitfall:cognitive_complexity",
+		"pitfall:cognitive_debt_score",
+		"pitfall:max_file_loc",
 		"pitfall:function_length",
 		"pitfall:file_length",
 		"pitfall:docstring_density",
 		"pitfall:statement_coverage",
+		"pitfall:unchecked_error_hygiene",
+		"pitfall:anti-shim_ast",
+		"pitfall:tdd_test_pair",
+		"pitfall:dead-code_reachability",
+		"pitfall:go_toolchain_gate",
 	}
 	for _, p := range prefixes {
 		if strings.HasPrefix(lower, p) {

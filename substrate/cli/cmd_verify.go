@@ -118,17 +118,23 @@ func runVerificationOutput(out io.Writer, targetDir, commitRange string, baselin
 		}
 	}
 	if !report.Passed {
-		recordFailedReportTraps(repoRoot, targetDir, activeTask, report)
-		for _, res := range report.GateResults {
-			if !res.Passed && res.GateName == "Plane Separation Invariant" {
-				nErr := types.NewNomosError(types.ErrCodeCrossPlaneMutation, "%s", res.Message)
-				nErr.Remedy = res.Remedy
-				return nErr
-			}
-		}
-		return types.NewNomosError(types.ErrCodeInvariant, "verification failed: %d/%d gates passed", report.GatesPassed, report.GatesTotal)
+		return handleFailedVerificationReport(repoRoot, targetDir, activeTask, allFiles, baseline, report)
 	}
 	return nil
+}
+
+func handleFailedVerificationReport(repoRoot, targetDir, activeTask string, allFiles, baseline bool, report *verify.PipelineReport) error {
+	if !allFiles && !baseline {
+		recordFailedReportTraps(repoRoot, targetDir, activeTask, report)
+	}
+	for _, res := range report.GateResults {
+		if !res.Passed && res.GateName == "Plane Separation Invariant" {
+			nErr := types.NewNomosError(types.ErrCodeCrossPlaneMutation, "%s", res.Message)
+			nErr.Remedy = res.Remedy
+			return nErr
+		}
+	}
+	return types.NewNomosError(types.ErrCodeInvariant, "verification failed: %d/%d gates passed", report.GatesPassed, report.GatesTotal)
 }
 
 func renderVerificationSummary(report *verify.PipelineReport) {

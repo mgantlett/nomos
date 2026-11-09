@@ -109,7 +109,7 @@ func DistillTaskLearnings(repoRoot, taskKey, walkthrough string, touchedFiles []
 
 	repoID := filepath.Base(filepath.Clean(repoRoot))
 	fixSummary := summarizeWalkthroughFix(walkthrough)
-	saved := persistDistilledTraps(store, entries, repoRoot, repoID, touchedFiles, taskKey, fixSummary)
+	saved := persistDistilledTraps(store, entries, repoRoot, repoID, touchedFiles, taskKey, walkthrough, fixSummary)
 	removeTaskRecallLedger(repoRoot, taskKey)
 
 	if rErr := os.Remove(bufPath); rErr != nil && !os.IsNotExist(rErr) {
@@ -118,7 +118,7 @@ func DistillTaskLearnings(repoRoot, taskKey, walkthrough string, touchedFiles []
 	return saved, nil
 }
 
-func persistDistilledTraps(store *Store, entries []GateTrapEntry, repoRoot, repoID string, touchedFiles []string, taskKey, fixSummary string) int {
+func persistDistilledTraps(store *Store, entries []GateTrapEntry, repoRoot, repoID string, touchedFiles []string, taskKey, walkthrough, fixSummary string) int {
 	saved := 0
 	seenTrapSig := make(map[string]bool)
 	upperTask := strings.ToUpper(taskKey)
@@ -127,18 +127,15 @@ func persistDistilledTraps(store *Store, entries []GateTrapEntry, repoRoot, repo
 		if saved >= 5 {
 			break
 		}
-		scope := entry.Scope
-		if scope == "" || scope == workspaceScopeLabel {
-			scope = DeriveTrapScope(repoRoot, entry.Message, touchedFiles)
-		}
-		salient := compactLine(entry.Message, 140)
+		salient := compactTrapDiagnostic(entry.Message, repoRoot, touchedFiles, 140)
+		scope := resolveAlignedTrapScope(repoRoot, salient, entry, touchedFiles)
 		sigKey := strings.ToLower(strings.TrimSpace(scope + "|" + salient))
 		if salient == "" || seenTrapSig[sigKey] {
 			continue
 		}
 		seenTrapSig[sigKey] = true
 		topic := formatPitfallTopic(entry.GateName, scope)
-		resolvedFix := synthesizeTrapResolution(repoRoot, entry, touchedFiles, fixSummary)
+		resolvedFix := synthesizeTrapResolution(repoRoot, entry, salient, touchedFiles, walkthrough, fixSummary)
 		rec := &Memory{
 			RepoID:  repoID,
 			Kind:    KindPitfall,
@@ -153,6 +150,17 @@ func persistDistilledTraps(store *Store, entries []GateTrapEntry, repoRoot, repo
 		}
 	}
 	return saved
+}
+
+func resolveAlignedTrapScope(repoRoot, salient string, entry GateTrapEntry, touchedFiles []string) string {
+	scope := DeriveTrapScope(repoRoot, salient, touchedFiles)
+	if scope != "" && scope != workspaceScopeLabel {
+		return scope
+	}
+	if entry.Scope != "" && entry.Scope != workspaceScopeLabel {
+		return entry.Scope
+	}
+	return DeriveTrapScope(repoRoot, entry.Message, touchedFiles)
 }
 
 func (s *Store) supersedeOlderTopicPitfalls(repoID, topic string, newestID int) {
@@ -208,7 +216,7 @@ func recallRepoPitfallsWithTask(repoRoot, taskKey string, touchedFiles []string,
 	if len(candidates) > limit {
 		candidates = candidates[:limit]
 	}
-	return collectRecalledContents(store, repoRoot, taskKey, candidates, recordAccess)
+	return collectRecalledContents(store, repoRoot, taskKey, targetScope, candidates, recordAccess)
 }
 
 func rankRepoPitfalls(candidates []*Memory, targetScope string) {
@@ -225,67 +233,129 @@ func rankRepoPitfalls(candidates []*Memory, targetScope string) {
 func formatPitfallTopic(gateName, scope string) string {
 	cleanGate := strings.ToLower(strings.TrimSpace(gateName))
 	cleanGate = strings.ReplaceAll(cleanGate, " ", "_")
-	if len(cleanGate) > 32 {
-		cleanGate = cleanGate[:32]
+	if len(cleanGate) > 48 {
+		cleanGate = strings.TrimRight(cleanGate[:48], "_")
 	}
 	return fmt.Sprintf("pitfall:%s:%s", cleanGate, scope)
 }
 
 func summarizeWalkthroughFix(walkthrough string) string {
 	for _, raw := range strings.Split(walkthrough, "\n") {
-		line := strings.TrimSpace(raw)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		line = strings.TrimLeft(line, "-*0123456789. ")
+		line := cleanWalkthroughProseLine(raw)
 		if len(line) >= 8 {
-			return compactLine(line, 120)
+			return truncateEllipsis(line, 120)
 		}
 	}
 	return "resolved gate violation and passed 42/42 DoD verification"
 }
 
-func compactLine(s string, maxLen int) string {
-	rawLines := strings.Split(strings.TrimSpace(s), "\n")
+func cleanWalkthroughProseLine(raw string) string {
+	line := strings.TrimSpace(raw)
+	if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "```") || strings.HasPrefix(line, "|") {
+		return ""
+	}
+	line = strings.TrimLeft(line, "-*0123456789.) ")
+	line = strings.ReplaceAll(line, "**", "")
+	line = strings.TrimSpace(line)
+	if strings.HasSuffix(line, ":") {
+		return ""
+	}
+	return line
+}
+
+func compactTrapDiagnostic(s, repoRoot string, touchedFiles []string, maxLen int) string {
+	nonEmpty := splitTrimmedLines(s)
+	if len(nonEmpty) == 0 {
+		return ""
+	}
+	for i, line := range nonEmpty {
+		if fail := extractTestRunnerFailLine(nonEmpty, i, line); fail != "" {
+			return truncateEllipsis(fail, maxLen)
+		}
+	}
+	if matched := selectTouchedDiagnosticLine(nonEmpty, repoRoot, touchedFiles); matched != "" {
+		return truncateEllipsis(matched, maxLen)
+	}
+	return truncateEllipsis(selectSalientDiagnosticLine(nonEmpty), maxLen)
+}
+
+func splitTrimmedLines(s string) []string {
 	var nonEmpty []string
-	for _, l := range rawLines {
+	for _, l := range strings.Split(strings.TrimSpace(s), "\n") {
 		if trimmed := strings.TrimSpace(l); trimmed != "" {
 			nonEmpty = append(nonEmpty, trimmed)
 		}
 	}
-	if len(nonEmpty) == 0 {
-		return ""
+	return nonEmpty
+}
+
+func truncateEllipsis(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
 	}
-	combined := selectSalientDiagnosticLine(nonEmpty)
-	if len(combined) <= maxLen {
-		return combined
-	}
-	return combined[:maxLen] + "..."
+	return s[:maxLen] + "..."
 }
 
 func selectSalientDiagnosticLine(lines []string) string {
 	for i, line := range lines {
-		if idx := strings.Index(line, "--- FAIL:"); idx >= 0 {
-			failLine := strings.TrimSpace(line[idx:])
-			if i+1 < len(lines) && !strings.HasPrefix(lines[i+1], "FAIL") {
-				return failLine + " (" + lines[i+1] + ")"
-			}
-			return failLine
+		if fail := extractTestRunnerFailLine(lines, i, line); fail != "" {
+			return fail
 		}
 		if isCompilerOrPanicLine(line) {
-			return line
+			return combineColonHeaderWithDetail(lines[0], line)
 		}
 	}
+	return fallbackSalientLine(lines)
+}
+
+func extractTestRunnerFailLine(lines []string, idx int, line string) string {
+	if pos := strings.Index(line, "--- FAIL:"); pos >= 0 {
+		failLine := strings.TrimSpace(line[pos:])
+		if idx+1 < len(lines) && !strings.HasPrefix(lines[idx+1], "FAIL") {
+			return failLine + " (" + lines[idx+1] + ")"
+		}
+		return failLine
+	}
+	if strings.HasPrefix(line, "not ok ") {
+		if strings.Contains(lines[0], "TAP version") {
+			prefix := strings.TrimSpace(strings.TrimSuffix(lines[0], "TAP version 13"))
+			return strings.TrimSpace(prefix + " " + line)
+		}
+		return line
+	}
+	return ""
+}
+
+func fallbackSalientLine(lines []string) string {
 	combined := lines[0]
 	if len(lines) > 1 && strings.Contains(combined, "Traceback") {
-		combined = strings.Replace(combined, "Traceback (most recent call last):", lines[len(lines)-1], 1)
+		return strings.Replace(combined, "Traceback (most recent call last):", lines[len(lines)-1], 1)
+	}
+	if len(lines) > 1 && strings.HasSuffix(combined, ":") {
+		return combineColonHeaderWithDetail(combined, lines[1])
 	}
 	return combined
+}
+
+func combineColonHeaderWithDetail(header, detail string) string {
+	cleanDetail := strings.TrimSpace(strings.TrimLeft(detail, "- "))
+	if header == detail || !strings.HasSuffix(header, ":") {
+		return detail
+	}
+	return header + " " + cleanDetail
 }
 
 func isCompilerOrPanicLine(line string) bool {
 	if strings.HasPrefix(line, "ok ") || strings.HasPrefix(line, "ok\t") || strings.Contains(line, ": ok\t") || strings.Contains(line, ": ok ") {
 		return false
 	}
-	return strings.Contains(line, ".go:") || strings.HasPrefix(line, "panic:") || strings.HasPrefix(line, "FAIL\t")
+	if strings.HasPrefix(line, "panic:") || strings.HasPrefix(line, "FAIL\t") {
+		return true
+	}
+	for _, ext := range []string{".go:", ".ts:", ".tsx:", ".js:", ".mjs:", ".svelte:", ".py:", ".rs:"} {
+		if strings.Contains(line, ext) {
+			return true
+		}
+	}
+	return false
 }

@@ -94,7 +94,7 @@ func runTaskChoreWithOpts(title, rawPlane, rawProject string) error {
 	}
 
 	renderTaskStartedBanner(key, wtPath, "EDIT")
-	renderLearnedPitfallsBriefing(repoRoot, key)
+	renderLearnedPitfallsBriefing(repoRoot, t.Title)
 	renderPhaseTransitionNextActions(os.Stdout, types.PhaseEdit, key, wtPath, repoRoot)
 	return nil
 }
@@ -122,15 +122,15 @@ func provisionChoreWorktreeAndLease(key string) (string, string, error) {
 	return wtPath, mgr.RepoRoot, nil
 }
 
-func renderLearnedPitfallsBriefing(repoRoot, taskKey string) {
-	pitfalls := mem.RecallRepoPitfallsForTask(repoRoot, taskKey, nil, 3)
+func renderLearnedPitfallsBriefing(repoRoot, taskTitle string) {
+	pitfalls := mem.RecallRepoPitfallsReadOnly(repoRoot, nil, 3)
 	for i, p := range pitfalls {
 		if i == 0 {
 			fmt.Printf("  %s\n", uiWarnStyle.Render(fmt.Sprintf("Learned Pitfalls (%d active):", len(pitfalls))))
 		}
 		fmt.Printf("    ⚡ %s\n", uiValueStyle.Render(p))
 	}
-	patterns := mem.RecallRepoPatternsForTask(repoRoot, taskKey, "", nil, 2)
+	patterns := mem.RecallRepoPatternsReadOnly(repoRoot, taskTitle, nil, 2)
 	for i, pat := range patterns {
 		if i == 0 {
 			fmt.Printf("  %s\n", uiHeaderStyle.Render(fmt.Sprintf("Verified Patterns (%d active):", len(patterns))))

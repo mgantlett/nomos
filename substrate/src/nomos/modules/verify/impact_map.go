@@ -58,7 +58,7 @@ func collectCommittedBranchFiles(worktreeDir, taskKey string, addRel func(string
 	if taskKey == "" {
 		return
 	}
-	if out, err := workspace.SafeGitCommand(worktreeDir, "log", "-E", "--grep=\\[(Task )?"+taskKey, "--name-only", "--pretty=format:").Output(); err == nil {
+	if out, err := workspace.SafeGitCommand(worktreeDir, "log", "-E", "--grep=\\[(Task )?"+taskKey+"(\\]|:)", "--name-only", "--pretty=format:").Output(); err == nil {
 		for _, line := range strings.Split(string(out), "\n") {
 			addRel(line)
 		}

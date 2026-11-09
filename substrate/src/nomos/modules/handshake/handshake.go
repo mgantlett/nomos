@@ -153,11 +153,11 @@ func computeActiveTaskImpact(treeRoot, activeTask string) ([]string, []string) {
 
 func recallMnemeHandshakeContext(primaryRoot, activeTask string, modifiedFiles []string) ([]string, []string, []string) {
 	var pitfalls, patterns []string
-	if strings.TrimSpace(activeTask) == "" {
+	taskTitle := resolveActiveTaskTitle(activeTask)
+	if strings.TrimSpace(activeTask) == "" || len(modifiedFiles) == 0 {
 		pitfalls = mem.RecallRepoPitfallsReadOnly(primaryRoot, modifiedFiles, 3)
-		patterns = mem.RecallRepoPatternsReadOnly(primaryRoot, "", modifiedFiles, 3)
+		patterns = mem.RecallRepoPatternsReadOnly(primaryRoot, taskTitle, modifiedFiles, 3)
 	} else {
-		taskTitle := resolveActiveTaskTitle(activeTask)
 		pitfalls = mem.RecallRepoPitfallsForTask(primaryRoot, activeTask, modifiedFiles, 3)
 		patterns = mem.RecallRepoPatternsForTask(primaryRoot, activeTask, taskTitle, modifiedFiles, 3)
 	}
