@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [v4.12.1] - 2026-11-09
+
+> Episodic Pitfall Scope Hygiene, Polyglot TAP/Exception Diagnostic Windowing, Hybrid Release-Notes Ledger Compiler & Coverage Persistence (Apache 2.0)
+
+### Episodic Memory & Pitfall Distillation Hardening (`nomos mem`, `nomos handshake`)
+- **Automatic Dead-Scope Tombstoning & Cross-Folder Habit Consolidation (`SUB-1965`, `SUB-1960`)**: Auto-tombstones stale pitfall scopes whose target directories no longer exist, skips ephemeral test-assertion noise, prioritizes `touchedFiles` during multi-violation gate trap distillation, and scopes cold-start `nomos handshake` / task-start recalls in read-only mode so `access_count` is never artificially inflated.
+
+### Polyglot Verification & Release Pipeline Hardening (`nomos verify`, `packaging/render-release-notes.sh`)
+- **Salient Polyglot Toolchain Diagnostic Window (`SUB-1962`, `SUB-1960`)**: Anchors the 400-byte `extractSalientToolchainWindow` diagnostic excerpt on the first `not ok`, `FAIL`, or exception marker across multi-hundred-line Node TAP, Python, Rust, `.ts`, and `.svelte` test outputs rather than truncating inside `TAP version 13` passing headers.
+- **Live Statement Coverage Persistence & Test Complexity Ratchet (`SUB-1952`)**: Persists `.tmp/coverage.out` during `nomos verify`, extracts a testable CLI verification seam, and enforces test cyclomatic complexity alongside local-symbol TDD coupling.
+- **Hybrid GitHub Release Notes & Commit Ledger Compiler (`SUB-1953`)**: Wires `.github/workflows/release.yaml` to `packaging/render-release-notes.sh` so curated `CHANGELOG.md` highlights, automatic `vX.Y.0` milestone patch rollups, and the chronological SHA-linked `[INT-*]` / `[SUB-*]` commit ledger render together on every GitHub Release.
+
+---
+
 ## [v4.12.0] - 2026-11-08
 
 > Zero-Config Brownfield Auto-Detection & Monotonic AST Ratchet, Full 11-Language Polyglot Verification Parity, Switchable `nomos.yaml` Brownfield Modes, Navigation-First Handshake & Read-Spiral Gyroscope (Apache 2.0)
