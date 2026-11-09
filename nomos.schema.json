@@ -86,6 +86,38 @@
           "description": "Static AST, test hygiene, and cross-plane verification settings.",
           "type": "object",
           "properties": {
+            "architecture_boundaries": {
+              "description": "Declarative directional package import rules enforced across Go AST and polyglot source files.",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "allow_only": {
+                    "description": "Exclusive allowlist of permitted import path patterns for matching source files.",
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "forbid_imports": {
+                    "description": "Import path patterns disallowed from matching source files.",
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "from": {
+                    "description": "Workspace-relative source file glob governed by this boundary rule.",
+                    "type": "string"
+                  },
+                  "name": {
+                    "description": "Optional human-readable identifier for an architecture boundary rule.",
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
             "contracts": {
               "description": "Contract schema parity, UI membrane, and ingress boundaries.",
               "type": "object",

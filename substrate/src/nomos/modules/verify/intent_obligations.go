@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/task"
 )
 
@@ -46,6 +47,11 @@ func evaluateConfiguredObligations(gateName string, ctx *VerifyContext, root, ta
 	cfg := resolveVerifyConfig(ctx)
 	if cfg == nil {
 		return nil
+	}
+	if len(cfg.Governance.QualityGates.ArchitectureBoundaries) > 0 {
+		if boundaryFailure := evaluateConfiguredArchitectureBoundaries(gateName, ctx, root, cfg.Governance.QualityGates.ArchitectureBoundaries); boundaryFailure != nil {
+			return boundaryFailure
+		}
 	}
 	contracts := cfg.Governance.QualityGates.GetContractsBoundary().Contracts
 	if !contracts.Enabled {
@@ -93,6 +99,23 @@ func checkStaleSpecObligations(gateName, root string) *GateResult {
 		Passed:  false,
 		Message: fmt.Sprintf("stale specification obligation(s) detected: %s", strings.Join(items, "; ")),
 		Remedy:  "execute and sync a downstream SUB-* task referencing the updated specification to refresh spec_digests in refs/notes/nomos/releases (Law 4)",
+	}
+}
+
+func evaluateConfiguredArchitectureBoundaries(gateName string, ctx *VerifyContext, root string, rules []config.ArchitectureBoundaryRule) *GateResult {
+	scanRoot := root
+	if ctx != nil && ctx.WorktreePath != "" {
+		scanRoot = ctx.WorktreePath
+	}
+	violations := EvaluateArchitectureBoundaries(scanRoot, nil, rules)
+	if len(violations) == 0 {
+		return nil
+	}
+	return &GateResult{
+		GateName: gateName, ProbeID: "intent_traceability", Law: 7, Ring: RingSyntactic,
+		Passed:  false,
+		Message: fmt.Sprintf("architecture boundary violation(s): %s", strings.Join(violations, "; ")),
+		Remedy:  "remove forbidden cross-layer imports or route calls through an allowed interface package per nomos.yaml architecture_boundaries (Law 7)",
 	}
 }
 

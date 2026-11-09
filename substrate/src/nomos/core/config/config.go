@@ -112,23 +112,32 @@ type ThresholdsConfig struct {
 	MaxMagicStringDuplication int `yaml:"max_magic_string_duplication,omitempty" json:"max_magic_string_duplication,omitempty"`
 }
 
+// ArchitectureBoundaryRule declares directional import obligations for source globs (#ArchitectureBoundaryRule).
+type ArchitectureBoundaryRule struct {
+	Name          string   `yaml:"name,omitempty" json:"name,omitempty"`
+	From          string   `yaml:"from" json:"from"`
+	ForbidImports []string `yaml:"forbid_imports,omitempty" json:"forbid_imports,omitempty"`
+	AllowOnly     []string `yaml:"allow_only,omitempty" json:"allow_only,omitempty"`
+}
+
 // QualityGatesConfig defines verification policies.
 type QualityGatesConfig struct {
-	ForbiddenLiterals            []string                 `yaml:"forbidden_literals,omitempty" json:"forbidden_literals,omitempty"`
-	HasForbiddenLiteralsOverride bool                     `yaml:"-" json:"-"`
-	ForbiddenShims               []string                 `yaml:"forbidden_shims,omitempty" json:"forbidden_shims,omitempty"`
-	StrictMode                   bool                     `yaml:"strict_mode" json:"strict_mode"`
-	VerifyScope                  string                   `yaml:"verify_scope,omitempty" json:"verify_scope,omitempty"`
-	IntentTwinMode               string                   `yaml:"intent_twin_mode,omitempty" json:"intent_twin_mode,omitempty"`
-	TDDMode                      string                   `yaml:"tdd_mode,omitempty" json:"tdd_mode,omitempty"`
-	TDDExclude                   []string                 `yaml:"tdd_exclude,omitempty" json:"tdd_exclude,omitempty"`
-	CoverageMode                 string                   `yaml:"coverage_mode,omitempty" json:"coverage_mode,omitempty"`
-	PolyglotToolchains           *bool                    `yaml:"polyglot_toolchains,omitempty" json:"polyglot_toolchains,omitempty"`
-	Exclude                      []string                 `yaml:"exclude,omitempty" json:"exclude,omitempty"`
-	IntentSourceRoots            []string                 `yaml:"intent_source_roots,omitempty" json:"intent_source_roots,omitempty"`
-	SubstrateSourceRoots         []string                 `yaml:"substrate_source_roots,omitempty" json:"substrate_source_roots,omitempty"`
-	Contracts                    *ContractsBoundaryConfig `yaml:"contracts,omitempty" json:"contracts,omitempty"`
-	Thresholds                   ThresholdsConfig         `yaml:"thresholds" json:"thresholds"`
+	ForbiddenLiterals            []string                   `yaml:"forbidden_literals,omitempty" json:"forbidden_literals,omitempty"`
+	HasForbiddenLiteralsOverride bool                       `yaml:"-" json:"-"`
+	ForbiddenShims               []string                   `yaml:"forbidden_shims,omitempty" json:"forbidden_shims,omitempty"`
+	StrictMode                   bool                       `yaml:"strict_mode" json:"strict_mode"`
+	VerifyScope                  string                     `yaml:"verify_scope,omitempty" json:"verify_scope,omitempty"`
+	IntentTwinMode               string                     `yaml:"intent_twin_mode,omitempty" json:"intent_twin_mode,omitempty"`
+	TDDMode                      string                     `yaml:"tdd_mode,omitempty" json:"tdd_mode,omitempty"`
+	TDDExclude                   []string                   `yaml:"tdd_exclude,omitempty" json:"tdd_exclude,omitempty"`
+	CoverageMode                 string                     `yaml:"coverage_mode,omitempty" json:"coverage_mode,omitempty"`
+	PolyglotToolchains           *bool                      `yaml:"polyglot_toolchains,omitempty" json:"polyglot_toolchains,omitempty"`
+	Exclude                      []string                   `yaml:"exclude,omitempty" json:"exclude,omitempty"`
+	IntentSourceRoots            []string                   `yaml:"intent_source_roots,omitempty" json:"intent_source_roots,omitempty"`
+	SubstrateSourceRoots         []string                   `yaml:"substrate_source_roots,omitempty" json:"substrate_source_roots,omitempty"`
+	ArchitectureBoundaries       []ArchitectureBoundaryRule `yaml:"architecture_boundaries,omitempty" json:"architecture_boundaries,omitempty"`
+	Contracts                    *ContractsBoundaryConfig   `yaml:"contracts,omitempty" json:"contracts,omitempty"`
+	Thresholds                   ThresholdsConfig           `yaml:"thresholds" json:"thresholds"`
 }
 
 // IsPolyglotToolchainsEnabled reports whether polyglot toolchain auto-discovery is active (@intent: #QualityGatesConfig).

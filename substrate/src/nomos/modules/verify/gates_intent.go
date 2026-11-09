@@ -288,12 +288,22 @@ func (g *ThresholdIntegrityGate) Evaluate(ctx *VerifyContext) (*GateResult, erro
 
 func checkWorktreeGovernanceDowngrade(ctx *VerifyContext, wtCfg *config.EcosystemConfig) string {
 	trunkCfg, parseErr := loadPinnedTrunkConfig(ctx, wtCfg)
-	if parseErr != "" {
+	if parseErr != "" || trunkCfg == nil {
 		return parseErr
 	}
-	if trunkCfg == nil {
-		return ""
+	if flagIssue := checkBooleanGovernanceFlagsDowngrade(trunkCfg, wtCfg); flagIssue != "" {
+		return flagIssue
 	}
+	if twinIssue := checkIntentTwinModeDowngrade(trunkCfg, wtCfg); twinIssue != "" {
+		return twinIssue
+	}
+	if modeIssue := checkTestGateModeDowngrade(trunkCfg, wtCfg); modeIssue != "" {
+		return modeIssue
+	}
+	return checkArchitectureBoundariesDowngrade(trunkCfg, wtCfg)
+}
+
+func checkBooleanGovernanceFlagsDowngrade(trunkCfg, wtCfg *config.EcosystemConfig) string {
 	if trunkCfg.Governance.QualityGates.StrictMode && !wtCfg.Governance.QualityGates.StrictMode {
 		return "worktree nomos.yaml illegally downgrades governance.quality_gates.strict_mode from trunk baseline (true -> false)"
 	}
@@ -302,12 +312,6 @@ func checkWorktreeGovernanceDowngrade(ctx *VerifyContext, wtCfg *config.Ecosyste
 	}
 	if trunkCfg.Governance.Boundary.LockDependencies && !wtCfg.Governance.Boundary.LockDependencies {
 		return "worktree nomos.yaml illegally downgrades governance.boundary.lock_dependencies from trunk baseline (true -> false)"
-	}
-	if twinIssue := checkIntentTwinModeDowngrade(trunkCfg, wtCfg); twinIssue != "" {
-		return twinIssue
-	}
-	if modeIssue := checkTestGateModeDowngrade(trunkCfg, wtCfg); modeIssue != "" {
-		return modeIssue
 	}
 	return ""
 }

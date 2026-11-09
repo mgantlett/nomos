@@ -46,12 +46,22 @@ func EvaluateFastFileRadar(repoRoot, filePath string) (*FastFileRadarResult, err
 	ctx := &VerifyContext{RepoRoot: repoRoot, WorktreePath: wtRoot}
 	evaluateFastSecretAndEnv(wtRoot, absPath, res.File, string(data), res)
 	evaluateFastForbiddenLiterals(ctx, wtRoot, absPath, res)
+	evaluateFastArchitectureBoundaries(ctx, wtRoot, absPath, res)
 
 	if !isSupportedPolyglotSourceFile(absPath) || strings.HasSuffix(absPath, "_test.go") {
 		return res, nil
 	}
 	evaluateFastASTBudgets(ctx, wtRoot, absPath, data, res)
 	return res, nil
+}
+
+func evaluateFastArchitectureBoundaries(ctx *VerifyContext, wtRoot, absPath string, res *FastFileRadarResult) {
+	cfg := resolveVerifyConfig(ctx)
+	if cfg == nil || len(cfg.Governance.QualityGates.ArchitectureBoundaries) == 0 {
+		return
+	}
+	violations := EvaluateArchitectureBoundaries(wtRoot, []string{absPath}, cfg.Governance.QualityGates.ArchitectureBoundaries)
+	res.Breaches = append(res.Breaches, violations...)
 }
 
 func resolveRadarWorktreeRoot(repoRoot, absPath string) string {
