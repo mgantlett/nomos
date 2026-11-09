@@ -72,6 +72,27 @@ func TestRecompileSubstrateBinary_NotNomosRepo(t *testing.T) {
 	recompileSubstrateBinary(tempDir)
 }
 
+func TestRunPostSyncScript_ExecutesWhenPresent(t *testing.T) {
+	repoDir := t.TempDir()
+	scriptsDir := filepath.Join(repoDir, constants.DirAgents, "scripts")
+	if err := os.MkdirAll(scriptsDir, 0o755); err != nil {
+		t.Fatalf("mkdir scriptsDir: %v", err)
+	}
+	markerPath := filepath.Join(repoDir, "synced.txt")
+	scriptBody := "#!/usr/bin/env bash\necho 'post-sync-ok' > \"" + markerPath + "\"\n"
+	scriptPath := filepath.Join(scriptsDir, "post-sync.sh")
+	if err := os.WriteFile(scriptPath, []byte(scriptBody), 0o755); err != nil {
+		t.Fatalf("write post-sync.sh: %v", err)
+	}
+
+	recompileSubstrateBinary(repoDir)
+
+	got, err := os.ReadFile(markerPath)
+	if err != nil || !strings.Contains(string(got), "post-sync-ok") {
+		t.Fatalf("expected post-sync.sh to execute and write marker, err=%v got=%q", err, string(got))
+	}
+}
+
 func TestBuildStaticRecompileEnv_EnforcesZeroCGO(t *testing.T) {
 	input := []string{"PATH=/usr/bin", "CGO_ENABLED=1", "HOME=/tmp/test"}
 	got := buildStaticRecompileEnv(input)

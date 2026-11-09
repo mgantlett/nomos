@@ -17,6 +17,8 @@ import (
 // whenever a synced commit modifies Go source or module manifests under substrate/,
 // and purges any obsolete legacy binaries in ~/.nomos/bin (Law 6).
 func recompileSubstrateBinary(repoRoot string) {
+	defer runPostSyncScript(repoRoot)
+
 	homeDir := resolveUserHomeDir()
 	if homeDir == "" {
 		return
@@ -208,4 +210,24 @@ func purgeLegacyDuplicateBinary(homeDir, canonicalTarget string) {
 		}
 	}
 	removeBestEffort(legacyDir)
+}
+
+// runPostSyncScript executes an optional workspace post-sync lifecycle script
+// (.agents/scripts/post-sync.sh) after 2PC trunk merge and Go binary synchronization.
+func runPostSyncScript(repoRoot string) {
+	if strings.TrimSpace(repoRoot) == "" {
+		return
+	}
+	scriptPath := filepath.Join(repoRoot, constants.DirAgents, "scripts", "post-sync.sh")
+	info, err := os.Stat(scriptPath)
+	if err != nil || info.IsDir() {
+		return
+	}
+	cmd := exec.Command("bash", scriptPath)
+	cmd.Dir = repoRoot
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if runErr := cmd.Run(); runErr != nil {
+		fmt.Printf("⚠️  Warning: post-sync script failed: %v\n", runErr)
+	}
 }
