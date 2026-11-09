@@ -281,3 +281,4 @@ func serializeBoundaryRule(r config.ArchitectureBoundaryRule) string {
 	sort.Strings(allow)
 	return fmt.Sprintf("%s|%s|%s", strings.TrimSpace(r.From), strings.Join(forbid, ","), strings.Join(allow, ","))
 }
+
