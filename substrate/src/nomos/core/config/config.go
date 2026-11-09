@@ -62,13 +62,15 @@ func IsValidEgressMode(mode string) bool {
 	}
 }
 
-// ContractsConfig defines contract schema and backend verification roots.
+// ContractsConfig defines contract schema, obligation binding, and backend verification roots (#ContractsConfig).
 type ContractsConfig struct {
-	Enabled      bool     `yaml:"enabled" json:"enabled"`
-	SpecRoots    []string `yaml:"spec_roots,omitempty" json:"spec_roots,omitempty"`
-	SchemaFiles  []string `yaml:"schema_files,omitempty" json:"schema_files,omitempty"`
-	BackendRoots []string `yaml:"backend_roots,omitempty" json:"backend_roots,omitempty"`
-	StrictTypes  bool     `yaml:"strict_types" json:"strict_types"`
+	Enabled                bool     `yaml:"enabled" json:"enabled"`
+	SpecRoots              []string `yaml:"spec_roots,omitempty" json:"spec_roots,omitempty"`
+	SchemaFiles            []string `yaml:"schema_files,omitempty" json:"schema_files,omitempty"`
+	BackendRoots           []string `yaml:"backend_roots,omitempty" json:"backend_roots,omitempty"`
+	StrictTypes            bool     `yaml:"strict_types" json:"strict_types"`
+	VerifyObligations      bool     `yaml:"verify_obligations,omitempty" json:"verify_obligations,omitempty"`
+	FailOnStaleObligations bool     `yaml:"fail_on_stale_obligations,omitempty" json:"fail_on_stale_obligations,omitempty"`
 }
 
 // MembraneConfig defines membrane boundary verification.

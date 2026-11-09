@@ -68,6 +68,15 @@ func TestGenerateAndVerifyConfigJSONSchema(t *testing.T) {
 
 func TestWorkspaceNomosSchemaByteParity(t *testing.T) {
 	schemaPath := filepath.Clean("../../../../../nomos.schema.json")
+	if os.Getenv("NOMOS_WRITE_SCHEMA") == "1" {
+		raw, gErr := GenerateConfigJSONSchema()
+		if gErr != nil {
+			t.Fatalf("GenerateConfigJSONSchema failed: %v", gErr)
+		}
+		if wErr := os.WriteFile(schemaPath, raw, 0644); wErr != nil {
+			t.Fatalf("write nomos.schema.json: %v", wErr)
+		}
+	}
 	data, err := os.ReadFile(schemaPath)
 	if err != nil {
 		t.Skipf("workspace nomos.schema.json not present at %s: %v", schemaPath, err)

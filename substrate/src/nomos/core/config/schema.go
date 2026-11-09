@@ -65,6 +65,8 @@ var configFieldDescriptions = map[string]string{
 	"schema_files":                 "Generated JSON Schema artifacts verified for Go SSoT byte parity.",
 	"backend_roots":                "Backend source directories verified against contract schemas.",
 	"strict_types":                 "Require strict structural type alignment across boundaries.",
+	"verify_obligations":           "Require executable test bindings (@verifies TC-*) for all specification TC-* vectors.",
+	"fail_on_stale_obligations":    "Reject verification when an Intent specification changed after its latest SUB-* receipt.",
 	"membrane":                     "Frontend-to-backend DTO boundary verification settings.",
 	"frontend_roots":               "Frontend component directories audited for defensive masks.",
 	"backend_dto_roots":            "Backend DTO directories paired with frontend roots.",

@@ -108,6 +108,10 @@
                     "enabled": {
                       "type": "boolean"
                     },
+                    "fail_on_stale_obligations": {
+                      "description": "Reject verification when an Intent specification changed after its latest SUB-* receipt.",
+                      "type": "boolean"
+                    },
                     "schema_files": {
                       "description": "Generated JSON Schema artifacts verified for Go SSoT byte parity.",
                       "type": "array",
@@ -124,6 +128,10 @@
                     },
                     "strict_types": {
                       "description": "Require strict structural type alignment across boundaries.",
+                      "type": "boolean"
+                    },
+                    "verify_obligations": {
+                      "description": "Require executable test bindings (@verifies TC-*) for all specification TC-* vectors.",
                       "type": "boolean"
                     }
                   },

@@ -35,6 +35,9 @@ func (g *IntentTraceabilityGate) Name() string { return "Intent Traceability Val
 func (g *IntentTraceabilityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	root := resolveIntentRoot(ctx)
 	targetDir := findSubstrateSrc(root)
+	if oblFailure := evaluateConfiguredObligations(g.Name(), ctx, root, targetDir); oblFailure != nil {
+		return oblFailure, nil
+	}
 	if targetDir == "" {
 		return &GateResult{
 			GateName: g.Name(), ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
