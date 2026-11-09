@@ -96,12 +96,23 @@ func operationalSurfaceContractCases() []repoContractCase {
 			forbid: []string{"go-version: 'stable'"},
 		},
 		{
-			name:    "TC-REL-010 uninstall script purges canonical NOMOS_HOME directory",
+			name:    "TC-REL-010 uninstall script purges canonical NOMOS_HOME directory and is POSIX sh tolerant",
 			relPath: "uninstall.sh",
 			mustHave: []string{
 				"NOMOS_HOME:-$HOME/" + constants.DirNomosHome,
+				"(set -o pipefail) 2>/dev/null && set -o pipefail",
 			},
-			forbid: []string{"XDG_DATA_HOME"},
+			forbid: []string{"XDG_DATA_HOME", "set -euo pipefail"},
+		},
+		{
+			name:    "TC-REL-010b install script is POSIX sh tolerant and guides Windows shells to WSL2 or GitHub Releases",
+			relPath: "install.sh",
+			mustHave: []string{
+				"(set -o pipefail) 2>/dev/null && set -o pipefail",
+				"mingw*|msys*|cygwin*",
+				"https://github.com/mgantlett/nomos/releases/latest",
+			},
+			forbid: []string{"set -euo pipefail"},
 		},
 		{
 			name:    "TC-REL-011 bug report template excludes sovereign plugins and includes Windsurf",

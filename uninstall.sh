@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eu
+(set -o pipefail) 2>/dev/null && set -o pipefail
 
 # ==============================================================================
 # Nomos: Deterministic Engineering Substrate Uninstaller (SSoT)

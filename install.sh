@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eu
+(set -o pipefail) 2>/dev/null && set -o pipefail
 
 # ==============================================================================
 # Nomos: Zero-Friction Deterministic Engineering Substrate Installer
@@ -33,6 +34,14 @@ if [ "$OS" = "darwin" ]; then
 elif [ "$OS" = "linux" ]; then
     OS="Linux"
 else
+    case "$OS" in
+        mingw*|msys*|cygwin*)
+            echo "❌ Native Windows shell detected ($OS)."
+            echo "   Recommended on Windows: run this installer inside WSL2 (Ubuntu/Debian), or download precompiled Windows .zip binaries from:"
+            echo "   https://github.com/mgantlett/nomos/releases/latest"
+            exit 1
+            ;;
+    esac
     echo "❌ Unsupported OS: $OS"
     exit 1
 fi
