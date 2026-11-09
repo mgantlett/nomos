@@ -168,6 +168,12 @@ func isBuiltInStructuralASTTopic(topic string) bool {
 		"pitfall:tdd_test_pair",
 		"pitfall:dead-code_reachability",
 		"pitfall:go_toolchain_gate",
+		"pitfall:polyglot_toolchain",
+		"pitfall:intent_steel-man",
+		"pitfall:bilateral_parity",
+		"pitfall:plane_separation",
+		"pitfall:hermetic_worktree",
+		"pitfall:zero_filesystem_alias",
 	}
 	for _, p := range prefixes {
 		if strings.HasPrefix(lower, p) {
@@ -181,7 +187,7 @@ func isGraduationEligibleWithDepth(m *Memory, repoID string, topicDepth int) boo
 	if m == nil || m.Status != StatusActive || m.Kind != KindPitfall {
 		return false
 	}
-	if strings.ToLower(strings.TrimSpace(m.RepoID)) != repoID {
+	if strings.ToLower(strings.TrimSpace(m.RepoID)) != repoID || isEphemeralTestAssertionContent(m.Content) {
 		return false
 	}
 	if isBuiltInStructuralASTTopic(m.Topic) {

@@ -241,6 +241,9 @@ func isPitfallEligibleForScope(m *Memory, repoID, targetScope string, topicDepth
 	if targetScope != workspaceScopeLabel && strings.Contains(m.Topic, targetScope) {
 		return true
 	}
+	if isEphemeralTestAssertionContent(m.Content) {
+		return false
+	}
 	if topicDepth >= 2 || m.CreatedAt.IsZero() {
 		return true
 	}

@@ -110,6 +110,7 @@ func DistillTaskLearnings(repoRoot, taskKey, walkthrough string, touchedFiles []
 	repoID := filepath.Base(filepath.Clean(repoRoot))
 	fixSummary := summarizeWalkthroughFix(walkthrough)
 	saved := persistDistilledTraps(store, entries, repoRoot, repoID, touchedFiles, taskKey, walkthrough, fixSummary)
+	SweepRepoPitfallHygiene(store, repoRoot, repoID, time.Now().UTC())
 	removeTaskRecallLedger(repoRoot, taskKey)
 
 	if rErr := os.Remove(bufPath); rErr != nil && !os.IsNotExist(rErr) {
