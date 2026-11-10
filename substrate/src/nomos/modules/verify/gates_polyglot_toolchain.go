@@ -93,7 +93,7 @@ func verifyPythonToolchain(ctx *VerifyContext, root string) (string, *GateResult
 	args := append([]string{"-B", "-c", pyCheckScript}, pyFiles...)
 	cmd := exec.CommandContext(cmdCtx, pyBin, args...)
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), envPyNoBytecodeKV, envToolchainGateKV)
+	cmd.Env = sanitizedToolchainEnv(envPyNoBytecodeKV, envToolchainGateKV)
 	if out, cErr := cmd.CombinedOutput(); cErr != nil {
 		return "", toolchainFailure("Python syntax compilation failed", string(out), "fix Python syntax errors (python3 -m py_compile)")
 	}
@@ -105,7 +105,7 @@ func verifyPythonToolchain(ctx *VerifyContext, root string) (string, *GateResult
 				pytestArgs := append([]string{"-q", "--tb=short", "-p", "no:cacheprovider"}, targets...)
 				tCmd := exec.CommandContext(cmdCtx, pytestBin, pytestArgs...)
 				tCmd.Dir = root
-				tCmd.Env = append(os.Environ(), envPyNoBytecodeKV, envToolchainGateKV)
+				tCmd.Env = sanitizedToolchainEnv(envPyNoBytecodeKV, envToolchainGateKV)
 				if out, tErr := tCmd.CombinedOutput(); tErr != nil {
 					return "", toolchainFailure("Python pytest suite failed", string(out), "resolve failing Python unit tests (pytest -q)")
 				}
@@ -204,7 +204,7 @@ func verifyRustToolchain(root string) (string, *GateResult) {
 	if hasRustTests(root) {
 		tCmd := exec.CommandContext(cmdCtx, cargoBin, dirTest, "--no-fail-fast", "--quiet")
 		tCmd.Dir = root
-		tCmd.Env = append(os.Environ(), envToolchainGateKV)
+		tCmd.Env = sanitizedToolchainEnv(envToolchainGateKV)
 		if out, tErr := tCmd.CombinedOutput(); tErr != nil {
 			return "", toolchainFailure("Rust cargo test failed", string(out), "resolve failing Rust unit tests or borrow errors (cargo test)")
 		}
@@ -212,7 +212,7 @@ func verifyRustToolchain(root string) (string, *GateResult) {
 	}
 	cmd := exec.CommandContext(cmdCtx, cargoBin, "check", "--quiet")
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), envToolchainGateKV)
+	cmd.Env = sanitizedToolchainEnv(envToolchainGateKV)
 	if out, cErr := cmd.CombinedOutput(); cErr != nil {
 		return "", toolchainFailure("Rust cargo check failed", string(out), "resolve Rust borrow/type errors (cargo check)")
 	}

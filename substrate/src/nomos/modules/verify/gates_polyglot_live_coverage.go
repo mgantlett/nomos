@@ -85,7 +85,7 @@ func runNodeLiveV8Coverage(root string) (float64, string, string) {
 
 	cmd := exec.CommandContext(cmdCtx, bin, args...)
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), "CI=true", "NODE_V8_COVERAGE="+covDir, envToolchainGateKV)
+	cmd.Env = sanitizedToolchainEnv("CI=true", "NODE_V8_COVERAGE="+covDir, envToolchainGateKV)
 	out, runErr := cmd.CombinedOutput()
 	if runErr != nil {
 		return 0, "", "JS/TS coverage test execution failed: " + truncateToolchainOutput(string(out))
@@ -236,7 +236,7 @@ func runRubyStdlibCoverage(root string) (float64, string, string) {
 	args := append([]string{"-e", rubyStdlibCoverageScript, root}, testFiles...)
 	cmd := exec.CommandContext(cmdCtx, rubyBin, args...)
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), envToolchainGateKV)
+	cmd.Env = sanitizedToolchainEnv(envToolchainGateKV)
 	out, runErr := cmd.CombinedOutput()
 	outStr := string(out)
 	if runErr != nil {
@@ -293,7 +293,7 @@ func runDotnetLiveCoverage(root string) (float64, string, string) {
 
 	cmd := exec.CommandContext(cmdCtx, dotnetBin, dirTest, "--nologo", "-v", "q", "--collect:XPlat Code Coverage", "--results-directory", resDir)
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), envToolchainGateKV)
+	cmd.Env = sanitizedToolchainEnv(envToolchainGateKV)
 	if _, runErr := cmd.CombinedOutput(); runErr != nil {
 		return 0, "", ""
 	}

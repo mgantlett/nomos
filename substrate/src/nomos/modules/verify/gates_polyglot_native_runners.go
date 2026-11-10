@@ -68,20 +68,20 @@ func runCMakeToolchain(cmdCtx context.Context, root string) (string, *GateResult
 	}
 	if !fileExistsInDir(buildDir, "CMakeCache.txt") {
 		cfgCmd := exec.CommandContext(cmdCtx, cmakeBin, "-S", root, "-B", buildDir)
-		cfgCmd.Env = append(os.Environ(), envToolchainGateKV)
+		cfgCmd.Env = sanitizedToolchainEnv(envToolchainGateKV)
 		if out, cfgErr := cfgCmd.CombinedOutput(); cfgErr != nil {
 			return "", toolchainFailure("C/C++ cmake configure failed", string(out), "fix CMakeLists.txt configuration errors"), true
 		}
 	}
 	bCmd := exec.CommandContext(cmdCtx, cmakeBin, "--build", buildDir)
-	bCmd.Env = append(os.Environ(), envToolchainGateKV)
+	bCmd.Env = sanitizedToolchainEnv(envToolchainGateKV)
 	if out, bErr := bCmd.CombinedOutput(); bErr != nil {
 		return "", toolchainFailure("C/C++ cmake build failed", string(out), "resolve C/C++ compiler errors (cmake --build)"), true
 	}
 	if fileExistsInDir(buildDir, "CTestTestfile.cmake") {
 		if ctestBin, tErr := exec.LookPath("ctest"); tErr == nil {
 			tCmd := exec.CommandContext(cmdCtx, ctestBin, "--test-dir", buildDir, "--output-on-failure")
-			tCmd.Env = append(os.Environ(), envToolchainGateKV)
+			tCmd.Env = sanitizedToolchainEnv(envToolchainGateKV)
 			if out, runErr := tCmd.CombinedOutput(); runErr != nil {
 				return "", toolchainFailure("C/C++ ctest suite failed", string(out), "resolve failing CTest unit tests (ctest --output-on-failure)"), true
 			}
@@ -142,7 +142,7 @@ func runSyntaxCompiler(cmdCtx context.Context, bin string, extraFlags []string, 
 		args = append(args, f)
 		cmd := exec.CommandContext(cmdCtx, bin, args...)
 		cmd.Dir = root
-		cmd.Env = append(os.Environ(), envToolchainGateKV)
+		cmd.Env = sanitizedToolchainEnv(envToolchainGateKV)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return toolchainFailure("C/C++ syntax compilation failed", string(out), "fix C/C++ compiler syntax errors (-fsyntax-only)")
 		}

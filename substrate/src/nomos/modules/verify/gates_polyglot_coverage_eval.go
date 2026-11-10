@@ -255,7 +255,7 @@ func runPythonStdlibCoverage(ctx *VerifyContext, root string) (float64, string, 
 	args := append([]string{"-B", "-c", pyStdlibTraceRunner, root}, targets...)
 	cmd := exec.CommandContext(cmdCtx, pyBin, args...)
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), envPyNoBytecodeKV, envToolchainGateKV)
+	cmd.Env = sanitizedToolchainEnv(envPyNoBytecodeKV, envToolchainGateKV)
 	out, runErr := cmd.CombinedOutput()
 	outStr := string(out)
 	if runErr != nil {

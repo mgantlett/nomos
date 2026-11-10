@@ -60,7 +60,7 @@ func verifyRubyToolchain(ctx *VerifyContext, root string) (string, *GateResult) 
 	args := append([]string{"-e", rbCheckScript}, rbFiles...)
 	cmd := exec.CommandContext(cmdCtx, rubyBin, args...)
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), "NOMOS_IN_TOOLCHAIN_GATE=1")
+	cmd.Env = sanitizedToolchainEnv("NOMOS_IN_TOOLCHAIN_GATE=1")
 	if out, cErr := cmd.CombinedOutput(); cErr != nil {
 		return "", toolchainFailure("Ruby syntax compilation failed", string(out), "fix Ruby syntax errors (ruby -c)")
 	}
@@ -132,7 +132,7 @@ func executeRubyMinitestRunner(root, bin string, args []string) (string, *GateRe
 
 	tCmd := exec.CommandContext(tCtx, bin, args...)
 	tCmd.Dir = root
-	tCmd.Env = append(os.Environ(), "RAILS_ENV=test", "NOMOS_IN_TOOLCHAIN_GATE=1")
+	tCmd.Env = sanitizedToolchainEnv("RAILS_ENV=test", "NOMOS_IN_TOOLCHAIN_GATE=1")
 	out, err := tCmd.CombinedOutput()
 	output := string(out)
 	if err != nil {
@@ -180,7 +180,7 @@ func verifyJVMToolchain(root string) (string, *GateResult) {
 		}
 		cmd := exec.CommandContext(cmdCtx, gradleBin, goal, "--quiet")
 		cmd.Dir = root
-		cmd.Env = append(os.Environ(), envToolchainGateKV)
+		cmd.Env = sanitizedToolchainEnv(envToolchainGateKV)
 		if out, gErr := cmd.CombinedOutput(); gErr != nil {
 			return "", toolchainFailure("JVM gradle "+goal+" failed", string(out), "resolve Java/Kotlin compiler or test errors")
 		}
@@ -199,7 +199,7 @@ func verifyJVMToolchain(root string) (string, *GateResult) {
 	}
 	cmd := exec.CommandContext(cmdCtx, mvnBin, goal, "-q")
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), envToolchainGateKV)
+	cmd.Env = sanitizedToolchainEnv(envToolchainGateKV)
 	if out, mErr := cmd.CombinedOutput(); mErr != nil {
 		return "", toolchainFailure("JVM maven "+goal+" failed", string(out), "resolve Java/Kotlin compiler or test errors")
 	}
@@ -224,7 +224,7 @@ func verifyCSharpToolchain(root string) (string, *GateResult) {
 	}
 	cmd := exec.CommandContext(cmdCtx, dotnetBin, subcmd, "--nologo", "-v", "q")
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), envToolchainGateKV)
+	cmd.Env = sanitizedToolchainEnv(envToolchainGateKV)
 	if out, dErr := cmd.CombinedOutput(); dErr != nil {
 		return "", toolchainFailure("C# dotnet "+subcmd+" failed", string(out), "resolve C# compiler or unit test errors (dotnet "+subcmd+")")
 	}

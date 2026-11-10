@@ -150,8 +150,13 @@ func executeGoTestWithPackages(ctx *VerifyContext, root, targetDir, snapshotKey 
 	}
 }
 
+func sanitizedToolchainEnv(extra ...string) []string {
+	env := workspace.SanitizedGitEnv()
+	return append(env, extra...)
+}
+
 func buildGoToolchainEnv(root, targetDir string) []string {
-	env := os.Environ()
+	env := workspace.SanitizedGitEnv()
 	if val := os.Getenv("GOWORK"); val != "" {
 		env = append(env, "GOWORK="+val)
 	} else if !hasLocalGoWork(root, targetDir) {

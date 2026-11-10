@@ -44,7 +44,7 @@ func runPythonUnittestFallback(cmdCtx context.Context, pyBin, root string, targe
 	args := append([]string{"-B", "-c", pyUnittestRunnerScript, root}, targets...)
 	tCmd := exec.CommandContext(cmdCtx, pyBin, args...)
 	tCmd.Dir = root
-	tCmd.Env = append(os.Environ(), envPyNoBytecodeKV, envToolchainGateKV)
+	tCmd.Env = sanitizedToolchainEnv(envPyNoBytecodeKV, envToolchainGateKV)
 	if out, err := tCmd.CombinedOutput(); err != nil {
 		return "", toolchainFailure("Python unittest suite failed", string(out), "resolve failing Python unit tests (python3 -m unittest)")
 	}
@@ -106,7 +106,7 @@ func verifyPureJSSyntax(cmdCtx context.Context, ctx *VerifyContext, root string)
 		}
 		cmd := exec.CommandContext(cmdCtx, nodeBin, "--check", p)
 		cmd.Dir = root
-		cmd.Env = append(os.Environ(), envToolchainGateKV)
+		cmd.Env = sanitizedToolchainEnv(envToolchainGateKV)
 		if out, cErr := cmd.CombinedOutput(); cErr != nil {
 			return false, toolchainFailure("JavaScript syntax check failed", string(out), "fix JavaScript syntax errors (node --check)")
 		}
@@ -129,7 +129,7 @@ func verifyTSCompiler(cmdCtx context.Context, root string) (bool, *GateResult) {
 	}
 	cmd := exec.CommandContext(cmdCtx, tscBin, "--noEmit")
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), envToolchainGateKV)
+	cmd.Env = sanitizedToolchainEnv(envToolchainGateKV)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return false, toolchainFailure("TypeScript typecheck failed", string(out), "resolve TypeScript compiler errors (tsc --noEmit)")
 	}
@@ -147,7 +147,7 @@ func runJSTestSuite(cmdCtx context.Context, root string) (bool, *GateResult) {
 	}
 	cmd := exec.CommandContext(cmdCtx, bin, args...)
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), "CI=true", envToolchainGateKV)
+	cmd.Env = sanitizedToolchainEnv("CI=true", envToolchainGateKV)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return false, toolchainFailure("JavaScript/TypeScript test suite failed", string(out), "resolve failing JS/TS unit tests")
 	}

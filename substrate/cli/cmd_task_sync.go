@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -146,6 +147,7 @@ func rebaseOntoTrunkIfDiverged(repoRoot, wtPath, branch string) (bool, error) {
 }
 
 func fastForwardTrunkMerge(repoRoot, branch string) error {
+	healAccidentalBareConfig(repoRoot)
 	unlockTrunk(repoRoot)
 	mergeCmd := workspace.SafeGitCommand(repoRoot, "merge", "--ff-only", branch)
 	if out, err := mergeCmd.CombinedOutput(); err != nil {
@@ -154,6 +156,24 @@ func fastForwardTrunkMerge(repoRoot, branch string) error {
 	}
 	lockTrunk(repoRoot)
 	return nil
+}
+
+func healAccidentalBareConfig(repoRoot string) {
+	if repoRoot == "" {
+		return
+	}
+	gitDir := filepath.Join(repoRoot, ".git")
+	fi, err := os.Stat(gitDir)
+	if err != nil || !fi.IsDir() {
+		return
+	}
+	out, cfgErr := workspace.SafeGitCommand(repoRoot, "config", "--bool", "core.bare").Output()
+	if cfgErr != nil || strings.TrimSpace(string(out)) != "true" {
+		return
+	}
+	if setErr := workspace.SafeGitCommand(repoRoot, "config", "--bool", "core.bare", "false").Run(); setErr != nil {
+		// best-effort bare flag healing
+	}
 }
 
 func recordReleaseReceipt(repoRoot, wtPath, key, walkthroughPath, now string, report *verify.PipelineReport, specDigests map[string]string) {
@@ -243,6 +263,9 @@ func autoCommitDirtyWorktree(wtPath, key string, rec *task.TaskRecord, walkthrou
 	if err != nil || strings.TrimSpace(string(out)) == "" {
 		return nil
 	}
+	if discardPureWhitespaceAfterTaskCommit(wtPath, key, string(out)) {
+		return nil
+	}
 	var title string
 	if rec != nil {
 		title = rec.Title
@@ -255,6 +278,23 @@ func autoCommitDirtyWorktree(wtPath, key string, rec *task.TaskRecord, walkthrou
 		autoStage:       true,
 	}
 	return runTaskCommitCmd([]string{key}, opts)
+}
+
+func discardPureWhitespaceAfterTaskCommit(wtPath, key, porcelain string) bool {
+	for _, line := range strings.Split(porcelain, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "??") || strings.HasPrefix(trimmed, "A") || strings.HasPrefix(trimmed, "D") {
+			return false
+		}
+	}
+	subj, sErr := workspace.SafeGitCommand(wtPath, "log", "-n", "1", "--format=%s").Output()
+	if sErr != nil || !strings.Contains(string(subj), "["+key+"]") {
+		return false
+	}
+	if qErr := workspace.SafeGitCommand(wtPath, "diff", "--ignore-blank-lines", "--ignore-space-at-eol", "--quiet").Run(); qErr != nil {
+		return false
+	}
+	return workspace.SafeGitCommand(wtPath, "checkout", "--", ".").Run() == nil
 }
 
 func resolveTaskSyncSessionID(repoRoot, key string) string {
