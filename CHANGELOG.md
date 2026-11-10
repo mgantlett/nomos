@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [v4.13.2] - 2026-11-10
+
+> Self-Hosted 4-Layer Progressive Intent Compiler, 8 Canonical Layer 2 Domain Specifications (`99` Compiled Go SSoT Contracts, `186` Executable `@verifies TC-*` Vectors, `0` `NCTE-100` Diagnostics), and `N=108` Multi-Lab Open-Weight Brownfield Audit (Apache 2.0)
+
+### 4-Layer Progressive Intent Compiler & 8 Canonical Domain Specifications (`intent/intent.md`, `intent/architecture/specs/`, `intent/config/nomos.yaml`)
+- **8 Canonical Layer 2 Domain Specifications (`INT-1943`, `SUB-2147`, `INT-1944`, `SUB-2157`)**: Consolidated 37 historical per-task specifications into **8 Canonical Layer 2 Domain Specifications** under `intent/architecture/specs/` mapped 1-to-1 to `substrate/` packages (`go_ssot_and_json_schema_spec.md`, `nomos_hermetic_worktree_spec.md`, `task_lifecycle_cli_spec.md`, `nomos_intent_traceability_spec.md`, `tree_sitter_ast_gate_spec.md`, `mneme_memory_spec.md`, `nomos_controlled_technical_english_spec.md`, and `software_physics_engine_spec.md`) anchored by the Layer 0 North Star Charter (`intent/intent.md`).
+- **Full Compiled Go SSoT & Executable `TC-*` Obligation Parity (`INT-1944`, `SUB-2157`, `SUB-2150`, `SUB-2158`)**: Synthesized all `99` compiled Go SSoT struct and interface contracts (`VerifySpecTypeSignatures`) and `186` executable `@verifies TC-*` verification vectors (`VerifyExecutableObligations`) across `core/config`, `core/types`, `core/workspace`, `core/capbac`, `core/storage`, `modules/task`, `modules/verify`, `modules/verify/treesitter`, `modules/mem`, `modules/ncte`, `modules/handshake`, `modules/session`, `modules/telemetry`, and `cli`. Enabled repository-wide `strict_types: true`, `verify_obligations: true`, and `fail_on_stale_obligations: true` across `intent/architecture/specs` in `intent/config/nomos.yaml` with sealed Layer 3 SHA-256 `spec_digests` receipts in `refs/notes/nomos/releases`.
+- **NCTE-100 Controlled-English Lexicon Alignment (`SUB-2146`)**: Aligned the `NCTE-100` controlled lexicon (`Plane` vs. architectural `layer` terminology) and validated all 9 canonical Intent documents (`2,671` lines) with zero `NCTE-100` diagnostics under `IntentSteelmanGate` (`Cell 4.1`).
+
+### Multi-Lab Open-Weight Brownfield Audit (`README.md`)
+- **`N=108` Multi-Lab Open-Weight Brownfield Benchmark (`SUB-2154`)**: Documented the `108`-episode paired brownfield audit (`54` Stock vs. `54` Nomos `temp=0.0` episodes across Python, TypeScript, and Go on `6` open-weight models from `4` labs sized for single-card `16GB-24GB` GPUs), lifting verified resolution on the `14B-32B` production tier from **`27.8%` (`10 / 36`, `0%` hexagonal layer purity)** to **`86.1%` (`31 / 36`, `+58.3` pp, `100%` layer purity on all merged diffs)** while cutting token burn **`-43%` to `-57%`** on multi-file refactors, alongside Day-2 brownfield escape-hatch documentation.
+
+---
+
 ## [v4.13.1] - 2026-11-10
 
 > Zero-Ceremony Multi-Agent Onboarding Invisibility, 4-Layer Progressive Intent Compiler Charter (`TC-INT-01..06`), and Ledger-First GitHub Release Notes (Apache 2.0)
