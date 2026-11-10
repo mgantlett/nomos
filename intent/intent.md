@@ -7,183 +7,127 @@ date: "2026-10-01"
 last_updated: "2026-11-10"
 lineage:
   - INT-1941
+  - SUB-2134
+  - INT-1943
+  - SUB-2147
 plane: intent
 ssot_repository: nomos
 status: active
-title: "The Nomos Intent Plane Architectural Specification and Progressive Compiler Charter"
+title: "The Nomos Layer 0 North Star Charter and 4-Layer Progressive Intent Compiler"
 type: spec
-version: "4.13.0"
+version: "4.13.1"
 ---
 
-# The Nomos Intent Plane Architectural Specification and Progressive Compiler Charter
+# The Nomos Layer 0 North Star Charter and 4-Layer Progressive Intent Compiler
 
 ---
 
 ## 1. Executive Summary & Problem Statement
 
-Natural language serves as the declarative compilation source for AI agent execution in the Nomos substrate (`SPEC-INTENT-MANIFESTO`).
-Unconstrained prompting erodes module boundaries, whereas monolithic upfront specifications decay when Slice 1 meets runtime execution.
-The Nomos Intent plane establishes a progressive four-stage compilation substrate across Laws `1` through `7`:
-1. **Stage 0 (`intent/intent.md`)**: Captures global invariants, the seven statutory laws, and domain topology in a compact North Star charter.
-2. **Stage 1 (`intent/config/nomos.yaml`)**: Locks trunk-pinned `architecture_boundaries`, schema parity, and DoD thresholds before implementation begins.
-3. **Stage 2 (`intent/architecture/specs/*_spec.md`)**: Lowers requirements Just-In-Time one slice ahead using fenced contracts and `TC-*` obligation vectors.
-4. **Stage 3 (`worktrees/<repo>-SUB-<N>` & `refs/notes/nomos/releases`)**: Isolates worktree edits, runs 42 AST gates, seals SHA-256 `spec_digests`, and records verified remedies.
+Nomos is a deterministic Git worktree and AST compiler harness for AI-assisted software engineering.
+Without mechanical boundaries, coding agents mutate protected branches, violate package dependencies, and drift from specifications.
+Upfront waterfall specifications also decay when hundreds of speculative pages rot after initial commits.
+
+Nomos resolves both failure modes by self-hosting a **4-Layer Progressive Intent Compiler**:
+1. **Layer 0 (`intent/intent.md`)**: Defines the product North Star, the 7 non-negotiable laws, and the 8 core domains.
+2. **Layer 1 (`intent/config/nomos.yaml`)**: Locks package `architecture_boundaries` and enables `strict_types` and `verify_obligations` across `intent/architecture/specs`.
+3. **Layer 2 (`intent/architecture/specs/*_spec.md`)**: Maintains 8 canonical domain specifications containing compiled Go contracts and `TC-*` obligation tables.
+4. **Layer 3 (`worktrees/<repo>-SUB-<N>` & `refs/notes/nomos/releases`)**: Verifies `@verifies TC-*` tests inside isolated worktrees and seals SHA-256 release receipts.
+
+```mermaid
+flowchart TD
+    L0["Layer 0: North Star Charter<br/>(intent/intent.md - 7 Laws & 8 Domains)"]
+    L1["Layer 1: Executable Physics<br/>(intent/config/nomos.yaml - Boundaries & Contracts)"]
+    L2["Layer 2: 8 Canonical Domain Specs<br/>(intent/architecture/specs/*_spec.md - Go Types & TC-* Vectors)"]
+    L3["Layer 3: Hermetic 2PC Receipt<br/>(worktrees/nomos-SUB-N & refs/notes/nomos/releases)"]
+
+    L0 --> L1
+    L1 --> L2
+    L2 --> L3
+```
 
 ---
 
 ## 2. Axiomatic Invariants & Governing Laws
 
-The Intent plane establishes the seven governing laws of the Nomos dual-core architecture.
-The Substrate plane enforces all seven laws deterministically across runtime lifecycles.
+Every task executes on either the **Intent Plane (`INT-<N>`)** or the **Substrate Plane (`SUB-<N>`)**:
+- **Intent Plane (`INT-<N>`)**: Mutates Layer 0 (`intent/intent.md`), Layer 1 (`intent/config/nomos.yaml`), and Layer 2 (`intent/architecture/specs/*_spec.md`).
+- **Substrate Plane (`SUB-<N>`)**: Mutates Layer 3 (`substrate/**`), binds `@verifies TC-*` tests, and seals `2PC` Git Notes receipts.
 
-| Law # | Law Name | Core Architectural Invariant | Machine Enforcement Mechanism |
+| Law # | Law Name | Core Architectural Invariant | Enforcing Substrate Gate |
 | :---: | :--- | :--- | :--- |
-| **1** | **The Dual-Core Inversion Law** | Go core governs state; Tier 1 agents operate under indirect control. | `nomos verify`, Phase Discipline state machine (`Cell 1.2`) |
-| **2** | **The Non-Verbal Proof Law** | Zero conversational trust; correctness requires exit code `0` and AST proof. | 42 Go-native DoD Quality Gates (`nomos verify`) |
-| **3** | **The Hermetic Worktree Law** | Protected trunk branch `main` remains read-only; mutations occur strictly inside transient worktrees. | `ValidateWorktreeBoundary`, Pre-Commit Hooks (`Cell 3.2`) |
-| **4** | **The Single Source of Truth Law** | Every contract and schema binds to one compiled Go SSoT. | Static Go AST, `strict_types`, & `spec_digests` (`Cell 4.1` - `Cell 4.3`) |
-| **5** | **The Zero-Hardcoded-Path Law** | Source code prohibits path literals; directories resolve via dynamic configuration. | Configuration discovery (`config.LoadConfig()`, `Cell 5.1`) |
-| **6** | **The Canonical Singularity Law** | CLI engines and contract schemas prohibit aliases, synonyms, and wrappers. | Zero-Alias AST Parser validation (`Cell 6.1` - `Cell 6.3`) |
-| **7** | **The Fail-Closed Pre-Flight Law** | Mutations require declarative boundaries and pass mandatory DoD gates before sync. | CapBAC Object Capabilities, `architecture_boundaries`, `PlaneSeparationGate` (`Cell 7.1` - `Cell 7.3`) |
+| **1** | **Dual-Core Inversion** | Go core governs phase state; coding agents operate under indirect control. | `Cell 1.2 (phase_discipline)` |
+| **2** | **Non-Verbal Proof** | Every merge requires `42/42` gate exit `0` and `@verifies TC-*` bindings. | `Cell 2.2 (go_toolchain)` |
+| **3** | **Hermetic Worktree** | Trunk `main` remains read-only; mutations occur inside `worktrees/nomos-<KEY>`. | `Cell 3.2 (hermetic_worktree)` |
+| **4** | **Single Source of Truth** | Every contract possesses one compiled Go struct and reflected JSON Schema. | `Cell 4.1 (intent_traceability)` |
+| **5** | **Zero-Hardcoded-Path** | Paths resolve dynamically from repository root with zero workstation literals. | `Cell 5.2 (forbidden_literals)` |
+| **6** | **Canonical Singularity** | Zero CLI aliases, duplicate domain specs, or filesystem symlinks exist. | `Cell 6.2 (zero_alias)` |
+| **7** | **Fail-Closed Pre-Flight** | Cross-plane commits, boundary breaches, and stale obligations reject execution. | `Cell 7.1 (plane_separation)` |
 
 ---
 
-## 3. Progressive Four-Stage Intent Compiler & Pure 2-Plane Topology
+## 3. The 8 Canonical Domain Specifications (Layer 2 Architecture Map)
 
-Nomos eliminates intermediate plane taxonomies in favor of Pure 2-Plane Singularity coupled with progressive vertical lowering across four compilation stages.
+Instead of scattered task notes, `intent/architecture/specs/` maintains **8 Canonical Domain Specifications** mapped directly to `substrate/` packages:
 
-```mermaid
-flowchart TD
-    S0["Stage 0: North Star Charter<br/>(intent/intent.md - 7 Laws & Domain Invariants)"]
-    S1["Stage 1: Compiled Repository Physics<br/>(intent/config/nomos.yaml - Read-Only main & Architecture Boundaries)"]
-    S2["Stage 2: JIT Vertical-Slice Specification<br/>(intent/architecture/specs/*_spec.md - Fenced Types & TC-* Vectors)"]
-    S3["Stage 3: Hermetic Worktree Transaction<br/>(INT-N -> SUB-N + 42 AST Gates + Git Notes SHA-256 + mneme.db)"]
-
-    S0 -->|"Day 1 Distillation"| S1
-    S1 -->|"One Wave Ahead"| S2
-    S2 -->|"PLAN -> EDIT -> REVIEW -> SYNC"| S3
-    S3 -->|"SHA-256 Taint & Verified Remedies"| S2
-```
-
-### Plane & Compilation Stage Specifications
-- **Intent Plane (`INT-<N>`)**: Governs Stage 0 (`intent/intent.md`), Stage 1 (`intent/config/nomos.yaml`), and Stage 2 (`intent/architecture/specs/*_spec.md`).
-- **Substrate Plane (`SUB-<N>`)**: Implements Stage 3 across the Go compiler, polyglot AST engine, CLI commands, and Git Notes receipts.
-
-The substrate compiler validates task key singularity using regular expression `^(INT|SUB)-[0-9]+(-[a-z0-9-]+)?$`.
-Any task identifier referencing deprecated planes fails closed with error code `ERR_CANONICAL_VIOLATION`.
+| Domain # | Canonical Layer 2 Specification | Target `substrate/` Package | Primary Compiled Go SSoT Contracts |
+| :---: | :--- | :--- | :--- |
+| **1** | `go_ssot_and_json_schema_spec.md` | `core/config`, `core/types` | `JSONSchemaNode`, `EcosystemConfig` |
+| **2** | `nomos_hermetic_worktree_spec.md` | `core/workspace`, `core/capbac` | `Manager`, `WorktreeSession`, `CapabilityFlowGraph`, `MCPInvocation` |
+| **3** | `task_lifecycle_cli_spec.md` | `modules/task`, `core/storage` | `TaskRecord`, `Status`, `ReleaseNotePayload` |
+| **4** | `nomos_intent_traceability_spec.md` | `modules/verify` | `ContractsConfig`, `ArchitectureBoundaryRule`, `StaleSpecObligation` |
+| **5** | `tree_sitter_ast_gate_spec.md` | `modules/verify/treesitter` | `FunctionMetric`, `FileMetric`, `GateEvaluationReport` |
+| **6** | `mneme_memory_spec.md` | `modules/mem` | `Memory`, `MemoryKind`, `MemoryStatus` |
+| **7** | `nomos_controlled_technical_english_spec.md` | `modules/ncte`, `modules/handshake` | `NCTEBounds`, `NCTEPolicy`, `VocabularyEntry`, `IntentSteelmanGate` |
+| **8** | `software_physics_engine_spec.md` | `cli`, `modules/session` | `FileMass`, `CollisionVector`, `WorktreeHull` |
 
 ---
 
-## 4. Compiled Go SSoT Contracts
+## 4. Compiled Go SSoT North Star Contract
 
-Stage 1 and Stage 2 obligation proofs bind directly to compiled Go SSoT structs in `substrate/src/nomos/core/config` and `substrate/src/nomos/modules/task`:
+The following Go contract in `substrate/src/nomos/core/config/config.go` and `substrate/src/nomos/modules/task/task.go` anchors Layer 0:
 
 ```go
 package config
 
-// ContractsConfig defines contract schema, obligation binding, and backend verification roots (#ContractsConfig).
-type ContractsConfig struct {
-	Enabled                bool     `yaml:"enabled" json:"enabled"`
-	SpecRoots              []string `yaml:"spec_roots,omitempty" json:"spec_roots,omitempty"`
-	SchemaFiles            []string `yaml:"schema_files,omitempty" json:"schema_files,omitempty"`
-	BackendRoots           []string `yaml:"backend_roots,omitempty" json:"backend_roots,omitempty"`
-	StrictTypes            bool     `yaml:"strict_types" json:"strict_types"`
-	VerifyObligations      bool     `yaml:"verify_obligations,omitempty" json:"verify_obligations,omitempty"`
-	FailOnStaleObligations bool     `yaml:"fail_on_stale_obligations,omitempty" json:"fail_on_stale_obligations,omitempty"`
+// BoundaryConfig declares architectural package and CLI command boundary protections (#BoundaryConfig).
+type BoundaryConfig struct {
+	Enforce              bool     `yaml:"enforce" json:"enforce"`
+	ProhibitedPackages   []string `yaml:"prohibited_packages,omitempty" json:"prohibited_packages,omitempty"`
+	ProhibitedCommands   []string `yaml:"prohibited_commands,omitempty" json:"prohibited_commands,omitempty"`
+	LockDependencies     bool     `yaml:"lock_dependencies,omitempty" json:"lock_dependencies,omitempty"`
+	AllowedMCPServers    []string `yaml:"allowed_mcp_servers,omitempty" json:"allowed_mcp_servers,omitempty"`
+	BlockedMCPServers    []string `yaml:"blocked_mcp_servers,omitempty" json:"blocked_mcp_servers,omitempty"`
+	EgressMode           string   `yaml:"egress_mode,omitempty" json:"egress_mode,omitempty"`
+	AllowedEgressDomains []string `yaml:"allowed_egress_domains,omitempty" json:"allowed_egress_domains,omitempty"`
+	BlockedEgressDomains []string `yaml:"blocked_egress_domains,omitempty" json:"blocked_egress_domains,omitempty"`
 }
 
-// ArchitectureBoundaryRule declares directional import obligations for source globs (#ArchitectureBoundaryRule).
-type ArchitectureBoundaryRule struct {
-	Name          string   `yaml:"name,omitempty" json:"name,omitempty"`
-	From          string   `yaml:"from" json:"from"`
-	ForbidImports []string `yaml:"forbid_imports,omitempty" json:"forbid_imports,omitempty"`
-	AllowOnly     []string `yaml:"allow_only,omitempty" json:"allow_only,omitempty"`
-}
-```
+// ValidateTaskKey enforces canonical 2-plane task key singularity (INT-<N> or SUB-<N>).
+func ValidateTaskKey(key string) error
 
-```go
-package task
-
-// StaleSpecObligation identifies an Intent specification modified after its latest SUB-* verification receipt (#StaleSpecObligation).
-type StaleSpecObligation struct {
-	SpecPath       string `json:"spec_path"`
-	CurrentSHA256  string `json:"current_sha256"`
-	VerifiedSHA256 string `json:"verified_sha256"`
-	LastVerifiedBy string `json:"last_verified_by"`
-}
+// ValidateWorktreeBoundary blocks direct file mutations on protected trunk branches.
+func ValidateWorktreeBoundary(repoRoot, currentBranch, targetFile string) error
 ```
 
 ---
 
-## 5. Fail-Closed Verification Predicates and State Transitions
+## 5. Table-Driven Verification Vectors
 
-The Substrate engine compiles and validates the Intent plane using deterministic verification predicates.
-Verification terminates with exit code `1` whenever any predicate evaluates to false.
-
-### Deterministic Invariant Attestation Predicates
-1. **Plane Singularity Predicate ($P_{\text{singularity}}$)**:
-   $$\forall k \in \text{Tasks}, \quad \text{Prefix}(k) \in \{\text{"INT"}, \text{"SUB"}\}$$
-2. **Schema & Contract Parity Predicate ($P_{\text{parity}}$)**:
-   $$\forall c \in \text{Schemas}, \quad \text{SHA256}(\text{Schema}(c)) = \text{SHA256}(\text{Reflect}(\text{GoSSoT}(c)))$$
-3. **Spec Taint Freshness Predicate ($P_{\text{fresh}}$)**:
-   $$\forall s \in \text{TrackedSpecs}, \quad \text{SHA256}(s_{\text{HEAD}}) = \text{SpecDigests}_{\text{Notes}}(s)$$
-4. **Law 5 Dynamic Path Predicate ($P_{\text{path}}$)**:
-   $$\forall p \in \text{Paths}, \quad p \notin \text{LiteralBlacklist} \wedge p = \text{ResolveConfig}(\text{Key})$$
-
-### Pre-Flight Evaluation Rules
-- If $P_{\text{singularity}} = \text{false}$, abort task creation with error `ERR_CANONICAL_VIOLATION`.
-- If $P_{\text{parity}} = \text{false}$ or $P_{\text{fresh}} = \text{false}$, abort release synchronization with `IntentTraceabilityGate` or `ContractParityGate` failure.
-- If $P_{\text{path}} = \text{false}$, abort gatekeeper verification with error `ERR_FORBIDDEN_LITERAL`.
-
----
-
-## 6. SSoT Registry and Contract Verification
-
-Every contract domain possesses a single compiled Go SSoT in `substrate/`, reflected into `nomos.schema.json` where external configuration schemas apply.
-Every contract adheres to Law 4 (SSoT) and Law 6 (Canonical Singularity):
-
-| Domain | Schema / Spec Anchor | Compiled Go SSoT Target | Enforcement Gate |
+| Vector ID | Invariant Verified | Input Scenario | Expected Deterministic Verdict |
 | :--- | :--- | :--- | :--- |
-| **Workspace Configuration** | `nomos.schema.json` | `substrate/src/nomos/core/config/` | `Cell 4.2 (contract_parity)` |
-| **Architectural Obligations** | `nomos_intent_traceability_spec.md` | `substrate/src/nomos/modules/verify/intent_obligations.go` | `Cell 4.1 (intent_traceability)` / `Cell 7.1` |
-| **Contract Boundaries** | `go_ssot_and_json_schema_spec.md` | `substrate/src/nomos/modules/verify/gates_contracts_boundary.go` | `Cell 4.2 (contract_parity)` |
-| **Object Capabilities** | `capbac.Lease`, `capbac.Token` | `substrate/src/nomos/core/capbac/` | `Cell 1.3 (capbac_lease)` |
-| **Task Lifecycle & Receipts** | `task.TaskRecord`, `task.ReleaseNotePayload` | `substrate/src/nomos/modules/task/` | `Cell 6.3 (canonical_singularity)` |
-| **Phase State Machine** | `types.Phase`, `types.PhaseState` | `substrate/src/nomos/core/types/phase.go` | `Cell 1.2 (phase_discipline)` |
-| **AST Verification** | `verify.GateResult`, `treesitter` | `substrate/src/nomos/modules/verify/` | `Cell 2.1 (anti_shim)` / `Cell 2.2 (go_toolchain)` |
-| **Commit Invariants** | `nomos_commit_schema_invariant_spec.md` | `substrate/src/nomos/modules/verify/commit_schema_gate.go` | `Cell 6.1 (commit_schema)` |
+| `TC-INT-01` | Law 7 (Plane Separation) | Task `INT-101` stages file under `substrate/` | Rejects commit with `ERR_CROSS_PLANE_MUTATION` |
+| `TC-INT-02` | Law 6 (Canonical Task Key) | `ValidateTaskKey("CUST-99")` | Rejects non-canonical prefix with `ERR_VALIDATION_FAILED` |
+| `TC-INT-03` | Law 3 (Hermetic Trunk Lock) | `ValidateWorktreeBoundary(root, "main", "substrate/main.go")` | Rejects direct trunk mutation outside `worktrees/` |
+| `TC-INT-04` | Law 4 (Steel-Man Blueprint) | `IntentSteelmanGate` evaluates `intent/intent.md` | Passes with zero NCTE-100 diagnostics |
+| `TC-INT-05` | Law 6 (Zero Symlink Alias) | Symlink created inside `intent/architecture/specs/` | `ZeroFilesystemAliasGate` rejects symlink with exit code `1` |
+| `TC-INT-06` | Law 1 (Pre-Tool Redirect Guard) | `nomos hook pre-tool` evaluates shell redirect on `main` | Rejects mutation outside isolated worktree with exit code `2` |
 
 ---
 
-## 7. Table-Driven Verification Vectors
+## 6. Cross-Plane Traceability & DoD Verification
 
-The table below defines deterministic verification vectors for the Intent charter and progressive compiler obligations.
-
-| Vector ID | Target Input Scenario | Evaluated Invariant | Expected Error Code | Expected Verdict |
-| :--- | :--- | :--- | :--- | :--- |
-| **TC-INT-01** | Task key formatted as `INT-592` or `SUB-2134` | Pure 2-Plane Singularity | `NONE` | **PASS (true)** |
-| **TC-INT-02** | Task key formatted with deprecated prefix `MEM-101` | Canonical Singularity (Law 6) | `ERR_CANONICAL_VIOLATION` | **FAIL (false)** |
-| **TC-INT-03** | `ContractsConfig` or `ArchitectureBoundaryRule` drifts from `intent/intent.md` | SSoT Contract Parity (Law 4) | `ERR_INTENT_PARITY_MISMATCH` | **FAIL (false)** |
-| **TC-INT-04** | Specification prose contains banned ambiguous modal verb | NCTE-100 Invariant (`SPEC-NCTE-100`) | `ERR_NCTE_AMBIGUOUS_MODAL` | **FAIL (false)** |
-| **TC-INT-05** | Direct SQL command targets `nomos_global.db` or `mneme.db` | Dual-Core Inversion (Law 1) | `ERR_DIRECT_DB_ACCESS_FORBIDDEN` | **FAIL (false)** |
-| **TC-INT-06** | File write targets protected repository trunk outside `worktrees/` | Hermetic Worktree Boundary (Law 3) | `ERR_WORKTREE_BOUNDARY_VIOLATION` | **FAIL (false)** |
-
----
-
-## 8. Cross-Plane Traceability & DoD Verification
-
-| Artifact / Gate | Substrate SSoT Path / 7x3 Coordinate | Responsibility |
-| :--- | :--- | :--- |
-| **7x3 Invariant Matrix** | `substrate/src/nomos/modules/verify/matrix.go` | Declares `CanonicalLaws` and the 21 `InvariantCellSpec` definitions. |
-| **Intent Steel-Man Gate** | `substrate/src/nomos/modules/verify/intent_steelman.go` (`Cell 4.1 (intent_steelman)`) | Enforces YAML frontmatter, structural spine, balanced fences, and NCTE-100 prose hygiene. |
-| **Intent Traceability Gate** | `substrate/src/nomos/modules/verify/gates_intent.go` (`Cell 4.1 (intent_traceability)`) | Verifies `@intent` anchors, obligations, boundaries, and SHA-256 `spec_digests`. |
-| **Intent Byte Parity Gate** | `substrate/src/nomos/modules/verify/gates_intent.go` (`Cell 4.3 (intent_parity)`) | Enforces SHA-256 byte parity across embedded governance templates. |
-| **Plane Separation Gate** | `substrate/src/nomos/modules/verify/gates_security.go` (`Cell 7.1 (plane_separation)`) | Rejects cross-plane commits mixing `intent/` and `substrate/` mutations. |
-
-Deterministic verification executes via the canonical gatekeeper command:
-
-```bash
-nomos verify
-```
-
-Verification passes all 42 Definition of Done quality gates with exit code `0`.
+1. **Bilateral Task Lineage**: `INT-1941`, `SUB-2134`, `INT-1943`, and `SUB-2147`.
+2. **Enforcing 7x3 Matrix Coordinates**: `Cell 4.1 (intent_steelman)`, `Cell 4.1 (intent_traceability)`, `Cell 6.1 (zero_filesystem_alias)`, and `Cell 7.1 (plane_separation)`.
+3. **Executable Obligation Suite**: `substrate/cli/intent_manifesto_obligations_test.go` binds `TC-INT-01` through `TC-INT-06` and all 8 canonical domain specifications.
+4. **Verification Command**: Execute `nomos verify` across all 42 Definition of Done quality gates and assert exit code `0`.

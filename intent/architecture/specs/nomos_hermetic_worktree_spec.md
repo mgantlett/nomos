@@ -94,9 +94,9 @@ func UnlockTrunk(repoRoot string) error
 
 ---
 
-## 4. Worktree Configuration & Session DTOs
+## 4. Worktree Configuration, Session & CapBAC Flow DTOs
 
-The configuration and session structs reside in `substrate/src/nomos/core/config/` and `substrate/src/nomos/core/workspace/`:
+The configuration, worktree session, and CapBAC taint flow structs reside in `substrate/src/nomos/core/workspace/` and `substrate/src/nomos/core/capbac/`:
 
 ```go
 package workspace
@@ -114,6 +114,31 @@ type WorktreeSession struct {
 	BranchName   string `json:"branch_name"`
 	WorktreePath string `json:"worktree_path"`
 	CreatedAt    string `json:"created_at"`
+}
+
+// TaintEdge records an active provenance taint edge inside a workspace session.
+type TaintEdge struct {
+	Label      TaintLabel `json:"label"`
+	SourceTool string     `json:"source_tool"`
+	Resource   string     `json:"resource"`
+	RecordedAt string     `json:"recorded_at"`
+}
+
+// CapabilityFlowGraph stores active session taint edges for compositional PreToolUse enforcement.
+type CapabilityFlowGraph struct {
+	Version      int         `json:"version"`
+	Workspace    string      `json:"workspace"`
+	ActiveTaints []TaintEdge `json:"active_taints"`
+}
+
+// MCPInvocation captures normalized server, action, and access-mode coordinates for an MCP tool call.
+type MCPInvocation struct {
+	RawToolName string        `json:"raw_tool_name"`
+	Server      string        `json:"server"`
+	Action      string        `json:"action"`
+	Mode        MCPAccessMode `json:"mode"`
+	TargetFile  string        `json:"target_file,omitempty"`
+	ArgsDigest  string        `json:"args_digest,omitempty"`
 }
 ```
 

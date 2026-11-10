@@ -185,7 +185,7 @@ func EvaluateArchitectureBoundaries(root string, files []string, rules []config.
 | Vector ID | Target Component | Input Vector | Expected Outcome | Invariant |
 | :--- | :--- | :--- | :--- | :--- |
 | `TC-TRC-001` | `IntentTraceabilityGate` | `"// @intent INT-541"` | Passes with valid docstring density | Law 4 & Law 6 |
-| `TC-TRC-002` | `verifyIntentASTAnchors` | `"// @intent #HandshakeEvent (jit_handshake_and_session_journal_spec.md)"` | Resolves `HandshakeEvent` and spec file | Law 4 |
+| `TC-TRC-002` | `verifyIntentASTAnchors` | `"// @intent #NCTEPolicy (nomos_controlled_technical_english_spec.md)"` | Resolves `NCTEPolicy` and spec file | Law 4 |
 | `TC-TRC-003` | `verifyIntentASTAnchors` | `"// @intent #NonExistentPhantomType"` | Fails closed naming `#NonExistentPhantomType` | Law 2 & Law 7 |
 | `TC-TRC-004` | `verifyIntentASTAnchors` | `"// @intent missing_ghost_spec.md"` | Fails closed naming missing spec | Law 4 & Law 7 |
 | `TC-OBL-001` | `VerifyExecutableObligations` | Spec declares `TC-AUTH-01`; Go/polyglot suite tags `@verifies TC-AUTH-01` | Passes with zero unbound obligations | Law 2 & Law 4 |

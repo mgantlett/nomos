@@ -50,7 +50,7 @@ governance:
                 enabled: true
                 spec_roots:
                     - "intent/intent.md"
-                    - "intent/architecture/specs/nomos_intent_traceability_spec.md"
+                    - "intent/architecture/specs"
                 schema_files:
                     - "nomos.schema.json"
                 backend_roots:
