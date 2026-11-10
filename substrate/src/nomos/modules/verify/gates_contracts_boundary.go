@@ -34,9 +34,9 @@ type ArchitecturalEngineDescriptor struct {
 func AuditArchitecturalEngines(root string) []ArchitecturalEngineDescriptor {
 	return []ArchitecturalEngineDescriptor{
 		{
-			Name:          "SQLite Persistence Engine",
-			IntentSpec:    "pure_go_sqlite_persistence_spec.md",
-			EnforcedBy:    "substrate/src/nomos/core/storage",
+			Name:          "SQLite Persistence & Task Lifecycle Engine",
+			IntentSpec:    "task_lifecycle_cli_spec.md",
+			EnforcedBy:    "substrate/src/nomos/core/storage, substrate/src/nomos/modules/task",
 			IsImplemented: dirExists(filepath.Join(root, "substrate", "src", "nomos", "core", "storage")),
 		},
 		{
@@ -52,29 +52,29 @@ func AuditArchitecturalEngines(root string) []ArchitecturalEngineDescriptor {
 			IsImplemented: fileExists(filepath.Join(root, "substrate", "src", "nomos", "core", "config", "schema.go")),
 		},
 		{
-			Name:       "Nomos Software Physics Engine",
+			Name:       "Nomos Software Physics & CLI Surface Engine",
 			IntentSpec: "software_physics_engine_spec.md",
 			EnforcedBy: "substrate/cli/physics.go, substrate/cli/cmd_physics.go",
 			IsImplemented: fileExists(filepath.Join(root, "substrate", "cli", "physics.go")) &&
 				fileExists(filepath.Join(root, "substrate", "cli", "cmd_physics.go")),
 		},
 		{
-			Name:          "Polyglot AST Engine via WebAssembly (wazero)",
-			IntentSpec:    "polyglot_ast_gating_spec.md",
-			EnforcedBy:    "wazero (WASM Tree-sitter bytecode)",
-			IsImplemented: checkWazeroImplemented(root),
+			Name:          "Hermetic Worktree & CapBAC Security Engine",
+			IntentSpec:    "nomos_hermetic_worktree_spec.md",
+			EnforcedBy:    "substrate/src/nomos/core/workspace, substrate/src/nomos/core/capbac",
+			IsImplemented: dirExists(filepath.Join(root, "substrate", "src", "nomos", "core", "workspace")),
 		},
 		{
-			Name:          "Tree-sitter AST Gate Engine",
+			Name:          "Polyglot Tree-sitter WASM AST Gate Engine",
 			IntentSpec:    "tree_sitter_ast_gate_spec.md",
 			EnforcedBy:    "substrate/src/nomos/modules/verify/treesitter",
-			IsImplemented: dirExists(filepath.Join(root, "substrate", "src", "nomos", "modules", "verify", "treesitter")),
+			IsImplemented: checkWazeroImplemented(root) && dirExists(filepath.Join(root, "substrate", "src", "nomos", "modules", "verify", "treesitter")),
 		},
 		{
-			Name:          "Invisible Harness & Telemetry Engine",
-			IntentSpec:    "launchpad_invisible_harness_and_telemetry_spec.md",
-			EnforcedBy:    "substrate/src/nomos/modules/telemetry",
-			IsImplemented: dirExists(filepath.Join(root, "substrate", "src", "nomos", "modules", "telemetry")),
+			Name:          "DoD 7x3 Gate Matrix & Obligation Compiler Engine",
+			IntentSpec:    "nomos_intent_traceability_spec.md",
+			EnforcedBy:    "substrate/src/nomos/modules/verify",
+			IsImplemented: dirExists(filepath.Join(root, "substrate", "src", "nomos", "modules", "verify")),
 		},
 		{
 			Name:          "Nomos Controlled Technical English (NCTE-100) Engine",

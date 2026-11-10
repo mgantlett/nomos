@@ -189,7 +189,7 @@ func isolationLexicon() []VocabularyEntry {
 	return []VocabularyEntry{
 		{Domain: DomainIsolation, CanonicalTerm: "Trunk", PartOfSpeech: posNoun, ApprovedMeaning: "The primary protected read-only git branch (main).", BannedSynonyms: []string{"master", "root branch", "upstream"}},
 		{Domain: DomainIsolation, CanonicalTerm: "Worktree", PartOfSpeech: posNoun, ApprovedMeaning: "An isolated transient git worktree directory under worktrees/.", BannedSynonyms: []string{"sandbox", "folder", "temp branch"}},
-		{Domain: DomainIsolation, CanonicalTerm: "Plane", PartOfSpeech: posNoun, ApprovedMeaning: "One of the two hemispherically separated domains: intent or substrate.", BannedSynonyms: []string{"layer", "side", "zone"}},
+		{Domain: DomainIsolation, CanonicalTerm: "Plane", PartOfSpeech: posNoun, ApprovedMeaning: "One of the two hemispherically separated domains: intent or substrate.", BannedSynonyms: []string{"side", "zone"}},
 		{Domain: DomainIsolation, CanonicalTerm: "Lease", PartOfSpeech: posNoun, ApprovedMeaning: "A step-bounded CapBAC capability token authorizing phase actions.", BannedSynonyms: []string{"permit", "ticket", "lock"}},
 		{Domain: DomainIsolation, CanonicalTerm: "Mutate", PartOfSpeech: posVerb, ApprovedMeaning: "Modify or write persistent repository state or source files.", BannedSynonyms: []string{"change", "tweak", "patch"}},
 		{Domain: DomainIsolation, CanonicalTerm: "Wavefront", PartOfSpeech: posNoun, ApprovedMeaning: "The set of causal DAG tasks with zero unresolved blockers.", BannedSynonyms: []string{"queue", "ready list"}, CLICommand: "nomos task dag"},

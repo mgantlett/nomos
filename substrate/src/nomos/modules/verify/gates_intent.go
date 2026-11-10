@@ -251,7 +251,7 @@ func (g *ThresholdIntegrityGate) Name() string { return "Threshold Integrity Gat
 
 // Evaluate verifies thresholds in nomos.yaml match statutory baselines when strict_mode is enabled
 // and rejects worktree governance downgrades against trunk RepoRoot.
-// @intent tracetrial_harness_reliability_spec.md
+// @intent nomos_intent_traceability_spec.md
 func (g *ThresholdIntegrityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	cfg := resolveVerifyConfig(ctx)
 	if violation := checkWorktreeGovernanceDowngrade(ctx, cfg); violation != "" {

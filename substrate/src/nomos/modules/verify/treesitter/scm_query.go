@@ -72,7 +72,7 @@ func LoadSCMQuery(lang string) (*SCMQuerySpec, error) {
 }
 
 // ValidateFunctionSCMContract verifies that a function-bearing language's .scm query binds @func.name, @func.doc, and @branch.
-// @intent full_dod_gate_suite_and_polyglot_spec.md #SCMQuerySpec
+// @intent tree_sitter_ast_gate_spec.md #SCMQuerySpec
 func ValidateFunctionSCMContract(lang string) (*SCMQuerySpec, error) {
 	spec, err := LoadSCMQuery(lang)
 	if err != nil {

@@ -32,7 +32,7 @@ var (
 
 // CommitSchemaGate enforces the Golden Conventional Commit schema ([KEY] subject prefix,
 // flowing rationale prose, anti-dump hygiene, and RFC 822 Git Trailers) across branch commits.
-// @intent nomos_commit_schema_invariant_spec.md #CommitSchemaGate
+// @intent nomos_hermetic_worktree_spec.md #CommitSchemaGate
 type CommitSchemaGate struct{}
 
 // Name returns the canonical name of the Commit Schema quality gate.

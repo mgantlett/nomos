@@ -25,7 +25,7 @@ var canonicalSecretRules = []secretTokenRule{
 
 // MatchSecretTokenLabel scans content against the canonical credential signature registry
 // and returns the matched secret label or an empty string when clean.
-// @intent zero_trust_mcp_ifc_spec.md #MCPInvocation
+// @intent nomos_hermetic_worktree_spec.md #MCPInvocation
 func MatchSecretTokenLabel(content string) string {
 	if content == "" {
 		return ""

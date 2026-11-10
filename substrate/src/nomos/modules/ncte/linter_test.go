@@ -107,6 +107,12 @@ func TestCanonicalLexicon_SingularityAndLookup(t *testing.T) {
 	if fromSyn == nil || !isSyn || fromSyn.CanonicalTerm != "Worktree" {
 		t.Fatalf("expected synonym 'sandbox' to resolve to Worktree, got entry=%+v syn=%v", fromSyn, isSyn)
 	}
+	if layerEntry, layerSyn := ncte.LookupTerm("layer"); layerEntry != nil || layerSyn {
+		t.Fatalf("expected 'layer' to be permitted for 4-Layer compiler taxonomy, got entry=%+v syn=%v", layerEntry, layerSyn)
+	}
+	if planeSyn, isPlaneSyn := ncte.LookupTerm("zone"); planeSyn == nil || !isPlaneSyn || planeSyn.CanonicalTerm != "Plane" {
+		t.Fatalf("expected synonym 'zone' to resolve to Plane, got entry=%+v syn=%v", planeSyn, isPlaneSyn)
+	}
 }
 
 func TestLintMarkdown_IsolatesFrontmatterCodeFencesAndInlineLiterals(t *testing.T) {

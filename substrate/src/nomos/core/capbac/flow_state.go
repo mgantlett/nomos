@@ -14,7 +14,7 @@ import (
 
 // EvaluateWorkspaceToolFlow loads the active workspace CapabilityFlowGraph, evaluates inv,
 // persists updated taint edges when allowed, and returns the resulting FlowDecision.
-// @intent capability_flow_taint_guard_spec.md #CapabilityFlowGraph
+// @intent nomos_hermetic_worktree_spec.md #CapabilityFlowGraph
 func EvaluateWorkspaceToolFlow(workspaceDir string, inv ToolFlowInvocation) FlowDecision {
 	graph := LoadWorkspaceFlowGraph(workspaceDir)
 	dec := graph.EvaluateToolFlow(inv)
@@ -27,7 +27,7 @@ func EvaluateWorkspaceToolFlow(workspaceDir string, inv ToolFlowInvocation) Flow
 }
 
 // LoadWorkspaceFlowGraph reads the workspace CapabilityFlowGraph from the local hook state cache.
-// @intent capability_flow_taint_guard_spec.md #CapabilityFlowGraph
+// @intent nomos_hermetic_worktree_spec.md #CapabilityFlowGraph
 func LoadWorkspaceFlowGraph(workspaceDir string) CapabilityFlowGraph {
 	cleanWS := filepath.Clean(strings.TrimSpace(workspaceDir))
 	base := CapabilityFlowGraph{
@@ -56,7 +56,7 @@ func LoadWorkspaceFlowGraph(workspaceDir string) CapabilityFlowGraph {
 }
 
 // SaveWorkspaceFlowGraph atomically writes the workspace CapabilityFlowGraph with 0600 permissions.
-// @intent capability_flow_taint_guard_spec.md #CapabilityFlowGraph
+// @intent nomos_hermetic_worktree_spec.md #CapabilityFlowGraph
 func SaveWorkspaceFlowGraph(workspaceDir string, graph CapabilityFlowGraph) error {
 	cleanWS := filepath.Clean(strings.TrimSpace(workspaceDir))
 	statePath, err := resolveFlowStateFilePath(cleanWS)
@@ -76,7 +76,7 @@ func SaveWorkspaceFlowGraph(workspaceDir string, graph CapabilityFlowGraph) erro
 }
 
 // ResetWorkspaceFlowState clears active taint edges for workspaceDir upon session initialization.
-// @intent capability_flow_taint_guard_spec.md #CapabilityFlowGraph
+// @intent nomos_hermetic_worktree_spec.md #CapabilityFlowGraph
 func ResetWorkspaceFlowState(workspaceDir string) error {
 	cleanWS := filepath.Clean(strings.TrimSpace(workspaceDir))
 	statePath, err := resolveFlowStateFilePath(cleanWS)

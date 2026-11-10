@@ -37,7 +37,7 @@ type mnemeJoinIndex struct {
 }
 
 // ExportSessionDataset synthesizes joined RLVR, DPO, and SFT dataset records across discovered sessions.
-// @intent session_management_cli_spec.md #SessionDatasetRecord
+// @intent software_physics_engine_spec.md #SessionDatasetRecord
 func ExportSessionDataset(rootOverride, repoRoot string, limit int) ([]SessionDatasetRecord, error) {
 	if limit <= 0 {
 		limit = 20

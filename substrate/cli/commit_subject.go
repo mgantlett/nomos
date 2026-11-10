@@ -62,7 +62,7 @@ var verbToCommitType = map[string]string{
 
 // normalizeCommitSubject strips redundant task key tokens and emits a Conventional Commit clause
 // budgeted so '[<KEY>] <type>(<scope>): <summary>' stays within targetSubjectLineRunes.
-// @intent nomos_commit_schema_invariant_spec.md
+// @intent nomos_hermetic_worktree_spec.md
 func normalizeCommitSubject(taskKey, rawSummary string, rec *task.TaskRecord, stagedFiles []string) string {
 	keyOverhead := taskKeyPrefixLen(taskKey)
 	candidate := resolveCandidateSummary(taskKey, rawSummary, rec, stagedFiles)

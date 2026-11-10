@@ -114,7 +114,7 @@ func resolveWalkthroughText(taskKey, wtDir, repoRoot, explicitFile string) strin
 
 // hydrateCommitMessage synthesizes a Golden Conventional Commit with a canonical [<KEY>] subject prefix,
 // flowing unwrapped CommonMark paragraphs/bullets, a git-interpret-trailers-safe ___ divider, and Task/Twin trailers.
-// @intent nomos_commit_schema_invariant_spec.md
+// @intent nomos_hermetic_worktree_spec.md
 func hydrateCommitMessage(ctx commitHydrationContext, opts *commitCmdOptions) string {
 	var rawSummary, expRationale, expMechanics string
 	if opts != nil {

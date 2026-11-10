@@ -59,7 +59,7 @@ type MCPBoundaryPolicy struct {
 }
 
 // IsMCPToolName reports whether name uses an MCP tool namespace ('mcp__*' or 'mcp_*').
-// @intent zero_trust_mcp_ifc_spec.md #MCPInvocation
+// @intent nomos_hermetic_worktree_spec.md #MCPInvocation
 func IsMCPToolName(name string) bool {
 	lower := strings.ToLower(strings.TrimSpace(name))
 	return strings.HasPrefix(lower, "mcp__") || strings.HasPrefix(lower, "mcp_")
@@ -67,7 +67,7 @@ func IsMCPToolName(name string) bool {
 
 // ParseMCPInvocation parses Claude Code ('mcp__<server>__<action>') and Cursor/AGY
 // ('mcp_<server>_<action>') tool names into canonical MCPInvocation coordinates.
-// @intent zero_trust_mcp_ifc_spec.md #MCPInvocation
+// @intent nomos_hermetic_worktree_spec.md #MCPInvocation
 func ParseMCPInvocation(toolName, targetFile, argsDigest string) (MCPInvocation, bool) {
 	trimmed := strings.TrimSpace(toolName)
 	lower := strings.ToLower(trimmed)
@@ -134,7 +134,7 @@ func classifyMCPAccessMode(action, argsDigest string) MCPAccessMode {
 
 // EvaluateMCPBoundary enforces server allow/block policy, credential payload scanning,
 // and cross-server Information Flow Control (IFC) against the workspace CapabilityFlowGraph.
-// @intent zero_trust_mcp_ifc_spec.md #MCPInvocation
+// @intent nomos_hermetic_worktree_spec.md #MCPInvocation
 func EvaluateMCPBoundary(workspaceDir string, inv MCPInvocation, policy MCPBoundaryPolicy) FlowDecision {
 	if dec, denied := checkMCPServerPolicy(inv, policy); denied {
 		return dec

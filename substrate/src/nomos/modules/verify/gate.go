@@ -51,7 +51,7 @@ type Gate interface {
 
 // TimedEvaluate executes a gate while measuring its elapsed duration in microseconds
 // and recovering runtime panics into fail-closed ERR_CORE errors.
-// @intent tracetrial_harness_reliability_spec.md
+// @intent nomos_intent_traceability_spec.md
 func TimedEvaluate(g Gate, ctx *VerifyContext) (res *GateResult, err error) {
 	if g == nil {
 		return nil, types.NewNomosError(types.ErrCodeCore, "cannot evaluate nil gate (fail-closed abort)")

@@ -91,7 +91,7 @@ type FlowDecision struct {
 }
 
 // HasTaint reports whether label is currently active in the flow graph.
-// @intent capability_flow_taint_guard_spec.md #CapabilityFlowGraph
+// @intent nomos_hermetic_worktree_spec.md #CapabilityFlowGraph
 func (g *CapabilityFlowGraph) HasTaint(label TaintLabel) (TaintEdge, bool) {
 	if g == nil {
 		return TaintEdge{}, false
@@ -105,7 +105,7 @@ func (g *CapabilityFlowGraph) HasTaint(label TaintLabel) (TaintEdge, bool) {
 }
 
 // AddTaint appends or refreshes a taint edge with bounded FIFO compaction.
-// @intent capability_flow_taint_guard_spec.md #TaintEdge
+// @intent nomos_hermetic_worktree_spec.md #TaintEdge
 func (g *CapabilityFlowGraph) AddTaint(label TaintLabel, sourceTool, resource string) {
 	if g == nil || label == "" {
 		return
@@ -144,7 +144,7 @@ func (g *CapabilityFlowGraph) ClearTaint(label TaintLabel) {
 }
 
 // EvaluateToolFlow evaluates inv against active taints and advances graph state when permitted.
-// @intent capability_flow_taint_guard_spec.md #CapabilityFlowGraph
+// @intent nomos_hermetic_worktree_spec.md #CapabilityFlowGraph
 func (g *CapabilityFlowGraph) EvaluateToolFlow(inv ToolFlowInvocation) FlowDecision {
 	cmd := strings.TrimSpace(inv.CommandLine)
 	if cmd != "" && remoteShellPipeRe.MatchString(cmd) {
@@ -255,7 +255,7 @@ func extractRemoteFetchHost(cmd string) (string, bool) {
 }
 
 // IsSensitiveCredentialPath reports whether path targets a credential store or non-template .env file.
-// @intent capability_flow_taint_guard_spec.md #TaintEdge
+// @intent nomos_hermetic_worktree_spec.md #TaintEdge
 func IsSensitiveCredentialPath(rawPath string) bool {
 	clean := filepath.ToSlash(strings.TrimSpace(rawPath))
 	if clean == "" {

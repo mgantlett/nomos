@@ -10,7 +10,7 @@ import (
 
 // ValidateCommitIntentTwinMode enforces governance.quality_gates.intent_twin_mode
 // ("off", "feat", "strict") against a hydrated or committed Golden Commit message.
-// @intent nomos_commit_schema_invariant_spec.md #QualityGatesConfig
+// @intent nomos_hermetic_worktree_spec.md #QualityGatesConfig
 func ValidateCommitIntentTwinMode(commitMsg, mode string) string {
 	normMode := strings.ToLower(strings.TrimSpace(mode))
 	rank, ok := config.IntentTwinModeRank(normMode)
@@ -63,7 +63,7 @@ func hasValidIntentTwinTrailer(trailers map[string][]string) bool {
 }
 
 // IntentTwinModeRemedy returns the deterministic HATEOAS remediation string for missing INT twins.
-// @intent nomos_commit_schema_invariant_spec.md #QualityGatesConfig
+// @intent nomos_hermetic_worktree_spec.md #QualityGatesConfig
 func IntentTwinModeRemedy(subjectKey string) string {
 	key := strings.TrimSpace(subjectKey)
 	if key == "" {

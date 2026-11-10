@@ -210,7 +210,7 @@ func findTestResultsCobertura(testResultsDir string) []string {
 }
 
 // ParseSimpleCovCoverage parses Ruby SimpleCov .resultset.json line arrays into coverage percentage (0..100).
-// @intent full_dod_gate_suite_and_polyglot_spec.md #CoverageGate
+// @intent nomos_intent_traceability_spec.md #CoverageGate
 func ParseSimpleCovCoverage(content []byte) (float64, bool) {
 	var raw map[string]struct {
 		Coverage map[string]struct {

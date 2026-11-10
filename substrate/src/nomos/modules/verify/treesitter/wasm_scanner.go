@@ -56,7 +56,7 @@ func peekDefaultEngine() *WazeroTreeSitterEngine {
 }
 
 // ExecuteWasmVerify validates the instantiated WebAssembly linear-memory source and delimiter scanners inside wazero.
-// @intent full_dod_gate_suite_and_polyglot_spec.md #WazeroTreeSitterEngine
+// @intent tree_sitter_ast_gate_spec.md #WazeroTreeSitterEngine
 func (e *WazeroTreeSitterEngine) ExecuteWasmVerify(ctx context.Context) error {
 	sample := []byte("package verify\nfunc probe() {\n\treturn\n}\n")
 	lines, err := e.scanLinesWasm(ctx, sample)
