@@ -6,7 +6,7 @@ Welcome to **Nomos**! This guide covers the ground rules and local verification 
 
 This repository (`nomos`) contains the Apache 2.0 indirect-control governance harness for **Tier 1 coding agents** (Claude Code, Cursor, Antigravity, OpenCode, Windsurf, Aider), the 42-gate polyglot AST & toolchain verification engine, pure-Go SQLite Living Ledger persistence, and **Nomos Mneme** hybrid vector memory.
 
-Enterprise multi-seat orchestration, autonomous Tier 2 coding agents, and hosted control-plane surfaces live outside this repository (see [`agent_tiers_and_indirect_control_spec.md`](intent/architecture/specs/agent_tiers_and_indirect_control_spec.md)). Never commit hardcoded host paths, secrets, or proprietary dependencies.
+Enterprise multi-seat orchestration, autonomous Tier 2 coding agents, and hosted control-plane surfaces live outside this repository (see [`intent/intent.md`](intent/intent.md)). Never commit hardcoded host paths, secrets, or proprietary dependencies.
 
 ## The 7 Statutory Laws
 

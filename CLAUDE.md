@@ -55,4 +55,4 @@
 
 ## Nomos Open-Core Contributor Boundary (ADR-0031)
 
-Open-core Nomos operates strictly as an indirect control harness for Tier 1 coding agents. Sovereign Tier 2 runtime modules remain excluded per [agent_tiers_and_indirect_control_spec.md](intent/architecture/specs/agent_tiers_and_indirect_control_spec.md).
+Open-core Nomos operates strictly as an indirect control harness for Tier 1 coding agents. Sovereign Tier 2 runtime modules remain excluded per [intent/intent.md](intent/intent.md).
