@@ -9,12 +9,13 @@ lineage:
   - INT-541
   - INT-1935
   - INT-1936
+  - INT-1937
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Nomos Intent Traceability & Architectural Obligation Proofs Specification"
 type: spec
-version: "4.13.1"
+version: "4.13.2"
 ---
 
 # Nomos Intent Traceability & Architectural Obligation Proofs Specification
@@ -195,6 +196,8 @@ func EvaluateArchitectureBoundaries(root string, files []string, rules []config.
 | `TC-OBL-006` | `EvaluateArchitectureBoundaries` | `internal/domain/order.go` imports `internal/infra/db` matching `forbid_imports` | Fails closed with boundary remedy | Law 7 |
 | `TC-OBL-007` | `EvaluateArchitectureBoundaries` | `src/routes/page.ts` imports `../db/client` outside `allow_only` | Fails closed in radar and verify | Law 7 |
 | `TC-OBL-008` | `ConfigImmutabilityGate` | Worktree `nomos.yaml` deletes Trunk `architecture_boundaries` rule | Fails closed blocking boundary downgrade | Law 1 & Law 7 |
+| `TC-OBL-009` | `VerifySpecTypeSignatures` | Spec declares TypeScript or Python field omitted in source | Rejects execution naming missing polyglot field | Law 4 & Law 7 |
+| `TC-OBL-010` | `verifyIntentASTAnchors` | Polyglot `@intent` tag references missing `#GhostType` anchor | Rejects execution naming unresolved polyglot anchor | Law 4 & Law 7 |
 
 ---
 
