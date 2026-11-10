@@ -32,23 +32,33 @@ const (
 	KindLegacySpec   MemoryKind = "legacy_spec"
 	KindPitfall      MemoryKind = "pitfall"
 	KindPattern      MemoryKind = "pattern"
+	KindDeadEnd      MemoryKind = "dead_end"
 )
+
+// NormalizeMemoryKind canonicalizes advisory and statutory MemoryKind strings.
+func NormalizeMemoryKind(kind MemoryKind) MemoryKind {
+	normalized := strings.ToLower(strings.TrimSpace(string(kind)))
+	if normalized == "dead-end" {
+		return KindDeadEnd
+	}
+	return MemoryKind(normalized)
+}
 
 // ValidateAdvisoryWriteKind enforces statutory write provenance for manual CLI saves (@intent: #Memory).
 func ValidateAdvisoryWriteKind(kind MemoryKind) error {
-	normalized := MemoryKind(strings.ToLower(strings.TrimSpace(string(kind))))
+	normalized := NormalizeMemoryKind(kind)
 	switch normalized {
-	case "", KindReflection, KindAxiom, KindDecision, KindFact, KindPreference, KindArchitecture:
+	case "", KindReflection, KindAxiom, KindDecision, KindFact, KindPreference, KindArchitecture, KindDeadEnd:
 		return nil
 	case KindPitfall, KindPattern, KindRelease, KindTask, KindCommit, KindReview, KindLegacySpec:
 		return types.NewNomosError(
 			types.ErrCodeValidationFailed,
 			"memory kind %q is statutory and minted strictly by 2PC 'nomos task sync'",
 			normalized,
-		).WithRemedy("use an advisory kind (--kind reflection, --kind axiom, or --kind decision) for manual 'nomos mem save'")
+		).WithRemedy("use an advisory kind (--kind reflection, --kind axiom, --kind decision, or --kind dead-end) for manual 'nomos mem save'")
 	default:
 		return types.NewNomosError(types.ErrCodeValidationFailed, "unsupported memory kind %q", kind).
-			WithRemedy("valid advisory kinds: reflection, axiom, decision, fact, preference, architecture")
+			WithRemedy("valid advisory kinds: reflection, axiom, decision, fact, preference, architecture, dead_end")
 	}
 }
 
@@ -194,6 +204,8 @@ func prepareMemoryForSave(m *Memory) error {
 	}
 	if m.Kind == "" {
 		m.Kind = KindReflection
+	} else {
+		m.Kind = NormalizeMemoryKind(m.Kind)
 	}
 	if m.CreatedAt.IsZero() {
 		m.CreatedAt = time.Now().UTC()

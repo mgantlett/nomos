@@ -228,7 +228,7 @@ func filterEligibleRepoPitfalls(all []*Memory, repoID, targetScope string, now t
 }
 
 func isActiveRepoPitfall(m *Memory, repoID string) bool {
-	if m == nil || m.Kind != KindPitfall || m.Status != StatusActive {
+	if m == nil || (m.Kind != KindPitfall && m.Kind != KindDeadEnd) || m.Status != StatusActive {
 		return false
 	}
 	return strings.ToLower(strings.TrimSpace(m.RepoID)) == repoID
@@ -249,4 +249,69 @@ func isPitfallEligibleForScope(m *Memory, repoID, targetScope string, topicDepth
 	}
 	return now.Sub(m.CreatedAt) <= defaultUnscopedPitfallCoolWindow
 }
+
+// RecordRolledBackDeadEnds captures source files mutated during EDIT in traceMutatedFiles
+// that were reverted or discarded prior to the final committed diff (@intent: #Memory).
+func RecordRolledBackDeadEnds(repoRoot, taskKey string, traceMutatedFiles, committedFiles []string, walkthrough string) (int, error) {
+	if strings.TrimSpace(repoRoot) == "" || strings.TrimSpace(taskKey) == "" || len(traceMutatedFiles) == 0 || len(committedFiles) == 0 {
+		return 0, nil
+	}
+	reverted := collectRevertedTraceFiles(repoRoot, traceMutatedFiles, committedFiles)
+	if len(reverted) == 0 {
+		return 0, nil
+	}
+	store, err := NewStore("")
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = store.Close() }()
+
+	repoID := filepath.Base(filepath.Clean(repoRoot))
+	upperTask := strings.ToUpper(strings.TrimSpace(taskKey))
+	fixSummary := summarizeWalkthroughFix(walkthrough)
+	saved := 0
+	for _, rel := range reverted {
+		if saved >= 3 {
+			break
+		}
+		scope := dirToScopeLabel(filepath.ToSlash(filepath.Dir(rel)))
+		rec := &Memory{
+			RepoID:  repoID,
+			Kind:    KindDeadEnd,
+			Topic:   fmt.Sprintf("dead_end:%s", scope),
+			Content: fmt.Sprintf("[Dead-End in %s] Rolled back un-merged edit to %s during %s -> Winning Fix (%s): %s", scope, rel, upperTask, filepath.Base(committedFiles[0]), fixSummary),
+			TaskID:  upperTask,
+			Status:  StatusActive,
+		}
+		if store.Save(rec) == nil {
+			saved++
+		}
+	}
+	return saved, nil
+}
+
+func collectRevertedTraceFiles(repoRoot string, traceMutatedFiles, committedFiles []string) []string {
+	var out []string
+	seen := make(map[string]bool)
+	for _, raw := range traceMutatedFiles {
+		rel := normalizePatternPath(repoRoot, raw)
+		if rel == "" || seen[rel] || isScratchOrWalkthroughPath(rel) || isTouchedRepoFile(repoRoot, rel, committedFiles) {
+			continue
+		}
+		seen[rel] = true
+		out = append(out, rel)
+	}
+	return out
+}
+
+func isScratchOrWalkthroughPath(rel string) bool {
+	lower := strings.ToLower(filepath.ToSlash(rel))
+	base := filepath.Base(lower)
+	return strings.HasPrefix(lower, ".tmp/") ||
+		strings.Contains(lower, "/.tmp/") ||
+		strings.HasPrefix(base, "walkthrough") ||
+		strings.HasSuffix(base, ".bak") ||
+		strings.HasSuffix(base, ".tmp")
+}
+
 

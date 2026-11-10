@@ -99,7 +99,7 @@ func finalizeSync(key, walkthroughPath string, report *verify.PipelineReport) er
 	specDigests := collectSyncSpecDigests(mgr.RepoRoot, key, touchedFiles, t.TwinKey)
 	recordReleaseReceipt(mgr.RepoRoot, wtPath, key, walkthroughPath, now, report, specDigests)
 	revokeActiveLease(key)
-	distillAndMaintainOnSync(mgr.RepoRoot, key, walkthroughPath, touchedFiles)
+	distillAndMaintainOnSync(mgr.RepoRoot, wtPath, key, walkthroughPath, touchedFiles)
 	clearHookSessionTrace(wtPath)
 	cleanupAndAnnounceSyncedTask(mgr, key)
 	return nil

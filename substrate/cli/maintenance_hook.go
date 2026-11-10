@@ -40,10 +40,15 @@ func runAutomaticSubstrateMaintenance(repoRoot string, force bool) {
 	mem.SweepStaleTrapBuffers(repoRoot, staleTrapSweepWindow)
 }
 
-func distillAndMaintainOnSync(repoRoot, key, walkthroughPath string, touchedFiles []string) {
+func distillAndMaintainOnSync(repoRoot, wtPath, key, walkthroughPath string, touchedFiles []string) {
 	wtContent := readWalkthroughContent(walkthroughPath)
 	if distilled, dErr := mem.DistillTaskLearnings(repoRoot, key, wtContent, touchedFiles); dErr == nil && distilled > 0 {
 		printlnDistilledCount(distilled)
+	}
+	if tr := loadHookSessionTrace(wtPath); tr != nil && len(tr.MutatedFiles) > 0 {
+		if deadEnds, deErr := mem.RecordRolledBackDeadEnds(repoRoot, key, tr.MutatedFiles, touchedFiles, wtContent); deErr == nil && deadEnds > 0 {
+			fmt.Printf("🧠 Nomos Learn: recorded %d rolled-back dead-end(s) into local Mneme\n", deadEnds)
+		}
 	}
 	if patterns, pErr := mem.DistillVerifiedPattern(repoRoot, key, wtContent, touchedFiles); pErr == nil && patterns > 0 {
 		fmt.Printf("🧠 Nomos Learn: distilled %d verified structural pattern(s) into local Mneme\n", patterns)

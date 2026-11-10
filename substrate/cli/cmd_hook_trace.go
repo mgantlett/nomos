@@ -35,6 +35,7 @@ type hookSessionTrace struct {
 var (
 	exclusiveScopePattern   = regexp.MustCompile("(?i)\\bonly\\s+(?:modified|edited|changed|touched)\\s+`?([a-zA-Z0-9_./-]+\\.[a-zA-Z0-9]+)`?")
 	explicitTestRunClaimPat = regexp.MustCompile("(?i)\\b(?:ran|executed)\\s+`?(?:go\\s+test|pytest|cargo\\s+test|npm\\s+test|pnpm\\s+test|yarn\\s+test|vitest|jest|bun\\s+test)\\b")
+	changesBulletFilePat    = regexp.MustCompile("^[-*]\\s+`?([A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+\\.[A-Za-z0-9]+)`?\\s*:")
 )
 
 // recordPreToolSessionTrace records allowed or denied PreToolUse activity scoped to an active worktree.
@@ -303,6 +304,13 @@ func validateReceiptTraceParity(wtPath, walkthroughPath string, touchedFiles []s
 			claimed, offender,
 		).WithRemedy("list all modified files or remove false single-file exclusivity claims in the walkthrough")
 	}
+	if phantom := findUnchangedClaimedFileInChangesSection(content, touchedFiles); phantom != "" {
+		return types.NewNomosError(
+			types.ErrCodeValidationFailed,
+			"Receipt-Trace Parity Violation (Law 2): walkthrough ## Changes claims modification of '%s', which has zero diff in the worktree",
+			phantom,
+		).WithRemedy("remove un-modified files from walkthrough ## Changes or stage the missing edits before 'nomos task sync'")
+	}
 	if trace == nil || trace.ToolCallsCount == 0 || trace.ShellCommandsCount == 0 {
 		return nil
 	}
@@ -348,4 +356,38 @@ func findExclusiveScopeContradiction(content string, touchedFiles []string) (str
 		}
 	}
 	return "", ""
+}
+
+func findUnchangedClaimedFileInChangesSection(content string, touchedFiles []string) string {
+	if len(touchedFiles) == 0 {
+		return ""
+	}
+	inChanges := false
+	for _, rawLine := range strings.Split(content, "\n") {
+		line := strings.TrimSpace(rawLine)
+		if strings.HasPrefix(line, "## ") {
+			inChanges = strings.EqualFold(strings.TrimSpace(strings.TrimPrefix(line, "## ")), "Changes")
+			continue
+		}
+		if !inChanges {
+			continue
+		}
+		m := changesBulletFilePat.FindStringSubmatch(line)
+		if len(m) == 2 && !matchesAnyTouchedFile(m[1], touchedFiles) {
+			return m[1]
+		}
+	}
+	return ""
+}
+
+func matchesAnyTouchedFile(claimed string, touchedFiles []string) bool {
+	normClaim := strings.TrimPrefix(filepath.ToSlash(strings.TrimSpace(claimed)), "./")
+	claimBase := filepath.Base(normClaim)
+	for _, tf := range touchedFiles {
+		norm := strings.TrimPrefix(filepath.ToSlash(strings.TrimSpace(tf)), "./")
+		if norm == normClaim || strings.HasSuffix(norm, "/"+normClaim) || strings.HasSuffix(normClaim, "/"+norm) || filepath.Base(norm) == claimBase {
+			return true
+		}
+	}
+	return false
 }

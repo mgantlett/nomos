@@ -148,6 +148,12 @@ func TestReceiptTraceParity_GracefulManualSyncAndContradictionGuards(t *testing.
 		t.Fatalf("TC-TSK-17: expected fail-closed error on false exclusive-scope claim")
 	}
 
+	// 3b. Claiming modification of a file under ## Changes with zero diff in touchedFiles fails closed
+	writeWalk("# Walkthrough SUB-77\n## Changes\n- `substrate/cli/a.go`: updated runner.\n- `substrate/cli/phantom_unmodified.go`: refactored phantom module.\n")
+	if err := validateReceiptTraceParity(wtDir, walkPath, []string{"substrate/cli/a.go", "substrate/cli/b.go"}); err == nil {
+		t.Fatalf("TC-TSK-17: expected fail-closed error when ## Changes claims un-modified file")
+	}
+
 	// 4. Active hook session trace with shell activity and 0 test commands rejects fabricated test run claim
 	targetA := filepath.Join(wtDir, "substrate", "cli", "a.go")
 	_ = runInternalHook(t, []string{"pre-tool"}, map[string]any{

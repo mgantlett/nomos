@@ -139,3 +139,26 @@ func TestUnscopedOneOffPitfallCoolingAndStatusQuery(t *testing.T) {
 	}
 }
 
+func TestRecordRolledBackDeadEndsAndAdvisoryDeadEndKind(t *testing.T) {
+	t.Setenv("NOMOS_HOME", t.TempDir())
+	if err := ValidateAdvisoryWriteKind("dead-end"); err != nil {
+		t.Fatalf("expected 'dead-end' to pass ValidateAdvisoryWriteKind: %v", err)
+	}
+	repo := filepath.Join(t.TempDir(), "theta-repo")
+	traceMutated := []string{
+		"substrate/cli/abandoned_approach.go",
+		"substrate/cli/winning_fix.go",
+		".tmp/walkthrough-SUB-88.md",
+	}
+	committed := []string{"substrate/cli/winning_fix.go"}
+	saved, err := RecordRolledBackDeadEnds(repo, "SUB-88", traceMutated, committed, "- Switched from abandoned_approach.go to winning_fix.go")
+	if err != nil || saved != 1 {
+		t.Fatalf("expected 1 rolled-back dead-end recorded, got saved=%d err=%v", saved, err)
+	}
+	recalled := RecallRepoPitfallsReadOnly(repo, []string{"substrate/cli/other.go"}, 3)
+	if len(recalled) != 1 || !strings.Contains(recalled[0], "[Dead-End in substrate/cli] Rolled back un-merged edit to substrate/cli/abandoned_approach.go") {
+		t.Fatalf("expected rolled-back dead-end recalled for substrate/cli scope, got %v", recalled)
+	}
+}
+
+
