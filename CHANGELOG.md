@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [v4.13.0] - 2026-11-09
+
+> 11-Language Polyglot Architectural Obligation Proofs: Declarative Hexagonal Layer Boundaries (`<5ms`), Executable `TC-*` Vector Binding, Fenced Spec Contract Signature Parity, Cryptographic `spec_digests` SHA-256 Taint Receipts & Turn-0 Handshake Alerts, Plus Polyglot Subprocess `GIT_*` Isolation & POSIX Installer Hardening (Apache 2.0)
+
+### 11-Language Polyglot Architectural Obligation Proofs (`nomos verify`, `nomos handshake`, `nomos status`, `nomos.yaml`)
+- **Declarative Polyglot Layer Boundary Enforcement (`INT-1935`, `SUB-2004`, `INT-1936`, `SUB-2007`)**: Adds `architecture_boundaries` rules (`name`, `from`, `forbid_imports`, `allow_imports`) under `governance.quality_gates` in `nomos.yaml` and `nomos.schema.json`. Evaluates package and module imports in `<5ms` on `PostToolUse` (`EvaluateFastFileRadar`) and during `nomos verify` across Go AST, TypeScript/JavaScript/Svelte (`import`/`export from`/`require`), Python (`import`/`from ... import`), Rust (`use`/`mod`), Ruby (`require`/`require_relative`), C/C++ (`#include`), Java/Kotlin (`import`), and C# (`using`), with worktree governance-downgrade protection against pinned `main` and live self-dogfooding (`core-purity`, `modules-independence`) in Nomos itself.
+- **Polyglot Fenced Spec Contract Signature Parity (`SUB-2002`, `SUB-2007`)**: Adds `strict_types: true` enforcement across fenced Markdown specification code blocks (`go`, `ts`/`tsx`/`js`/`mjs`, `python`, `rust`, `java`, `kotlin`, `csharp`) so declared struct, interface, `type`, `class`, and `@dataclass` fields fail closed on implementation drift across all supported ecosystems, alongside polyglot `@intent <spec>.md #<TypeName>` anchor verification.
+- **Executable `TC-*` Specification Obligation Binding (`SUB-2002`, `SUB-2007`, `SUB-2010`, `INT-1937`, `SUB-2011`)**: Adds `verify_obligations: true` scanning Markdown specification vector tables (`TC-[A-Z0-9]+-[0-9]+`) against verification suites across all 11 polyglot test conventions (`*_test.go`, `*.test.ts`/`*.spec.mjs`, `test_*.py`/`*_test.py`, `*_test.rs`, `*_test.rb`/`*_spec.rb`, `*Test.java`, `*Test.kt`, `*Tests.cs`, `*_test.cpp`) via `@verifies TC-...` comments or canonical test identifiers, while exempting upstream `INT-*` specification-authoring tasks from chicken-and-egg failures before their paired `SUB-*` task binds tests.
+- **Cryptographic `spec_digests` SHA-256 Taint Tracking & Turn-0 Handshake Alerts (`SUB-2003`, `SUB-2007`, `SUB-2010`)**: Stamps `spec_digests` (`map[spec_path]sha256`) into `refs/notes/nomos/releases` 2PC receipts on `SUB-*` releases (resolving `@intent` refs, `@verifies TC-*` vectors, `--twin INT-*` diffs, and active `spec_roots` contracts), surfaces stale downstream obligations immediately on Turn 0 in `nomos handshake` (`--json` and CLI) and `nomos status`, and blocks stale merges when `fail_on_stale_obligations: true` is active.
+- **Paired Live-Model Brownfield Benchmark (`Qwen3.8-27B`, `temp=0.0`)**: Across paired Python, TypeScript, and Go multi-module brownfield repositories with tempting `infra/` helpers and passing unit tests, `nomos v4.13.0` achieved **`100%` (`6/6`)** architectural obligation compliance (`+9s` average self-remediation overhead) versus **`50%` (`3/6`, `0/3` on hexagonal layer purity)** under stock `CLAUDE.md` + unit test harnesses.
+
+### Polyglot Runner Isolation, Sync & Installer Hardening (`nomos task sync`, `install.sh`)
+- **Subprocess `GIT_*` Sanitization & Whitespace Duplicate-Commit Guard (`SUB-1990`)**: Strips inherited `GIT_DIR` / `GIT_WORK_TREE` / `GIT_INDEX_FILE` variables across all 22 subprocess invocations in all 7 polyglot test and coverage runners, self-heals accidental `core.bare=true` config mutations during `nomos task sync`, and suppresses pure trailing-whitespace IDE auto-save diffs after `nomos task commit` across all languages.
+- **Optional Post-Sync Lifecycle Hook & POSIX `sh` Installer Compatibility (`SUB-1994`, `SUB-1989`, `INT-1933`)**: Invokes `.agents/scripts/post-sync.sh` when executable after `nomos task sync`, makes `install.sh` and `uninstall.sh` strictly POSIX `sh`-compatible (`curl ... | sh`), and streamlines `README.md` header badges.
+
+---
+
 ## [v4.12.1] - 2026-11-09
 
 > Episodic Pitfall Scope Hygiene, Polyglot TAP/Exception Diagnostic Windowing, Hybrid Release-Notes Ledger Compiler & Coverage Persistence (Apache 2.0)
