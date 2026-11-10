@@ -103,9 +103,10 @@ func TestIntentCharter_DatabaseEncapsulationAndHermeticBoundary(t *testing.T) {
 	}
 }
 
-// TestDomainSpecs_CoreSchemaAndWorktreeObligations verifies Domain 1 (Schema SSoT) and Domain 2 (Hermetic Worktree) obligations.
+// TestDomainSpecs_CoreSchemaAndWorktreeObligations verifies Domain 1 (Schema SSoT), Domain 2 (Hermetic Worktree), and Domain 4 (Intent Traceability) obligations.
 // @verifies TC-SSOT-01 TC-SSOT-02 TC-SSOT-03 TC-SSOT-04 TC-SSOT-05
 // @verifies TC-WT-001 TC-WT-002 TC-WT-003 TC-WT-004 TC-WT-005 TC-WT-006
+// @verifies TC-OBL-001 TC-OBL-002 TC-OBL-003 TC-OBL-004 TC-OBL-005 TC-OBL-006 TC-OBL-007 TC-OBL-008 TC-OBL-009 TC-OBL-010
 func TestDomainSpecs_CoreSchemaAndWorktreeObligations(t *testing.T) {
 	schemaBytes, err := config.GenerateConfigJSONSchema()
 	if err != nil || len(schemaBytes) == 0 {
