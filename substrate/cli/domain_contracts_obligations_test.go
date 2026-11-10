@@ -1,4 +1,4 @@
-// Package cli_test verifies synthesized Layer 2 domain contracts and TC-* obligations across all 8 canonical domain specifications.
+// Package cli_test verifies synthesized Layer 2 domain contracts and TC-* obligations across all 8 canonical domain specifications (INT-1944 / SUB-2157).
 // @intent intent.md
 // @intent go_ssot_and_json_schema_spec.md
 // @intent nomos_hermetic_worktree_spec.md
@@ -31,6 +31,7 @@ import (
 )
 
 // TestDomain1_ErrorAffordanceAndSourceRootObligations verifies Domain 1 error, HATEOAS affordance, and polyglot source root contracts.
+// @verifies TC-INT-01 TC-SSOT-01 TC-WT-001 TC-TSK-01 TC-OBL-001 TC-TS-01 TC-MEM-01 TC-NCTE-01 TC-PHY-01
 // @verifies TC-ERR-001 TC-ERR-002 TC-ERR-003 TC-ERR-004
 // @verifies TC-HAT-01 TC-HAT-02 TC-HAT-03 TC-HAT-04
 // @verifies TC-ROOT-01 TC-ROOT-02 TC-ROOT-03 TC-ROOT-04
