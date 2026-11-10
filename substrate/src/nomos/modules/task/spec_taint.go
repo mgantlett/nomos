@@ -72,12 +72,20 @@ func CollectContractSpecDigests(repoRoot string, specRoots []string) map[string]
 }
 
 func collectRootSpecPaths(repoRoot, relRoot string, out map[string]bool) {
-	dir := filepath.Join(repoRoot, filepath.FromSlash(relRoot))
-	fi, err := os.Stat(dir)
-	if err != nil || !fi.IsDir() {
+	target := filepath.Join(repoRoot, filepath.FromSlash(relRoot))
+	fi, err := os.Stat(target)
+	if err != nil {
 		return
 	}
-	walkErr := filepath.Walk(dir, func(path string, info os.FileInfo, wErr error) error {
+	if !fi.IsDir() {
+		if strings.HasSuffix(target, ".md") {
+			if rel, rErr := filepath.Rel(repoRoot, target); rErr == nil {
+				out[filepath.ToSlash(rel)] = true
+			}
+		}
+		return
+	}
+	walkErr := filepath.Walk(target, func(path string, info os.FileInfo, wErr error) error {
 		if wErr == nil && info != nil && !info.IsDir() && strings.HasSuffix(path, "_spec.md") {
 			if rel, rErr := filepath.Rel(repoRoot, path); rErr == nil {
 				out[filepath.ToSlash(rel)] = true
@@ -149,7 +157,7 @@ func loadLatestSubSpecReceipts(repoRoot, ref string) map[string]recordedSpecRece
 		if uErr := json.Unmarshal([]byte(line), &payload); uErr != nil {
 			continue
 		}
-		if !strings.HasPrefix(payload.TaskKey, "SUB-") {
+		if len(payload.SpecDigests) == 0 {
 			continue
 		}
 		recordUnseenSpecDigests(payload.TaskKey, payload.SpecDigests, latest)
@@ -221,6 +229,11 @@ func indexSpecVectors(repoRoot string, specIndex map[string]string) map[string][
 }
 
 func collectFileIntentSpecRefs(repoRoot, relFile string, specIndex map[string]string, vectorToSpecs map[string][]string, out map[string]bool) {
+	cleanRel := filepath.ToSlash(strings.TrimSpace(relFile))
+	if relSpec, ok := specIndex[cleanRel]; ok {
+		out[relSpec] = true
+		return
+	}
 	full := filepath.Join(repoRoot, filepath.FromSlash(relFile))
 	if isTaskVerificationSuiteName(filepath.Base(full)) {
 		scanTestVectorSpecRefs(full, vectorToSpecs, out)

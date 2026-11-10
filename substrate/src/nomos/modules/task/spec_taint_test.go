@@ -155,8 +155,12 @@ func TestTestOnlyVerifiesAndContractSpecDigests(t *testing.T) {
 	if digests["specs/ledger_spec.md"] == "" {
 		t.Fatalf("expected test-only @verifies TC-LED-01 to resolve specs/ledger_spec.md digest, got: %v", digests)
 	}
-	contractDigests := CollectContractSpecDigests(repo, []string{"specs"})
+	contractDigests := CollectContractSpecDigests(repo, []string{"specs", "specs/ledger_spec.md"})
 	if contractDigests["specs/ledger_spec.md"] == "" {
 		t.Fatalf("expected CollectContractSpecDigests to hash specs/ledger_spec.md, got: %v", contractDigests)
+	}
+	directSpecDigests := CollectReferencedSpecDigestsWithRoots(repo, []string{"specs/ledger_spec.md"}, "", []string{"specs"})
+	if directSpecDigests["specs/ledger_spec.md"] == "" {
+		t.Fatalf("expected direct spec file path in touchedFiles to resolve digest, got: %v", directSpecDigests)
 	}
 }

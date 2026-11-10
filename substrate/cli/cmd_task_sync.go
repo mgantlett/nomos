@@ -122,7 +122,9 @@ func cleanupAndAnnounceSyncedTask(mgr *workspace.Manager, key string) {
 }
 
 func collectSyncSpecDigests(repoRoot, key string, touchedFiles []string, twinKey string) map[string]string {
-	if !strings.HasPrefix(key, "SUB-") {
+	isSub := strings.HasPrefix(key, "SUB-")
+	isInt := strings.HasPrefix(key, "INT-")
+	if !isSub && !isInt {
 		return nil
 	}
 	var intentRoots []string
@@ -133,6 +135,9 @@ func collectSyncSpecDigests(repoRoot, key string, touchedFiles []string, twinKey
 		c := cfg.Governance.QualityGates.GetContractsBoundary().Contracts
 		contractsActive = c.Enabled && (c.StrictTypes || c.VerifyObligations || c.FailOnStaleObligations)
 		contractRoots = c.SpecRoots
+	}
+	if isInt && !canAutoSealIntentSpecDigests(repoRoot, contractRoots) {
+		return nil
 	}
 	digests := task.CollectReferencedSpecDigestsWithRoots(repoRoot, touchedFiles, twinKey, intentRoots)
 	if !contractsActive {
@@ -148,6 +153,14 @@ func collectSyncSpecDigests(repoRoot, key string, touchedFiles []string, twinKey
 		return nil
 	}
 	return digests
+}
+
+func canAutoSealIntentSpecDigests(repoRoot string, contractRoots []string) bool {
+	srcDir := filepath.Join(repoRoot, "substrate", "src")
+	if len(verify.VerifySpecTypeSignatures(repoRoot, srcDir, contractRoots)) > 0 {
+		return false
+	}
+	return len(verify.VerifyExecutableObligations(repoRoot, contractRoots)) == 0
 }
 
 func rebaseOntoTrunkIfDiverged(repoRoot, wtPath, branch string) (bool, error) {
