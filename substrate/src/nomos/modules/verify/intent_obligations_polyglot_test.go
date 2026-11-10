@@ -35,6 +35,8 @@ func mustWritePolyglotFile(t *testing.T, path, body string) {
 	}
 }
 
+// @verifies TC-OBL-009
+// @verifies TC-OBL-010
 func TestPolyglotSpecSignaturesTraceabilityAndEnvGates(t *testing.T) {
 	tmp, tsDir, pyDir, rbSpecDir := seedPolyglotTestFixture(t)
 	mustWritePolyglotFile(t, filepath.Join(tsDir, "invoice.ts"), "// @intent billing_spec.md #GhostType\nexport interface InvoicePayload {\n  id: string;\n}\nexport const secret = process.env.UNDECLARED_BILLING_SECRET;\n")
