@@ -24,11 +24,7 @@ func MergeHookManifest(existingJSON, incomingJSON []byte) ([]byte, error) {
 		return nil, fmt.Errorf("failed parsing incoming hook manifest: %w", err)
 	}
 	mergeHookObjectMaps(existingMap, incomingMap)
-	out, err := json.MarshalIndent(existingMap, "", "  ")
-	if err != nil {
-		return nil, err
-	}
-	return append(out, '\n'), nil
+	return marshalManifestNoHTML(existingMap)
 }
 
 func formatManifestJSON(raw []byte) ([]byte, error) {
@@ -36,11 +32,18 @@ func formatManifestJSON(raw []byte) ([]byte, error) {
 	if err := json.Unmarshal(bytes.TrimSpace(raw), &m); err != nil {
 		return nil, err
 	}
-	out, err := json.MarshalIndent(m, "", "  ")
-	if err != nil {
+	return marshalManifestNoHTML(m)
+}
+
+func marshalManifestNoHTML(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(v); err != nil {
 		return nil, err
 	}
-	return append(out, '\n'), nil
+	return buf.Bytes(), nil
 }
 
 func mergeHookObjectMaps(dst, src map[string]any) {
@@ -90,57 +93,49 @@ func canonicalHookSignature(v any) string {
 	return string(raw)
 }
 
+const hookEntryTypeCommand = "command"
+
+type agentHookEventSpec struct {
+	event   string
+	matcher string
+	subcmd  string
+	timeout int
+}
+
+func posixHookShellCommand(subcmd string) string {
+	return fmt.Sprintf(
+		`export PATH="$PATH:${GOBIN:+$GOBIN:}$HOME/go/bin:$HOME/.local/bin:$HOME/bin"; if command -v nomos >/dev/null 2>&1; then exec nomos hook %s; fi; printf '{}'`,
+		subcmd,
+	)
+}
+
+func buildAgentHookSettingsJSON(specs []agentHookEventSpec) []byte {
+	hooksMap := make(map[string]any, len(specs))
+	for _, sp := range specs {
+		inner := map[string]any{
+			"type":          hookEntryTypeCommand,
+			hookEntryTypeCommand: posixHookShellCommand(sp.subcmd),
+			"timeout":       sp.timeout,
+		}
+		entry := map[string]any{"hooks": []any{inner}}
+		if sp.matcher != "" {
+			entry["matcher"] = sp.matcher
+		}
+		hooksMap[sp.event] = []any{entry}
+	}
+	out, err := marshalManifestNoHTML(map[string]any{"hooks": hooksMap})
+	if err != nil {
+		return nil
+	}
+	return out
+}
+
 // DefaultClaudeSettingsHooksJSON returns the canonical Claude Code settings.json hook structure.
 func DefaultClaudeSettingsHooksJSON() []byte {
-	return []byte(`{
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "nomos hook session-start",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Bash|Read|Write|Edit|MultiEdit|NotebookEdit|Glob|Grep|WebFetch|WebSearch|Task.*|mcp__.*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "nomos hook pre-tool",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "nomos hook post-tool",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "nomos hook stop",
-            "timeout": 10
-          }
-        ]
-      }
-    ]
-  }
-}
-`)
+	return buildAgentHookSettingsJSON([]agentHookEventSpec{
+		{event: "SessionStart", subcmd: "session-start", timeout: 10},
+		{event: "PreToolUse", matcher: "Bash|Read|Write|Edit|MultiEdit|NotebookEdit|Glob|Grep|WebFetch|WebSearch|Task.*|mcp__.*", subcmd: "pre-tool", timeout: 10},
+		{event: "PostToolUse", matcher: "Write|Edit|MultiEdit|NotebookEdit", subcmd: "post-tool", timeout: 5},
+		{event: "Stop", subcmd: "stop", timeout: 10},
+	})
 }

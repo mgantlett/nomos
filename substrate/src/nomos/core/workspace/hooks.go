@@ -26,7 +26,9 @@ export NOMOS_IN_GIT_HOOK=1
     # 1. Direct commits to protected trunk branches are forbidden by Law 3
     if [[ "$CURRENT_BRANCH" == "intent" || "$CURRENT_BRANCH" == "substrate" || "$CURRENT_BRANCH" == "main" || "$CURRENT_BRANCH" == "master" || "$CURRENT_BRANCH" == "develop" ]]; then
         echo -e "\n\e[31m🚨 Commit Blocked: Direct commits to $CURRENT_BRANCH are forbidden by Nomos Root Mutability Hook (Law 3).\e[0m"
-        echo -e "Please create a task branch via \e[33mnomos task start <KEY>\e[0m or \e[33mnomos task chore\e[0m.\n"
+        echo -e "All mutations execute inside isolated task worktrees (\e[33mworktrees/<repo>-<KEY>\e[0m) and merge via 2PC sync:"
+        echo -e "  • Ask your coding agent: \e[36m\"Ship my current changes via a Nomos chore\"\e[0m"
+        echo -e "  • Or manually: \e[33mgit stash && nomos task chore \"Quick fix\"\e[0m (apply in worktree, then \e[33mnomos task sync <KEY> -F .tmp/walkthrough.md\e[0m)\n"
         exit 1
     fi
 
@@ -34,7 +36,8 @@ export NOMOS_IN_GIT_HOOK=1
     if [[ ! "$REPO_ROOT" =~ /worktrees/ ]]; then
         echo -e "\n\e[31m🚨 Commit Blocked: Commits directly in root repository workspace ($REPO_ROOT) are forbidden by Law 3.\e[0m"
         echo -e "All code mutations and commits must execute inside transient task worktrees."
-        echo -e "Please use \e[33mnomos task chore\e[0m to establish a task ID and worktree before mutating code.\n"
+        echo -e "  • Ask your coding agent: \e[36m\"Ship my current changes via a Nomos chore\"\e[0m"
+        echo -e "  • Or manually: \e[33mgit stash && nomos task chore \"Quick fix\"\e[0m\n"
         exit 1
     fi
 
@@ -63,6 +66,8 @@ export NOMOS_IN_GIT_HOOK=1
         NOMOS_BIN="$HOME/go/bin/nomos"
     elif [ -x "$HOME/.local/bin/nomos" ]; then
         NOMOS_BIN="$HOME/.local/bin/nomos"
+    elif [ -x "$HOME/bin/nomos" ]; then
+        NOMOS_BIN="$HOME/bin/nomos"
     fi
 
     if [ -n "$NOMOS_BIN" ]; then
@@ -153,6 +158,8 @@ const PrePushHookScript = `#!/usr/bin/env bash
         NOMOS_BIN="$HOME/go/bin/nomos"
     elif [ -x "$HOME/.local/bin/nomos" ]; then
         NOMOS_BIN="$HOME/.local/bin/nomos"
+    elif [ -x "$HOME/bin/nomos" ]; then
+        NOMOS_BIN="$HOME/bin/nomos"
     fi
 
     while read -r local_ref local_oid remote_ref remote_oid; do

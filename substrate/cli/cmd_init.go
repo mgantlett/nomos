@@ -96,19 +96,9 @@ func initializeGitGovernance(absDir string) (bool, bool) {
 		return false, false
 	}
 
-	createdCommit := false
-	openCodePluginRel := filepath.Join(".opencode", "plugins", "nomos.ts")
-	addCmd := workspace.SafeGitCommand(absDir, "add", ".gitignore", "nomos.yaml", "AGENTS.md", "CLAUDE.md", ".agents", openCodePluginRel)
-	if aErr := addCmd.Run(); aErr != nil {
-		fmt.Printf("⚠️ failed staging governance files: %v\n", aErr)
-	}
-	diffCmd := workspace.SafeGitCommand(absDir, "diff", "--cached", "--quiet")
-	if dErr := diffCmd.Run(); dErr != nil {
-		commitCmd := workspace.SafeGitCommand(absDir, "commit", "-m", "chore: initialize Nomos deterministic governance")
-		commitCmd.Env = append(commitCmd.Env, "NOMOS_INIT_IN_PROGRESS=1")
-		if cErr := commitCmd.Run(); cErr == nil {
-			createdCommit = true
-		}
+	createdCommit, stageErr := stageAndCommitGovernanceOnly(absDir)
+	if stageErr != nil {
+		fmt.Printf("⚠️ failed staging governance files: %v\n", stageErr)
 	}
 
 	if hookErr := workspace.InstallHooks(absDir); hookErr != nil {
@@ -161,7 +151,7 @@ func printInitializationSummary(absDir string, isGitRepo, createdBaselineCommit 
 	fmt.Printf("  %s Scaffolded downstream configuration %s\n", check, uiCommandStyle.Render("(nomos.yaml)"))
 	fmt.Printf("  %s Scaffolded universal agent protocol %s\n", check, uiCommandStyle.Render("(AGENTS.md)"))
 	fmt.Printf("  %s Scaffolded Tier 1 agent protocol %s\n", check, uiCommandStyle.Render("(CLAUDE.md)"))
-	fmt.Printf("  %s Scaffolded ambient session & defense hooks\n", check)
+	fmt.Printf("  %s Scaffolded ambient session & defense hooks %s\n", check, uiMutedStyle.Render("(Claude Code, Gemini CLI, OpenCode, Antigravity)"))
 	if createdBaselineCommit {
 		fmt.Printf("  %s Created initial baseline commit on %s\n", check, uiBoldValueStyle.Render(defaultBranch))
 	}
@@ -179,6 +169,7 @@ func printInitializationSummary(absDir string, isGitRepo, createdBaselineCommit 
 	} else {
 		fmt.Println(uiWarnStyle.Render("✨ Workspace ready. Run 'git init' followed by initial commit to enable full governance."))
 	}
+	fmt.Printf("  %s\n", uiMutedStyle.Render(fmt.Sprintf("💡 Live agent edits run inside isolated worktrees/%s-<task> sandboxes and merge into %s on completion.", filepath.Base(absDir), defaultBranch)))
 }
 
 func scaffoldNomosConfig(dir string) error {
@@ -286,11 +277,13 @@ func scaffoldAmbientHooks(dir string) error {
 	if mErr := scaffoldOrMergeHookManifestFile(filepath.Join(agentsDir, "hooks.json"), manifestBytes); mErr != nil {
 		return mErr
 	}
-	claudeSettingsPath := filepath.Join(dir, ".claude", "settings.json")
-	if _, statErr := os.Stat(claudeSettingsPath); statErr == nil {
-		if cErr := scaffoldOrMergeHookManifestFile(claudeSettingsPath, DefaultClaudeSettingsHooksJSON()); cErr != nil {
-			return cErr
-		}
+	claudeSettingsPath := filepath.Join(dir, claudeDirToken, settingsFileName)
+	if cErr := writeMergedJSONManifest(claudeSettingsPath, DefaultClaudeSettingsHooksJSON()); cErr != nil {
+		return cErr
+	}
+	geminiSettingsPath := filepath.Join(dir, geminiDirToken, settingsFileName)
+	if gErr := writeMergedJSONManifest(geminiSettingsPath, DefaultGeminiSettingsHooksJSON()); gErr != nil {
+		return gErr
 	}
 	if oErr := scaffoldOpenCodePlugin(dir); oErr != nil {
 		return oErr

@@ -185,4 +185,24 @@ if (!afterOut.output.includes("[Nomos Verified Host State]")) {
 	if out, rErr := cmd.CombinedOutput(); rErr != nil {
 		t.Fatalf("OpenCode plugin runtime E2E failed (%v):\n%s", rErr, string(out))
 	}
+
+	// Verify GUI PATH fallback (~/.local/bin/nomos) when 'nomos' is absent from PATH.
+	guiHome := t.TempDir()
+	localBin := filepath.Join(guiHome, ".local", "bin")
+	if mErr := os.MkdirAll(localBin, 0755); mErr != nil {
+		t.Fatalf("mkdir .local/bin: %v", mErr)
+	}
+	binBytes, bErr := os.ReadFile(filepath.Join(compiledHookTestBinDir, "nomos"))
+	if bErr != nil {
+		t.Fatalf("read compiled nomos: %v", bErr)
+	}
+	if wErr := os.WriteFile(filepath.Join(localBin, "nomos"), binBytes, 0755); wErr != nil {
+		t.Fatalf("stage ~/.local/bin/nomos: %v", wErr)
+	}
+	guiCmd := exec.Command(nodeBin, driverPath)
+	guiCmd.Dir = repoDir
+	guiCmd.Env = []string{"PATH=" + filepath.Dir(nodeBin), "HOME=" + guiHome, "XDG_CACHE_HOME=" + t.TempDir()}
+	if out, gErr := guiCmd.CombinedOutput(); gErr != nil {
+		t.Fatalf("OpenCode plugin GUI PATH fallback E2E failed (%v):\n%s", gErr, string(out))
+	}
 }

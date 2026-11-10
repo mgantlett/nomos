@@ -27,57 +27,12 @@ type HookInstallReceipt struct {
 
 // DefaultGeminiSettingsHooksJSON returns the canonical Gemini CLI settings.json hook structure.
 func DefaultGeminiSettingsHooksJSON() []byte {
-	return []byte(`{
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "nomos hook session-start",
-            "timeout": 10000
-          }
-        ]
-      }
-    ],
-    "BeforeTool": [
-      {
-        "matcher": ".*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "nomos hook pre-tool",
-            "timeout": 10000
-          }
-        ]
-      }
-    ],
-    "AfterTool": [
-      {
-        "matcher": "write_file|replace|edit.*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "nomos hook post-tool",
-            "timeout": 5000
-          }
-        ]
-      }
-    ],
-    "AfterAgent": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "nomos hook stop",
-            "timeout": 10000
-          }
-        ]
-      }
-    ]
-  }
-}
-`)
+	return buildAgentHookSettingsJSON([]agentHookEventSpec{
+		{event: "SessionStart", subcmd: "session-start", timeout: 10000},
+		{event: "BeforeTool", matcher: ".*", subcmd: "pre-tool", timeout: 10000},
+		{event: "AfterTool", matcher: "write_file|replace|edit.*", subcmd: "post-tool", timeout: 5000},
+		{event: "AfterAgent", subcmd: "stop", timeout: 10000},
+	})
 }
 
 type hookInstallFlags struct {

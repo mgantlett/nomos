@@ -1,5 +1,8 @@
 // NOMOS_OPEN_CORE_PLUGIN_START
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 interface OpenCodeHookInput {
   tool: string;
@@ -22,15 +25,41 @@ interface OpenCodePluginContext {
   worktree?: string;
 }
 
+let cachedNomosBin = "";
+
+/**
+ * Resolves standard Go/XDG fallback binary paths when GUI IDEs omit user PATH entries.
+ */
+function resolveFallbackNomosBinary(): string {
+  const home = homedir();
+  const candidates = [
+    process.env.GOBIN ? join(process.env.GOBIN, "nomos") : "",
+    join(home, "go", "bin", "nomos"),
+    join(home, ".local", "bin", "nomos"),
+    join(home, "bin", "nomos"),
+  ];
+  for (const candidate of candidates) {
+    if (candidate && existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return "nomos";
+}
+
 /**
  * Invokes a compiled Nomos hook subcommand synchronously with bounded latency.
  */
 function runNomosHook(subcmd: string, payload: Record<string, unknown>): Record<string, unknown> | null {
-  const res = spawnSync("nomos", ["hook", subcmd], {
-    input: JSON.stringify(payload),
-    encoding: "utf8",
-    timeout: 5000,
-  });
+  const bin = cachedNomosBin || "nomos";
+  const opts = { input: JSON.stringify(payload), encoding: "utf8" as const, timeout: 5000 };
+  let res = spawnSync(bin, ["hook", subcmd], opts);
+  if (res.error && !cachedNomosBin) {
+    const fallback = resolveFallbackNomosBinary();
+    if (fallback !== "nomos") {
+      cachedNomosBin = fallback;
+      res = spawnSync(fallback, ["hook", subcmd], opts);
+    }
+  }
   if (res.error || res.status !== 0 || !res.stdout) {
     return null;
   }

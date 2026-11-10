@@ -159,6 +159,36 @@ func TestPreCommitHookScript_BlocksRawWorktreeGitCommitWithoutEnvToken(t *testin
 	}
 }
 
+func TestPreCommitHookScript_TrunkBlockEmitsActionableAgentAndManualHint(t *testing.T) {
+	t.Setenv("NOMOS_INIT_IN_PROGRESS", "")
+	t.Setenv("NOMOS_COMMIT_IN_PROGRESS", "")
+	repoDir := InitHermeticGitRepo(t)
+	if err := InstallHooks(repoDir); err != nil {
+		t.Fatalf("InstallHooks failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(repoDir, "README.md"), []byte("typo fix\n"), 0644); err != nil {
+		t.Fatalf("write README.md: %v", err)
+	}
+	if err := SafeGitCommand(repoDir, "add", "README.md").Run(); err != nil {
+		t.Fatalf("git add README.md: %v", err)
+	}
+	rawCommit := SafeGitCommand(repoDir, "commit", "-m", "docs: quick typo fix")
+	out, cErr := rawCommit.CombinedOutput()
+	if cErr == nil {
+		t.Fatalf("expected direct git commit on main trunk to fail closed")
+	}
+	outStr := string(out)
+	for _, want := range []string{
+		"Nomos Root Mutability Hook (Law 3)",
+		"Ship my current changes via a Nomos chore",
+		"git stash && nomos task chore",
+	} {
+		if !strings.Contains(outStr, want) {
+			t.Errorf("expected trunk pre-commit block output to include %q, got:\n%s", want, outStr)
+		}
+	}
+}
+
 func TestCommitMsgHookScript_ZeroFHSSedFreePureNixOSCompatibility(t *testing.T) {
 	if strings.Contains(CommitMsgHookScript, "sed ") || strings.Contains(CommitMsgHookScript, "awk ") {
 		t.Fatalf("CommitMsgHookScript must not depend on sed or awk in Zero-FHS Pure NixOS containers")
