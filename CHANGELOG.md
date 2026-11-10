@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [v4.13.1] - 2026-11-10
+
+> Zero-Ceremony Multi-Agent Onboarding Invisibility, 4-Layer Progressive Intent Compiler Charter (`TC-INT-01..06`), and Ledger-First GitHub Release Notes (Apache 2.0)
+
+### Zero-Ceremony First-Time Onboarding & Ambient Hook Hardening (`nomos init`, `nomos hook`)
+- **Out-of-the-Box Claude Code & Gemini CLI Hook Scaffolding (`SUB-2133`, `INT-1940`)**: `nomos init` now deterministically scaffolds and additively merges `.claude/settings.json` and `.gemini/settings.json` alongside `.agents/hooks.json` and `.opencode/plugins/nomos.ts`, activating compiled `SessionStart`, `PreToolUse`, `PostToolUse`, and `Stop` governance immediately on a developer's first session without requiring a separate `nomos hook install` command.
+- **Hermetic `--only` Baseline Governance Commit (`SUB-2133`)**: Scopes `nomos init`'s initial Git baseline commit via `git commit --only -- <governance-paths>` so pre-staged developer index changes are never swept into the governance commit on either unborn or existing `HEAD` repositories, and prints a 1-line `worktrees/<repo>-<task>` sandbox orientation hint on initialization.
+- **GUI IDE `$PATH` Fallback, Teammate Missing-Binary Grace & Trunk Escape Hints (`SUB-2133`)**: Embeds POSIX `$PATH` fallback resolution (`$GOBIN`, `$HOME/go/bin`, `$HOME/.local/bin`, `$HOME/bin`) with graceful `{}` (`exit 0`) fallback when `nomos` is absent across `DefaultClaudeSettingsHooksJSON`, `DefaultGeminiSettingsHooksJSON`, and `.opencode/plugins/nomos.ts`, and adds copy-paste coding-agent and `git stash && nomos task chore` instructions when a human `git commit` hits a protected trunk branch.
+
+### 4-Layer Progressive Intent Compiler Charter & Release Ledger Ordering (`intent/intent.md`, `packaging/render-release-notes.sh`)
+- **Stage 0 Intent Compiler Charter & Executable Obligation Proofs (`INT-1941`, `SUB-2134`)**: Codifies the 4-Layer Progressive Intent Compiler (`Layer 0` Charter -> `Layer 1` `nomos.yaml` Physics -> `Layer 2` JIT Slice Specs -> `Layer 3` Hermetic Worktree & Git Notes SHA-256 Receipts) in `intent/intent.md`, enables `strict_types`, `verify_obligations`, and `fail_on_stale_obligations` in `intent/config/nomos.yaml`, and binds executable verification vectors `TC-INT-01..06` in `substrate/cli/intent_manifesto_obligations_test.go` with sealed SHA-256 `spec_digests`.
+- **Ledger-First GitHub Release Notes & Collapsible Milestone Rollups (`SUB-2129`)**: Reorders `packaging/render-release-notes.sh` so GitHub Releases lead with the 1-line release summary and chronological SHA-linked `[INT-*]` / `[SUB-*]` commit ledger (`## Changelog`), followed by collapsible `<details>` disclosures for detailed architecture notes and parent `vX.Y.0` milestone rollups on patch releases.
+
+---
+
 ## [v4.13.0] - 2026-11-09
 
 > 11-Language Polyglot Architectural Obligation Proofs: Declarative Hexagonal Layer Boundaries (`<5ms`), Executable `TC-*` Vector Binding, Fenced Spec Contract Signature Parity, Cryptographic `spec_digests` SHA-256 Taint Receipts & Turn-0 Handshake Alerts, Plus Polyglot Subprocess `GIT_*` Isolation & POSIX Installer Hardening (Apache 2.0)
