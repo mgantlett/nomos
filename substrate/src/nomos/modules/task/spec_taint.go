@@ -15,7 +15,11 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 )
 
-var intentSpecRefRe = regexp.MustCompile(`@intent[^\n]*?\b([A-Za-z0-9_-]+\.md)\b`)
+var (
+	intentSpecRefRe    = regexp.MustCompile(`@intent[^\n]*?\b([A-Za-z0-9_-]+\.md)\b`)
+	taskVectorTokenRe  = regexp.MustCompile(`TC-[A-Z0-9]+-[0-9]+\b`)
+	taskUnderVectorRe  = regexp.MustCompile(`TC_([A-Z0-9]+)_([0-9]+)\b`)
+)
 
 // StaleSpecObligation identifies an Intent specification modified after its latest SUB-* verification receipt (#StaleSpecObligation).
 type StaleSpecObligation struct {
@@ -31,7 +35,7 @@ func CollectReferencedSpecDigests(repoRoot string, touchedFiles []string, twinKe
 	return CollectReferencedSpecDigestsWithRoots(repoRoot, touchedFiles, twinKey, nil)
 }
 
-// CollectReferencedSpecDigestsWithRoots resolves @intent specification files across configured intentRoots (@intent nomos_intent_traceability_spec.md #StaleSpecObligation).
+// CollectReferencedSpecDigestsWithRoots resolves @intent specification files and @verifies TC-* vectors across configured intentRoots (@intent nomos_intent_traceability_spec.md #StaleSpecObligation).
 func CollectReferencedSpecDigestsWithRoots(repoRoot string, touchedFiles []string, twinKey string, intentRoots []string) map[string]string {
 	if repoRoot == "" {
 		return nil
@@ -40,14 +44,50 @@ func CollectReferencedSpecDigestsWithRoots(repoRoot string, touchedFiles []strin
 	if len(specIndex) == 0 {
 		return nil
 	}
+	vectorToSpecs := indexSpecVectors(repoRoot, specIndex)
 	referenced := make(map[string]bool)
 	for _, rel := range touchedFiles {
-		collectFileIntentSpecRefs(repoRoot, rel, specIndex, referenced)
+		collectFileIntentSpecRefs(repoRoot, rel, specIndex, vectorToSpecs, referenced)
 	}
 	if strings.HasPrefix(strings.TrimSpace(twinKey), "INT-") {
 		collectTwinCommitSpecs(repoRoot, strings.TrimSpace(twinKey), specIndex, referenced)
 	}
 	return hashReferencedSpecs(repoRoot, referenced)
+}
+
+// CollectContractSpecDigests hashes all *_spec.md files under specRoots when contract obligations are active (@intent nomos_intent_traceability_spec.md #StaleSpecObligation).
+func CollectContractSpecDigests(repoRoot string, specRoots []string) map[string]string {
+	if repoRoot == "" {
+		return nil
+	}
+	roots := specRoots
+	if len(roots) == 0 {
+		roots = []string{filepath.Join("intent", "architecture", "specs")}
+	}
+	referenced := make(map[string]bool)
+	for _, r := range roots {
+		collectRootSpecPaths(repoRoot, r, referenced)
+	}
+	return hashReferencedSpecs(repoRoot, referenced)
+}
+
+func collectRootSpecPaths(repoRoot, relRoot string, out map[string]bool) {
+	dir := filepath.Join(repoRoot, filepath.FromSlash(relRoot))
+	fi, err := os.Stat(dir)
+	if err != nil || !fi.IsDir() {
+		return
+	}
+	walkErr := filepath.Walk(dir, func(path string, info os.FileInfo, wErr error) error {
+		if wErr == nil && info != nil && !info.IsDir() && strings.HasSuffix(path, "_spec.md") {
+			if rel, rErr := filepath.Rel(repoRoot, path); rErr == nil {
+				out[filepath.ToSlash(rel)] = true
+			}
+		}
+		return nil
+	})
+	if walkErr != nil {
+		return
+	}
 }
 
 // ComputeStaleSpecObligations compares current specification SHA-256 digests on disk against
@@ -161,8 +201,31 @@ func indexRepoMarkdownSpecs(repoRoot string, intentRoots []string) map[string]st
 	return index
 }
 
-func collectFileIntentSpecRefs(repoRoot, relFile string, specIndex map[string]string, out map[string]bool) {
+func indexSpecVectors(repoRoot string, specIndex map[string]string) map[string][]string {
+	seenSpecs := make(map[string]bool)
+	vecMap := make(map[string][]string)
+	for _, relSpec := range specIndex {
+		if seenSpecs[relSpec] {
+			continue
+		}
+		seenSpecs[relSpec] = true
+		raw, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(relSpec)))
+		if err != nil {
+			continue
+		}
+		for _, tok := range taskVectorTokenRe.FindAllString(string(raw), -1) {
+			vecMap[tok] = append(vecMap[tok], relSpec)
+		}
+	}
+	return vecMap
+}
+
+func collectFileIntentSpecRefs(repoRoot, relFile string, specIndex map[string]string, vectorToSpecs map[string][]string, out map[string]bool) {
 	full := filepath.Join(repoRoot, filepath.FromSlash(relFile))
+	if isTaskVerificationSuiteName(filepath.Base(full)) {
+		scanTestVectorSpecRefs(full, vectorToSpecs, out)
+		return
+	}
 	dir := filepath.Dir(full)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -172,6 +235,27 @@ func collectFileIntentSpecRefs(repoRoot, relFile string, specIndex map[string]st
 	for _, ent := range entries {
 		if !ent.IsDir() && !isTaskVerificationSuiteName(ent.Name()) {
 			scanSingleSourceSpecRefs(filepath.Join(dir, ent.Name()), specIndex, out)
+		}
+	}
+}
+
+func scanTestVectorSpecRefs(path string, vectorToSpecs map[string][]string, out map[string]bool) {
+	raw, err := os.ReadFile(path)
+	if err != nil || len(vectorToSpecs) == 0 {
+		return
+	}
+	text := string(raw)
+	for _, tok := range taskVectorTokenRe.FindAllString(text, -1) {
+		for _, sp := range vectorToSpecs[tok] {
+			out[sp] = true
+		}
+	}
+	for _, m := range taskUnderVectorRe.FindAllStringSubmatch(text, -1) {
+		if len(m) == 3 {
+			norm := "TC-" + m[1] + "-" + m[2]
+			for _, sp := range vectorToSpecs[norm] {
+				out[sp] = true
+			}
 		}
 	}
 }

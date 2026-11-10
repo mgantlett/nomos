@@ -134,3 +134,29 @@ func TestSpecDigestStampingAndStaleObligationTaint(t *testing.T) {
 		t.Fatal("expected invalid spec_digests hex to fail ValidateReleaseNote")
 	}
 }
+
+func TestTestOnlyVerifiesAndContractSpecDigests(t *testing.T) {
+	repo := initTempGitRepo(t)
+	specFull := filepath.Join(repo, "specs", "ledger_spec.md")
+	pyTestFull := filepath.Join(repo, "tests", "test_ledger.py")
+	if err := os.MkdirAll(filepath.Dir(specFull), 0755); err != nil {
+		t.Fatalf("mkdir specs: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(pyTestFull), 0755); err != nil {
+		t.Fatalf("mkdir tests: %v", err)
+	}
+	if err := os.WriteFile(specFull, []byte("# Ledger Spec\n| ID | Desc |\n|---|---|\n| `TC-LED-01` | Check |\n"), 0644); err != nil {
+		t.Fatalf("write spec: %v", err)
+	}
+	if err := os.WriteFile(pyTestFull, []byte("# @verifies TC-LED-01\ndef test_ok():\n    assert True\n"), 0644); err != nil {
+		t.Fatalf("write py test: %v", err)
+	}
+	digests := CollectReferencedSpecDigestsWithRoots(repo, []string{"tests/test_ledger.py"}, "", []string{"specs"})
+	if digests["specs/ledger_spec.md"] == "" {
+		t.Fatalf("expected test-only @verifies TC-LED-01 to resolve specs/ledger_spec.md digest, got: %v", digests)
+	}
+	contractDigests := CollectContractSpecDigests(repo, []string{"specs"})
+	if contractDigests["specs/ledger_spec.md"] == "" {
+		t.Fatalf("expected CollectContractSpecDigests to hash specs/ledger_spec.md, got: %v", contractDigests)
+	}
+}

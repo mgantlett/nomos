@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 )
 
 // @verifies TC-OBL-006
@@ -119,7 +120,10 @@ func TestArchitectureBoundariesDowngradeRejected(t *testing.T) {
 // @verifies TC-TRC-004
 func TestSelfDogfoodTraceabilitySpecObligations(t *testing.T) {
 	repoRoot := filepath.Clean("../../../../..")
-	if strings.Contains(filepath.ToSlash(repoRoot), "/worktrees/") && strings.Contains(filepath.Base(repoRoot), "INT-") {
+	if absRoot, aErr := filepath.Abs(repoRoot); aErr == nil {
+		repoRoot = absRoot
+	}
+	if isActiveIntentWorktreeOrBranch(repoRoot) {
 		t.Skip("skipping substrate obligation self-dogfooding inside active INT-* worktree (Law 7 causal declaration phase)")
 	}
 	specPath := filepath.Join("intent", "architecture", "specs", "nomos_intent_traceability_spec.md")
@@ -133,4 +137,16 @@ func TestSelfDogfoodTraceabilitySpecObligations(t *testing.T) {
 	if drifted := VerifySpecTypeSignatures(repoRoot, subDir, []string{specPath}); len(drifted) != 0 {
 		t.Fatalf("dogfooding failure: struct field drift in %s: %v", specPath, drifted)
 	}
+}
+
+func isActiveIntentWorktreeOrBranch(repoRoot string) bool {
+	if strings.Contains(filepath.ToSlash(repoRoot), "/worktrees/") && strings.Contains(filepath.Base(repoRoot), "INT-") {
+		return true
+	}
+	out, err := workspace.SafeGitCommand(repoRoot, "rev-parse", "--abbrev-ref", "HEAD").Output()
+	if err != nil {
+		return false
+	}
+	branch := strings.TrimSpace(string(out))
+	return strings.HasPrefix(branch, "feature/INT-") || strings.HasPrefix(branch, "INT-")
 }

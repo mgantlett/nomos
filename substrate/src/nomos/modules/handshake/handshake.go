@@ -39,6 +39,7 @@ type HandshakeEvent struct {
 	VerifiedPatterns     []string                 `json:"verified_patterns,omitempty"`
 	GraduationCandidates []string                 `json:"graduation_candidates,omitempty"`
 	ImpactSummary        []string                 `json:"impact_summary,omitempty"`
+	StaleObligations     []task.StaleSpecObligation `json:"stale_obligations,omitempty"`
 	StrictMode           bool                     `json:"strict_mode"`
 	BrownfieldTopology   *BrownfieldTopologyBrief `json:"brownfield_topology,omitempty"`
 	NextActions          []types.ActionAffordance `json:"next_actions,omitempty"`
@@ -72,10 +73,7 @@ func SynthesizeDynamicHandshake(repoRoot string) (*HandshakeEvent, error) {
 		return nil, err
 	}
 
-	seat := os.Getenv("NOMOS_SEAT")
-	if seat == "" {
-		seat = "workstation-local"
-	}
+	seat := resolveHandshakeSeat()
 	repo := filepath.Base(primaryRoot)
 
 	_, activeTask := detectBranchAndTask(treeRoot)
@@ -88,6 +86,7 @@ func SynthesizeDynamicHandshake(repoRoot string) (*HandshakeEvent, error) {
 	modifiedFiles, impactSummary := computeActiveTaskImpact(treeRoot, activeTask)
 	pitfalls, patterns, graduations := recallMnemeHandshakeContext(primaryRoot, activeTask, modifiedFiles)
 	strictMode, bfTopology := resolveHandshakeGovernance(treeRoot, primaryRoot)
+	staleObligations := resolveHandshakeStaleObligations(primaryRoot)
 
 	wtRoot := ""
 	if activeTask != "" && strings.Contains(filepath.ToSlash(treeRoot), "/worktrees/") {
@@ -112,6 +111,7 @@ func SynthesizeDynamicHandshake(repoRoot string) (*HandshakeEvent, error) {
 		VerifiedPatterns:     patterns,
 		GraduationCandidates: graduations,
 		ImpactSummary:        impactSummary,
+		StaleObligations:     staleObligations,
 		StrictMode:           strictMode,
 		BrownfieldTopology:   bfTopology,
 		NextActions:          nextActions,
@@ -122,6 +122,21 @@ func SynthesizeDynamicHandshake(repoRoot string) (*HandshakeEvent, error) {
 		return nil, valErr
 	}
 	return event, nil
+}
+
+func resolveHandshakeSeat() string {
+	if seat := os.Getenv("NOMOS_SEAT"); seat != "" {
+		return seat
+	}
+	return "workstation-local"
+}
+
+func resolveHandshakeStaleObligations(primaryRoot string) []task.StaleSpecObligation {
+	stale, err := task.ComputeStaleSpecObligations(primaryRoot, "")
+	if err != nil {
+		return nil
+	}
+	return stale
 }
 
 func resolveHandshakeRoots(repoRoot string) (string, string, error) {

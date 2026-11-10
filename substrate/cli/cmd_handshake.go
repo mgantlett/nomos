@@ -137,6 +137,12 @@ func formatHandshakeWavefront(keys []string) string {
 }
 
 func renderHandshakeMnemeTelemetry(event *handshake.HandshakeEvent) {
+	if len(event.StaleObligations) > 0 {
+		fmt.Println(kvLine("Stale Obligations", 17, uiWarnStyle.Render(fmt.Sprintf("⚠️  %d spec(s) modified since last SUB-* verification receipt", len(event.StaleObligations)))))
+		for _, s := range event.StaleObligations {
+			fmt.Printf("    ⚠️  %s %s\n", uiValueStyle.Render(s.SpecPath), uiMutedStyle.Render("(last verified by "+s.LastVerifiedBy+")"))
+		}
+	}
 	if len(event.ImpactSummary) > 0 {
 		fmt.Println(kvLine("1-Hop Impact Map", 17, fmt.Sprintf("%d modified source target(s)", len(event.ImpactSummary))))
 		for _, item := range event.ImpactSummary {

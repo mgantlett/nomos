@@ -126,10 +126,28 @@ func collectSyncSpecDigests(repoRoot, key string, touchedFiles []string, twinKey
 		return nil
 	}
 	var intentRoots []string
+	var contractRoots []string
+	contractsActive := false
 	if cfg, err := config.LoadConfig(repoRoot); err == nil && cfg != nil {
 		intentRoots = cfg.Governance.QualityGates.IntentSourceRoots
+		c := cfg.Governance.QualityGates.GetContractsBoundary().Contracts
+		contractsActive = c.Enabled && (c.StrictTypes || c.VerifyObligations || c.FailOnStaleObligations)
+		contractRoots = c.SpecRoots
 	}
-	return task.CollectReferencedSpecDigestsWithRoots(repoRoot, touchedFiles, twinKey, intentRoots)
+	digests := task.CollectReferencedSpecDigestsWithRoots(repoRoot, touchedFiles, twinKey, intentRoots)
+	if !contractsActive {
+		return digests
+	}
+	if digests == nil {
+		digests = make(map[string]string)
+	}
+	for k, v := range task.CollectContractSpecDigests(repoRoot, contractRoots) {
+		digests[k] = v
+	}
+	if len(digests) == 0 {
+		return nil
+	}
+	return digests
 }
 
 func rebaseOntoTrunkIfDiverged(repoRoot, wtPath, branch string) (bool, error) {
