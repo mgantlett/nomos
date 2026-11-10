@@ -119,6 +119,9 @@ func TestArchitectureBoundariesDowngradeRejected(t *testing.T) {
 // @verifies TC-TRC-004
 func TestSelfDogfoodTraceabilitySpecObligations(t *testing.T) {
 	repoRoot := filepath.Clean("../../../../..")
+	if strings.Contains(filepath.ToSlash(repoRoot), "/worktrees/") && strings.Contains(filepath.Base(repoRoot), "INT-") {
+		t.Skip("skipping substrate obligation self-dogfooding inside active INT-* worktree (Law 7 causal declaration phase)")
+	}
 	specPath := filepath.Join("intent", "architecture", "specs", "nomos_intent_traceability_spec.md")
 	if _, err := os.Stat(filepath.Join(repoRoot, specPath)); err != nil {
 		t.Skipf("workspace spec %s not found: %v", specPath, err)

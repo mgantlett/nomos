@@ -3,8 +3,6 @@ package verify
 
 import (
 	"fmt"
-	"go/parser"
-	"go/token"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -163,7 +161,6 @@ func (g *IPLeakGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 }
 
 func scanIPLeaks(root string) ([]string, error) {
-	fset := token.NewFileSet()
 	var violations []string
 
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
@@ -176,23 +173,16 @@ func scanIPLeaks(root string) ([]string, error) {
 			}
 			return nil
 		}
-		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-			return nil
-		}
-		node, pErr := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
-		if pErr != nil {
+		if isVerificationSuiteFile(d.Name()) || !isSupportedPolyglotSourceFile(path) {
 			return nil
 		}
 		rel, rErr := filepath.Rel(root, path)
 		if rErr != nil {
 			rel = path
 		}
-		for _, imp := range node.Imports {
-			if imp.Path != nil {
-				val := strings.Trim(imp.Path.Value, "\"")
-				if isBannedImport(val) {
-					violations = append(violations, fmt.Sprintf("%s: imports %s", rel, val))
-				}
+		for _, val := range extractPolyglotFileImports(path) {
+			if isBannedImport(val) {
+				violations = append(violations, fmt.Sprintf("%s: imports %s", rel, val))
 			}
 		}
 		return nil

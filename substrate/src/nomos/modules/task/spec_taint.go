@@ -28,10 +28,15 @@ type StaleSpecObligation struct {
 // CollectReferencedSpecDigests resolves @intent specification files referenced by touchedFiles
 // (and any specs modified by twinKey) and computes their 64-char SHA-256 digests (@intent nomos_intent_traceability_spec.md #StaleSpecObligation).
 func CollectReferencedSpecDigests(repoRoot string, touchedFiles []string, twinKey string) map[string]string {
+	return CollectReferencedSpecDigestsWithRoots(repoRoot, touchedFiles, twinKey, nil)
+}
+
+// CollectReferencedSpecDigestsWithRoots resolves @intent specification files across configured intentRoots (@intent nomos_intent_traceability_spec.md #StaleSpecObligation).
+func CollectReferencedSpecDigestsWithRoots(repoRoot string, touchedFiles []string, twinKey string, intentRoots []string) map[string]string {
 	if repoRoot == "" {
 		return nil
 	}
-	specIndex := indexRepoMarkdownSpecs(repoRoot)
+	specIndex := indexRepoMarkdownSpecs(repoRoot, intentRoots)
 	if len(specIndex) == 0 {
 		return nil
 	}
@@ -124,25 +129,34 @@ func recordUnseenSpecDigests(taskKey string, digests map[string]string, latest m
 	}
 }
 
-func indexRepoMarkdownSpecs(repoRoot string) map[string]string {
-	intentDir := filepath.Join(repoRoot, "intent")
-	fi, err := os.Stat(intentDir)
-	if err != nil || !fi.IsDir() {
-		return nil
+func indexRepoMarkdownSpecs(repoRoot string, intentRoots []string) map[string]string {
+	roots := intentRoots
+	if len(roots) == 0 {
+		roots = []string{"intent"}
 	}
 	index := make(map[string]string)
-	walkErr := filepath.Walk(intentDir, func(path string, info os.FileInfo, wErr error) error {
-		if wErr == nil && info != nil && !info.IsDir() && strings.HasSuffix(path, ".md") {
-			if rel, rErr := filepath.Rel(repoRoot, path); rErr == nil {
-				slash := filepath.ToSlash(rel)
-				index[filepath.Base(path)] = slash
-				index[slash] = slash
-			}
+	for _, r := range roots {
+		intentDir := filepath.Join(repoRoot, filepath.FromSlash(r))
+		fi, err := os.Stat(intentDir)
+		if err != nil || !fi.IsDir() {
+			continue
 		}
+		walkErr := filepath.Walk(intentDir, func(path string, info os.FileInfo, wErr error) error {
+			if wErr == nil && info != nil && !info.IsDir() && strings.HasSuffix(path, ".md") {
+				if rel, rErr := filepath.Rel(repoRoot, path); rErr == nil {
+					slash := filepath.ToSlash(rel)
+					index[filepath.Base(path)] = slash
+					index[slash] = slash
+				}
+			}
+			return nil
+		})
+		if walkErr != nil {
+			continue
+		}
+	}
+	if len(index) == 0 {
 		return nil
-	})
-	if walkErr != nil {
-		return index
 	}
 	return index
 }
@@ -156,10 +170,21 @@ func collectFileIntentSpecRefs(repoRoot, relFile string, specIndex map[string]st
 		return
 	}
 	for _, ent := range entries {
-		if !ent.IsDir() && !strings.HasSuffix(ent.Name(), "_test.go") {
+		if !ent.IsDir() && !isTaskVerificationSuiteName(ent.Name()) {
 			scanSingleSourceSpecRefs(filepath.Join(dir, ent.Name()), specIndex, out)
 		}
 	}
+}
+
+func isTaskVerificationSuiteName(name string) bool {
+	lower := strings.ToLower(name)
+	return strings.HasSuffix(lower, "_test.go") ||
+		strings.HasSuffix(lower, "_test.py") ||
+		strings.HasSuffix(lower, "_spec.rb") ||
+		strings.HasSuffix(lower, "_test.rb") ||
+		strings.HasPrefix(lower, "test_") ||
+		strings.Contains(lower, ".test.") ||
+		strings.Contains(lower, ".spec.")
 }
 
 func scanSingleSourceSpecRefs(path string, specIndex map[string]string, out map[string]bool) {

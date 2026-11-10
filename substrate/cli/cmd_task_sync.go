@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/storage"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
@@ -95,10 +96,7 @@ func finalizeSync(key, walkthroughPath string, report *verify.PipelineReport) er
 		return err
 	}
 
-	var specDigests map[string]string
-	if strings.HasPrefix(key, "SUB-") {
-		specDigests = task.CollectReferencedSpecDigests(mgr.RepoRoot, touchedFiles, t.TwinKey)
-	}
+	specDigests := collectSyncSpecDigests(mgr.RepoRoot, key, touchedFiles, t.TwinKey)
 	recordReleaseReceipt(mgr.RepoRoot, wtPath, key, walkthroughPath, now, report, specDigests)
 	revokeActiveLease(key)
 	distillAndMaintainOnSync(mgr.RepoRoot, key, walkthroughPath, touchedFiles)
@@ -121,6 +119,17 @@ func cleanupAndAnnounceSyncedTask(mgr *workspace.Manager, key string) {
 	renderTaskSyncAnomalyAlert(os.Stdout, mgr.RepoRoot, key)
 	recompileSubstrateBinary(mgr.RepoRoot)
 	renderPhaseTransitionNextActions(os.Stdout, types.PhaseSync, key, "", mgr.RepoRoot)
+}
+
+func collectSyncSpecDigests(repoRoot, key string, touchedFiles []string, twinKey string) map[string]string {
+	if !strings.HasPrefix(key, "SUB-") {
+		return nil
+	}
+	var intentRoots []string
+	if cfg, err := config.LoadConfig(repoRoot); err == nil && cfg != nil {
+		intentRoots = cfg.Governance.QualityGates.IntentSourceRoots
+	}
+	return task.CollectReferencedSpecDigestsWithRoots(repoRoot, touchedFiles, twinKey, intentRoots)
 }
 
 func rebaseOntoTrunkIfDiverged(repoRoot, wtPath, branch string) (bool, error) {

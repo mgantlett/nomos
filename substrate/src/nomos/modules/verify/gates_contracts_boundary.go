@@ -314,7 +314,13 @@ func findCodeEnvVars(root string) map[string]bool {
 	envVars := make(map[string]bool)
 	fset := token.NewFileSet()
 	err := workspace.WalkScope(root, func(path string, info os.FileInfo, walkErr error) error {
-		if walkErr != nil || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+		if walkErr != nil || info == nil || info.IsDir() || isVerificationSuiteFile(info.Name()) {
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") {
+			if isSupportedPolyglotSourceFile(path) {
+				extractPolyglotEnvVarsFromFile(path, envVars)
+			}
 			return nil
 		}
 		node, parseErr := parser.ParseFile(fset, path, nil, 0)

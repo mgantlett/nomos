@@ -20,13 +20,19 @@ var (
 
 func verifyIntentASTAnchors(ctx *VerifyContext, root, targetDir string) []string {
 	definedTypes := collectDefinedGoTypeAnchors(root, targetDir)
+	collectPolyglotDefinedTypeAnchors(root, definedTypes)
 	definedSpecs := collectIntentSpecBasenames(ctx, root)
 
 	fset := token.NewFileSet()
 	var unresolved []string
 	WalkTargetFiles(ctx, targetDir, func(path string, info os.FileInfo, err error) error {
-		if err == nil && info != nil && !info.IsDir() {
+		if err != nil || info == nil || info.IsDir() || isVerificationSuiteFile(info.Name()) {
+			return nil
+		}
+		if strings.HasSuffix(path, ".go") {
 			unresolved = append(unresolved, scanFileIntentASTAnchors(fset, targetDir, path, definedTypes, definedSpecs)...)
+		} else if isSupportedPolyglotSourceFile(path) {
+			unresolved = append(unresolved, scanPolyglotFileIntentAnchors(root, path, definedTypes, definedSpecs)...)
 		}
 		return nil
 	})
@@ -128,19 +134,30 @@ func extractTypeNamesFromGoFile(fset *token.FileSet, path string, defined map[st
 }
 
 func collectIntentSpecBasenames(ctx *VerifyContext, root string) map[string]bool {
-	intentDir := filepath.Join(root, "intent")
-	if _, err := os.Stat(intentDir); os.IsNotExist(err) && ctx != nil && ctx.RepoRoot != "" {
-		intentDir = filepath.Join(ctx.RepoRoot, "intent")
-	}
-	if fi, err := os.Stat(intentDir); err != nil || !fi.IsDir() {
-		return nil
+	cfg := resolveVerifyConfig(ctx)
+	roots := []string{"intent"}
+	if cfg != nil && len(cfg.Governance.QualityGates.IntentSourceRoots) > 0 {
+		roots = cfg.Governance.QualityGates.IntentSourceRoots
 	}
 	specs := make(map[string]bool)
-	_ = filepath.Walk(intentDir, func(path string, info os.FileInfo, err error) error {
-		if err == nil && info != nil && !info.IsDir() && strings.HasSuffix(path, ".md") {
-			specs[filepath.Base(path)] = true
+	for _, r := range roots {
+		intentDir := filepath.Join(root, filepath.FromSlash(r))
+		if _, err := os.Stat(intentDir); os.IsNotExist(err) && ctx != nil && ctx.RepoRoot != "" {
+			intentDir = filepath.Join(ctx.RepoRoot, filepath.FromSlash(r))
 		}
+		if fi, err := os.Stat(intentDir); err == nil && fi.IsDir() {
+			if walkErr := filepath.Walk(intentDir, func(path string, info os.FileInfo, wErr error) error {
+				if wErr == nil && info != nil && !info.IsDir() && strings.HasSuffix(path, ".md") {
+					specs[filepath.Base(path)] = true
+				}
+				return nil
+			}); walkErr != nil {
+				continue
+			}
+		}
+	}
+	if len(specs) == 0 {
 		return nil
-	})
+	}
 	return specs
 }

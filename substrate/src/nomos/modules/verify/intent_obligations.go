@@ -12,9 +12,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-
-	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
-	"github.com/mgantlett/nomos/substrate/src/nomos/modules/task"
 )
 
 var (
@@ -43,99 +40,25 @@ func VerifyExecutableObligations(root string, specPaths []string) []string {
 	return issues
 }
 
-func evaluateConfiguredObligations(gateName string, ctx *VerifyContext, root, targetDir string) *GateResult {
-	cfg := resolveVerifyConfig(ctx)
-	if cfg == nil {
-		return nil
-	}
-	if len(cfg.Governance.QualityGates.ArchitectureBoundaries) > 0 {
-		if boundaryFailure := evaluateConfiguredArchitectureBoundaries(gateName, ctx, root, cfg.Governance.QualityGates.ArchitectureBoundaries); boundaryFailure != nil {
-			return boundaryFailure
-		}
-	}
-	contracts := cfg.Governance.QualityGates.GetContractsBoundary().Contracts
-	if !contracts.Enabled {
-		return nil
-	}
-	if contracts.StrictTypes && targetDir != "" {
-		if sigIssues := VerifySpecTypeSignatures(root, targetDir, contracts.SpecRoots); len(sigIssues) > 0 {
-			return &GateResult{
-				GateName: gateName, ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
-				Passed:  false,
-				Message: fmt.Sprintf("specification struct signature drift: %s", strings.Join(sigIssues, "; ")),
-				Remedy:  "align exported Go struct fields in substrate/ with specification ```go contract blocks (Law 4)",
-			}
-		}
-	}
-	if contracts.VerifyObligations {
-		if oblIssues := VerifyExecutableObligations(root, contracts.SpecRoots); len(oblIssues) > 0 {
-			return &GateResult{
-				GateName: gateName, ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
-				Passed:  false,
-				Message: fmt.Sprintf("unbound specification obligation vector(s): %s", strings.Join(oblIssues, "; ")),
-				Remedy:  "bind each TC-* vector in a unit test via '// @verifies <TC-ID>' (or '# @verifies <TC-ID>') (Law 2 & Law 4)",
-			}
-		}
-	}
-	if contracts.FailOnStaleObligations {
-		if staleFailure := checkStaleSpecObligations(gateName, root); staleFailure != nil {
-			return staleFailure
-		}
-	}
-	return nil
-}
-
-func checkStaleSpecObligations(gateName, root string) *GateResult {
-	stale, err := task.ComputeStaleSpecObligations(root, "")
-	if err != nil || len(stale) == 0 {
-		return nil
-	}
-	var items []string
-	for _, s := range stale {
-		items = append(items, fmt.Sprintf("%s (last verified by %s)", s.SpecPath, s.LastVerifiedBy))
-	}
-	return &GateResult{
-		GateName: gateName, ProbeID: "intent_traceability", Law: 4, Ring: RingCryptographic,
-		Passed:  false,
-		Message: fmt.Sprintf("stale specification obligation(s) detected: %s", strings.Join(items, "; ")),
-		Remedy:  "execute and sync a downstream SUB-* task referencing the updated specification to refresh spec_digests in refs/notes/nomos/releases (Law 4)",
-	}
-}
-
-func evaluateConfiguredArchitectureBoundaries(gateName string, ctx *VerifyContext, root string, rules []config.ArchitectureBoundaryRule) *GateResult {
-	scanRoot := root
-	if ctx != nil && ctx.WorktreePath != "" {
-		scanRoot = ctx.WorktreePath
-	}
-	violations := EvaluateArchitectureBoundaries(scanRoot, nil, rules)
-	if len(violations) == 0 {
-		return nil
-	}
-	return &GateResult{
-		GateName: gateName, ProbeID: "intent_traceability", Law: 7, Ring: RingSyntactic,
-		Passed:  false,
-		Message: fmt.Sprintf("architecture boundary violation(s): %s", strings.Join(violations, "; ")),
-		Remedy:  "remove forbidden cross-layer imports or route calls through an allowed interface package per nomos.yaml architecture_boundaries (Law 7)",
-	}
-}
-
-// VerifySpecTypeSignatures checks exported Go structs in fenced specification code blocks
-// against compiled substrate AST struct fields (@intent nomos_intent_traceability_spec.md #ContractsConfig).
+// VerifySpecTypeSignatures checks Go and polyglot contract types in fenced specification code blocks
+// against compiled Go AST and polyglot source declarations (@intent nomos_intent_traceability_spec.md #ContractsConfig).
 func VerifySpecTypeSignatures(root, targetDir string, specPaths []string) []string {
 	resolvedSpecs := resolveObligationSpecFiles(root, specPaths)
 	if len(resolvedSpecs) == 0 {
 		return nil
 	}
-	compiledStructs := collectCompiledStructFields(root, targetDir)
-	if len(compiledStructs) == 0 {
-		return nil
-	}
 	var issues []string
-	for _, specFile := range resolvedSpecs {
-		relSpec := toRelSlash(root, specFile)
-		specStructs := extractSpecGoStructFields(specFile)
-		issues = append(issues, diffSpecStructsAgainstAST(relSpec, specStructs, compiledStructs)...)
+	if targetDir != "" {
+		compiledStructs := collectCompiledStructFields(root, targetDir)
+		if len(compiledStructs) > 0 {
+			for _, specFile := range resolvedSpecs {
+				relSpec := toRelSlash(root, specFile)
+				specStructs := extractSpecGoStructFields(specFile)
+				issues = append(issues, diffSpecStructsAgainstAST(relSpec, specStructs, compiledStructs)...)
+			}
+		}
 	}
+	issues = append(issues, verifyPolyglotSpecSignatures(root, resolvedSpecs)...)
 	return issues
 }
 
@@ -273,11 +196,19 @@ func isSkippedObligationDir(name string) bool {
 
 func isVerificationSuiteFile(name string) bool {
 	lower := strings.ToLower(name)
-	if strings.HasSuffix(lower, "_test.go") || strings.HasSuffix(lower, "_test.py") || strings.HasSuffix(lower, "_test.rs") {
-		return true
+	for _, suffix := range []string{
+		"_test.go", "_test.py", "_test.rs", "_spec.rb", "_test.rb",
+		"test.java", "tests.java", "test.kt", "tests.kt", "spec.kt",
+		"test.cs", "tests.cs", "_test.c", "_test.cc", "_test.cpp", "_test.cxx",
+	} {
+		if strings.HasSuffix(lower, suffix) {
+			return true
+		}
 	}
-	if strings.HasPrefix(lower, "test_") && strings.HasSuffix(lower, ".py") {
-		return true
+	for _, prefix := range []string{"test_", "spec_"} {
+		if strings.HasPrefix(lower, prefix) {
+			return true
+		}
 	}
 	return strings.Contains(lower, ".test.") || strings.Contains(lower, ".spec.")
 }

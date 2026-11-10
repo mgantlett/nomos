@@ -38,10 +38,22 @@ func (g *IntentTraceabilityGate) Evaluate(ctx *VerifyContext) (*GateResult, erro
 	if oblFailure := evaluateConfiguredObligations(g.Name(), ctx, root, targetDir); oblFailure != nil {
 		return oblFailure, nil
 	}
+	scanAnchorDir := targetDir
+	if scanAnchorDir == "" {
+		scanAnchorDir = root
+	}
+	if unresolved := verifyIntentASTAnchors(ctx, root, scanAnchorDir); len(unresolved) > 0 {
+		return &GateResult{
+			GateName: g.Name(), ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
+			Passed:  false,
+			Message: fmt.Sprintf("unresolved @intent AST/spec anchor(s): %s", strings.Join(unresolved, "; ")),
+			Remedy:  "ensure #<TypeName> matches a declared source type and <spec>.md resolves under intent_source_roots (Law 4)",
+		}, nil
+	}
 	if targetDir == "" {
 		return &GateResult{
 			GateName: g.Name(), ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
-			Passed: true, Message: "no substrate source directory detected; skipping",
+			Passed: true, Message: "polyglot @intent anchors verified",
 		}, nil
 	}
 
@@ -49,16 +61,7 @@ func (g *IntentTraceabilityGate) Evaluate(ctx *VerifyContext) (*GateResult, erro
 	if total == 0 {
 		return &GateResult{
 			GateName: g.Name(), ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
-			Passed: true, Message: "zero exported symbols to audit",
-		}, nil
-	}
-
-	if unresolved := verifyIntentASTAnchors(ctx, root, targetDir); len(unresolved) > 0 {
-		return &GateResult{
-			GateName: g.Name(), ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
-			Passed:  false,
-			Message: fmt.Sprintf("unresolved @intent AST/spec anchor(s): %s", strings.Join(unresolved, "; ")),
-			Remedy:  "ensure #<TypeName> matches a compiled Go type in substrate/ and <spec>.md resolves under intent/ (Law 4)",
+			Passed: true, Message: "polyglot @intent anchors verified (zero Go exported symbols)",
 		}, nil
 	}
 

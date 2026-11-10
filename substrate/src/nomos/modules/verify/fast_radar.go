@@ -48,7 +48,7 @@ func EvaluateFastFileRadar(repoRoot, filePath string) (*FastFileRadarResult, err
 	evaluateFastForbiddenLiterals(ctx, wtRoot, absPath, res)
 	evaluateFastArchitectureBoundaries(ctx, wtRoot, absPath, res)
 
-	if !isSupportedPolyglotSourceFile(absPath) || strings.HasSuffix(absPath, "_test.go") {
+	if !isSupportedPolyglotSourceFile(absPath) || isVerificationSuiteFile(filepath.Base(absPath)) {
 		return res, nil
 	}
 	evaluateFastASTBudgets(ctx, wtRoot, absPath, data, res)
