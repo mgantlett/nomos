@@ -205,6 +205,14 @@ func TestReleaseNotesHybridLedgerAndFailClosed(t *testing.T) {
 		t.Errorf("expected compare link v4.11.0...v4.12.0 in v4.12.0 notes")
 	}
 
+	v413Notes, vErr := runRenderReleaseNotes(t, repoRoot, "v4.13.0")
+	if vErr != nil {
+		t.Fatalf("render v4.13.0 release notes failed: %v (%s)", vErr, v413Notes)
+	}
+	if !strings.Contains(v413Notes, "architecture_boundaries") || !strings.Contains(v413Notes, "compare/v4.12.1...v4.13.0") {
+		t.Errorf("expected v4.13.0 highlights and compare/v4.12.1...v4.13.0 link, got:\n%s", v413Notes)
+	}
+
 	genesisNotes, gErr := runRenderReleaseNotes(t, repoRoot, "v4.0.0")
 	if gErr != nil {
 		t.Fatalf("render v4.0.0 release notes failed: %v (%s)", gErr, genesisNotes)
