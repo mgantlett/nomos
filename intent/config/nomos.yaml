@@ -35,6 +35,16 @@ governance:
             - "intent"
         substrate_source_roots:
             - "substrate"
+        architecture_boundaries:
+            - name: "core-purity"
+              from: "substrate/src/nomos/core/**"
+              forbid_imports:
+                  - "substrate/src/nomos/modules/**"
+                  - "substrate/cli/**"
+            - name: "modules-independence"
+              from: "substrate/src/nomos/modules/**"
+              forbid_imports:
+                  - "substrate/cli/**"
         contracts:
             contracts:
                 enabled: true

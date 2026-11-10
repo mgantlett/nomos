@@ -8,12 +8,13 @@ last_updated: "2026-11-09"
 lineage:
   - INT-541
   - INT-1935
+  - INT-1936
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Nomos Intent Traceability & Architectural Obligation Proofs Specification"
 type: spec
-version: "4.13.0"
+version: "4.13.1"
 ---
 
 # Nomos Intent Traceability & Architectural Obligation Proofs Specification
@@ -28,8 +29,8 @@ Universal AST gates prove local code hygiene and worktree isolation. However, un
 3. Functions can satisfy complexity ceilings while violating package dependency boundaries (for example, `domain/` importing `infra/`).
 
 This specification upgrades Law 4 and Law 7 to enforce deterministic **Architectural Obligation Proofs**:
-- **Executable `TC-*` Binding & Signature Parity (`SUB-2002`):** Binds specification `TC-*` vectors to verification suites (`@verifies TC-*`) and matches specification Go structs against compiled AST declarations.
-- **Trunk Spec SHA-256 Receipt Stamping (`SUB-2003`):** Stamps referenced `@intent` specification SHA-256 digests into `ReleaseNotePayload.SpecDigests` and flags stale obligations after `INT-*` mutations.
+- **Executable `TC-*` Binding & Signature Parity (`SUB-2002` & `SUB-2007`):** Binds `TC-*` vectors to 11-language verification suites (`@verifies TC-*`) and matches fenced Go and polyglot contracts against source types.
+- **Trunk Spec SHA-256 Receipt Stamping (`SUB-2003` & `SUB-2007`):** Stamps referenced `@intent` specification SHA-256 digests across configured `intent_source_roots` into `ReleaseNotePayload.SpecDigests`.
 - **Declarative Architecture Boundaries (`SUB-2004`):** Enforces directional package import rules (`governance.quality_gates.architecture_boundaries`) across Go AST and polyglot files in under `5ms`.
 
 ---
@@ -51,7 +52,7 @@ This specification upgrades Law 4 and Law 7 to enforce deterministic **Architect
 
 ### 3.1 `@intent` Source Annotations
 
-Exported packages, structs, interfaces, and functions in `substrate/` declare Trunk lineage via `@intent` docstrings:
+Exported symbols across Go and polyglot source roots (`// @intent` or `# @intent`) declare Trunk lineage:
 
 1. **Canonical Intent Task Key**:
    ```go
@@ -61,7 +62,7 @@ Exported packages, structs, interfaces, and functions in `substrate/` declare Tr
    ```go
    // @intent INT-541#continuous-collision-detection
    ```
-3. **Compiled Go Type & Specification Anchor**:
+3. **Compiled Type & Specification Anchor**:
    ```go
    // @intent #PhysicsFrame (software_physics_engine_spec.md)
    // @intent nomos_intent_traceability_spec.md #ArchitectureBoundaryRule
@@ -69,7 +70,7 @@ Exported packages, structs, interfaces, and functions in `substrate/` declare Tr
 
 ### 3.2 `@verifies` Executable Obligation Annotations
 
-Verification files (`*_test.go`, `*.test.ts`, `*.spec.ts`, `test_*.py`, `*_test.py`) bind directly to `TC-[A-Z0-9-]+` vectors declared in specifications using:
+Verification suites across all 11 languages (`*_test.go`, `*.test.*`, `*.spec.*`, `test_*.*`, `*_spec.rb`, `*Test.java`, `*Test.kt`, `*Tests.cs`, `*_test.cpp`) bind directly to `TC-[A-Z0-9-]+` vectors using:
 1. Explicit comment annotations (`// @verifies TC-OBL-001` or `# @verifies TC-OBL-001`), or
 2. Subtest or table-vector literals containing the canonical identifier (`"TC-OBL-001"` or `TestTC_OBL_001`).
 
@@ -161,15 +162,15 @@ func EvaluateArchitectureBoundaries(root string, files []string, rules []config.
 
 1. **Base `@intent` Resolution (`Cell 4.1`):**
    - Scans exported Go symbols in `substrate/` and enforces $\ge 50\%$ `@intent` docstring density on modified Go files.
-   - Verifies every `#<TypeName>` resolves to a compiled Go `type <TypeName>` declaration and every `<name>_spec.md` resolves under `intent/`.
-2. **Spec Signature AST Parity (`contracts.strict_types: true`):**
-   - Extracts fenced ````go` blocks from target specifications and parses `type <Name> struct` declarations via `go/parser`.
-   - Verifies every exported field declared in the specification exists on the compiled Go struct in `substrate/`.
+   - Verifies every `#<TypeName>` and `<name>_spec.md` token on `@intent` lines across Go and polyglot source files resolves cleanly.
+2. **Polyglot Spec Signature Parity (`contracts.strict_types: true`):**
+   - Extracts fenced `go`, `ts`/`typescript`, `python`, `rust`, `java`/`kotlin`, and `csharp` contract blocks from target specifications.
+   - Verifies declared fields on structs, interfaces, classes, and records exist on matching source declarations during `SUB-*` verification (`INT-*` tasks declare new fields freely).
 3. **Executable `TC-*` Vector Binding (`contracts.verify_obligations: true`):**
-   - Extracts `TC-[A-Z0-9]+-[0-9]+` identifiers from Markdown tables in target specifications and scans repository verification suites (`*_test.go`, `*.test.*`, `*.spec.*`, `test_*.*`).
+   - Extracts `TC-[A-Z0-9]+-[0-9]+` identifiers from Markdown tables in target specifications and scans 11-language verification suites during `SUB-*` and baseline verification.
    - Missing bindings reject execution with a HATEOAS remedy naming the unbound `TC-*` identifier and specification file.
 4. **Spec SHA-256 Stamping & Taint Detection (`ReleaseNotePayload.SpecDigests`):**
-   - During `nomos task sync` for `SUB-*` tasks, Nomos hashes `@intent`-referenced specifications and writes `spec_digests` into `refs/notes/nomos/releases`.
+   - During `nomos task sync` for `SUB-*` tasks, Nomos hashes `@intent`-referenced specifications across `intent_source_roots` into `refs/notes/nomos/releases`.
    - `ComputeStaleSpecObligations` compares `HEAD` specification digests against the newest `spec_digests` receipt.
    - `nomos status` displays pending obligation deltas, and `IntentTraceabilityGate` fails closed when `contracts.fail_on_stale_obligations: true`.
 5. **Polyglot Architecture Boundary Enforcement (`architecture_boundaries`):**
@@ -186,9 +187,9 @@ func EvaluateArchitectureBoundaries(root string, files []string, rules []config.
 | `TC-TRC-002` | `verifyIntentASTAnchors` | `"// @intent #HandshakeEvent (jit_handshake_and_session_journal_spec.md)"` | Resolves `HandshakeEvent` and spec file | Law 4 |
 | `TC-TRC-003` | `verifyIntentASTAnchors` | `"// @intent #NonExistentPhantomType"` | Fails closed naming `#NonExistentPhantomType` | Law 2 & Law 7 |
 | `TC-TRC-004` | `verifyIntentASTAnchors` | `"// @intent missing_ghost_spec.md"` | Fails closed naming missing spec | Law 4 & Law 7 |
-| `TC-OBL-001` | `VerifyExecutableObligations` | Spec declares `TC-AUTH-01`; `auth_test.go` tags `@verifies TC-AUTH-01` | Passes with zero unbound obligations | Law 2 & Law 4 |
+| `TC-OBL-001` | `VerifyExecutableObligations` | Spec declares `TC-AUTH-01`; Go/polyglot suite tags `@verifies TC-AUTH-01` | Passes with zero unbound obligations | Law 2 & Law 4 |
 | `TC-OBL-002` | `VerifyExecutableObligations` | Spec declares `TC-AUTH-99` with zero verification references | Fails closed naming `TC-AUTH-99` | Law 2 & Law 7 |
-| `TC-OBL-003` | `VerifySpecTypeSignatures` | Spec declares `Strict bool` on `ContractsConfig`; substrate omits field | Fails closed naming field drift | Law 4 & Law 7 |
+| `TC-OBL-003` | `VerifySpecTypeSignatures` | Spec Go or polyglot block declares field omitted in source | Fails closed naming field drift | Law 4 & Law 7 |
 | `TC-OBL-004` | `ComputeStaleSpecObligations` | `SUB-10` stamps `spec_digests`; later `INT-11` mutates `auth_spec.md` | Reports `auth_spec.md` stale obligation delta | Law 4 |
 | `TC-OBL-005` | `ComputeStaleSpecObligations` | Later `SUB-12` stamps updated `auth_spec.md` SHA-256 | Clears stale obligation delta | Law 2 & Law 4 |
 | `TC-OBL-006` | `EvaluateArchitectureBoundaries` | `internal/domain/order.go` imports `internal/infra/db` matching `forbid_imports` | Fails closed with boundary remedy | Law 7 |
