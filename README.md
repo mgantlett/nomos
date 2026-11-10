@@ -68,7 +68,7 @@ cd your-project
 nomos init
 ```
 
-`nomos init` detects your language stack, scaffolds [`nomos.yaml`](intent/architecture/specs/go_ssot_and_json_schema_spec.md) (validated against [`nomos.schema.json`](nomos.schema.json)), installs self-healing Git defense hooks (`pre-commit`, `commit-msg`, `pre-push`), and drops indirect-control agent contracts (`AGENTS.md`, `CLAUDE.md`) plus ambient lifecycle hooks (`.agents/hooks.json`) into your repo.
+`nomos init` detects your language stack, scaffolds [`nomos.yaml`](intent/architecture/specs/go_ssot_and_json_schema_spec.md) (validated against [`nomos.schema.json`](nomos.schema.json)), installs self-healing Git defense hooks (`pre-commit`, `commit-msg`, `pre-push`), and drops indirect-control agent contracts (`AGENTS.md`, `CLAUDE.md`) plus ambient lifecycle hooks across Claude Code, Gemini CLI, OpenCode, and Antigravity (`.claude/settings.json`, `.gemini/settings.json`, `.opencode/plugins/nomos.ts`, `.agents/hooks.json`) into your repo.
 
 ### 3. Prompt Your Coding Agent Naturally
 
@@ -172,7 +172,7 @@ Nomos Community Edition is **100% open-source under Apache 2.0** with zero telem
 
 | Capability Layer | Nomos Community Edition (Apache 2.0) | SophiaLabs Sovereign Enterprise |
 | :--- | :--- | :--- |
-| **Indirect Control for Tier 1 Coding Agents** (`AGENTS.md`, `CLAUDE.md`, `.agents/hooks.json`) | ✅ Included | ✅ Included |
+| **Indirect Control for Tier 1 Coding Agents** (`AGENTS.md`, `CLAUDE.md`, `.claude/settings.json`, `.gemini/settings.json`, `.opencode/plugins/nomos.ts`, `.agents/hooks.json`) | ✅ Included | ✅ Included |
 | **42-Gate Polyglot Verification Engine** (`nomos verify`, Go AST + Polyglot Scanners, 7 Laws + DoD) | ✅ Included | ✅ Included |
 | **Causal `INT-*`/`SUB-*` DAG, Hermetic Worktrees & 2PC Sync** (`nomos task`, trunk-pinned `nomos.yaml`, `refs/notes/nomos/releases`) | ✅ Included | ✅ Included |
 | **Nomos Mneme Hybrid Vector Memory & Sanitized Diagnostic Issues** (`nomos mem`, `nomos issue`) | ✅ Included | ✅ Included |
