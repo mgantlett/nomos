@@ -49,11 +49,15 @@ governance:
             contracts:
                 enabled: true
                 spec_roots:
-                    - "intent/architecture/specs"
+                    - "intent/intent.md"
+                    - "intent/architecture/specs/nomos_intent_traceability_spec.md"
                 schema_files:
                     - "nomos.schema.json"
                 backend_roots:
                     - "substrate"
+                strict_types: true
+                verify_obligations: true
+                fail_on_stale_obligations: true
         thresholds:
             max_cognitive_debt_score: 45
             max_cyclomatic_complexity: 15
