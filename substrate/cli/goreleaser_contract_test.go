@@ -221,6 +221,12 @@ func TestReleaseNotesHybridLedgerAndFailClosed(t *testing.T) {
 	}
 	assertOrderedSubstrings(t, v413Notes, "> 11-Language Polyglot Architectural Obligation Proofs", "## Changelog", "compare/v4.12.1...v4.13.0", "<details>", "architecture_boundaries")
 
+	v4131Notes, p1Err := runRenderReleaseNotes(t, repoRoot, "v4.13.1")
+	if p1Err != nil {
+		t.Fatalf("render v4.13.1 release notes failed: %v (%s)", p1Err, v4131Notes)
+	}
+	assertOrderedSubstrings(t, v4131Notes, "> Zero-Ceremony Multi-Agent Onboarding Invisibility", "## Changelog", "[SUB-2133]", "compare/v4.13.0...v4.13.1", "<details>", "Included <code>v4.13.0</code> Milestone Features")
+
 	genesisNotes, gErr := runRenderReleaseNotes(t, repoRoot, "v4.0.0")
 	if gErr != nil {
 		t.Fatalf("render v4.0.0 release notes failed: %v (%s)", gErr, genesisNotes)
