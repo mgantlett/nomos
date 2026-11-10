@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # render-release-notes.sh - Compile hybrid GitHub Release notes from CHANGELOG.md and Git DAG history.
 #
-# Combines curated Keep-a-Changelog capability highlights (`CHANGELOG.md`), automatic parent `vX.Y.0`
-# milestone rollups on patch releases (`vX.Y.Z` where `Z > 0`), and the chronological SHA-linked
-# `[INT-*]` / `[SUB-*]` commit ledger (`## Changelog`) into a single deterministic release document.
+# Leads with the 1-line release summary (`> ...`) and the chronological SHA-linked `[INT-*]` / `[SUB-*]`
+# commit ledger (`## Changelog`), followed by collapsible `<details>` disclosures for curated
+# `CHANGELOG.md` architecture notes and automatic parent `vX.Y.0` milestone rollups on patch releases.
 
 set -euo pipefail
 
@@ -24,11 +24,11 @@ extract_section() {
   awk -v tag="[$1]" '
     index($0, "## " tag) == 1 { flag=1; next }
     flag && /^## \[/ { exit }
-    flag { print }
-  ' CHANGELOG.md | sed '/^---$/d'
+    flag && $0 != "---" { print }
+  ' CHANGELOG.md
 }
 
- trim_markdown() {
+trim_markdown() {
   awk '
     NF { found=1 }
     found { lines[++n] = $0 }
@@ -45,13 +45,15 @@ if [ -z "$PRIMARY_NOTES" ]; then
   exit 1
 fi
 
-printf '%s\n' "$PRIMARY_NOTES"
-
-if printf '%s\n' "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[1-9][0-9]*$'; then
-  MINOR_BASE="${TAG%.*}.0"
-  MINOR_NOTES="$(extract_section "$MINOR_BASE" | trim_markdown)"
-  if [ -n "$MINOR_NOTES" ]; then
-    printf '\n---\n\n## Included `%s` Milestone Features\n\n%s\n' "$MINOR_BASE" "$MINOR_NOTES"
+FIRST_LINE="${PRIMARY_NOTES%%$'\n'*}"
+TAGLINE=""
+DETAIL_BODY="$PRIMARY_NOTES"
+if [[ "$FIRST_LINE" == "> "* ]]; then
+  TAGLINE="$FIRST_LINE"
+  if [[ "$PRIMARY_NOTES" == *$'\n'* ]]; then
+    DETAIL_BODY="$(printf '%s\n' "${PRIMARY_NOTES#*$'\n'}" | trim_markdown)"
+  else
+    DETAIL_BODY=""
   fi
 fi
 
@@ -86,9 +88,37 @@ else
   COMMIT_LEDGER="$(git log "${TARGET_REF}" --reverse --format='* %H %s')"
 fi
 
+PRINTED=0
+emit_block() {
+  if [ "$PRINTED" -eq 1 ]; then
+    printf '\n'
+  fi
+  printf '%s\n' "$1"
+  PRINTED=1
+}
+
+if [ -n "$TAGLINE" ]; then
+  emit_block "$TAGLINE"
+fi
+
 if [ -n "$COMMIT_LEDGER" ]; then
-  printf '\n---\n\n## Changelog\n\n%s\n' "$COMMIT_LEDGER"
+  LEDGER_SECTION="$(printf '## Changelog\n\n%s' "$COMMIT_LEDGER")"
   if [ -n "$PREV_TAG" ]; then
-    printf '\n**Full Changelog**: https://github.com/%s/compare/%s...%s\n' "$REPO_SLUG" "$PREV_TAG" "$TAG"
+    LEDGER_SECTION="$(printf '%s\n\n**Full Changelog**: https://github.com/%s/compare/%s...%s' "$LEDGER_SECTION" "$REPO_SLUG" "$PREV_TAG" "$TAG")"
+  fi
+  emit_block "$LEDGER_SECTION"
+fi
+
+if [ -n "$DETAIL_BODY" ]; then
+  DETAILS_BLOCK="$(printf '<details>\n<summary><strong>Release Notes &amp; Architecture Details</strong></summary>\n\n%s\n\n</details>' "$DETAIL_BODY")"
+  emit_block "$DETAILS_BLOCK"
+fi
+
+if printf '%s\n' "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[1-9][0-9]*$'; then
+  MINOR_BASE="${TAG%.*}.0"
+  MINOR_NOTES="$(extract_section "$MINOR_BASE" | trim_markdown)"
+  if [ -n "$MINOR_NOTES" ]; then
+    ROLLUP_BLOCK="$(printf '<details>\n<summary><strong>Included <code>%s</code> Milestone Features</strong></summary>\n\n%s\n\n</details>' "$MINOR_BASE" "$MINOR_NOTES")"
+    emit_block "$ROLLUP_BLOCK"
   fi
 fi

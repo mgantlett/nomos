@@ -173,16 +173,30 @@ func TestReleaseWorkflowPatchNotesRollup(t *testing.T) {
 		t.Fatalf("render v4.10.1 release notes failed: %v (%s)", pErr, patchNotes)
 	}
 	for _, want := range []string{
-		"GoReleaser v2 `config.AUR` Schema Parity",
-		"## Included `v4.10.0` Milestone Features",
-		".opencode/plugins/nomos.ts",
 		"## Changelog",
 		"[SUB-1858]",
 		"**Full Changelog**: https://github.com/mgantlett/nomos/compare/v4.10.0...v4.10.1",
+		"<summary><strong>Release Notes &amp; Architecture Details</strong></summary>",
+		"GoReleaser v2 `config.AUR` Schema Parity",
+		"<summary><strong>Included <code>v4.10.0</code> Milestone Features</strong></summary>",
+		".opencode/plugins/nomos.ts",
 	} {
 		if !strings.Contains(patchNotes, want) {
 			t.Errorf("expected v4.10.1 notes to contain %q, got:\n%s", want, patchNotes)
 		}
+	}
+	assertOrderedSubstrings(t, patchNotes, "> GoReleaser v2 AUR Schema Alignment", "## Changelog", "<details>", "Included <code>v4.10.0</code> Milestone Features")
+}
+
+func assertOrderedSubstrings(t *testing.T, doc string, tokens ...string) {
+	t.Helper()
+	cursor := -1
+	for _, tok := range tokens {
+		idx := strings.Index(doc, tok)
+		if idx <= cursor {
+			t.Fatalf("expected token %q after byte %d in rendered notes:\n%s", tok, cursor, doc)
+		}
+		cursor = idx
 	}
 }
 
@@ -196,11 +210,7 @@ func TestReleaseNotesHybridLedgerAndFailClosed(t *testing.T) {
 	if mErr != nil {
 		t.Fatalf("render v4.12.0 release notes failed: %v (%s)", mErr, minorNotes)
 	}
-	intIdx := strings.Index(minorNotes, "[INT-1913]")
-	subIdx := strings.Index(minorNotes, "[SUB-1914]")
-	if intIdx < 0 || subIdx < 0 || intIdx >= subIdx {
-		t.Fatalf("expected chronological INT->SUB commit ledger in v4.12.0 notes, got:\n%s", minorNotes)
-	}
+	assertOrderedSubstrings(t, minorNotes, "> Zero-Config Brownfield Auto-Detection", "## Changelog", "[INT-1913]", "[SUB-1914]", "<details>", "Zero-Config Brownfield Onboarding")
 	if !strings.Contains(minorNotes, "compare/v4.11.0...v4.12.0") {
 		t.Errorf("expected compare link v4.11.0...v4.12.0 in v4.12.0 notes")
 	}
@@ -209,9 +219,7 @@ func TestReleaseNotesHybridLedgerAndFailClosed(t *testing.T) {
 	if vErr != nil {
 		t.Fatalf("render v4.13.0 release notes failed: %v (%s)", vErr, v413Notes)
 	}
-	if !strings.Contains(v413Notes, "architecture_boundaries") || !strings.Contains(v413Notes, "compare/v4.12.1...v4.13.0") {
-		t.Errorf("expected v4.13.0 highlights and compare/v4.12.1...v4.13.0 link, got:\n%s", v413Notes)
-	}
+	assertOrderedSubstrings(t, v413Notes, "> 11-Language Polyglot Architectural Obligation Proofs", "## Changelog", "compare/v4.12.1...v4.13.0", "<details>", "architecture_boundaries")
 
 	genesisNotes, gErr := runRenderReleaseNotes(t, repoRoot, "v4.0.0")
 	if gErr != nil {
