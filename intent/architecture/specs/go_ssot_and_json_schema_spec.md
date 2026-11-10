@@ -8,6 +8,8 @@ last_updated: "2026-11-03"
 lineage:
   - INT-897
   - SUB-1672
+  - INT-1944
+  - SUB-2157
 plane: intent
 ssot_repository: nomos
 status: active
@@ -86,14 +88,68 @@ flowchart LR
 
 ---
 
-## 5. Formal Go Schema Reflection Contract
+## 5. Formal Go Schema Reflection & Core Type Contracts
 
-Package `substrate/src/nomos/core/config/schema.go` defines the compiled JSON Schema reflection contract:
+Packages `substrate/src/nomos/core/config/` and `substrate/src/nomos/core/types/` define the compiled configuration, JSON Schema reflection, actionable error, HATEOAS affordance, and polyglot source-root contracts:
 
 ```go
 package config
 
-// JSONSchemaNode models a deterministic JSON Schema Draft 2020-12 node.
+// EcosystemConfig defines the top-level nomos.yaml schema (#EcosystemConfig).
+type EcosystemConfig struct {
+	Project       string           `yaml:"project" json:"project"`
+	DefaultBranch string           `yaml:"default_branch" json:"default_branch"`
+	Governance    GovernanceConfig `yaml:"governance" json:"governance"`
+}
+
+// GovernanceConfig groups boundary and quality gate policies (#GovernanceConfig).
+type GovernanceConfig struct {
+	Boundary     BoundaryConfig     `yaml:"boundary" json:"boundary"`
+	QualityGates QualityGatesConfig `yaml:"quality_gates" json:"quality_gates"`
+}
+
+// QualityGatesConfig configures deterministic AST, TDD, coverage, and contract gates (#QualityGatesConfig).
+type QualityGatesConfig struct {
+	ForbiddenLiterals            []string                   `yaml:"forbidden_literals,omitempty" json:"forbidden_literals,omitempty"`
+	HasForbiddenLiteralsOverride bool                       `yaml:"-" json:"-"`
+	ForbiddenShims               []string                   `yaml:"forbidden_shims,omitempty" json:"forbidden_shims,omitempty"`
+	StrictMode                   bool                       `yaml:"strict_mode" json:"strict_mode"`
+	VerifyScope                  string                     `yaml:"verify_scope,omitempty" json:"verify_scope,omitempty"`
+	IntentTwinMode               string                     `yaml:"intent_twin_mode,omitempty" json:"intent_twin_mode,omitempty"`
+	TDDMode                      string                     `yaml:"tdd_mode,omitempty" json:"tdd_mode,omitempty"`
+	TDDExclude                   []string                   `yaml:"tdd_exclude,omitempty" json:"tdd_exclude,omitempty"`
+	CoverageMode                 string                     `yaml:"coverage_mode,omitempty" json:"coverage_mode,omitempty"`
+	PolyglotToolchains           *bool                      `yaml:"polyglot_toolchains,omitempty" json:"polyglot_toolchains,omitempty"`
+	Exclude                      []string                   `yaml:"exclude,omitempty" json:"exclude,omitempty"`
+	IntentSourceRoots            []string                   `yaml:"intent_source_roots,omitempty" json:"intent_source_roots,omitempty"`
+	SubstrateSourceRoots         []string                   `yaml:"substrate_source_roots,omitempty" json:"substrate_source_roots,omitempty"`
+	ArchitectureBoundaries       []ArchitectureBoundaryRule `yaml:"architecture_boundaries,omitempty" json:"architecture_boundaries,omitempty"`
+	Contracts                    *ContractsBoundaryConfig   `yaml:"contracts,omitempty" json:"contracts,omitempty"`
+	Thresholds                   ThresholdsConfig           `yaml:"thresholds" json:"thresholds"`
+}
+
+// ContractsBoundaryConfig defines cross-plane contract and infrastructure verification boundaries (#ContractsBoundaryConfig).
+type ContractsBoundaryConfig struct {
+	Contracts   ContractsConfig `yaml:"contracts" json:"contracts"`
+	Membrane    *MembraneConfig `yaml:"membrane,omitempty" json:"membrane,omitempty"`
+	Infra       InfraConfig     `yaml:"infra" json:"infra"`
+	AutoPromote bool            `yaml:"auto_promote,omitempty" json:"auto_promote,omitempty"`
+}
+
+// ThresholdsConfig captures numerical AST and test hygiene quality bounds (#ThresholdsConfig).
+type ThresholdsConfig struct {
+	MaxCognitiveDebtScore     int `yaml:"max_cognitive_debt_score" json:"max_cognitive_debt_score"`
+	MaxCyclomaticComplexity   int `yaml:"max_cyclomatic_complexity" json:"max_cyclomatic_complexity"`
+	MaxFileLOC                int `yaml:"max_file_loc" json:"max_file_loc"`
+	MaxFuncLOC                int `yaml:"max_func_loc" json:"max_func_loc"`
+	MinCommentDensityPct      int `yaml:"min_comment_density_pct" json:"min_comment_density_pct"`
+	MinTestCoveragePct        int `yaml:"min_test_coverage_pct" json:"min_test_coverage_pct"`
+	MinCloneLines             int `yaml:"min_clone_lines,omitempty" json:"min_clone_lines,omitempty"`
+	MaxFuncParams             int `yaml:"max_func_params,omitempty" json:"max_func_params,omitempty"`
+	MaxMagicStringDuplication int `yaml:"max_magic_string_duplication,omitempty" json:"max_magic_string_duplication,omitempty"`
+}
+
+// JSONSchemaNode models a deterministic JSON Schema Draft 2020-12 node (#JSONSchemaNode).
 type JSONSchemaNode struct {
 	Schema               string                     `json:"$schema,omitempty"`
 	ID                   string                     `json:"$id,omitempty"`
@@ -110,17 +166,99 @@ type JSONSchemaNode struct {
 }
 ```
 
+```go
+package types
+
+import (
+	"context"
+	"time"
+)
+
+// NomosError encapsulates structured agent-focused context for invariant failures (#NomosError).
+type NomosError struct {
+	Code              string   `json:"code"`
+	Description       string   `json:"description"`
+	Remedy            string   `json:"remedy,omitempty"`
+	ExplainCommand    string   `json:"explain_command,omitempty"`
+	ContextFiles      []string `json:"context_files,omitempty"`
+	Fatal             bool     `json:"fatal"`
+	TriageHash        string   `json:"triage_hash,omitempty"`
+	InteractivePrompt string   `json:"interactive_prompt,omitempty"`
+}
+
+// ActionAffordance defines a deterministic HATEOAS next-step hypermedia command (#ActionAffordance).
+type ActionAffordance struct {
+	Command string `json:"command"`
+	Summary string `json:"summary"`
+	Phase   Phase  `json:"phase"`
+}
+
+// PhaseState captures the active workspace lifecycle phase and CapBAC budget (#PhaseState).
+type PhaseState struct {
+	Phase       Phase              `json:"phase"`
+	TaskID      string             `json:"task_id,omitempty"`
+	Assignee    string             `json:"assignee"`
+	Token       string             `json:"token,omitempty"`
+	StepBudget  int                `json:"step_budget"`
+	TokensUsed  int                `json:"tokens_used"`
+	NextActions []ActionAffordance `json:"next_actions,omitempty"`
+	UpdatedAt   time.Time          `json:"updated_at,omitempty"`
+}
+
+// SupportedLanguage defines languages supported by polyglot AST verification (#SupportedLanguage).
+type SupportedLanguage string
+
+// SourceRootConfig binds a directory path to a polyglot language scanner (#SourceRootConfig).
+type SourceRootConfig struct {
+	Path            string            `json:"path"`
+	Language        SupportedLanguage `json:"language"`
+	ExcludePatterns []string          `json:"exclude_patterns,omitempty"`
+}
+
+// PolyglotWorkspaceManifest declares workspace source roots and polyglot enforcement rules (#PolyglotWorkspaceManifest).
+type PolyglotWorkspaceManifest struct {
+	SourceRoots    []SourceRootConfig `json:"source_roots"`
+	StrictPolyglot bool               `json:"strict_polyglot"`
+}
+
+// ResolvedFileContext binds a discovered file to its AST parser strategy (#ResolvedFileContext).
+type ResolvedFileContext struct {
+	RelativePath string
+	MatchedRoot  SourceRootConfig
+	Language     SupportedLanguage
+	IsExcluded   bool
+}
+
+// SourceRootResolver defines the contract for dynamic root resolution (#SourceRootResolver).
+type SourceRootResolver interface {
+	Resolve(ctx context.Context, relPath string) (*ResolvedFileContext, error)
+	ValidateManifest(ctx context.Context, roots []SourceRootConfig) error
+}
+```
+
 ---
 
 ## 6. Table-Driven Verification Vectors
 
 | Vector ID | Target Gate / Helper | Input Condition | Expected Verdict |
 | :--- | :--- | :--- | :--- |
-| `TC-SSOT-01` | `VerifyConfigJSONSchemaParity` | `EcosystemConfig` field added without regenerating `nomos.schema.json` | **FAIL** (Schema byte parity drift detected) |
-| `TC-SSOT-02` | `GenerateConfigJSONSchema` | Clean `EcosystemConfig` reflection | **PASS** (Deterministic Draft 2020-12 JSON with `additionalProperties: false`) |
+| `TC-SSOT-01` | `VerifyConfigJSONSchemaParity` | `EcosystemConfig` field added without regenerating `nomos.schema.json` | **FAIL** (`nomos.schema.json` byte parity drift detected) |
+| `TC-SSOT-02` | `GenerateConfigJSONSchema` | Clean `EcosystemConfig` reflection | **PASS** (Draft 2020-12 JSON with `additionalProperties: false`) |
 | `TC-SSOT-03` | `IntentSteelmanGate` | Intent Markdown spec missing `title`/`plane`/`status` or unclosed ```` ``` ```` fence | **FAIL** (Malformed Intent document rejected) |
 | `TC-SSOT-04` | `IntentTraceabilityGate` | `@intent #NonExistentStruct` or `@intent missing_spec.md` in Go docstring | **FAIL** (Unresolved AST type or spec anchor rejected) |
 | `TC-SSOT-05` | `LoadConfig` (`yaml.v3`) | Unknown YAML key in `nomos.yaml` | **FAIL** (`KnownFields(true)` rejects unknown configuration key) |
+| `TC-ERR-001` | `NewNomosError` | Error constructed with canonical `ERR_*` code and `WithRemedy` | **PASS** (`Validate()` passes and renders remedial CLI hint) |
+| `TC-ERR-002` | `NomosError.Validate` | Error constructed without canonical `ERR_*` code prefix | **FAIL** (`Validate()` rejects unregistered error code) |
+| `TC-ERR-003` | `WithExplainCommand` | Error enriched with `nomos task --help` inspection command | **PASS** (Preserves `ExplainCommand` in structured output) |
+| `TC-ERR-004` | `WithContextFiles` | Error enriched with workspace-relative context file paths | **PASS** (Attaches affected file coordinates for triage) |
+| `TC-HAT-01` | `BuildPhaseNextActions` | Workspace in `IDLE` phase with unblocked wavefront candidate | **PASS** (Emits `nomos task start` and `nomos task chore` affordances) |
+| `TC-HAT-02` | `BuildPhaseNextActions` | Workspace in `EDIT` phase inside isolated worktree | **PASS** (Emits `nomos verify` and `nomos task commit` affordances) |
+| `TC-HAT-03` | `BuildPhaseNextActions` | Workspace in `REVIEW` phase after verification | **PASS** (Emits `nomos task sync -F` 2PC release affordance) |
+| `TC-HAT-04` | `PhaseState.Validate` | Default `PhaseState` initialized at session boot | **PASS** (`Validate()` confirms valid phase and step budget bounds) |
+| `TC-ROOT-01` | `SourceRootResolver.Resolve` | File path `substrate/cli/root.go` under configured Go root | **PASS** (Resolves `LanguageGo` and `IsExcluded == false`) |
+| `TC-ROOT-02` | `SourceRootResolver.Resolve` | File path matching `ExcludePatterns` (`vendor/**`) | **PASS** (Resolves `IsExcluded == true` for excluded tree) |
+| `TC-ROOT-03` | `SourceRootConfig.Validate` | Source root configured with unsupported language identifier | **FAIL** (`Validate()` rejects unknown `SupportedLanguage`) |
+| `TC-ROOT-04` | `PolyglotWorkspaceManifest` | Manifest with duplicate or escaping `../` root paths | **FAIL** (`Validate()` rejects path traversal and duplicate roots) |
 
 ---
 

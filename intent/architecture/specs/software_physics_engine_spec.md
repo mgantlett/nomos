@@ -4,7 +4,10 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-13"
-last_updated: "2026-11-01"
+last_updated: "2026-11-10"
+lineage:
+  - INT-1944
+  - SUB-2157
 plane: intent
 ssot_repository: nomos
 status: active
@@ -206,7 +209,101 @@ type WorktreeHull struct {
 func DetectCollision(a, b *WorktreeHull) *CollisionVector
 ```
 
-### 4.2 Cross-Plane Transduction Matrix (`nomos physics`)
+### 4.2 Session Trajectory, Sentinel PRM & Capability Telemetry Contracts (`modules/session`, `modules/telemetry`)
+
+```go
+package session
+
+import "time"
+
+// AgentSession captures the live state, telemetry, and coordinates of an agent conversation arc (#AgentSession).
+type AgentSession struct {
+	ID            string    `json:"id"`
+	Name          string    `json:"name,omitempty"`
+	AgentType     string    `json:"agent_type"`
+	TaskKey       string    `json:"task_key,omitempty"`
+	TaskTitle     string    `json:"task_title,omitempty"`
+	WorktreePath  string    `json:"worktree_path,omitempty"`
+	Repo          string    `json:"repo,omitempty"`
+	Phase         string    `json:"phase"`
+	TurnCount     int       `json:"turn_count"`
+	ToolCallCount int       `json:"tool_call_count"`
+	LastActiveAt  time.Time `json:"last_active_at"`
+	Status        string    `json:"status"`
+	RecentSummary string    `json:"recent_summary,omitempty"`
+}
+
+// SessionVisualGraph represents the topological view of active agent sessions (#SessionVisualGraph).
+type SessionVisualGraph struct {
+	Mermaid  string         `json:"mermaid"`
+	Sessions []AgentSession `json:"sessions"`
+}
+
+// TrajectoryStage models an individual causal milestone stage in an agent trajectory (#TrajectoryStage).
+type TrajectoryStage struct {
+	ID       string `json:"id"`
+	Label    string `json:"label"`
+	Status   string `json:"status"`
+	Evidence string `json:"evidence"`
+}
+
+// SessionTrajectory models the complete 7-stage causal arc of a Tier 1 conversation session (#SessionTrajectory).
+type SessionTrajectory struct {
+	CurrentStage   string            `json:"current_stage"`
+	CompletedCount int               `json:"completed_count"`
+	TotalCount     int               `json:"total_count"`
+	Stages         []TrajectoryStage `json:"stages"`
+}
+
+// SentinelScorecard summarizes process reward model integrity checks (#SentinelScorecard).
+type SentinelScorecard struct {
+	IntegrityStatus string            `json:"integrity_status"`
+	OverallScore    int               `json:"overall_score"`
+	Violations      []string          `json:"violations"`
+	Invariants      []InvariantResult `json:"invariants"`
+}
+
+// SessionDetail captures the deep causal inspection telemetry of an agent session (#SessionDetail).
+type SessionDetail struct {
+	AgentSession
+	ToolsSummary  map[string]int     `json:"tools_summary"`
+	Events        []SessionEvent     `json:"events"`
+	RecentPrompts []string           `json:"recent_prompts,omitempty"`
+	Sentinel      *SentinelScorecard `json:"sentinel,omitempty"`
+	Trajectory    *SessionTrajectory `json:"trajectory,omitempty"`
+	Persona       string             `json:"persona,omitempty"`
+}
+
+// SessionDatasetRecord joins session telemetry, Sentinel PRM scores, Git Note receipts, and Mneme learnings (#SessionDatasetRecord).
+type SessionDatasetRecord struct {
+	Session        AgentSession       `json:"session"`
+	Sentinel       *SentinelScorecard `json:"sentinel,omitempty"`
+	Trajectory     *SessionTrajectory `json:"trajectory,omitempty"`
+	ToolsSummary   map[string]int     `json:"tools_summary,omitempty"`
+	ReleaseCommit  string             `json:"release_commit,omitempty"`
+	DoDGatesPassed int                `json:"dod_gates_passed,omitempty"`
+	SHA256Receipt  string             `json:"sha256_receipt,omitempty"`
+	PitfallsFixed  []string           `json:"pitfalls_fixed,omitempty"`
+	PatternsMinted []string           `json:"patterns_minted,omitempty"`
+}
+```
+
+```go
+package telemetry
+
+// CapabilityMetrics represents the persisted invocation metrics for a capability (#CapabilityMetrics).
+type CapabilityMetrics struct {
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	Plane           string `json:"plane"`
+	Type            string `json:"type"`
+	Enabled         bool   `json:"enabled"`
+	InvocationCount int    `json:"invocation_count"`
+	LastAccessedAt  string `json:"last_accessed_at"`
+}
+```
+
+### 4.3 Cross-Plane Transduction Matrix (`nomos physics`, `nomos session`, `nomos capabilities`)
 The Open-Core Software Physics Engine exposes real-time worktree AST mass, inertia, and continuous collision detection through `nomos physics [--json]` under the `quality` CLI group.
 
 | Intent Physical Vector | Substrate Engine Package | CLI & Telemetry Projection |
@@ -227,6 +324,16 @@ The Open-Core Software Physics Engine exposes real-time worktree AST mass, inert
 | `TC-PHY-02` | Continuous Collision (CCD) | Disjoint file sets across parallel worktrees ($C(W_i, W_j) = \emptyset$) | `PASS` (`GREEN` clear parallel flight) |
 | `TC-PHY-03` | Continuous Collision (CCD) | Overlapping symbol/file mutation ($C(W_i, W_j) \ne \emptyset$) | `WARN/BLOCK` (`RED` collision alert) |
 | `TC-PHY-04` | 2PC Atmospheric Re-entry | Any of the 42 DoD gates exits non-zero during `nomos task sync` | `FAIL` (Wave-off; trunk `main` untouched) |
+| `TC-SES-01` | Multi-Agent Session Discovery | `nomos session list` across active workstation seats | `PASS` (Enumerates `AgentSession` records and worktree bindings) |
+| `TC-SES-02` | 7-Stage Causal Trajectory | `InferTrajectory` over transcript tool invocations (`SessionTrajectory`) | `PASS` (Resolves `BOOT` through `RELEASE` milestone stages) |
+| `TC-SES-03` | Sentinel PRM Integrity Audit | `SentinelScorecard` evaluation over session transcript | `PASS` (Scores process invariant compliance in $[0, 100]$) |
+| `TC-SES-04` | Deep Session Detail Inspection | `nomos session show <id>` (`SessionDetail`) | `PASS` (Surfaces tool summary, events, and Sentinel scorecard) |
+| `TC-SES-05` | Topological Session Graph | `SessionVisualGraph` Mermaid synthesis | `PASS` (Emits valid Mermaid graph of active agent sessions) |
+| `TC-SES-06` | JSONL Trajectory Dataset Export | `nomos session export` (`SessionDatasetRecord`) | `PASS` (Joins session, Sentinel PRM, 2PC receipt, and Mneme learnings) |
+| `TC-LAUNCH-001` | Capability Invocation Telemetry | `RecordInvocationWithDetails` on CLI execution (`CapabilityMetrics`) | `PASS` (Increments `InvocationCount` and updates `LastAccessedAt`) |
+| `TC-LAUNCH-002` | Fail-Safe Telemetry Recording | `RecordInvocationSafe` with unavailable database path | `PASS` (Degrades silently with zero panic or CLI disruption) |
+| `TC-LAUNCH-003` | Capability Matrix Inspection | `nomos capabilities --json` | `PASS` (Emits structured capability and 7x3 gate registry JSON) |
+| `TC-LAUNCH-004` | Single-Capability Deep Dive | `nomos capabilities <probe_id>` | `PASS` (Renders law, ring, threshold, and remedy contract) |
 
 ---
 

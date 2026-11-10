@@ -20,6 +20,8 @@ lineage:
   - SUB-1623
   - SUB-1680
   - SUB-1776
+  - INT-1944
+  - SUB-2157
 plane: intent
 ssot_repository: nomos
 status: active
@@ -103,14 +105,17 @@ stateDiagram-v2
 | `REVIEW` | `nomos task sync -F <file>`| `IDLE` | DoD gates exit 0; walkthrough valid | Fast-forward merge; writes Git Note; prunes WT |
 | Any non-IDLE | `nomos task abort <KEY>` | `IDLE` | Task active | Revokes lease; removes worktree |
 
-### 3.1 Compiled Go SSoT Task Contracts (`substrate/src/nomos/modules/task/task.go`)
-`substrate/src/nomos/modules/task/task.go` enforces the Living Ledger schema and pure 2-plane key singularity:
+### 3.1 Compiled Go SSoT Task, Storage & Issue Contracts (`modules/task`, `core/storage`, `cli`)
+`substrate/src/nomos/modules/task/`, `substrate/src/nomos/core/storage/`, and `substrate/cli/` enforce the Living Ledger schema, 3-section task cards, 2PC Git Notes receipts, SQLite WAL maintenance, and scrubbed diagnostic issue reports:
 
 ```go
 package task
 
 // Status represents the formal lifecycle state of a task.
 type Status string
+
+// SchemaType defines the plane-tailored task classification (#SchemaType).
+type SchemaType string
 
 const (
 	StatusBacklog    Status = "BACKLOG"
@@ -151,8 +156,101 @@ type TaskRecord struct {
 	ArchLayer     int        `json:"arch_layer,omitempty"`
 }
 
+// TaskCardInput models the fail-closed 3-section backlog card contract (#TaskCardInput).
+type TaskCardInput struct {
+	Scope              string   `json:"scope"`
+	AcceptanceCriteria []string `json:"acceptance_criteria"`
+	Verification       string   `json:"verification"`
+	Burden             int      `json:"burden,omitempty"`
+}
+
+// WavefrontCandidate represents an unblocked DAG candidate task (#WavefrontCandidate).
+type WavefrontCandidate struct {
+	Key         string     `json:"key"`
+	Title       string     `json:"title"`
+	Plane       string     `json:"plane"`
+	Project     string     `json:"project,omitempty"`
+	SchemaType  SchemaType `json:"schema_type"`
+	Status      Status     `json:"status"`
+	Tier        Tier       `json:"tier"`
+	TwinKey     string     `json:"twin_key,omitempty"`
+	IsUnblocked bool       `json:"is_unblocked"`
+}
+
+// ReleaseHookTrace summarizes verified worktree tool and shell activity sealed at 2PC release (#ReleaseHookTrace).
+type ReleaseHookTrace struct {
+	ToolCallsCount      int      `json:"tool_calls_count"`
+	ShellCommandsCount  int      `json:"shell_commands_count"`
+	TestCommandsCount   int      `json:"test_commands_count"`
+	DeniedInterceptions int      `json:"denied_interceptions"`
+	MutatedFiles        []string `json:"mutated_files,omitempty"`
+}
+
+// ReleaseNotePayload encapsulates the non-repudiation release receipt in Git Notes (#ReleaseNotePayload).
+type ReleaseNotePayload struct {
+	TaskKey            string            `json:"task_key"`
+	CommitSHA          string            `json:"commit_sha"`
+	Timestamp          string            `json:"timestamp"`
+	Phase              string            `json:"phase"`
+	DoDGatesPassed     int               `json:"dod_gates_passed"`
+	CapBACTokenID      string            `json:"capbac_token_id"`
+	SessionID          string            `json:"session_id,omitempty"`
+	HookTrace          *ReleaseHookTrace `json:"hook_trace,omitempty"`
+	SpecDigests        map[string]string `json:"spec_digests,omitempty"`
+	WalkthroughContent string            `json:"walkthrough_content"`
+	SHA256Receipt      string            `json:"sha256_receipt"`
+}
+
 func ValidateTaskKey(key string) error
 func ValidateTaskRecord(r *TaskRecord) error
+func RenderTaskCardBody(in TaskCardInput) (string, error)
+```
+
+```go
+package storage
+
+// RuntimeMaintainReport summarizes bounded retention and log rotation actions (#RuntimeMaintainReport).
+type RuntimeMaintainReport struct {
+	ExpiredLeasesPruned int  `json:"expired_leases_pruned"`
+	LegacyDBFilesPurged int  `json:"legacy_db_files_purged"`
+	LogsRotated         int  `json:"logs_rotated"`
+	LegacyLogDirsPurged int  `json:"legacy_log_dirs_purged"`
+	Vacuumed            bool `json:"vacuumed"`
+	WALCheckpointed     bool `json:"wal_checkpointed"`
+}
+```
+
+```go
+package cli
+
+// SubstrateAnomalyEvent records a scrubbed, local-only substrate anomaly or gate thrash event (#SubstrateAnomalyEvent).
+type SubstrateAnomalyEvent struct {
+	Timestamp      string `json:"timestamp"`
+	NomosVersion   string `json:"nomos_version"`
+	TaskKey        string `json:"task_key,omitempty"`
+	Command        string `json:"command"`
+	Kind           string `json:"kind"`
+	Component      string `json:"component"`
+	Summary        string `json:"summary"`
+	Occurrences    int    `json:"occurrences"`
+	DurationMillis int64  `json:"duration_ms,omitempty"`
+	Surfaced       bool   `json:"surfaced,omitempty"`
+}
+
+// IssueReport holds the collected and sanitized diagnostic report (#IssueReport).
+type IssueReport struct {
+	Title           string                  `json:"title"`
+	Description     string                  `json:"description"`
+	NomosVersion    string                  `json:"nomos_version"`
+	GoVersion       string                  `json:"go_version"`
+	Platform        string                  `json:"platform"`
+	GitVersion      string                  `json:"git_version"`
+	ActivePhase     string                  `json:"active_phase"`
+	BranchTopology  string                  `json:"branch_topology"`
+	IsWorktree      bool                    `json:"is_worktree"`
+	DatabaseStatus  string                  `json:"database_status"`
+	RecentAnomalies []SubstrateAnomalyEvent `json:"recent_anomalies,omitempty"`
+}
 ```
 
 ---
@@ -230,6 +328,24 @@ func ValidateTaskRecord(r *TaskRecord) error
 | `TC-TSK-15` | Law 4 (Multi-Repo Ledger Isolation) | `nomos task list` vs `nomos task list -A` | Scopes to active `project` unless `-A` passed; exit 0 |
 | `TC-TSK-16` | Law 7 (Cross-Project Start Guard) | `nomos task start SUB-99` (foreign `project`) | Rejects foreign task (`ERR_VALIDATION_FAILED`) without `--force-project`; exit 1 |
 | `TC-TSK-17` | Law 2 (Receipt-Trace Parity) | `nomos task sync SUB-99 -F walkthrough.md` (contradicts diff or hook trace) | Rejects walkthrough diff contradiction; degrades gracefully without hook trace |
+| `TC-SCH-01` | Law 4 (Intent Schema Type) | `TaskRecord{Key: "INT-101", Plane: "intent", SchemaType: "intent"}` | Validates intent plane schema binding cleanly |
+| `TC-SCH-02` | Law 4 (Substrate Schema Type) | `TaskRecord{Key: "SUB-101", Plane: "substrate", SchemaType: "substrate"}` | Validates substrate plane schema binding cleanly |
+| `TC-SCH-03` | Law 7 (Plane-Key Mismatch) | `TaskRecord{Key: "INT-101", Plane: "substrate"}` | Rejects cross-plane key/plane mismatch (`ERR_VALIDATION_FAILED`) |
+| `TC-SCH-04` | Law 4 (3-Section Card Render) | `RenderTaskCardBody(TaskCardInput{Scope: "...", AcceptanceCriteria: [...], Verification: "..."})` | Emits canonical 3-section Markdown card body |
+| `TC-DBNOTE-001` | Law 3 (2PC Receipt Seal) | `ReleaseNotePayload` with `DoDGatesPassed: 42` and `SHA256Receipt` | Serializes non-repudiation Git Notes JSON payload |
+| `TC-DBNOTE-002` | Law 2 (Hook Trace Attestation) | `ReleaseHookTrace{ToolCallsCount: 4, TestCommandsCount: 1}` | Embeds verified hook trace inside `ReleaseNotePayload` |
+| `TC-DBNOTE-003` | Law 4 (Spec Digest Stamping) | `ReleaseNotePayload.SpecDigests` populated at `SUB-*` sync | Stamps 64-hex SHA-256 digests per referenced spec |
+| `TC-DBNOTE-004` | Law 7 (Tampered Receipt Detection) | Mismatched `SHA256Receipt` in `refs/notes/nomos/releases` | `ReleaseReceiptGate` rejects tampered release receipt |
+| `TC-SQL-01` | Law 4 (Pure-Go SQLite WAL) | `storage.OpenDB(dbPath)` (`modernc.org/sqlite`) | Initializes `tasks`, `leases`, and `telemetry_capabilities` with WAL mode |
+| `TC-SQL-02` | Law 7 (Foreign Key Integrity) | `InitSchema(db)` applies `PRAGMA foreign_keys = ON` | Enforces cascading foreign-key constraints on `leases` |
+| `TC-SQL-03` | Law 1 (Runtime Storage Maintenance) | `MaintainRuntimeStorage(true)` | Prunes expired leases, checkpoints WAL, and rotates oversized logs |
+| `TC-SQL-04` | Law 2 (Freelist Vacuum Threshold) | `VacuumIfFragmented(db, minReclaimBytes)` | Executes SQLite `VACUUM` when reclaimable pages exceed threshold |
+| `TC-ISS-01` | Law 5 (Diagnostic Path Scrubbing) | `nomos issue "Gate defect"` (`IssueReport`) | Scrubs workstation home paths and environment secrets |
+| `TC-ISS-02` | Law 2 (Anomaly Ring Buffer) | `SubstrateAnomalyEvent` recorded on gate thrash or slow probe | Surfaces recent scrubbed anomaly events in `IssueReport` |
+| `TC-ISS-03` | Law 4 (Structured JSON Export) | `nomos issue "Report" --json` | Emits deterministic `IssueReport` JSON payload |
+| `TC-ISS-04` | Law 7 (Non-Interactive Web Guard) | `nomos issue "Report" --web` in non-interactive session | Rejects browser launch or degrades safely with URL output |
+| `TC-ISS-05` | Law 7 (Browser URL Scheme Guard) | `openBrowser` invoked with non-HTTPS scheme | Rejects unsafe URL scheme before subprocess execution |
+| `TC-ISS-06` | Law 1 (Offline Diagnostic Bundle) | `nomos issue "Report"` without network connectivity | Writes local scrubbed Markdown report without external egress |
 
 ---
 

@@ -4,7 +4,10 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-05"
-last_updated: "2026-11-01"
+last_updated: "2026-11-10"
+lineage:
+  - INT-1944
+  - SUB-2157
 plane: intent
 ssot_repository: nomos
 status: active
@@ -191,7 +194,7 @@ type GateEvaluationReport struct {
 	Passed          bool             `json:"pass"`
 }
 
-// EngineThresholds holds DoD thresholds for polyglot evaluation.
+// EngineThresholds holds DoD thresholds for polyglot evaluation (#EngineThresholds).
 type EngineThresholds struct {
 	MaxComplexity       int
 	MaxFuncLOC          int
@@ -199,6 +202,17 @@ type EngineThresholds struct {
 	MaxCDS              int
 	MinDocstringDensity int
 }
+
+// SCMQuerySpec holds parsed S-expression query rules for a target language (#SCMQuerySpec).
+type SCMQuerySpec struct {
+	Language    string
+	RawSource   string
+	Captures    map[string]bool
+	BranchNodes []string
+}
+
+// WazeroTreeSitterEngine executes pure-Go WebAssembly Tree-sitter AST analysis (#WazeroTreeSitterEngine).
+type WazeroTreeSitterEngine struct{}
 
 func CalculateCDS(functions []FunctionMetric, density int) int
 func ValidateQueryFS() error
@@ -232,6 +246,10 @@ The following table-driven verification vectors validate the Tree-sitter AST Gat
 | `TC-TS-08` | `markdown` | `# Section\n## Sub\nParagraph` | `heading levels: [1, 2]` | Structural outline verified | `PASS` | Intent plane markdown structural AST parsing |
 | `TC-TS-09` | `svelte` | `<script lang="ts">\n  let count = 0;\n  function increment() {\n    if (count < 10) count++;\n  }\n</script>\n\n<button on:click={increment}>{count}</button>` | `<script>` block extracted, `func: increment`, `branches: 1` | $M = 2$, $\text{LOC} = 3$, line offset mapped | `PASS` | Svelte embedded script AST extraction and metric calculation |
 | `TC-TS-10` | `wasm` | Pure Go embedded bytecode `TreeSitterWasmBytecode` | `wazero.Runtime` compilation & module instantiation | Zero CGo, execution exit code 0 | `PASS` | Pure-Go hermetic WebAssembly execution verified (`wazero`) |
+| `TC-POLY-001` | `rust` | `/// Documented fn\npub fn compute(x: i32) -> i32 { if x > 0 { x } else { 0 } }` | `func: compute`, `doc: true`, `branches: 1` | $M = 2$, $\text{doc} = 100\%$ | `PASS` | Rust `queries/rust.scm` branch and docstring extraction |
+| `TC-POLY-002` | `cpp` | `int evaluate(int a) { if (a > 1 && a < 10) return a; return 0; }` | `func: evaluate`, `branches: 2` | $M = 3$, $\text{LOC} = 1$ | `PASS` | C/C++ `queries/cpp.scm` AST branch extraction |
+| `TC-POLY-003` | `java` | `/** JavaDoc */\npublic int run(int v) { for (int i=0; i<v; i++) {} return v; }` | `func: run`, `doc: true`, `branches: 1` | $M = 2$, $\text{doc} = 100\%$ | `PASS` | JVM (`java`/`kotlin`) AST metric extraction |
+| `TC-POLY-004` | `csharp` | `public int Check(int x) { if (x == 0) return 1; return x; }` | `func: Check`, `branches: 1` | $M = 2$, $\text{LOC} = 1$ | `PASS` | C# `queries/csharp.scm` AST metric extraction |
 
 ---
 

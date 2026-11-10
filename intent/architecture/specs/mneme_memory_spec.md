@@ -16,6 +16,8 @@ lineage:
   - SUB-1524
   - SUB-1680
   - SUB-1806
+  - INT-1944
+  - SUB-2157
 plane: intent
 ssot_repository: nomos
 status: active
@@ -85,6 +87,58 @@ type Memory struct {
 	Status       MemoryStatus `json:"status"`
 	SupersededBy int          `json:"superseded_by,omitempty"`
 	AccessCount  int          `json:"access_count"`
+}
+
+// MemoryFilter specifies filtering criteria for listing recorded memories (#MemoryFilter).
+type MemoryFilter struct {
+	TaskID           string
+	Kind             MemoryKind
+	Topic            string
+	Status           MemoryStatus
+	RepoID           string
+	IncludeCrossRepo bool
+	Limit            int
+}
+
+// SearchOptions configures hybrid semantic and lexical memory search (#SearchOptions).
+type SearchOptions struct {
+	Limit            int
+	Kind             MemoryKind
+	Topic            string
+	RepoID           string
+	IncludeCrossRepo bool
+	IncludeInactive  bool
+	ReadOnly         bool
+}
+
+// SearchResult pairs a matched Memory record with its hybrid relevance score (#SearchResult).
+type SearchResult struct {
+	Memory  *Memory `json:"memory"`
+	Score   float64 `json:"score"`
+	Snippet string  `json:"snippet"`
+}
+
+// GateTrapEntry records a buffered quality gate failure during a task session (#GateTrapEntry).
+type GateTrapEntry struct {
+	GateName  string `json:"gate_name"`
+	Message   string `json:"message"`
+	Scope     string `json:"scope"`
+	Timestamp string `json:"timestamp"`
+}
+
+// PitfallHygieneReport summarizes automated pitfall scope pruning and cross-scope promotion (#PitfallHygieneReport).
+type PitfallHygieneReport struct {
+	DeadScopesTombstoned    int `json:"dead_scopes_tombstoned"`
+	ExpiredTestsTombstoned  int `json:"expired_tests_tombstoned"`
+	CrossScopeHabitsUpdated int `json:"cross_scope_habits_updated"`
+}
+
+// MaintainReport summarizes deduplication, retention, VACUUM, and WAL checkpoint actions (#MaintainReport).
+type MaintainReport struct {
+	DuplicatesSuperseded int  `json:"duplicates_superseded"`
+	InactivePurged       int  `json:"inactive_purged"`
+	Vacuumed             bool `json:"vacuumed"`
+	WALCheckpointed      bool `json:"wal_checkpointed"`
 }
 
 // ValidateAdvisoryWriteKind enforces statutory write provenance for manual CLI saves (@intent: #Memory).
@@ -204,6 +258,12 @@ $$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{Lexica
 | `TC-MEM-12` | Unscoped one-off pitfall cooling | Single-occurrence pitfall (`recurrence == 1`) older than 14 days during unscoped handshake | Excluded from unscoped `LearnedPitfalls`; retained on scope match or `recurrence >= 2`. |
 | `TC-MEM-13` | Active-default `nomos mem list` | `nomos mem dismiss <id>` followed by `nomos mem list` vs `nomos mem list --status tombstoned` | Excluded from default `nomos mem list` output and visible under `--status tombstoned` or `--status all`. |
 | `TC-MEM-14` | Repo locality boost & axiom cap | Untyped `SearchWithOptions` (`RepoID: "nomos"`, `Limit: 5`) | Boosts `nomos` matches $1.25\times$ and caps `global` axioms to 1. |
+| `TC-LRN-01` | Gate trap buffering | Failing DoD gate evaluated during active task (`GateTrapEntry`) | Buffers gate name, scope, and failure message for `LEARN` phase distillation. |
+| `TC-LRN-02` | Trap-to-fix distillation | Buffered `GateTrapEntry` resolved before 2PC `nomos task sync` | Mints statutory `kind="pitfall"` pairing trap and verified fix. |
+| `TC-LRN-03` | Dead-scope pitfall hygiene | `PitfallHygieneReport` audit when target directory no longer exists | Tombstones dead-scope pitfalls automatically. |
+| `TC-LRN-04` | Cross-scope habit promotion | Identical pitfall recurring across $\ge 3$ distinct package scopes | Promotes pitfall scope to repository-wide orientation. |
+| `TC-LRN-05` | Duplicate memory superseding | `MaintainReport` deduplication pass on identical topic and content | Marks older duplicate `superseded` and preserves newest record. |
+| `TC-LRN-06` | `mneme.db` WAL checkpoint | Periodic maintenance pass over `mneme.db` (`MaintainReport`) | Checkpoints WAL and reclaims fragmented pages cleanly. |
 
 ---
 

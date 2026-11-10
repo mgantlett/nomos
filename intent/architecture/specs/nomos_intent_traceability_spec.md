@@ -10,6 +10,8 @@ lineage:
   - INT-1935
   - INT-1936
   - INT-1937
+  - INT-1944
+  - SUB-2157
 plane: intent
 ssot_repository: nomos
 status: active
@@ -142,10 +144,140 @@ type StaleSpecObligation struct {
 
 `ReleaseNotePayload` includes `SpecDigests map[string]string` (`json:"spec_digests,omitempty"`), mapping workspace-relative specification paths to 64-character hex SHA-256 digests recorded at `2PC` sync.
 
-### 4.3 Gate & Fast-Radar Evaluators (`substrate/src/nomos/modules/verify/`)
+### 4.3 Canonical 7x3 Gate Matrix, DoD Pipeline & Attestation Contracts (`substrate/src/nomos/modules/verify/`)
 
 ```go
 package verify
+
+// CanonicalMatrixModel represents the finite 7x3 Invariant Cells of the Nomos DoD (#CanonicalMatrixModel).
+type CanonicalMatrixModel struct {
+	Laws  int `json:"laws"`
+	Rings int `json:"rings"`
+	Cells int `json:"cells"`
+}
+
+// LawInfo defines the canonical metadata for one of the Seven Laws (#LawInfo).
+type LawInfo struct {
+	Law         int    `json:"law"`
+	Name        string `json:"name"`
+	Domain      string `json:"domain"`
+	Description string `json:"description"`
+}
+
+// InvariantCellSpec defines the declarative schema for each of the 21 Invariant Cells (#InvariantCellSpec).
+type InvariantCellSpec struct {
+	ID       string   `json:"id"`
+	Name     string   `json:"name"`
+	Law      int      `json:"law"`
+	Ring     string   `json:"ring"`
+	Domain   string   `json:"domain"`
+	Phase    string   `json:"phase"`
+	Enabled  bool     `json:"enabled"`
+	Remedy   string   `json:"remedy"`
+	ProbeIDs []string `json:"probe_ids"`
+}
+
+// VerifyContext provides contextual metadata for quality gate evaluation (#VerifyContext).
+type VerifyContext struct {
+	RepoRoot         string `json:"repo_root"`
+	WorktreePath     string `json:"worktree_path"`
+	TaskID           string `json:"task_id"`
+	CommitRange      string `json:"commit_range,omitempty"`
+	Phase            string `json:"phase"`
+	IsBaseline       bool   `json:"is_baseline"`
+	AllFiles         bool   `json:"all_files,omitempty"`
+	Strict           bool   `json:"strict,omitempty"`
+	AdvisoryDebtMode bool   `json:"advisory_debt_mode,omitempty"`
+	LayerScope       any    `json:"layer_scope,omitempty"`
+	CoverageRep      any    `json:"-"`
+}
+
+// GateResult represents the outcome of an individual quality gate evaluation (#GateResult).
+type GateResult struct {
+	GateName       string `json:"gate_name"`
+	ProbeID        string `json:"probe_id,omitempty"`
+	Law            int    `json:"law,omitempty"`
+	Ring           string `json:"ring,omitempty"`
+	Passed         bool   `json:"passed"`
+	Skipped        bool   `json:"skipped,omitempty"`
+	Message        string `json:"message"`
+	Remedy         string `json:"remedy,omitempty"`
+	DurationMicros int64  `json:"duration_micros,omitempty"`
+	DebtFlagged    bool   `json:"debt_flagged,omitempty"`
+}
+
+// Gate defines the interface for an invariant evaluation step (#Gate).
+type Gate interface {
+	Name() string
+	Evaluate(ctx *VerifyContext) (*GateResult, error)
+}
+
+// GateSpec defines the declarative schema for an individual sensor probe (#GateSpec).
+type GateSpec struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Law     int    `json:"law"`
+	Ring    string `json:"ring"`
+	Domain  string `json:"domain"`
+	Sensor  string `json:"sensor"`
+	Phase   string `json:"phase"`
+	Enabled bool   `json:"enabled"`
+	Remedy  string `json:"remedy"`
+	RuleKey string `json:"rule_key"`
+}
+
+// PipelineDeclaration models the compiled quality gate pipeline schema (#PipelineDeclaration).
+type PipelineDeclaration struct {
+	Version string              `json:"version"`
+	Cells   []InvariantCellSpec `json:"cells,omitempty"`
+	Gates   []GateSpec          `json:"gates"`
+}
+
+// PipelineReport encapsulates the complete verification results across all gates, cells, and laws (#PipelineReport).
+type PipelineReport struct {
+	Passed         bool          `json:"passed"`
+	DurationMicros int64         `json:"duration_micros"`
+	GatesTotal     int           `json:"gates_total"`
+	GatesPassed    int           `json:"gates_passed"`
+	GateResults    []*GateResult `json:"gate_results"`
+	LawReports     []*LawReport  `json:"law_reports"`
+	CellReports    []*CellReport `json:"cell_reports"`
+}
+
+// ProofReport summarizes the outcomes of the Three Mathematical Proofs of Gate Integrity (#ProofReport).
+type ProofReport struct {
+	TargetDir             string  `json:"target_dir"`
+	IsCodebaseTargeted    bool    `json:"is_codebase_targeted"`
+	CodebaseFilesScanned  int     `json:"codebase_files_scanned"`
+	MutationKilled        int     `json:"mutation_killed"`
+	MutationTotal         int     `json:"mutation_total"`
+	MutationScore         float64 `json:"mutation_score"`
+	FalsePositiveRate     float64 `json:"false_positive_rate"`
+	ReferenceGatesPass    int     `json:"reference_gates_pass"`
+	ReferenceGatesTotal   int     `json:"reference_gates_total"`
+	NonVacuousGates       int     `json:"non_vacuous_gates"`
+	TotalGatesEvaluated   int     `json:"total_gates_evaluated"`
+	Passed                bool    `json:"passed"`
+	DurationTotalMicros   int64   `json:"duration_total_micros"`
+	DurationVector1Micros int64   `json:"duration_vector1_micros"`
+	DurationVector2Micros int64   `json:"duration_vector2_micros"`
+	DurationVector3Micros int64   `json:"duration_vector3_micros"`
+}
+
+// AntiShimDTO defines the AST shape extracted by the Go substrate (#AntiShimDTO).
+type AntiShimDTO struct {
+	Name                 string `json:"Name"`
+	BodyStatementCount   int    `json:"BodyStatementCount"`
+	IsPanicShim          bool   `json:"IsPanicShim"`
+	IsTrivialPassShim    bool   `json:"IsTrivialPassShim,omitempty"`
+	ForbiddenLiteralShim string `json:"ForbiddenLiteralShim"`
+}
+
+// CoverageGate asserts statement coverage meets the required threshold (#CoverageGate).
+type CoverageGate struct{}
+
+// ThresholdIntegrityGate verifies gate thresholds are never relaxed (#ThresholdIntegrityGate).
+type ThresholdIntegrityGate struct{}
 
 // VerifySpecTypeSignatures checks exported Go structs in spec code blocks against compiled substrate AST declarations.
 func VerifySpecTypeSignatures(root, targetDir string, specPaths []string) []string
@@ -198,6 +330,28 @@ func EvaluateArchitectureBoundaries(root string, files []string, rules []config.
 | `TC-OBL-008` | `ConfigImmutabilityGate` | Worktree `nomos.yaml` deletes Trunk `architecture_boundaries` rule | Fails closed blocking boundary downgrade | Law 1 & Law 7 |
 | `TC-OBL-009` | `VerifySpecTypeSignatures` | Spec declares TypeScript or Python field omitted in source | Rejects execution naming missing polyglot field | Law 4 & Law 7 |
 | `TC-OBL-010` | `verifyIntentASTAnchors` | Polyglot `@intent` tag references missing `#GhostType` anchor | Rejects execution naming unresolved polyglot anchor | Law 4 & Law 7 |
+| `TC-MAT-01` | `CanonicalMatrix` | `CanonicalMatrixModel{Laws: 7, Rings: 3, Cells: 21}` | Enforces exact `7x3 = 21` invariant cell topology | Law 2 & Law 6 |
+| `TC-MAT-02` | `CanonicalLaws` | Statutory 1..7 law metadata registry | Binds every cell to one of the 7 laws | Law 4 |
+| `TC-MAT-03` | `InvariantCellSpec` | Cell specification with syntactic, dynamic, or cryptographic ring | Maps every sensor probe to a canonical cell coordinate | Law 2 |
+| `TC-MAT-04` | `PipelineDeclaration` | Compiled 42-gate pipeline manifest | Rejects unmapped or duplicate probe IDs | Law 6 |
+| `TC-DOD-01` | `PipelineReport` | Clean workspace evaluated across all 42 DoD gates | Returns `Passed: true` and `GatesPassed: 42` | Law 2 |
+| `TC-DOD-02` | `GateResult` | Failing gate probe evaluation | Emits actionable `Remedy` and non-zero exit code | Law 7 |
+| `TC-DOD-03` | `VerifyContext` | Worktree diff-scoped vs baseline full-repo evaluation | Scopes file set deterministically without trunk leakage | Law 3 |
+| `TC-DOD-04` | `GateSpec` | Declarative gate registry lookup | Resolves gate constructor and law/ring coordinates | Law 4 |
+| `TC-DOD-05` | `ToolchainGate` | Polyglot runner execution in isolated worktree | Executes language toolchain with `GOWORK=off` isolation | Law 2 & Law 3 |
+| `TC-DOD-06` | `BrownfieldRatchet` | Modified file evaluated in brownfield ratchet mode | Blocks new regressions while permitting legacy baseline | Law 7 |
+| `TC-COV-001` | `CoverageGate` | Statement coverage meets or exceeds `min_test_coverage_pct` | Passes `Cell 2.2 (coverage)` verification | Law 2 |
+| `TC-COV-002` | `CoverageGate` | Statement coverage drops below `55%` statutory floor | Fails closed with test coverage remedy | Law 2 & Law 7 |
+| `TC-COV-003` | `ThresholdIntegrityGate` | Worktree `nomos.yaml` relaxes `max_cyclomatic_complexity > 15` | Rejects threshold relaxation under `strict_mode: true` | Law 7 |
+| `TC-COV-004` | `ThresholdIntegrityGate` | Worktree downgrades `strict_mode` or `boundary.enforce` from trunk | Rejects governance downgrade against trunk baseline | Law 1 & Law 7 |
+| `TC-PRF-01` | `ProofReport` (Vector 1) | Synthetic AST defect injection across active gates | Asserts `MutationScore == 100%` (all defects killed) | Law 2 |
+| `TC-PRF-02` | `ProofReport` (Vector 2) | Clean reference fixture evaluation | Asserts `FalsePositiveRate == 0%` across all gates | Law 2 |
+| `TC-PRF-03` | `ProofReport` (Vector 3) | Non-vacuity probe audit across 42 gates | Asserts `NonVacuousGates == TotalGatesEvaluated` | Law 2 |
+| `TC-PRF-04` | `nomos verify --attest` | Full 3-vector mathematical gate attestation run | Emits verified `ProofReport` with `Passed: true` | Law 2 |
+| `TC-AGT-07` | `AntiShimGate` (`AntiShimDTO`) | Gate or function body returns trivial constant shim | Fails closed with `IsTrivialPassShim == true` | Law 2 |
+| `TC-AGT-08` | `ForbiddenLiteralsGate` | Source file contains hardcoded workstation home path | Fails closed on forbidden path literal | Law 5 |
+| `TC-AGT-09` | `ContractParityGate` | Zero canonical assets discovered during parity check | Fails closed rejecting vacuous asset discovery | Law 4 |
+| `TC-AGT-10` | `AntiShimGate` (`AntiShimDTO`) | Function body consists solely of `panic("TODO")` stub | Fails closed with `IsPanicShim == true` | Law 2 & Law 7 |
 
 ---
 

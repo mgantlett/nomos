@@ -10,6 +10,8 @@ lineage:
   - SUB-2134
   - INT-1943
   - SUB-2147
+  - INT-1944
+  - SUB-2157
 plane: intent
 ssot_repository: nomos
 status: active
@@ -72,14 +74,14 @@ Instead of scattered task notes, `intent/architecture/specs/` maintains **8 Cano
 
 | Domain # | Canonical Layer 2 Specification | Target `substrate/` Package | Primary Compiled Go SSoT Contracts |
 | :---: | :--- | :--- | :--- |
-| **1** | `go_ssot_and_json_schema_spec.md` | `core/config`, `core/types` | `JSONSchemaNode`, `EcosystemConfig` |
-| **2** | `nomos_hermetic_worktree_spec.md` | `core/workspace`, `core/capbac` | `Manager`, `WorktreeSession`, `CapabilityFlowGraph`, `MCPInvocation` |
-| **3** | `task_lifecycle_cli_spec.md` | `modules/task`, `core/storage` | `TaskRecord`, `Status`, `ReleaseNotePayload` |
-| **4** | `nomos_intent_traceability_spec.md` | `modules/verify` | `ContractsConfig`, `ArchitectureBoundaryRule`, `StaleSpecObligation` |
-| **5** | `tree_sitter_ast_gate_spec.md` | `modules/verify/treesitter` | `FunctionMetric`, `FileMetric`, `GateEvaluationReport` |
-| **6** | `mneme_memory_spec.md` | `modules/mem` | `Memory`, `MemoryKind`, `MemoryStatus` |
-| **7** | `nomos_controlled_technical_english_spec.md` | `modules/ncte`, `modules/handshake` | `NCTEBounds`, `NCTEPolicy`, `VocabularyEntry`, `IntentSteelmanGate` |
-| **8** | `software_physics_engine_spec.md` | `cli`, `modules/session` | `FileMass`, `CollisionVector`, `WorktreeHull` |
+| **1** | `go_ssot_and_json_schema_spec.md` | `core/config`, `core/types` | `EcosystemConfig`, `QualityGatesConfig`, `ThresholdsConfig`, `JSONSchemaNode`, `NomosError`, `ActionAffordance`, `PhaseState`, `PolyglotWorkspaceManifest` |
+| **2** | `nomos_hermetic_worktree_spec.md` | `core/workspace`, `core/capbac`, `modules/verify` | `Manager`, `WorktreeSession`, `EmbeddedAsset`, `ParityAuditReport`, `CapBACLease`, `CapabilityFlowGraph`, `MCPInvocation`, `CommitSchemaGate` |
+| **3** | `task_lifecycle_cli_spec.md` | `modules/task`, `core/storage`, `cli` | `TaskRecord`, `TaskCardInput`, `WavefrontCandidate`, `ReleaseNotePayload`, `ReleaseHookTrace`, `RuntimeMaintainReport`, `IssueReport` |
+| **4** | `nomos_intent_traceability_spec.md` | `modules/verify`, `core/config` | `ContractsConfig`, `ArchitectureBoundaryRule`, `StaleSpecObligation`, `CanonicalMatrixModel`, `InvariantCellSpec`, `GateSpec`, `PipelineReport`, `ProofReport`, `AntiShimDTO` |
+| **5** | `tree_sitter_ast_gate_spec.md` | `modules/verify/treesitter` | `FunctionMetric`, `FileMetric`, `GateEvaluationReport`, `EngineThresholds`, `SCMQuerySpec`, `WazeroTreeSitterEngine` |
+| **6** | `mneme_memory_spec.md` | `modules/mem` | `Memory`, `MemoryKind`, `MemoryStatus`, `MemoryFilter`, `SearchOptions`, `SearchResult`, `GateTrapEntry`, `PitfallHygieneReport`, `MaintainReport` |
+| **7** | `nomos_controlled_technical_english_spec.md` | `modules/ncte`, `modules/handshake` | `NCTEBounds`, `NCTEPolicy`, `VocabularyEntry`, `NCTEDiagnostic`, `NCTESpecReport`, `IntentSteelmanGate`, `HandshakeEvent`, `BrownfieldTopologyBrief` |
+| **8** | `software_physics_engine_spec.md` | `cli`, `modules/session`, `modules/telemetry` | `FileMass`, `CollisionVector`, `WorktreeHull`, `AgentSession`, `SessionTrajectory`, `SessionDetail`, `SentinelScorecard`, `SessionDatasetRecord`, `CapabilityMetrics` |
 
 ---
 

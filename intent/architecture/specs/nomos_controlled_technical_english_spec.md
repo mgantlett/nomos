@@ -4,7 +4,10 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-01"
-last_updated: "2026-11-05"
+last_updated: "2026-11-10"
+lineage:
+  - INT-1944
+  - SUB-2157
 plane: intent
 ssot_repository: nomos
 status: active
@@ -277,6 +280,51 @@ type IntentSteelmanGate struct{}
 func (g *IntentSteelmanGate) Evaluate(ctx *VerifyContext) (*GateResult, error)
 ```
 
+```go
+package handshake
+
+// BrownfieldTopologyBrief summarizes active governance modes and discovered source topology (#BrownfieldTopologyBrief).
+type BrownfieldTopologyBrief struct {
+	GovernanceMode string              `json:"governance_mode"`
+	VerifyScope    string              `json:"verify_scope,omitempty"`
+	TDDMode        string              `json:"tdd_mode"`
+	CoverageMode   string              `json:"coverage_mode"`
+	Languages      []string            `json:"languages"`
+	TestRunners    []string            `json:"test_runners"`
+	SourceRoots    []string            `json:"source_roots"`
+	TestRoots      []string            `json:"test_roots,omitempty"`
+	SharedModules  []string            `json:"shared_modules,omitempty"`
+	Hotspots       []BrownfieldHotspot `json:"hotspots,omitempty"`
+}
+
+// HandshakeEvent represents JIT session orientation telemetry (#HandshakeEvent).
+type HandshakeEvent struct {
+	Seat                 string                     `json:"seat"`
+	Repository           string                     `json:"repository"`
+	Plane                string                     `json:"plane,omitempty"`
+	Phase                types.Phase                `json:"phase"`
+	ActiveTask           string                     `json:"active_task,omitempty"`
+	Assignee             string                     `json:"assignee,omitempty"`
+	TokenID              string                     `json:"token_id,omitempty"`
+	StepBudget           int                        `json:"step_budget,omitempty"`
+	TokensUsed           int                        `json:"tokens_used,omitempty"`
+	DatabasesHealthy     bool                       `json:"databases_healthy"`
+	GateCount            int                        `json:"gate_count"`
+	ReadyWavefront       []string                   `json:"ready_wavefront"`
+	Directives           []string                   `json:"directives,omitempty"`
+	LearnedPitfalls      []string                   `json:"learned_pitfalls,omitempty"`
+	VerifiedPatterns     []string                   `json:"verified_patterns,omitempty"`
+	GraduationCandidates []string                   `json:"graduation_candidates,omitempty"`
+	ImpactSummary        []string                   `json:"impact_summary,omitempty"`
+	StaleObligations     []task.StaleSpecObligation `json:"stale_obligations,omitempty"`
+	StrictMode           bool                       `json:"strict_mode"`
+	BrownfieldTopology   *BrownfieldTopologyBrief   `json:"brownfield_topology,omitempty"`
+	NextActions          []types.ActionAffordance   `json:"next_actions,omitempty"`
+	DeprecatedTerms      map[string]string          `json:"deprecated_terms,omitempty"`
+	Timestamp            string                     `json:"timestamp,omitempty"`
+}
+```
+
 ---
 
 ## 7. Table-Driven Verification Vectors
@@ -293,6 +341,14 @@ The table below defines deterministic verification vectors for `ncte.Engine` and
 | `TC-NCTE-06` | `"Please check the root branch sandbox before submitting your changes."` | Procedural | 10 | `ERR_NCTE_NON_SINGULAR_TERM` | **false** |
 | `TC-NCTE-07` | `"Ensure the parser performance is very fast and extremely robust under heavy concurrency."` | Procedural | 12 | `ERR_NCTE_SUBJECTIVE_ASSERTION` | **false** |
 | `TC-NCTE-08` | `"Specification missing Go SSoT block or contiguous H2 spine under strict_mode."` | Structural | 11 | `intent_steelman` rejection | **false** |
+| `TC-JIT-01` | `"Execute nomos handshake on session boot."` | Procedural | 6 | None (`HandshakeEvent` emitted) | **true** |
+| `TC-JIT-02` | `"Emit BrownfieldTopologyBrief with discovered source roots and test runners."` | Procedural | 9 | None (`BrownfieldTopology` populated) | **true** |
+| `TC-JIT-03` | `"Surface active LearnedPitfalls and VerifiedPatterns in HandshakeEvent."` | Procedural | 7 | None (`LearnedPitfalls` attached) | **true** |
+| `TC-JIT-04` | `"Surface StaleObligations when Intent specs change after SUB sync."` | Procedural | 9 | None (`StaleObligations` reported) | **true** |
+| `TC-TIER-01` | `"Enforce Tier 1 indirect control via BoundaryConfig in nomos.yaml."` | Procedural | 9 | None (`Boundary.Enforce == true`) | **true** |
+| `TC-TIER-02` | `"Reject prohibited sovereign packages in open-core substrate."` | Procedural | 7 | `boundary` gate rejection | **false** |
+| `TC-TIER-03` | `"Reject prohibited sovereign CLI commands in open-core CommandRegistry."` | Procedural | 8 | `boundary` command rejection | **false** |
+| `TC-TIER-04` | `"Emit HATEOAS NextActions on every HandshakeEvent."` | Procedural | 6 | None (`NextActions` populated) | **true** |
 
 ---
 
