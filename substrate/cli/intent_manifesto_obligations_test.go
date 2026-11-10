@@ -43,7 +43,7 @@ func TestIntentCharter_PlaneAndCanonicalSingularity(t *testing.T) {
 }
 
 // TestIntentCharter_ContractSignatureParity verifies intent/intent.md fenced Go SSoT contracts match compiled Go AST.
-// @verifies TC-INT-03
+// @verifies TC-INT-03 TC-TRC-001 TC-OBL-001
 func TestIntentCharter_ContractSignatureParity(t *testing.T) {
 	wd, err := os.Getwd()
 	if err != nil {
@@ -51,9 +51,13 @@ func TestIntentCharter_ContractSignatureParity(t *testing.T) {
 	}
 	repoRoot := filepath.Clean(filepath.Join(wd, "..", ".."))
 	srcDir := filepath.Join(repoRoot, "substrate", "src")
-	issues := verify.VerifySpecTypeSignatures(repoRoot, srcDir, []string{"intent/intent.md"})
+	specRoots := []string{"intent/intent.md", "intent/architecture/specs"}
+	issues := verify.VerifySpecTypeSignatures(repoRoot, srcDir, specRoots)
 	if len(issues) != 0 {
-		t.Fatalf("expected zero contract drift on intent/intent.md, got: %v", issues)
+		t.Fatalf("expected zero contract drift across %v, got: %v", specRoots, issues)
+	}
+	if oblIssues := verify.VerifyExecutableObligations(repoRoot, specRoots); len(oblIssues) != 0 {
+		t.Fatalf("expected zero unbound TC-* obligations across %v, got: %v", specRoots, oblIssues)
 	}
 
 	tmpDir := t.TempDir()
