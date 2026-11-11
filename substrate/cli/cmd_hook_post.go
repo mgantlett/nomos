@@ -134,6 +134,8 @@ func isPostToolTargetInScope(resolved, hermeticDir string) bool {
 func validateStructuredFileInMemory(resolved string) string {
 	ext := strings.ToLower(filepath.Ext(resolved))
 	switch ext {
+	case ".go":
+		return validateGoSyntaxInMemory(resolved)
 	case ".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".rs":
 		return validatePolyglotSyntaxInMemory(resolved, ext)
 	case ".json", ".jsonl":

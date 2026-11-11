@@ -265,17 +265,8 @@ func pruneLegacyWorkflows(dir string) {
 
 func scaffoldAmbientHooks(dir string) error {
 	agentsDir := filepath.Join(dir, ".agents")
-	scriptsDir := filepath.Join(agentsDir, "scripts")
-	if err := os.MkdirAll(scriptsDir, 0755); err != nil {
+	if err := writeAmbientHookBundle(agentsDir); err != nil {
 		return err
-	}
-
-	manifestBytes, rErr := initTemplates.ReadFile("templates/hooks/hooks.json")
-	if rErr != nil {
-		return rErr
-	}
-	if mErr := scaffoldOrMergeHookManifestFile(filepath.Join(agentsDir, "hooks.json"), manifestBytes); mErr != nil {
-		return mErr
 	}
 	claudeSettingsPath := filepath.Join(dir, claudeDirToken, settingsFileName)
 	if cErr := writeMergedJSONManifest(claudeSettingsPath, DefaultClaudeSettingsHooksJSON()); cErr != nil {
@@ -285,11 +276,22 @@ func scaffoldAmbientHooks(dir string) error {
 	if gErr := writeMergedJSONManifest(geminiSettingsPath, DefaultGeminiSettingsHooksJSON()); gErr != nil {
 		return gErr
 	}
-	if oErr := scaffoldOpenCodePlugin(dir); oErr != nil {
-		return oErr
-	}
+	return scaffoldOpenCodePlugin(dir)
+}
 
-	scripts := []string{"session-start.sh", "worktree-guard.sh", "nomos-build-guard.sh", "post-edit-radar.sh"}
+func writeAmbientHookBundle(rootDir string) error {
+	scriptsDir := filepath.Join(rootDir, "scripts")
+	if err := os.MkdirAll(scriptsDir, 0755); err != nil {
+		return err
+	}
+	manifestBytes, rErr := initTemplates.ReadFile("templates/hooks/hooks.json")
+	if rErr != nil {
+		return rErr
+	}
+	if mErr := scaffoldOrMergeHookManifestFile(filepath.Join(rootDir, "hooks.json"), manifestBytes); mErr != nil {
+		return mErr
+	}
+	scripts := []string{"session-start.sh", "worktree-guard.sh", "nomos-build-guard.sh", "post-edit-radar.sh", "stop-guard.sh"}
 	for _, name := range scripts {
 		targetPath := filepath.Join(scriptsDir, name)
 		tmplBytes, err := initTemplates.ReadFile("templates/hooks/scripts/" + name)

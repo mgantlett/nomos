@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 )
 
 const loopBreakerReason = "Loop Circuit-Breaker (Law 1): Identical tool call repeated 3 consecutive times without workspace state change. Alter parameters or inspect workspace state before retrying."
@@ -152,22 +154,7 @@ func maxLoopStrikesWithThreshold(p *HookPayload, strikes int) int {
 }
 
 func resolveLoopTrackingDir(p *HookPayload, hermeticDir string) string {
-	if hermeticDir != "" {
-		return hermeticDir
-	}
-	if p.TargetFile != "" && filepath.IsAbs(p.TargetFile) {
-		return filepath.Dir(p.TargetFile)
-	}
-	if len(p.WorkspacePaths) > 0 {
-		return p.WorkspacePaths[0]
-	}
-	if p.Cwd != "" {
-		return p.Cwd
-	}
-	if wd, err := os.Getwd(); err == nil {
-		return wd
-	}
-	return "."
+	return resolveHookWorkspaceDir(p, hermeticDir)
 }
 
 func computeInvocationFingerprint(p *HookPayload) string {
@@ -225,14 +212,17 @@ func saveLoopBreakerState(path string, st loopBreakerState) {
 
 func computeWorkspaceMtimeDigest(rootDir string) string {
 	cleanRoot := filepath.Clean(rootDir)
+	if gitDigest, ok := computeGitWorkspaceDigest(cleanRoot); ok {
+		return gitDigest
+	}
 	var records []string
-	maxFiles := 256
+	maxFiles := 512
 	walkErr := filepath.WalkDir(cleanRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
 		if d.IsDir() {
-			if d.Name() == ".git" {
+			if skippedStopAuditDirs[d.Name()] || d.Name() == "worktrees" || d.Name() == ".tmp" {
 				return filepath.SkipDir
 			}
 			return nil
@@ -255,4 +245,36 @@ func computeWorkspaceMtimeDigest(rootDir string) string {
 	sort.Strings(records)
 	sum := sha256.Sum256([]byte(strings.Join(records, "\n")))
 	return hex.EncodeToString(sum[:16])
+}
+
+func computeGitWorkspaceDigest(cleanRoot string) (string, bool) {
+	if _, err := os.Stat(filepath.Join(cleanRoot, ".git")); err != nil {
+		return "", false
+	}
+	out, err := workspace.SafeGitCommand(cleanRoot, "status", "--porcelain", "-uall").Output()
+	if err != nil {
+		return "", false
+	}
+	var records []string
+	if headOut, hErr := workspace.SafeGitCommand(cleanRoot, "rev-parse", "HEAD").Output(); hErr == nil {
+		records = append(records, "HEAD:"+strings.TrimSpace(string(headOut)))
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		if len(line) < 4 {
+			continue
+		}
+		rel := strings.TrimSpace(line[3:])
+		if idx := strings.Index(rel, " -> "); idx >= 0 {
+			rel = strings.TrimSpace(rel[idx+4:])
+		}
+		full := filepath.Join(cleanRoot, filepath.FromSlash(rel))
+		if info, sErr := os.Stat(full); sErr == nil {
+			records = append(records, fmt.Sprintf("%s:%d:%d", line, info.Size(), info.ModTime().UnixNano()))
+		} else {
+			records = append(records, line+":deleted")
+		}
+	}
+	sort.Strings(records)
+	sum := sha256.Sum256([]byte(strings.Join(records, "\n")))
+	return hex.EncodeToString(sum[:16]), true
 }

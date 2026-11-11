@@ -13,9 +13,11 @@ import (
 )
 
 const (
-	hookDecisionBlock   = "block"
-	maxStopAuditFiles   = 128
-	containerAppWorkdir = "/app"
+	hookDecisionBlock    = "block"
+	hookDecisionContinue = "continue"
+	agyNormalStopReason  = "NO_TOOL_CALL"
+	maxStopAuditFiles    = 128
+	containerAppWorkdir  = "/app"
 )
 
 var skippedStopAuditDirs = map[string]bool{
@@ -46,6 +48,12 @@ func newHookStopCmd(hermeticDir *string, containerSandbox *bool) *cobra.Command 
 			if dec.Decision != hookDecisionBlock {
 				return writeEmptyJSON(cmd.OutOrStdout())
 			}
+			if payload != nil && payload.IsAntigravityEvent {
+				return writeHookDecision(cmd.OutOrStdout(), HookDecision{
+					Decision: hookDecisionContinue,
+					Reason:   dec.Reason,
+				})
+			}
 			return writeHookDecision(cmd.OutOrStdout(), dec)
 		},
 	}
@@ -55,6 +63,9 @@ func newHookStopCmd(hermeticDir *string, containerSandbox *bool) *cobra.Command 
 // unverified file modifications or when container-sandbox files fail syntax/snooping checks.
 func EvaluateStopHook(p *HookPayload, hermeticDir string, containerSandbox bool) HookDecision {
 	if p == nil || p.StopHookActive {
+		return HookDecision{Decision: hookDecisionAllow}
+	}
+	if p.TerminationReason != "" && p.TerminationReason != agyNormalStopReason {
 		return HookDecision{Decision: hookDecisionAllow}
 	}
 	if containerSandbox && hermeticDir == "" {

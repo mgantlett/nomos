@@ -47,19 +47,33 @@ func EvaluatePreToolHookWithProfile(p *HookPayload, hermeticDir string, profile 
 }
 
 func evaluateTargetFilePreToolGuard(p *HookPayload, hermeticDir string) HookDecision {
-	if p.TargetFile == "" {
+	targets := p.TargetFiles
+	if len(targets) == 0 && p.TargetFile != "" {
+		targets = []string{p.TargetFile}
+	}
+	if len(targets) == 0 {
 		return HookDecision{Decision: hookDecisionAllow}
 	}
-	if p.CommandLine == "" && hasUnexpandedShellPathToken(p.TargetFile) {
-		return HookDecision{
-			Decision: hookDecisionDeny,
-			Reason:   fmt.Sprintf("Hermetic Path Violation (Law 3): Unexpanded shell variable or tilde in target path '%s'. Native file tools do not expand shell syntax; pass a concrete relative or resolved path.", p.TargetFile),
+	for _, target := range targets {
+		cp := *p
+		cp.TargetFile = target
+		if cp.CommandLine == "" && hasUnexpandedShellPathToken(target) {
+			return HookDecision{
+				Decision: hookDecisionDeny,
+				Reason:   fmt.Sprintf("Hermetic Path Violation (Law 3): Unexpanded shell variable or tilde in target path '%s'. Native file tools do not expand shell syntax; pass a concrete relative or resolved path.", target),
+			}
+		}
+		var dec HookDecision
+		if !isReadOnlyTool(cp.ToolName) {
+			dec = evaluateFileMutationGuard(&cp, hermeticDir)
+		} else {
+			dec = evaluateBinaryReadGuard(&cp, hermeticDir != "")
+		}
+		if dec.Decision == hookDecisionDeny {
+			return dec
 		}
 	}
-	if !isReadOnlyTool(p.ToolName) {
-		return evaluateFileMutationGuard(p, hermeticDir)
-	}
-	return evaluateBinaryReadGuard(p, hermeticDir != "")
+	return HookDecision{Decision: hookDecisionAllow}
 }
 
 func evaluateMCPPreToolGuard(p *HookPayload, hermeticDir string) HookDecision {

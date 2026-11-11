@@ -30,18 +30,19 @@ func DefaultGeminiSettingsHooksJSON() []byte {
 	return buildAgentHookSettingsJSON([]agentHookEventSpec{
 		{event: "SessionStart", subcmd: "session-start", timeout: 10000},
 		{event: "BeforeTool", matcher: ".*", subcmd: "pre-tool", timeout: 10000},
-		{event: "AfterTool", matcher: "write_file|replace|edit.*", subcmd: "post-tool", timeout: 5000},
+		{event: "AfterTool", matcher: ".*", subcmd: "post-tool", timeout: 5000},
 		{event: "AfterAgent", subcmd: "stop", timeout: 10000},
 	})
 }
 
 type hookInstallFlags struct {
-	claude     bool
-	gemini     bool
-	opencode   bool
-	userScope  bool
-	targetDir  string
-	jsonOutput bool
+	claude      bool
+	gemini      bool
+	opencode    bool
+	antigravity bool
+	userScope   bool
+	targetDir   string
+	jsonOutput  bool
 }
 
 func newHookInstallCmd() *cobra.Command {
@@ -75,45 +76,74 @@ func newHookInstallCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.claude, "claude", false, "Install or merge Claude Code hooks (SessionStart, PreToolUse, PostToolUse, Stop)")
 	cmd.Flags().BoolVar(&f.gemini, "gemini", false, "Install or merge Gemini CLI hooks (SessionStart, BeforeTool, AfterTool, AfterAgent)")
 	cmd.Flags().BoolVar(&f.opencode, "opencode", false, "Install or merge OpenCode governance plugin (nomos.ts)")
+	cmd.Flags().BoolVar(&f.antigravity, "antigravity", false, "Install or merge Antigravity 2.0 hooks (hooks.json and scripts)")
 	cmd.Flags().BoolVar(&f.userScope, "user", false, "Install into user-global agent configuration directories instead of project scope")
 	cmd.Flags().StringVarP(&f.targetDir, "dir", "d", "", "Project directory when --user is false (defaults to current directory)")
 	cmd.Flags().BoolVar(&f.jsonOutput, flagNameJSON, false, "Emit structured JSON installation receipt")
 	return cmd
 }
 
+func resolveSelectedHookProviders(f hookInstallFlags) (bool, bool, bool) {
+	allProviders := !f.claude && !f.gemini && !f.opencode && !f.antigravity
+	return f.claude || allProviders, f.gemini || allProviders, f.opencode || allProviders
+}
+
 func executeHookInstall(f hookInstallFlags) (*HookInstallReceipt, error) {
-	allProviders := !f.claude && !f.gemini && !f.opencode
-	wantClaude := f.claude || allProviders
-	wantGemini := f.gemini || allProviders
-	wantOpenCode := f.opencode || allProviders
+	wantClaude, wantGemini, wantOpenCode := resolveSelectedHookProviders(f)
 
 	baseDir, scope, err := resolveHookInstallBase(f.userScope, f.targetDir)
 	if err != nil {
 		return nil, err
 	}
+	installed, err := installCoreHookProviders(f.userScope, baseDir, wantClaude, wantGemini, wantOpenCode)
+	if err != nil {
+		return nil, err
+	}
+	if f.antigravity {
+		p, aErr := installAntigravityHooks(f.userScope, baseDir)
+		if aErr != nil {
+			return nil, aErr
+		}
+		installed = append(installed, p)
+	}
+	return &HookInstallReceipt{Scope: scope, Targets: installed}, nil
+}
+
+func installCoreHookProviders(userScope bool, baseDir string, wantClaude, wantGemini, wantOpenCode bool) ([]string, error) {
 	var installed []string
 	if wantClaude {
-		p := resolveClaudeManifestPath(f.userScope, baseDir)
+		p := resolveClaudeManifestPath(userScope, baseDir)
 		if err := writeMergedJSONManifest(p, DefaultClaudeSettingsHooksJSON()); err != nil {
 			return nil, err
 		}
 		installed = append(installed, p)
 	}
 	if wantGemini {
-		p := resolveGeminiManifestPath(f.userScope, baseDir)
+		p := resolveGeminiManifestPath(userScope, baseDir)
 		if err := writeMergedJSONManifest(p, DefaultGeminiSettingsHooksJSON()); err != nil {
 			return nil, err
 		}
 		installed = append(installed, p)
 	}
 	if wantOpenCode {
-		p := resolveOpenCodePluginPath(f.userScope, baseDir)
+		p := resolveOpenCodePluginPath(userScope, baseDir)
 		if err := writeMergedOpenCodePlugin(p); err != nil {
 			return nil, err
 		}
 		installed = append(installed, p)
 	}
-	return &HookInstallReceipt{Scope: scope, Targets: installed}, nil
+	return installed, nil
+}
+
+func installAntigravityHooks(userScope bool, baseDir string) (string, error) {
+	rootDir := filepath.Join(baseDir, ".agents")
+	if userScope {
+		rootDir = filepath.Join(baseDir, geminiDirToken, "config")
+	}
+	if err := writeAmbientHookBundle(rootDir); err != nil {
+		return "", err
+	}
+	return filepath.Join(rootDir, "hooks.json"), nil
 }
 
 func resolveHookInstallBase(userScope bool, targetDir string) (string, string, error) {

@@ -135,7 +135,7 @@ func DefaultClaudeSettingsHooksJSON() []byte {
 	return buildAgentHookSettingsJSON([]agentHookEventSpec{
 		{event: "SessionStart", subcmd: "session-start", timeout: 10},
 		{event: "PreToolUse", matcher: "Bash|Read|Write|Edit|MultiEdit|NotebookEdit|Glob|Grep|WebFetch|WebSearch|Task.*|mcp__.*", subcmd: "pre-tool", timeout: 10},
-		{event: "PostToolUse", matcher: "Write|Edit|MultiEdit|NotebookEdit", subcmd: "post-tool", timeout: 5},
+		{event: "PostToolUse", matcher: "Bash|Read|Write|Edit|MultiEdit|NotebookEdit|Glob|Grep", subcmd: "post-tool", timeout: 5},
 		{event: "Stop", subcmd: "stop", timeout: 10},
 	})
 }

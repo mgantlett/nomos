@@ -11,21 +11,24 @@ import (
 
 // HookPayload normalizes incoming JSON hook events across Claude Code, Gemini CLI, Cursor, and Antigravity.
 type HookPayload struct {
-	SessionID        string
-	ToolName         string
-	TargetFile       string
-	TargetURL        string
-	WrittenContent   string
-	CommandLine      string
-	ArgsDigest       string
-	ToolResponseText string
-	Cwd              string
-	WorkspacePaths   []string
-	HasToolInput     bool
-	StopHookActive   bool
-	IsClaudeEvent    bool
-	IsGeminiEvent    bool
-	IsPostInvoke     bool
+	SessionID          string
+	ToolName           string
+	TargetFile         string
+	TargetFiles        []string
+	TargetURL          string
+	WrittenContent     string
+	CommandLine        string
+	ArgsDigest         string
+	ToolResponseText   string
+	TerminationReason  string
+	Cwd                string
+	WorkspacePaths     []string
+	HasToolInput       bool
+	StopHookActive     bool
+	IsClaudeEvent      bool
+	IsGeminiEvent      bool
+	IsAntigravityEvent bool
+	IsPostInvoke       bool
 }
 
 var (
@@ -65,9 +68,13 @@ func parseHookPayload(raw []byte) *HookPayload {
 		extractStringField(m, "session_id"),
 		extractStringField(m, "sessionId"),
 		extractStringField(m, "sessionID"),
+		extractStringField(m, "conversationId"),
+		extractStringField(m, "conversation_id"),
 	)
+	p.IsAntigravityEvent = isAntigravityHookEnvelope(m)
 	_, p.IsPostInvoke = m["invocationNum"]
-	p.Cwd = extractStringField(m, "cwd")
+	p.TerminationReason = extractStringField(m, "terminationReason")
+	p.Cwd = extractEffectiveCwd(m)
 	p.WorkspacePaths = extractStringSlice(m, "workspacePaths")
 	p.ToolName = firstNonEmpty(
 		extractNestedString(m, "toolCall", "name"),
@@ -81,8 +88,12 @@ func parseHookPayload(raw []byte) *HookPayload {
 		p.HasToolInput,
 		hasSessionID,
 	)
+	if p.IsAntigravityEvent {
+		p.IsGeminiEvent = false
+	}
 	p.StopHookActive = extractBoolField(m, "stop_hook_active") || extractBoolField(m, "stopHookActive")
 	p.TargetFile = extractTargetFileField(m)
+	p.TargetFiles = extractAllTargetFiles(m, p.TargetFile)
 	p.TargetURL = extractTargetURLField(m)
 	p.WrittenContent = extractWrittenContentField(m)
 	p.CommandLine = extractCommandField(m)

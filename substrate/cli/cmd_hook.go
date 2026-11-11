@@ -42,6 +42,7 @@ Reads JSON hook payloads from stdin with zero external jq/bash/python dependenci
 	cmd.PersistentFlags().IntVar(&advFlags.critPct, "budget-crit-pct", 0, "Bounded budget critical checkpoint percentage [50..99] (default 90, env NOMOS_BUDGET_CRIT_PCT)")
 	cmd.PersistentFlags().IntVar(&advFlags.loopStrikes, "loop-strikes", 0, "Bounded identical-failure loop circuit-breaker threshold [2..10] (default 3, env NOMOS_LOOP_STRIKES)")
 	cmd.PersistentFlags().StringVar(&advFlags.advisoryStyle, "advisory-style", "", "PostToolUse advisory style: standard or terse (default standard, env NOMOS_ADVISORY_STYLE)")
+	cmd.PersistentFlags().StringVar(&advFlags.advisoryProfile, "advisory-profile", "", "Model pacing preset: standard or carbon (default standard, env NOMOS_ADVISORY_PROFILE)")
 
 	cmd.AddCommand(
 		newHookSessionStartCmd(&hermeticDir, &budgetSec),
@@ -122,7 +123,18 @@ func newHookPostToolCmd(hermeticDir *string, containerSandbox *bool, budgetSec *
 				return writeEmptyJSON(cmd.OutOrStdout())
 			}
 			payload := parseHookPayload(raw)
+			if payload.IsPostInvoke {
+				pending := popAntigravityAdvisory(payload, *hermeticDir)
+				if pending == "" {
+					return writeEmptyJSON(cmd.OutOrStdout())
+				}
+				return writeSessionStartInjection(cmd.OutOrStdout(), pending)
+			}
 			msg := dispatchPostToolHook(payload, *hermeticDir, *containerSandbox, resolveEffectiveBudgetSeconds(*budgetSec), advFlags.resolve())
+			if payload.IsAntigravityEvent && payload.SessionID != "" {
+				queueAntigravityAdvisory(payload, *hermeticDir, msg)
+				return writeEmptyJSON(cmd.OutOrStdout())
+			}
 			if msg == "" {
 				return writeEmptyJSON(cmd.OutOrStdout())
 			}
@@ -142,7 +154,7 @@ func dispatchPostToolHook(payload *HookPayload, hermeticDir string, containerSan
 	recordPostToolSessionTrace(payload, hermeticDir)
 	budgetMsg := evaluateSessionBudgetRadarWithProfile(payload, hermeticDir, budgetSec, profile)
 	churnMsg := evaluateWorktreeChurnAdvisory(payload, hermeticDir, profile.AdvisoryStyle)
-	pacingMsg := evaluateReadSpiralAdvisory(payload, hermeticDir, profile.AdvisoryStyle)
+	pacingMsg := evaluateReadSpiralAdvisoryWithProfile(payload, hermeticDir, profile)
 	healthMsg := evaluatePostToolHostHealth(payload, hermeticDir, profile.AdvisoryStyle)
 	var syntaxMsg string
 	if containerSandbox && hermeticDir == "" {
@@ -225,11 +237,7 @@ func writePostToolAdvisory(w io.Writer, payload *HookPayload, msg string) error 
 			},
 		})
 	}
-	return writeJSONMap(w, map[string]any{
-		"injectSteps": []map[string]string{
-			{"ephemeralMessage": msg},
-		},
-	})
+	return writeSessionStartInjection(w, msg)
 }
 
 func writeJSONMap(w io.Writer, out map[string]any) error {

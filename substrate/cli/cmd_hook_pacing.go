@@ -26,6 +26,13 @@ var readOnlyShellPrefixes = []string{
 // evaluateReadSpiralAdvisory tracks consecutive read/search calls without a source edit
 // inside an active task worktree and emits non-blocking pacing nudges at 12 and 20 reads.
 func evaluateReadSpiralAdvisory(p *HookPayload, hermeticDir, style string) string {
+	prof := resolveHookAdvisoryProfile(0, 0, 0, style)
+	return evaluateReadSpiralAdvisoryWithProfile(p, hermeticDir, prof)
+}
+
+// evaluateReadSpiralAdvisoryWithProfile evaluates consecutive exploratory read spirals
+// using model-tuned thresholds (12/20 standard; 7/12 under NOMOS_ADVISORY_PROFILE=carbon).
+func evaluateReadSpiralAdvisoryWithProfile(p *HookPayload, hermeticDir string, profile HookAdvisoryProfile) string {
 	if p == nil || p.IsPostInvoke {
 		return ""
 	}
@@ -46,15 +53,23 @@ func evaluateReadSpiralAdvisory(p *HookPayload, hermeticDir, style string) strin
 	if !isExploratoryReadCall(p) {
 		return ""
 	}
+	warnAt := profile.ReadSpiralWarn
+	if warnAt <= 0 {
+		warnAt = readSpiralWarnThreshold
+	}
+	critAt := profile.ReadSpiralCrit
+	if critAt <= warnAt {
+		critAt = readSpiralCritThreshold
+	}
 	tr.ConsecutiveReadCalls++
 	var msg string
-	if tr.ConsecutiveReadCalls >= readSpiralCritThreshold && !tr.WarnedReadSpiral20 {
+	if tr.ConsecutiveReadCalls >= critAt && !tr.WarnedReadSpiral20 {
 		tr.WarnedReadSpiral12 = true
 		tr.WarnedReadSpiral20 = true
-		msg = formatReadSpiralAdvisory(tr.ConsecutiveReadCalls, true, style)
-	} else if tr.ConsecutiveReadCalls >= readSpiralWarnThreshold && !tr.WarnedReadSpiral12 {
+		msg = formatReadSpiralAdvisory(tr.ConsecutiveReadCalls, true, profile.AdvisoryStyle)
+	} else if tr.ConsecutiveReadCalls >= warnAt && !tr.WarnedReadSpiral12 {
 		tr.WarnedReadSpiral12 = true
-		msg = formatReadSpiralAdvisory(tr.ConsecutiveReadCalls, false, style)
+		msg = formatReadSpiralAdvisory(tr.ConsecutiveReadCalls, false, profile.AdvisoryStyle)
 	}
 	saveHookSessionTrace(path, tr)
 	return msg

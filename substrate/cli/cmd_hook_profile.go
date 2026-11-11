@@ -10,45 +10,66 @@ import (
 )
 
 const (
-	defaultBudgetWarnPct  = 75
-	defaultBudgetCritPct  = 90
-	defaultLoopStrikes    = 3
-	minBudgetWarnPct      = 25
-	maxBudgetWarnPct      = 90
-	minBudgetCritFloorPct = 50
-	maxBudgetCritPct      = 99
-	minLoopStrikes        = 2
-	maxLoopStrikesBound   = 10
-	advisoryStyleStandard = "standard"
-	advisoryStyleTerse    = "terse"
+	defaultBudgetWarnPct     = 75
+	defaultBudgetCritPct     = 90
+	defaultLoopStrikes       = 3
+	carbonDefaultLoopStrikes = 2
+	carbonReadSpiralWarn     = 7
+	carbonReadSpiralCrit     = 12
+	minBudgetWarnPct         = 25
+	maxBudgetWarnPct         = 90
+	minBudgetCritFloorPct    = 50
+	maxBudgetCritPct         = 99
+	minLoopStrikes           = 2
+	maxLoopStrikesBound      = 10
+	advisoryStyleStandard    = "standard"
+	advisoryStyleTerse       = "terse"
+	advisoryProfileCarbon    = "carbon"
 )
 
 // HookAdvisoryProfile defines bounded, model-family-tunable advisory parameters
 // for nomos hook while preserving strict invariance of all hard safety gates.
 type HookAdvisoryProfile struct {
-	WarnPct       int
-	CritPct       int
-	LoopStrikes   int
-	AdvisoryStyle string
+	WarnPct        int
+	CritPct        int
+	LoopStrikes    int
+	ReadSpiralWarn int
+	ReadSpiralCrit int
+	AdvisoryStyle  string
 }
 
 // hookAdvisoryFlags binds CLI persistent flags on 'nomos hook' before clamping.
 type hookAdvisoryFlags struct {
-	warnPct       int
-	critPct       int
-	loopStrikes   int
-	advisoryStyle string
+	warnPct         int
+	critPct         int
+	loopStrikes     int
+	advisoryStyle   string
+	advisoryProfile string
 }
 
 // resolve normalizes CLI flag values and environment fallbacks into a clamped HookAdvisoryProfile.
 func (f hookAdvisoryFlags) resolve() HookAdvisoryProfile {
-	return resolveHookAdvisoryProfile(f.warnPct, f.critPct, f.loopStrikes, f.advisoryStyle)
+	return resolveHookAdvisoryProfileWithPreset(f.warnPct, f.critPct, f.loopStrikes, f.advisoryStyle, f.advisoryProfile)
 }
 
 // resolveHookAdvisoryProfile computes bounded advisory thresholds from CLI flags
 // and environment variables (NOMOS_BUDGET_WARN_PCT, NOMOS_BUDGET_CRIT_PCT,
-// NOMOS_LOOP_STRIKES, NOMOS_ADVISORY_STYLE).
+// NOMOS_LOOP_STRIKES, NOMOS_ADVISORY_STYLE, NOMOS_ADVISORY_PROFILE).
 func resolveHookAdvisoryProfile(warnFlag, critFlag, strikesFlag int, styleFlag string) HookAdvisoryProfile {
+	return resolveHookAdvisoryProfileWithPreset(warnFlag, critFlag, strikesFlag, styleFlag, "")
+}
+
+func resolveHookAdvisoryProfileWithPreset(warnFlag, critFlag, strikesFlag int, styleFlag, presetFlag string) HookAdvisoryProfile {
+	isCarbon := resolveAdvisoryPreset(presetFlag, "NOMOS_ADVISORY_PROFILE") == advisoryProfileCarbon
+	strikesFallback := defaultLoopStrikes
+	spiralWarn := readSpiralWarnThreshold
+	spiralCrit := readSpiralCritThreshold
+	if isCarbon {
+		strikesFallback = carbonDefaultLoopStrikes
+		spiralWarn = carbonReadSpiralWarn
+		spiralCrit = carbonReadSpiralCrit
+	}
+
 	rawWarn := resolveAdvisoryInt(warnFlag, "NOMOS_BUDGET_WARN_PCT", defaultBudgetWarnPct)
 	warn := clampAdvisoryInt(rawWarn, minBudgetWarnPct, maxBudgetWarnPct)
 
@@ -59,15 +80,28 @@ func resolveHookAdvisoryProfile(warnFlag, critFlag, strikesFlag int, styleFlag s
 	rawCrit := resolveAdvisoryInt(critFlag, "NOMOS_BUDGET_CRIT_PCT", defaultBudgetCritPct)
 	crit := clampAdvisoryInt(rawCrit, critMin, maxBudgetCritPct)
 
-	rawStrikes := resolveAdvisoryInt(strikesFlag, "NOMOS_LOOP_STRIKES", defaultLoopStrikes)
+	rawStrikes := resolveAdvisoryInt(strikesFlag, "NOMOS_LOOP_STRIKES", strikesFallback)
 	strikes := clampAdvisoryInt(rawStrikes, minLoopStrikes, maxLoopStrikesBound)
 
 	return HookAdvisoryProfile{
-		WarnPct:       warn,
-		CritPct:       crit,
-		LoopStrikes:   strikes,
-		AdvisoryStyle: resolveAdvisoryStyle(styleFlag, "NOMOS_ADVISORY_STYLE"),
+		WarnPct:        warn,
+		CritPct:        crit,
+		LoopStrikes:    strikes,
+		ReadSpiralWarn: spiralWarn,
+		ReadSpiralCrit: spiralCrit,
+		AdvisoryStyle:  resolveAdvisoryStyle(styleFlag, "NOMOS_ADVISORY_STYLE"),
 	}
+}
+
+func resolveAdvisoryPreset(flagVal, envKey string) string {
+	candidate := strings.ToLower(strings.TrimSpace(flagVal))
+	if candidate == "" {
+		candidate = strings.ToLower(strings.TrimSpace(os.Getenv(envKey)))
+	}
+	if candidate == advisoryProfileCarbon {
+		return advisoryProfileCarbon
+	}
+	return "standard"
 }
 
 // resolveAdvisoryInt selects an explicit non-zero flag value, an integer environment
