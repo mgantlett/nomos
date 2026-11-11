@@ -1,9 +1,13 @@
 package cli
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/constants"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/handshake"
 )
@@ -68,5 +72,37 @@ func TestPlainHandshakeBanner_TurnZeroTelemetryInjection(t *testing.T) {
 		if !strings.Contains(out, needle) {
 			t.Fatalf("expected Turn-0 prefix telemetry %q in banner, got:\n%s", needle, out)
 		}
+	}
+}
+
+func TestPlainHandshakeBannerWithRoot_UpdateAndContractDrift(t *testing.T) {
+	t.Setenv(constants.EnvNomosHome, t.TempDir())
+	t.Setenv(constants.EnvNomosNoUpdateCheck, "")
+	t.Setenv("CI", "")
+
+	if err := SaveUpdateCheckCache(UpdateCheckCache{
+		CheckedAt:     time.Now().UTC().Format(time.RFC3339),
+		LatestVersion: "99.10.0",
+	}); err != nil {
+		t.Fatalf("SaveUpdateCheckCache: %v", err)
+	}
+
+	repoDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repoDir, constants.FileNomosYAML), []byte("# $schema=https://raw.githubusercontent.com/mgantlett/nomos/v4.1.0/nomos.schema.json\nproject: demo\n"), 0644); err != nil {
+		t.Fatalf("WriteFile nomos.yaml: %v", err)
+	}
+
+	ev := &handshake.HandshakeEvent{
+		Repository: "demo",
+		Phase:      types.PhaseIdle,
+		GateCount:  42,
+		StrictMode: true,
+	}
+	out := formatPlainHandshakeBannerWithRoot(ev, repoDir, true)
+	if !strings.Contains(out, "Update Available") || !strings.Contains(out, "99.10.0") {
+		t.Fatalf("expected Update Available line in plain banner, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Contract Sync") || !strings.Contains(out, "--sync-workspace") {
+		t.Fatalf("expected Contract Sync line in plain banner, got:\n%s", out)
 	}
 }

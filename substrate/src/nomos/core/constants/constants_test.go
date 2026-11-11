@@ -35,4 +35,10 @@ func TestConstants(t *testing.T) {
 	if EnvNomosConfig != "NOMOS_CONFIG" {
 		t.Errorf("expected EnvNomosConfig to be 'NOMOS_CONFIG', got %s", EnvNomosConfig)
 	}
+	if FileUpdateCheckCache != "last_update_check.json" {
+		t.Errorf("expected FileUpdateCheckCache to be 'last_update_check.json', got %s", FileUpdateCheckCache)
+	}
+	if EnvNomosNoUpdateCheck != "NOMOS_NO_UPDATE_CHECK" {
+		t.Errorf("expected EnvNomosNoUpdateCheck to be 'NOMOS_NO_UPDATE_CHECK', got %s", EnvNomosNoUpdateCheck)
+	}
 }

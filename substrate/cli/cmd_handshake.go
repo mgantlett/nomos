@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
@@ -58,7 +59,7 @@ Just-In-Time (JIT) Phase Invariant Envelopes under indirect control.`,
 				return nil
 			}
 
-			renderHandshakeBanner(event, installed)
+			renderHandshakeBanner(event, installed, hookRoot)
 			return nil
 		},
 	}
@@ -66,9 +67,9 @@ Just-In-Time (JIT) Phase Invariant Envelopes under indirect control.`,
 	return cmd
 }
 
-func renderHandshakeBanner(event *handshake.HandshakeEvent, installed bool) {
+func renderHandshakeBanner(event *handshake.HandshakeEvent, installed bool, hookRoot string) {
 	if event != nil && !event.StrictMode && event.BrownfieldTopology != nil {
-		renderBrownfieldHandshakeBanner(event, event.BrownfieldTopology)
+		renderBrownfieldHandshakeBanner(event, event.BrownfieldTopology, hookRoot)
 		return
 	}
 	hookMsg := "VERIFIED"
@@ -80,24 +81,7 @@ func renderHandshakeBanner(event *handshake.HandshakeEvent, installed bool) {
 	fmt.Println(uiRule(ruleNarrow))
 	fmt.Println(kvLine("Active Repository", 17, uiBoldValueStyle.Render(event.Repository)))
 	fmt.Println(kvLine("Workstation Seat", 17, uiValueStyle.Render(event.Seat)))
-
-	if event.ActiveTask != "" {
-		phaseVal := fmt.Sprintf("%s %s",
-			styleSemanticBadge(string(event.Phase)),
-			uiMutedStyle.Render("(Task: "+styleTaskKey(event.ActiveTask)+")"))
-		fmt.Println(kvLine("Workspace Phase", 17, phaseVal))
-		if event.TokenID != "" {
-			leaseVal := fmt.Sprintf("%s %s",
-				uiCommandStyle.Render(event.TokenID),
-				uiMutedStyle.Render(fmt.Sprintf("[Budget: %d, Used: %d]", event.StepBudget, event.TokensUsed)))
-			fmt.Println(kvLine("CapBAC Lease", 17, leaseVal))
-		}
-	} else {
-		phaseVal := fmt.Sprintf("%s %s",
-			styleSemanticBadge(string(event.Phase)),
-			uiMutedStyle.Render("(Trunk baseline)"))
-		fmt.Println(kvLine("Workspace Phase", 17, phaseVal))
-	}
+	renderHandshakePhaseAndLease(event)
 
 	if installed {
 		fmt.Println(kvLine("Defense Hooks", 17, uiSuccessStyle.Render(hookMsg)))
@@ -118,9 +102,43 @@ func renderHandshakeBanner(event *handshake.HandshakeEvent, installed bool) {
 			uiMutedStyle.Render("("+strings.Join(event.Directives, ", ")+")"))
 		fmt.Println(kvLine("JIT Directives", 17, dirVal))
 	}
+	renderHandshakeUpdateAndDriftAdvisories(hookRoot)
 	renderHandshakeMnemeTelemetry(event)
 	renderNextActions(os.Stdout, event.NextActions)
 	fmt.Println(uiRule(ruleNarrow))
+}
+
+func renderHandshakePhaseAndLease(event *handshake.HandshakeEvent) {
+	if event.ActiveTask == "" {
+		phaseVal := fmt.Sprintf("%s %s",
+			styleSemanticBadge(string(event.Phase)),
+			uiMutedStyle.Render("(Trunk baseline)"))
+		fmt.Println(kvLine("Workspace Phase", 17, phaseVal))
+		return
+	}
+	phaseVal := fmt.Sprintf("%s %s",
+		styleSemanticBadge(string(event.Phase)),
+		uiMutedStyle.Render("(Task: "+styleTaskKey(event.ActiveTask)+")"))
+	fmt.Println(kvLine("Workspace Phase", 17, phaseVal))
+	if event.TokenID != "" {
+		leaseVal := fmt.Sprintf("%s %s",
+			uiCommandStyle.Render(event.TokenID),
+			uiMutedStyle.Render(fmt.Sprintf("[Budget: %d, Used: %d]", event.StepBudget, event.TokensUsed)))
+		fmt.Println(kvLine("CapBAC Lease", 17, leaseVal))
+	}
+}
+
+func renderHandshakeUpdateAndDriftAdvisories(hookRoot string) {
+	binPath, err := resolveCurrentBinaryPath()
+	if err != nil {
+		binPath = ""
+	}
+	if updNotice := RefreshAndFormatUpdateNotice(RootCmdVersion, binPath, time.Now()); updNotice != "" {
+		fmt.Println(kvLine("Update Available", 17, uiWarnStyle.Render(updNotice)))
+	}
+	if driftNotice := FormatWorkspaceDriftNotice(hookRoot); driftNotice != "" {
+		fmt.Println(kvLine("Contract Sync", 17, uiWarnStyle.Render(driftNotice)))
+	}
 }
 
 func formatHandshakeWavefront(keys []string) string {

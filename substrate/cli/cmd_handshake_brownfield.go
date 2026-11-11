@@ -9,7 +9,7 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/handshake"
 )
 
-func renderBrownfieldHandshakeBanner(event *handshake.HandshakeEvent, bf *handshake.BrownfieldTopologyBrief) {
+func renderBrownfieldHandshakeBanner(event *handshake.HandshakeEvent, bf *handshake.BrownfieldTopologyBrief, hookRoot string) {
 	fmt.Println(renderBrandTitle("🤝 Nomos Brownfield Session Handshake"))
 	fmt.Println(uiRule(ruleNarrow))
 	fmt.Println(kvLine("Active Repository", 17, uiBoldValueStyle.Render(event.Repository)))
@@ -30,6 +30,7 @@ func renderBrownfieldHandshakeBanner(event *handshake.HandshakeEvent, bf *handsh
 	for _, item := range buildBrownfieldTopologyPairs(bf) {
 		fmt.Println(kvLine(item.label, 17, uiValueStyle.Render(item.value)))
 	}
+	renderHandshakeUpdateAndDriftAdvisories(hookRoot)
 	renderHandshakeMnemeTelemetry(event)
 	renderNextActions(os.Stdout, event.NextActions)
 	fmt.Println(uiRule(ruleNarrow))

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/capbac"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
@@ -85,7 +86,7 @@ func newHookSessionStartCmd(hermeticDir *string, budgetSec *int) *cobra.Command 
 				return writeEmptyJSON(cmd.OutOrStdout())
 			}
 
-			banner := formatPlainHandshakeBanner(ev)
+			banner := formatPlainHandshakeBannerWithRoot(ev, hookRoot, *hermeticDir == "")
 			if payload.IsCursorEvent {
 				return writeCursorSessionStartResponse(cmd.OutOrStdout(), banner)
 			}
@@ -259,6 +260,10 @@ func writeJSONMap(w io.Writer, out map[string]any) error {
 }
 
 func formatPlainHandshakeBanner(ev *handshake.HandshakeEvent) string {
+	return formatPlainHandshakeBannerWithRoot(ev, "", false)
+}
+
+func formatPlainHandshakeBannerWithRoot(ev *handshake.HandshakeEvent, hookRoot string, allowUpdateCheck bool) string {
 	var b strings.Builder
 	b.WriteString("🤝 Nomos JIT Session Handshake\n")
 	b.WriteString(fmt.Sprintf("  Active Repository : %s\n", ev.Repository))
@@ -272,6 +277,24 @@ func formatPlainHandshakeBanner(ev *handshake.HandshakeEvent) string {
 	if len(ev.ReadyWavefront) > 0 {
 		b.WriteString(fmt.Sprintf("  Ready Wavefront   : [%s]\n", strings.Join(ev.ReadyWavefront, ", ")))
 	}
+	appendPlainUpdateAndDriftAdvisories(&b, hookRoot, allowUpdateCheck)
 	appendPlainTurnZeroTelemetry(&b, ev)
 	return b.String()
+}
+
+func appendPlainUpdateAndDriftAdvisories(b *strings.Builder, hookRoot string, allowUpdateCheck bool) {
+	if allowUpdateCheck {
+		binPath, err := resolveCurrentBinaryPath()
+		if err != nil {
+			binPath = ""
+		}
+		if updNotice := RefreshAndFormatUpdateNotice(RootCmdVersion, binPath, time.Now()); updNotice != "" {
+			b.WriteString(fmt.Sprintf("  Update Available  : %s\n", updNotice))
+		}
+	}
+	if hookRoot != "" {
+		if driftNotice := FormatWorkspaceDriftNotice(hookRoot); driftNotice != "" {
+			b.WriteString(fmt.Sprintf("  Contract Sync     : %s\n", driftNotice))
+		}
+	}
 }

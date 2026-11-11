@@ -146,4 +146,12 @@ Sentinel process-reward scorecards, Git Notes release receipts, and Mneme pitfal
 and Go toolchain provenance.`
 	helpVersionExample = `  nomos version
   nomos version --json`
+
+	helpUpdateLong = `Inspect release availability, enforce package-manager ownership guards (Homebrew, AUR, Nix),
+verify checksums.txt SHA-256 digests in pure Go, atomically replace standalone binaries,
+and optionally synchronize downstream workspace protocol blocks and ambient hooks.`
+	helpUpdateExample = `  nomos update
+  nomos update --check --json
+  nomos update --version v4.14.0
+  nomos update --sync-workspace`
 )

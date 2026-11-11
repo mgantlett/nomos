@@ -25,7 +25,12 @@ const (
 	ValWorktree       = "worktree"
 	CmdRevParse       = "rev-parse"
 	DirSubstrate      = "substrate"
-	DirGit            = ".git"
-	DirTmp            = ".tmp"
+	DirGit                = ".git"
+	DirTmp                = ".tmp"
+	FileUpdateCheckCache  = "last_update_check.json"
+	EnvNomosNoUpdateCheck = "NOMOS_NO_UPDATE_CHECK"
+	EnvNomosUpdateAPIURL  = "NOMOS_UPDATE_API_URL"
+	EnvNomosUpdateBaseURL = "NOMOS_UPDATE_BASE_URL"
+	EnvNomosBinaryPath    = "NOMOS_BINARY_PATH"
 )
 

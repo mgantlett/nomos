@@ -15,7 +15,7 @@ func TestNewRootCmd_Registration(t *testing.T) {
 		t.Fatalf("expected non-nil root command")
 	}
 
-	expectedSubcommands := []string{"init", "status", "task", "verify", "handshake", "directive", "capabilities", "mem", "session", "issue", "version"}
+	expectedSubcommands := []string{"init", "status", "task", "verify", "handshake", "directive", "capabilities", "mem", "session", "issue", "update", "version"}
 	for _, sub := range expectedSubcommands {
 		cmd, _, err := root.Find([]string{sub})
 		if err != nil || cmd == nil || cmd.Name() != sub {
@@ -100,6 +100,7 @@ func TestRootCmd_CommandGroups(t *testing.T) {
 		"mem":          "agent",
 		"session":      "agent",
 		"issue":        "diagnostics",
+		"update":       "diagnostics",
 		"version":      "diagnostics",
 	}
 

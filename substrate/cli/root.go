@@ -107,6 +107,7 @@ func registerSubcommands(root *cobra.Command) {
 	addCommandWithGroup(root, NewSessionCmd(), "agent")
 
 	addCommandWithGroup(root, NewIssueCmd(), "diagnostics")
+	addCommandWithGroup(root, NewUpdateCmd(), "diagnostics")
 	addCommandWithGroup(root, NewVersionCmd(), "diagnostics")
 
 	discoverPlugins(root)

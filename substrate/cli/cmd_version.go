@@ -5,6 +5,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"runtime"
 
 	"github.com/spf13/cobra"
@@ -12,11 +13,13 @@ import (
 
 // VersionInfo models structured build provenance for 'nomos version --json'.
 type VersionInfo struct {
-	Version   string `json:"version"`
-	GOOS      string `json:"goos"`
-	GOARCH    string `json:"goarch"`
-	GoVersion string `json:"go_version"`
-	Edition   string `json:"edition"`
+	Version         string `json:"version"`
+	GOOS            string `json:"goos"`
+	GOARCH          string `json:"goarch"`
+	GoVersion       string `json:"go_version"`
+	Edition         string `json:"edition"`
+	LatestVersion   string `json:"latest_version,omitempty"`
+	UpdateAvailable bool   `json:"update_available,omitempty"`
 }
 
 // FormatVersionOutput returns the canonical version and build telemetry string.
@@ -35,33 +38,49 @@ func NewVersionCmd() *cobra.Command {
 		Long:    helpVersionLong,
 		Example: helpVersionExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			out := cmd.OutOrStdout()
-			if jsonOutput {
-				info := VersionInfo{
-					Version:   RootCmdVersion,
-					GOOS:      runtime.GOOS,
-					GOARCH:    runtime.GOARCH,
-					GoVersion: runtime.Version(),
-					Edition:   "open-core",
-				}
-				data, err := json.MarshalIndent(info, "", "  ")
-				if err != nil {
-					return err
-				}
-				fmt.Fprintln(out, string(data))
-				return nil
-			}
-			fmt.Fprintf(out, "%s %s %s\n%s %s %s %s\n",
-				renderBrandTitle("nomos version"),
-				uiChipStyle.Render(" "+RootCmdVersion+" "),
-				uiMutedStyle.Render(fmt.Sprintf("(%s/%s)", runtime.GOOS, runtime.GOARCH)),
-				uiLabelStyle.Render("compiler:"),
-				uiValueStyle.Render(runtime.Version()),
-				uiIntentStyle.Render("◈"),
-				uiMutedStyle.Render("open-core substrate · sophialabs.ca"))
-			return nil
+			return executeVersion(cmd.OutOrStdout(), jsonOutput)
 		},
 	}
 	cmd.Flags().BoolVar(&jsonOutput, flagNameJSON, false, "Emit version metadata as structured JSON")
 	return cmd
+}
+
+func executeVersion(out io.Writer, jsonOutput bool) error {
+	binPath, bErr := resolveCurrentBinaryPath()
+	if bErr != nil {
+		binPath = ""
+	}
+	latestVer, notice := ReadCachedUpdateNotice(RootCmdVersion, binPath)
+	if jsonOutput {
+		info := VersionInfo{
+			Version:         RootCmdVersion,
+			GOOS:            runtime.GOOS,
+			GOARCH:          runtime.GOARCH,
+			GoVersion:       runtime.Version(),
+			Edition:         "open-core",
+			LatestVersion:   latestVer,
+			UpdateAvailable: notice != "",
+		}
+		data, err := json.MarshalIndent(info, "", "  ")
+		if err != nil {
+			return err
+		}
+		_, wErr := fmt.Fprintln(out, string(data))
+		return wErr
+	}
+	writeOutLine(out, fmt.Sprintf("%s %s %s",
+		renderBrandTitle("nomos version"),
+		uiChipStyle.Render(" "+RootCmdVersion+" "),
+		uiMutedStyle.Render(fmt.Sprintf("(%s/%s)", runtime.GOOS, runtime.GOARCH))))
+	writeOutLine(out, fmt.Sprintf("%s %s %s %s",
+		uiLabelStyle.Render("compiler:"),
+		uiValueStyle.Render(runtime.Version()),
+		uiIntentStyle.Render("◈"),
+		uiMutedStyle.Render("open-core substrate · sophialabs.ca")))
+	if notice != "" {
+		writeOutLine(out, fmt.Sprintf("%s %s",
+			uiWarnStyle.Render("update:"),
+			uiValueStyle.Render(notice)))
+	}
+	return nil
 }
