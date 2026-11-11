@@ -1,8 +1,8 @@
 # Maintainer: Mark Gantlett <mark@sophialabs.ca>
 pkgname=nomos-bin
-pkgver=4.9.0
+pkgver=4.13.2
 pkgrel=1
-pkgdesc="Deterministic engineering substrate and 42-gate AST control harness for AI coding agents"
+pkgdesc="Deterministic engineering substrate and 42-gate AST verification layer between coding agents and Git"
 arch=('x86_64' 'aarch64')
 url="https://github.com/mgantlett/nomos"
 license=('Apache-2.0')
@@ -10,9 +10,9 @@ provides=('nomos')
 conflicts=('nomos')
 options=('!strip' '!debug')
 source_x86_64=("nomos-${pkgver}-x86_64.tar.gz::https://github.com/mgantlett/nomos/releases/download/v${pkgver}/nomos_Linux_x86_64.tar.gz")
-sha256sums_x86_64=('ae47a8c21a739fb1b2449f63a16edaef36b06ff06a1afece32dd3fa221e3fb3c')
+sha256sums_x86_64=('933c62d50443a014784c8dc52d05bdd3840f1e04714fd917c29f7ad89dc542c9')
 source_aarch64=("nomos-${pkgver}-aarch64.tar.gz::https://github.com/mgantlett/nomos/releases/download/v${pkgver}/nomos_Linux_arm64.tar.gz")
-sha256sums_aarch64=('b6ae1d66a2f90f0d02ab5d47bbdfdd980e63fc3c434f9a19543325ebbf50983c')
+sha256sums_aarch64=('3802e7453e86153b928637b3c173a1c2c9de7c9d22e985fa66dd2dd11ef4169d')
 
 package() {
   install -Dm755 "${srcdir}/nomos" "${pkgdir}/usr/bin/nomos"

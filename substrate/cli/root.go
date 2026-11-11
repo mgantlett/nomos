@@ -20,8 +20,8 @@ func NewRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:     "nomos",
 		Version: RootCmdVersion,
-		Short:   "Transactional governance harness between coding agents and Git",
-		Long: `Nomos Open-Core Transactional Governance Harness
+		Short:   "Deterministic execution substrate between coding agents and Git",
+		Long: `Nomos Open-Core Deterministic Execution Substrate
 The deterministic runtime between any coding agent and Git: causal INT/SUB spec-vs-code DAGs, isolated git worktrees, 42 polyglot anti-reward-hacking AST gates, receipt-gated SQLite memory, and atomic 2PC releases.`,
 		Example:       helpRootExample,
 		SilenceUsage:  true,

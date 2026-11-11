@@ -12,14 +12,15 @@ import (
 )
 
 type strictGoReleaserV2Config struct {
-	Version     int                       `yaml:"version"`
-	ProjectName string                    `yaml:"project_name"`
-	Before      strictGoReleaserBefore    `yaml:"before"`
-	Builds      []strictGoReleaserBuild   `yaml:"builds"`
-	Archives    []strictGoReleaserArchive `yaml:"archives"`
-	Checksum    strictGoReleaserChecksum  `yaml:"checksum"`
-	AURs        []strictGoReleaserAUR     `yaml:"aurs"`
-	Changelog   strictGoReleaserChangelog `yaml:"changelog"`
+	Version       int                            `yaml:"version"`
+	ProjectName   string                         `yaml:"project_name"`
+	Before        strictGoReleaserBefore         `yaml:"before"`
+	Builds        []strictGoReleaserBuild        `yaml:"builds"`
+	Archives      []strictGoReleaserArchive      `yaml:"archives"`
+	Checksum      strictGoReleaserChecksum       `yaml:"checksum"`
+	HomebrewCasks []strictGoReleaserHomebrewCask `yaml:"homebrew_casks"`
+	AURs          []strictGoReleaserAUR          `yaml:"aurs"`
+	Changelog     strictGoReleaserChangelog      `yaml:"changelog"`
 }
 
 type strictGoReleaserBefore struct {

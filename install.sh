@@ -178,6 +178,10 @@ else
     $SUDO_CMD chmod +x "$INSTALL_DIR/nomos"
 fi
 
+if [ "$OS" = "Darwin" ] && command -v xattr >/dev/null 2>&1; then
+    $SUDO_CMD xattr -dr com.apple.quarantine "$INSTALL_DIR/nomos" 2>/dev/null || true
+fi
+
 # 3. Alpine Linux / musl libc fallback check (only if binary is dynamically linked against glibc)
 if [ "$OS" = "Linux" ] && ! "$INSTALL_DIR/nomos" version >/dev/null 2>&1; then
     if ldd --version 2>&1 | grep -qi "musl" || [ -f /lib/ld-musl-x86_64.so.1 ] || [ -f /lib/ld-musl-aarch64.so.1 ]; then

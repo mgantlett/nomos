@@ -3,7 +3,7 @@
 # Nomos Ecosystem Configuration (nomos.yaml)
 # Single Source of Truth (SSoT) for Deterministic AI Agent Governance (Law 4)
 # ==============================================================================
-# Configures the Nomos control harness, hermetic worktree isolation, bilateral
+# Configures the Nomos execution substrate, hermetic worktree isolation, bilateral
 # plane boundaries, and Definition of Done (DoD) quality gates for Tier 1 agents.
 #
 # Documentation: https://github.com/mgantlett/nomos

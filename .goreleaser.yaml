@@ -49,10 +49,30 @@ archives:
 checksum:
   name_template: 'checksums.txt'
 
+homebrew_casks:
+  - name: nomos
+    binaries:
+      - nomos
+    homepage: "https://github.com/mgantlett/nomos"
+    description: "Deterministic engineering substrate and 42-gate AST verification layer between coding agents and Git"
+    license: "Apache-2.0"
+    repository:
+      owner: mgantlett
+      name: homebrew-tap
+      branch: main
+      token: '{{ index .Env "HOMEBREW_TAP_GITHUB_TOKEN" }}'
+    skip_upload: '{{ if index .Env "HOMEBREW_TAP_GITHUB_TOKEN" }}auto{{ else }}true{{ end }}'
+    hooks:
+      post:
+        install_steps: |-
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/nomos"]
+          end
+
 aurs:
   - name: nomos-bin
     homepage: "https://github.com/mgantlett/nomos"
-    description: "Deterministic engineering substrate and 42-gate AST control harness for AI coding agents"
+    description: "Deterministic engineering substrate and 42-gate AST verification layer between coding agents and Git"
     maintainers:
       - "Mark Gantlett <mark@sophialabs.ca>"
     license: "Apache-2.0"
