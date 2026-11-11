@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [v4.16.1] - 2026-11-11
+
+> Canonical `@AGENTS.md` `CLAUDE.md` SSoT Import Collapse, Root `nomos.yaml` Inline Extension Envelope, Plus Automated Homebrew Tap Publishing & GitHub Discussions Forms (Apache 2.0)
+
+### CLI & Workspace Contracts (`nomos init`, `nomos update --sync-workspace`, `nomos verify`)
+- **Canonical `@AGENTS.md` Import Singularity for `CLAUDE.md` (`SUB-2244`, `SUB-2245`)**: Switches `CLAUDE.md` scaffolding (`nomos init`), workspace contract synchronization (`nomos update --sync-workspace`), and template parity verification (`IntentParityGate`) from duplicating the full `AGENTS.md` protocol block to a canonical `@AGENTS.md` SSoT import pointer (Law 4 & Law 6), idempotently collapsing legacy marker blocks while preserving custom repository-specific Claude instructions.
+
+### Configuration & Schema (`nomos.yaml`)
+- **Inline Extension Envelope with Strict Governance Validation (`SUB-2247`)**: Preserves strict `yaml.v3` `KnownFields(true)` verification across the `governance` configuration tree (`TC-SSOT-05`) and root-level governance key typos (`quality_gates`, `boundary`, `thresholds`, `contracts`, `strict_mode`, `governence`, `defaultBranch`) while allowing external `nomos-plugin-*` and embedded library inline extension blocks in unified root `nomos.yaml` files.
+
+### Packaging & Community (`packaging/aur/PKGBUILD`, `.github/DISCUSSION_TEMPLATE/`)
+- **Automated Homebrew Tap Sync, Arch `PKGBUILD` Alignment & Discussion Forms (`SUB-2246`, `SUB-2248`)**: Enables automated GoReleaser `mgantlett/homebrew-tap` cask publishing on release tags, aligns `packaging/aur/PKGBUILD` Linux SHA-256 digests, adds structured `.github/DISCUSSION_TEMPLATE/` forms (`q-a.yml`, `ideas.yml`, `show-and-tell.yml`), and links GitHub Discussions across `README.md` and `CONTRIBUTING.md`.
+
+---
+
 ## [v4.16.0] - 2026-11-11
 
 > `PreToolUse` Host-Credential Read Airlock, 2PC Walkthrough Path & Credential Sanitization, Cross-Platform `nomos update` Provenance & Windows Swap Hardening, Strict `nomos.yaml` Schema Decoding, Plus Neutral External Plugin Discovery & CI Git Notes Verification (Apache 2.0)

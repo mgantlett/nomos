@@ -13,7 +13,7 @@ import (
 )
 
 // RootCmdVersion defines the statutory release version of Nomos v4.
-var RootCmdVersion = "4.16.0"
+var RootCmdVersion = "4.16.1"
 
 // NewRootCmd constructs the authoritative root Cobra command for Nomos.
 func NewRootCmd() *cobra.Command {
