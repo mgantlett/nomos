@@ -210,7 +210,10 @@ func normalizeCredentialCandidate(raw string) string {
 func collectCredentialReadCandidates(inv ToolFlowInvocation, extraTargets []string) []string {
 	out := collectExplicitTargetCandidates(inv.TargetFile, extraTargets)
 	out = appendCommandReadCandidates(out, inv.CommandLine)
-	return appendDigestReadCandidates(out, inv.ArgsDigest)
+	if _, isMCP := ParseMCPInvocation(inv.ToolName, "", ""); isMCP {
+		out = appendDigestReadCandidates(out, inv.ArgsDigest)
+	}
+	return out
 }
 
 func collectExplicitTargetCandidates(primary string, extras []string) []string {
@@ -241,7 +244,7 @@ func appendCommandReadCandidates(out []string, rawCmd string) []string {
 
 func appendDigestReadCandidates(out []string, digest string) []string {
 	for _, m := range jsonPathTokenRe.FindAllStringSubmatch(digest, -1) {
-		if len(m) > 1 && m[1] != "" {
+		if len(m) > 1 && m[1] != "" && !strings.ContainsAny(m[1], " \t\r\n") {
 			out = append(out, m[1])
 		}
 	}

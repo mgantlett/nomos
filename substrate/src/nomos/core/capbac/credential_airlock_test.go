@@ -44,6 +44,23 @@ func TestCredentialReadAirlock_HostDenyDefault(t *testing.T) {
 		}
 	}
 
+	awsDocToken := "~/" + ".aws/credentials"
+	proseEdit := capbac.EvaluateCredentialReadAirlock(ws, capbac.ToolFlowInvocation{
+		ToolName:   "edit_file",
+		TargetFile: filepath.Join(ws, "README.md"),
+		ArgsDigest: `{"Replacement":"Documenting ` + awsDocToken + ` airlock behavior"}`,
+	}, nil, policy)
+	if !proseEdit.Allowed {
+		t.Fatalf("expected prose replacement in edit_file to pass airlock, got %+v", proseEdit)
+	}
+	mcpRead := capbac.EvaluateCredentialReadAirlock(ws, capbac.ToolFlowInvocation{
+		ToolName:   "mcp__filesystem__read_file",
+		ArgsDigest: `{"path":"` + awsDocToken + `"}`,
+	}, nil, policy)
+	if mcpRead.Allowed {
+		t.Fatalf("expected MCP read_file targeting host credential store to fail closed, got %+v", mcpRead)
+	}
+
 	// Workspace .env read must still record TaintCredentialSource and block subsequent egress.
 	readDec := capbac.EvaluateWorkspaceToolFlow(ws, capbac.ToolFlowInvocation{
 		ToolName:   "Read",
