@@ -283,6 +283,9 @@ func renderSessionDetailCard(detail *session.SessionDetail) {
 		uiMutedStyle.Render(detail.LastActiveAt.Format(time.RFC3339)),
 		styleSemanticBadge(detail.Status))))
 
+	if detail.Deliberation != nil {
+		renderSessionDeliberationSection(detail.Deliberation)
+	}
 	if detail.Sentinel != nil {
 		fmt.Println(uiRuleStyle.Render("  ────────────────── Sentinel Evaluation ───────────────────"))
 		fmt.Println(kvLine("Integrity", 12, fmt.Sprintf("%s (Score: %d/100)",
@@ -295,4 +298,20 @@ func renderSessionDetailCard(detail *session.SessionDetail) {
 			detail.Trajectory.CompletedCount, detail.Trajectory.TotalCount)))
 	}
 	fmt.Println(uiRule(ruleNarrow))
+}
+
+func renderSessionDeliberationSection(dm *session.DeliberationMetrics) {
+	if dm == nil {
+		return
+	}
+	fmt.Println(uiRuleStyle.Render("  ────────────────── Deliberation Physics ──────────────────"))
+	fmt.Println(kvLine("Thinking", 12, fmt.Sprintf("%s (%d step(s)) %s Max Read Streak: %s",
+		uiBoldValueStyle.Render(fmt.Sprintf("%.1f KiB", float64(dm.ThinkingBytes)/1024.0)),
+		dm.ThinkingStepCount,
+		uiMutedStyle.Render("|"),
+		uiBoldValueStyle.Render(fmt.Sprintf("%d", dm.MaxReadStreak)))))
+	fmt.Println(kvLine("Mutations", 12, fmt.Sprintf("%s %s Bytes/Mutation: %s",
+		uiBoldValueStyle.Render(fmt.Sprintf("%d", dm.MutationCallCount)),
+		uiMutedStyle.Render("|"),
+		uiBoldValueStyle.Render(fmt.Sprintf("%.1f", dm.DeliberationToMutationRatio)))))
 }

@@ -65,6 +65,7 @@ func (p *ProviderOpenCode) populateOpenCodeDetailEvents(root, sessionID string, 
 		rawLinesForSentinel = append(rawLinesForSentinel, sentinelLines...)
 	}
 
+	detail.Deliberation = ComputeDeliberationFromEvents(detail.Events)
 	trimDetailHistory(detail)
 	detail.Sentinel = EvaluateSentinel(detail, rawLinesForSentinel, repoRoot)
 	detail.Trajectory = InferTrajectory(detail, rawLinesForSentinel)
@@ -108,6 +109,16 @@ func (p *ProviderOpenCode) processSinglePartRecord(role, ts string, part openCod
 			Timestamp: ts,
 			Title:     cleanSummary(part.Text),
 			Detail:    cleanFullPrompt(part.Text),
+		})
+		return ""
+	}
+
+	if role == "assistant" && part.Type == "reasoning" && strings.TrimSpace(part.Text) != "" {
+		detail.Events = append(detail.Events, SessionEvent{
+			Type:      "THINKING",
+			Timestamp: ts,
+			Title:     "OpenCode Deliberation",
+			Detail:    part.Text,
 		})
 		return ""
 	}

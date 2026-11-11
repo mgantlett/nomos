@@ -21,12 +21,13 @@ type SessionEvent struct {
 // SessionDetail captures the deep causal inspection telemetry of an agent session (#SessionDetail).
 type SessionDetail struct {
 	AgentSession
-	ToolsSummary  map[string]int     `json:"tools_summary"`
-	Events        []SessionEvent     `json:"events"`
-	RecentPrompts []string           `json:"recent_prompts,omitempty"`
-	Sentinel      *SentinelScorecard `json:"sentinel,omitempty"`
-	Trajectory    *SessionTrajectory `json:"trajectory,omitempty"`
-	Persona       string             `json:"persona,omitempty"`
+	ToolsSummary  map[string]int       `json:"tools_summary"`
+	Events        []SessionEvent       `json:"events"`
+	RecentPrompts []string             `json:"recent_prompts,omitempty"`
+	Sentinel      *SentinelScorecard   `json:"sentinel,omitempty"`
+	Trajectory    *SessionTrajectory   `json:"trajectory,omitempty"`
+	Deliberation  *DeliberationMetrics `json:"deliberation,omitempty"`
+	Persona       string               `json:"persona,omitempty"`
 }
 
 type transcriptLine struct {
@@ -95,6 +96,7 @@ func populateDetailFromLines(detail *SessionDetail, lines []string) {
 		}
 		processDetailItem(detail, &item)
 	}
+	detail.Deliberation = ComputeDeliberationFromEvents(detail.Events)
 	trimDetailHistory(detail)
 }
 

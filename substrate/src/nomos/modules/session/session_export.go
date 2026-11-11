@@ -15,15 +15,16 @@ import (
 
 // SessionDatasetRecord joins session telemetry, Sentinel PRM scores, Git Note receipts, and Mneme learnings (#SessionDatasetRecord).
 type SessionDatasetRecord struct {
-	Session        AgentSession       `json:"session"`
-	Sentinel       *SentinelScorecard `json:"sentinel,omitempty"`
-	Trajectory     *SessionTrajectory `json:"trajectory,omitempty"`
-	ToolsSummary   map[string]int     `json:"tools_summary,omitempty"`
-	ReleaseCommit  string             `json:"release_commit,omitempty"`
-	DoDGatesPassed int                `json:"dod_gates_passed,omitempty"`
-	SHA256Receipt  string             `json:"sha256_receipt,omitempty"`
-	PitfallsFixed  []string           `json:"pitfalls_fixed,omitempty"`
-	PatternsMinted []string           `json:"patterns_minted,omitempty"`
+	Session        AgentSession         `json:"session"`
+	Sentinel       *SentinelScorecard   `json:"sentinel,omitempty"`
+	Trajectory     *SessionTrajectory   `json:"trajectory,omitempty"`
+	Deliberation   *DeliberationMetrics `json:"deliberation,omitempty"`
+	ToolsSummary   map[string]int       `json:"tools_summary,omitempty"`
+	ReleaseCommit  string               `json:"release_commit,omitempty"`
+	DoDGatesPassed int                  `json:"dod_gates_passed,omitempty"`
+	SHA256Receipt  string               `json:"sha256_receipt,omitempty"`
+	PitfallsFixed  []string             `json:"pitfalls_fixed,omitempty"`
+	PatternsMinted []string             `json:"patterns_minted,omitempty"`
 }
 
 type releaseJoinIndex struct {
@@ -60,6 +61,7 @@ func ExportSessionDataset(rootOverride, repoRoot string, limit int) ([]SessionDa
 		if detail, dErr := GetSessionDetail(rootOverride, resolvedRoot, s.ID); dErr == nil && detail != nil {
 			rec.Sentinel = detail.Sentinel
 			rec.Trajectory = detail.Trajectory
+			rec.Deliberation = detail.Deliberation
 			rec.ToolsSummary = detail.ToolsSummary
 		}
 		attachReleaseAndMneme(&rec, relIdx, memIdx)

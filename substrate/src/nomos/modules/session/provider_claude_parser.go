@@ -101,6 +101,7 @@ func (p *ProviderClaudeCode) buildDetailEvents(records []claudeRecord, detail *S
 		}
 	}
 
+	detail.Deliberation = ComputeDeliberationFromEvents(detail.Events)
 	trimDetailHistory(detail)
 	detail.Sentinel = EvaluateSentinel(detail, rawLinesForSentinel, repoRoot)
 	detail.Trajectory = InferTrajectory(detail, rawLinesForSentinel)

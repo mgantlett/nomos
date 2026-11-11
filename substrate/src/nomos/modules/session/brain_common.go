@@ -65,6 +65,7 @@ func populateBrainDetail(detail *SessionDetail, transcriptPath, repoRoot string)
 		return errRead
 	}
 	populateDetailFromLines(detail, lines)
+	enrichBrainDeliberationFromFullTranscript(transcriptPath, lines, detail.Deliberation)
 	detail.Sentinel = EvaluateSentinel(detail, lines, repoRoot)
 	detail.Trajectory = InferTrajectory(detail, lines)
 	return nil
