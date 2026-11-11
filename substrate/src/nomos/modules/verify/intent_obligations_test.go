@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/task"
 )
 
 // @verifies TC-OBL-001
@@ -135,5 +137,21 @@ func TestSiblingTwinSpecIsolationHelpers(t *testing.T) {
 	unchanged, skippedNone := filterDeferredSpecRoots(tmp, roots, map[string]bool{"intent/architecture/specs/other.md": true})
 	if skippedNone || len(unchanged) != 1 {
 		t.Fatalf("expected unchanged roots when deferred path does not match, got %v skipped=%v", unchanged, skippedNone)
+	}
+	allDeferred, skippedAll := filterDeferredSpecRoots(tmp, roots, map[string]bool{
+		"intent/architecture/specs/alpha_spec.md": true,
+		"intent/architecture/specs/beta_spec.md":  true,
+	})
+	if !skippedAll || allDeferred == nil || len(allDeferred) != 0 {
+		t.Fatalf("expected non-nil empty slice when all specs deferred, got %#v skipped=%v", allDeferred, skippedAll)
+	}
+	if fallback := resolveObligationSpecFiles(tmp, allDeferred); len(fallback) != 0 {
+		t.Fatalf("expected empty explicit specPaths slice not to fallback to default roots, got %v", fallback)
+	}
+	if !isSiblingSubPendingForWorktree(tmp, tmp, task.TaskRecord{Key: "SUB-9", Status: task.StatusTodo}) {
+		t.Fatal("expected TODO sibling SUB-* task whose INT-* twin merged to remain deferred")
+	}
+	if isSiblingSubPendingForWorktree(tmp, tmp, task.TaskRecord{Key: "SUB-9", Status: task.StatusAborted}) {
+		t.Fatal("expected ABORTED sibling SUB-* task not to be deferred")
 	}
 }

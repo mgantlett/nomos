@@ -98,6 +98,9 @@ func findMissingStructFields(relSpec, typeName string, expected, actual map[stri
 }
 
 func resolveObligationSpecFiles(root string, specPaths []string) []string {
+	if specPaths != nil && len(specPaths) == 0 {
+		return nil
+	}
 	roots := specPaths
 	if len(roots) == 0 {
 		roots = []string{filepath.Join("intent", "architecture", "specs")}

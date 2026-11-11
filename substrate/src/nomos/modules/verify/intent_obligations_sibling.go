@@ -114,10 +114,10 @@ func resolveOwnTwinSpecs(trunkRoot, activeSubKey string, tasks []task.TaskRecord
 	return nil
 }
 
-// isSiblingSubPendingForWorktree reports whether sibling SUB-* task rec is either still in
-// progress or completed on trunk after scanRoot's worktree branch diverged.
+// isSiblingSubPendingForWorktree reports whether sibling SUB-* task rec is still pending
+// (TODO, READY, PLAN, EDIT, REVIEW) or completed on trunk after scanRoot's branch diverged.
 func isSiblingSubPendingForWorktree(trunkRoot, scanRoot string, rec task.TaskRecord) bool {
-	if task.IsInProgressStatus(rec.Status) {
+	if rec.Status != task.StatusDone && rec.Status != task.StatusAborted {
 		return true
 	}
 	if rec.Status == task.StatusDone && strings.Contains(filepath.ToSlash(scanRoot), "/worktrees/") {
@@ -160,7 +160,7 @@ func filterDeferredSpecRoots(scanRoot string, specRoots []string, deferred map[s
 		return specRoots, false
 	}
 	allFiles := resolveObligationSpecFiles(scanRoot, specRoots)
-	var kept []string
+	kept := make([]string, 0, len(allFiles))
 	skippedAny := false
 	for _, f := range allFiles {
 		if deferred[toRelSlash(scanRoot, f)] {

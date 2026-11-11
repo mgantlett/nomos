@@ -57,7 +57,7 @@ func CollectReferencedSpecDigestsWithRoots(repoRoot string, touchedFiles []strin
 
 // CollectContractSpecDigests hashes all *_spec.md files under specRoots when contract obligations are active (@intent nomos_intent_traceability_spec.md #StaleSpecObligation).
 func CollectContractSpecDigests(repoRoot string, specRoots []string) map[string]string {
-	if repoRoot == "" {
+	if repoRoot == "" || (specRoots != nil && len(specRoots) == 0) {
 		return nil
 	}
 	roots := specRoots
