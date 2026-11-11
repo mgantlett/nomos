@@ -16,12 +16,7 @@ func readHeadLines(path string, maxBytes int64) ([]string, error) {
 	}
 	defer f.Close()
 
-	var lines []string
-	scanner := bufio.NewScanner(io.LimitReader(f, maxBytes))
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-	return lines, scanner.Err()
+	return readStreamLines(io.LimitReader(f, maxBytes), false)
 }
 
 func supplementHeadMetrics(lines []string, m *transcriptMetrics) {
@@ -60,32 +55,20 @@ func scanFullTranscriptMetrics(path string) (int, int, error) {
 	toolToken := []byte(`"tool_calls":`)
 
 	for {
-		chunk, isPrefix, errRead := reader.ReadLine()
-		if len(chunk) > 0 {
-			if bytes.Contains(chunk, turnToken) {
+		line, errRead := reader.ReadBytes('\n')
+		if len(line) > 0 {
+			if bytes.Contains(line, turnToken) {
 				turns++
 			}
-			if bytes.Contains(chunk, toolToken) {
+			if bytes.Contains(line, toolToken) {
 				tools++
 			}
 		}
 		if errRead != nil {
-			break
-		}
-		for isPrefix {
-			cont, nextPrefix, errCont := reader.ReadLine()
-			isPrefix = nextPrefix
-			if len(cont) > 0 {
-				if bytes.Contains(cont, turnToken) {
-					turns++
-				}
-				if bytes.Contains(cont, toolToken) {
-					tools++
-				}
-			}
-			if errCont != nil {
+			if errRead == io.EOF {
 				break
 			}
+			return turns, tools, errRead
 		}
 	}
 	return turns, tools, nil
@@ -181,7 +164,7 @@ func readTailLines(filePath string, maxBytes int64) ([]string, error) {
 		return nil, err
 	}
 
-	return scanLines(file)
+	return readStreamLines(file, seekOffset > 0)
 }
 
 func calculateTailOffset(fileSize, maxBytes int64) int64 {
@@ -192,12 +175,34 @@ func calculateTailOffset(fileSize, maxBytes int64) int64 {
 }
 
 func scanLines(r io.Reader) ([]string, error) {
-	var lines []string
-	scanner := bufio.NewScanner(r)
-	buf := make([]byte, 64*1024)
-	scanner.Buffer(buf, 1024*1024)
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
+	return readStreamLines(r, false)
+}
+
+func readStreamLines(r io.Reader, skipFirstPartial bool) ([]string, error) {
+	reader := bufio.NewReaderSize(r, 64*1024)
+	if skipFirstPartial {
+		if _, err := reader.ReadBytes('\n'); err != nil {
+			if err == io.EOF {
+				return nil, nil
+			}
+			return nil, err
+		}
 	}
-	return lines, scanner.Err()
+	var lines []string
+	for {
+		raw, err := reader.ReadBytes('\n')
+		if len(raw) > 0 {
+			trimmed := strings.TrimRight(string(raw), "\r\n")
+			if trimmed != "" {
+				lines = append(lines, trimmed)
+			}
+		}
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return lines, err
+		}
+	}
+	return lines, nil
 }

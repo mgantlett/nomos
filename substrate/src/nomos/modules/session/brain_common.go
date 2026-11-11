@@ -11,6 +11,10 @@ import (
 
 // parseBrainSessionDir extracts session metrics from a Gemini brain directory and transcript log.
 func parseBrainSessionDir(sessDir, id, agentType string, activeWorktrees map[string]string) (*AgentSession, error) {
+	return parseBrainSessionDirWithRepo(sessDir, id, agentType, "", activeWorktrees)
+}
+
+func parseBrainSessionDirWithRepo(sessDir, id, agentType, repoRoot string, activeWorktrees map[string]string) (*AgentSession, error) {
 	transcriptPath := filepath.Join(sessDir, ".system_generated", "logs", "transcript.jsonl")
 	info, err := os.Stat(transcriptPath)
 	if err != nil {
@@ -36,7 +40,7 @@ func parseBrainSessionDir(sessDir, id, agentType string, activeWorktrees map[str
 	if headLines, errHead := readHeadLines(transcriptPath, 64*1024); errHead == nil && len(headLines) > 0 {
 		transcriptHead = headLines[0]
 	}
-	repo := detectSessionRepo(worktreePath, transcriptHead, "")
+	repo := detectSessionRepo(worktreePath, transcriptHead, repoRoot)
 
 	return &AgentSession{
 		ID:            id,
@@ -64,6 +68,35 @@ func populateBrainDetail(detail *SessionDetail, transcriptPath, repoRoot string)
 	detail.Sentinel = EvaluateSentinel(detail, lines, repoRoot)
 	detail.Trajectory = InferTrajectory(detail, lines)
 	return nil
+}
+
+// resolveBrainSessionAcrossRoots selects the newest matching session directory across multiple brain roots.
+func resolveBrainSessionAcrossRoots(roots []string, sessionID string) (string, string, error) {
+	if len(roots) == 0 {
+		return "", "", os.ErrNotExist
+	}
+	var bestDir, bestID string
+	var bestMod time.Time
+	for _, root := range roots {
+		dir, fullID, err := resolveBrainSessionDir(root, sessionID)
+		if err != nil {
+			continue
+		}
+		transcriptPath := filepath.Join(dir, ".system_generated", "logs", "transcript.jsonl")
+		var mod time.Time
+		if info, sErr := os.Stat(transcriptPath); sErr == nil {
+			mod = info.ModTime()
+		}
+		if bestDir == "" || mod.After(bestMod) {
+			bestDir = dir
+			bestID = fullID
+			bestMod = mod
+		}
+	}
+	if bestDir == "" {
+		return "", "", fmt.Errorf("session %q not found across brain roots", sessionID)
+	}
+	return bestDir, bestID, nil
 }
 
 // resolveBrainSessionDir matches a session directory inside a brain root.

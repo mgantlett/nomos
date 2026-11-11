@@ -70,7 +70,7 @@ func (p *ProviderAGYCLI) Discover(repoRoot string, activeWorktrees map[string]st
 			continue
 		}
 		sessDir := filepath.Join(root, entry.Name())
-		sess, err := parseBrainSessionDir(sessDir, entry.Name(), p.AgentType(), activeWorktrees)
+		sess, err := parseBrainSessionDirWithRepo(sessDir, entry.Name(), p.AgentType(), repoRoot, activeWorktrees)
 		if err == nil && sess != nil {
 			sessions = append(sessions, *sess)
 		}
@@ -89,7 +89,7 @@ func (p *ProviderAGYCLI) GetDetail(sessionID, repoRoot string, activeWorktrees m
 		return nil, err
 	}
 
-	baseSess, err := parseBrainSessionDir(targetDir, fullID, p.AgentType(), activeWorktrees)
+	baseSess, err := parseBrainSessionDirWithRepo(targetDir, fullID, p.AgentType(), repoRoot, activeWorktrees)
 	if err != nil {
 		return nil, err
 	}

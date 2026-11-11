@@ -185,11 +185,23 @@ func recordToolCall(detail *SessionDetail, item *transcriptLine, tc *rawToolCall
 	}
 }
 
+var significantToolNames = map[string]bool{
+	"run_command": true, "write_to_file": true, "replace_file_content": true, "multi_replace_file_content": true,
+	"edit_file": true, "write_file": true, "read_file": true, "find_by_name": true, "list_dir": true,
+	"search_web": true, "invoke_subagent": true, "apply_patch": true,
+	"browser_subagent": true, "generate_image": true, "grep_search": true, "view_file": true, "read_url_content": true, "ask_question": true,
+	"Bash": true, "Read": true, "Write": true, "Edit": true, "MultiEdit": true, "Grep": true, "Glob": true, "WebFetch": true, "WebSearch": true,
+	"bash": true, "read": true, "write": true, "edit": true, "grep": true, "glob": true,
+}
+
 func extractToolDetail(tc *rawToolCallItem) string {
 	if tc.Args == nil {
 		return ""
 	}
-	priorityKeys := []string{"CommandLine", "TargetFile", "AbsolutePath", "Query", "Url", "Prompt"}
+	priorityKeys := []string{
+		"CommandLine", "command", "Path", "TargetFile", "AbsolutePath",
+		"file_path", "filePath", "path", "Query", "query", "pattern", "Url", "url", "Prompt",
+	}
 	for _, k := range priorityKeys {
 		if val, ok := tc.Args[k]; ok && val != nil {
 			s := strings.Trim(fmt.Sprintf("%v", val), "\"")
@@ -221,13 +233,7 @@ func extractToolTitle(tc *rawToolCallItem) string {
 }
 
 func isSignificantTool(name string) bool {
-	switch name {
-	case "run_command", "write_to_file", "replace_file_content", "multi_replace_file_content",
-		"browser_subagent", "generate_image", "grep_search", "view_file", "read_url_content", "ask_question":
-		return true
-	default:
-		return false
-	}
+	return significantToolNames[name]
 }
 
 func trimDetailHistory(detail *SessionDetail) {

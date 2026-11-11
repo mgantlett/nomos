@@ -80,15 +80,20 @@ func extractToolInvocations(rawLines []string) []toolInvocation {
 func parseSingleInvocation(tc *rawToolCallItem) toolInvocation {
 	inv := toolInvocation{ToolName: tc.Name}
 	if tc.Args != nil {
-		inv.CommandLine = cleanArg(tc.Args["CommandLine"])
-		inv.Cwd = cleanArg(tc.Args["Cwd"])
-		target := cleanArg(tc.Args["TargetFile"])
-		if target == "" {
-			target = cleanArg(tc.Args["AbsolutePath"])
-		}
-		inv.Target = target
+		inv.CommandLine = firstCleanArg(tc.Args, "CommandLine", "command", "cmd")
+		inv.Cwd = firstCleanArg(tc.Args, "Cwd", "cwd", "workdir", "working_directory")
+		inv.Target = firstCleanArg(tc.Args, "Path", "TargetFile", "AbsolutePath", "file_path", "filePath", "path")
 	}
 	return inv
+}
+
+func firstCleanArg(args map[string]any, keys ...string) string {
+	for _, k := range keys {
+		if v := cleanArg(args[k]); v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func cleanArg(raw any) string {

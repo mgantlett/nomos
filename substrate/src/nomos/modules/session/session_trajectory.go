@@ -106,8 +106,34 @@ func inferBaselineStage(content string) TrajectoryStage {
 	}
 }
 
+var (
+	explorationMarkers = []string{
+		"grep_search", "view_file", "read_file", "find_by_name", "list_dir",
+		`"Read"`, `"Grep"`, `"Glob"`, `"read"`, `"grep"`, `"glob"`, "git log",
+	}
+	oracleMarkers = []string{
+		"go test", "pytest", "npm test", "pnpm test", "yarn test", "bun test",
+		"cargo test", "ctest", "unittest", "rspec", "vitest", "jest",
+		"nomos verify", "./scripts/test", "test_headless", "oracle", "cargo-sim",
+	}
+	implementationMarkers = []string{
+		"replace_file_content", "write_to_file", "multi_replace",
+		"edit_file", "write_file", "apply_patch",
+		`"Edit"`, `"Write"`, `"MultiEdit"`, `"edit"`, `"write"`,
+	}
+)
+
+func hasAnyTrajectoryMarker(content string, markers []string) bool {
+	for _, m := range markers {
+		if strings.Contains(content, m) {
+			return true
+		}
+	}
+	return false
+}
+
 func inferExplorationStage(content string) TrajectoryStage {
-	if strings.Contains(content, "grep_search") || strings.Contains(content, "view_file") || strings.Contains(content, "git log") {
+	if hasAnyTrajectoryMarker(content, explorationMarkers) {
 		return TrajectoryStage{
 			ID:       "EXPLORATION",
 			Label:    "4. Code Exploration",
@@ -124,7 +150,7 @@ func inferExplorationStage(content string) TrajectoryStage {
 }
 
 func inferOracleStage(content string) TrajectoryStage {
-	if strings.Contains(content, "test") || strings.Contains(content, "oracle") || strings.Contains(content, "cargo-sim") {
+	if hasAnyTrajectoryMarker(content, oracleMarkers) {
 		return TrajectoryStage{
 			ID:       "ORACLE",
 			Label:    "5. Test & Oracle",
@@ -141,7 +167,7 @@ func inferOracleStage(content string) TrajectoryStage {
 }
 
 func inferImplementationStage(content string) TrajectoryStage {
-	if strings.Contains(content, "replace_file_content") || strings.Contains(content, "write_to_file") || strings.Contains(content, "multi_replace") {
+	if hasAnyTrajectoryMarker(content, implementationMarkers) {
 		return TrajectoryStage{
 			ID:       "IMPLEMENTATION",
 			Label:    "6. Implementation",

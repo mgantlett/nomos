@@ -24,11 +24,12 @@ type claudeMessage struct {
 }
 
 type claudeContentItem struct {
-	Type  string         `json:"type"` // "text", "tool_use", "tool_result"
-	Text  string         `json:"text,omitempty"`
-	ID    string         `json:"id,omitempty"`
-	Name  string         `json:"name,omitempty"`
-	Input map[string]any `json:"input,omitempty"`
+	Type     string         `json:"type"` // "text", "thinking", "tool_use", "tool_result"
+	Text     string         `json:"text,omitempty"`
+	Thinking string         `json:"thinking,omitempty"`
+	ID       string         `json:"id,omitempty"`
+	Name     string         `json:"name,omitempty"`
+	Input    map[string]any `json:"input,omitempty"`
 }
 
 func readClaudeLines(path string) ([]claudeRecord, error) {
@@ -77,11 +78,10 @@ func parseClaudeContent(raw json.RawMessage) ([]claudeContentItem, string) {
 }
 
 func extractClaudeToolDetail(input map[string]any) string {
-	if cmd, ok := input["command"].(string); ok && cmd != "" {
-		return cmd
-	}
-	if fp, ok := input["file_path"].(string); ok && fp != "" {
-		return fp
+	for _, key := range []string{"command", "file_path", "path", "pattern", "url", "prompt"} {
+		if val, ok := input[key].(string); ok && val != "" {
+			return val
+		}
 	}
 	return ""
 }
@@ -128,9 +128,21 @@ func (p *ProviderClaudeCode) processClaudeUserRecord(rec claudeRecord, detail *S
 
 func (p *ProviderClaudeCode) processClaudeAssistantRecord(rec claudeRecord, detail *SessionDetail, ts string) string {
 	items, text := parseClaudeContent(rec.Message.Content)
-	var lastSentinelLine string
+	if len(items) == 0 && text == "" {
+		return ""
+	}
+	var toolCalls []rawToolCallItem
 
 	for _, it := range items {
+		if it.Type == "thinking" && strings.TrimSpace(it.Thinking) != "" {
+			detail.Events = append(detail.Events, SessionEvent{
+				Type:      "THINKING",
+				Timestamp: ts,
+				Title:     "Claude Deliberation",
+				Detail:    it.Thinking,
+			})
+			continue
+		}
 		if it.Type != "tool_use" {
 			continue
 		}
@@ -142,28 +154,21 @@ func (p *ProviderClaudeCode) processClaudeAssistantRecord(rec claudeRecord, deta
 			Detail:    extractClaudeToolDetail(it.Input),
 			Tool:      it.Name,
 		})
-
-		mockTC := rawToolCallItem{
+		toolCalls = append(toolCalls, rawToolCallItem{
 			Name: it.Name,
 			Args: it.Input,
-		}
-		if marshaled, mErr := json.Marshal(map[string]any{
-			"type":       "assistant",
-			"created_at": ts,
-			"tool_calls": []rawToolCallItem{mockTC},
-		}); mErr == nil {
-			lastSentinelLine = string(marshaled)
-		}
-	}
-
-	if text != "" && strings.Contains(strings.ToLower(text), "think") {
-		detail.Events = append(detail.Events, SessionEvent{
-			Type:      "THINKING",
-			Timestamp: ts,
-			Title:     "Claude Deliberation",
-			Detail:    text,
 		})
 	}
-
-	return lastSentinelLine
+	if len(toolCalls) == 0 {
+		return ""
+	}
+	marshaled, mErr := json.Marshal(map[string]any{
+		"type":       "assistant",
+		"created_at": ts,
+		"tool_calls": toolCalls,
+	})
+	if mErr != nil {
+		return ""
+	}
+	return string(marshaled)
 }
