@@ -4,7 +4,7 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-23"
-last_updated: "2026-11-05"
+last_updated: "2026-11-11"
 lineage:
   - INT-733
   - INT-854
@@ -22,12 +22,14 @@ lineage:
   - SUB-1776
   - INT-1944
   - SUB-2157
+  - INT-1961
+  - SUB-2210
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Task Lifecycle CLI and Workspace State Transition Specification"
 type: spec
-version: "4.4.0"
+version: "4.5.0"
 ---
 
 # Task Lifecycle CLI and Workspace State Transition Specification
@@ -279,7 +281,7 @@ type IssueReport struct {
 
 ### 4.6 `nomos task sync`
 * **Syntax**: `nomos task sync <KEY> -F <walkthrough_path>`
-* **Semantics**: Validates the walkthrough and **Receipt-Trace Parity** (`arXiv:2611.06116`) against git diff `touchedFiles` and any `nomos hook` session trace. Rejects false no-mutation claims, false single-file claims, or fabricated runner claims while degrading gracefully without hook traces. Runs DoD gates, merges `feature/<KEY>` via `--ff-only`, writes the receipt, removes the worktree and branch, and enters `IDLE`.
+* **Semantics**: Rebases diverged `feature/<KEY>` branches onto trunk before gate evaluation and aborts cleanly on conflict. Validates walkthrough **Receipt-Trace Parity** (`arXiv:2611.06116`) against `touchedFiles` and any `nomos hook` trace, degrading gracefully without traces. Rejects false no-mutation, single-file, or runner claims. Evaluates DoD gates once on the post-rebase tree and reuses fresh (`TTL <= 5m`) clean `HEAD^{tree}` + trunk SHA receipts. Invalidates cached receipts fail-closed on `--no-verify` commits, dirty files, or trunk SHA drift. Merges `feature/<KEY>` via `--ff-only`, writes the receipt, prunes the worktree and branch, and enters `IDLE`.
 
 ### 4.7 `nomos task abort`
 * **Syntax**: `nomos task abort <KEY>`
@@ -328,6 +330,7 @@ type IssueReport struct {
 | `TC-TSK-15` | Law 4 (Multi-Repo Ledger Isolation) | `nomos task list` vs `nomos task list -A` | Scopes to active `project` unless `-A` passed; exit 0 |
 | `TC-TSK-16` | Law 7 (Cross-Project Start Guard) | `nomos task start SUB-99` (foreign `project`) | Rejects foreign task (`ERR_VALIDATION_FAILED`) without `--force-project`; exit 1 |
 | `TC-TSK-17` | Law 2 (Receipt-Trace Parity) | `nomos task sync SUB-99 -F walkthrough.md` (contradicts diff or hook trace) | Rejects walkthrough diff contradiction; degrades gracefully without hook trace |
+| `TC-SYNC-020` | Law 2 (Pre-Verify Rebase & Receipt Cache) | `nomos task commit` -> `nomos task sync` | Rebases before verify; reuses clean tree+trunk receipts; invalidates on drift |
 | `TC-SCH-01` | Law 4 (Intent Schema Type) | `TaskRecord{Key: "INT-101", Plane: "intent", SchemaType: "intent"}` | Validates intent plane schema binding cleanly |
 | `TC-SCH-02` | Law 4 (Substrate Schema Type) | `TaskRecord{Key: "SUB-101", Plane: "substrate", SchemaType: "substrate"}` | Validates substrate plane schema binding cleanly |
 | `TC-SCH-03` | Law 7 (Plane-Key Mismatch) | `TaskRecord{Key: "INT-101", Plane: "substrate"}` | Rejects cross-plane key/plane mismatch (`ERR_VALIDATION_FAILED`) |
