@@ -117,8 +117,9 @@ func evaluatePostToolHostHealth(p *HookPayload, hermeticDir, style string) strin
 	return evaluateVerifiedHostHealthWithStyle(p, hermeticDir, style)
 }
 
-// EvaluatePostToolHook runs Law 4 zero-footprint in-memory syntax and AST radar verification on mutated files.
-// It returns an empty string (100% silent) on Bash/Read/MCP channels and valid file mutations.
+// EvaluatePostToolHook runs Law 4 zero-footprint in-memory syntax, AST radar, and one-time
+// JIT directory-scoped Mneme pitfall recall on mutated worktree files (@intent mneme_memory_spec.md).
+// It returns an empty string (100% silent) on Bash/Read/MCP channels and clean mutations without matching pitfalls.
 func EvaluatePostToolHook(p *HookPayload, hermeticDir string) string {
 	if p == nil || p.IsPostInvoke || p.TargetFile == "" {
 		return ""
@@ -131,10 +132,11 @@ func EvaluatePostToolHook(p *HookPayload, hermeticDir string) string {
 	if !isPostToolTargetInScope(resolved, hermeticDir) {
 		return ""
 	}
+	pitfallMsg := evaluateJITDirectoryPitfallAdvisory(p, hermeticDir)
 	if syntaxMsg := validateStructuredFileInMemory(resolved); syntaxMsg != "" {
-		return syntaxMsg
+		return joinHookAdvisories(syntaxMsg, pitfallMsg)
 	}
-	return evaluateFastRadarInMemory(resolved, baseCwd)
+	return joinHookAdvisories(evaluateFastRadarInMemory(resolved, baseCwd), pitfallMsg)
 }
 
 func isPostToolTargetInScope(resolved, hermeticDir string) bool {

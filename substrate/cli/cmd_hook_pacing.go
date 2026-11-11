@@ -1,14 +1,23 @@
-// Package cli implements read-only exploration spiral pacing advisories for active task worktrees.
+// Package cli implements read-only exploration spiral pacing advisories across active task worktrees and idle trunk sessions.
 package cli
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
+
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/constants"
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 )
 
 const (
 	readSpiralWarnThreshold = 12
 	readSpiralCritThreshold = 20
+	pacingTracesSubdir      = "pacing_traces"
 )
 
 var exploratoryReadToolNames = map[string]bool{
@@ -24,28 +33,24 @@ var readOnlyShellPrefixes = []string{
 }
 
 // evaluateReadSpiralAdvisory tracks consecutive read/search calls without a source edit
-// inside an active task worktree and emits non-blocking pacing nudges at 12 and 20 reads.
+// and emits non-blocking pacing nudges at configured thresholds.
 func evaluateReadSpiralAdvisory(p *HookPayload, hermeticDir, style string) string {
 	prof := resolveHookAdvisoryProfile(0, 0, 0, style)
 	return evaluateReadSpiralAdvisoryWithProfile(p, hermeticDir, prof)
 }
 
 // evaluateReadSpiralAdvisoryWithProfile evaluates consecutive exploratory read spirals
-// using model-tuned thresholds (12/20 standard; 7/12 under NOMOS_ADVISORY_PROFILE=carbon).
+// across active worktrees and session-keyed trunk traces (@intent mneme_memory_spec.md).
 func evaluateReadSpiralAdvisoryWithProfile(p *HookPayload, hermeticDir string, profile HookAdvisoryProfile) string {
 	if p == nil || p.IsPostInvoke {
 		return ""
 	}
-	wtRoot := resolveWorktreeTraceRoot(p, hermeticDir)
-	if wtRoot == "" {
-		return ""
-	}
-	path := resolveTraceStateFilePath(wtRoot)
+	path, traceRoot, isTrunk := resolvePacingTraceTarget(p, hermeticDir)
 	if path == "" {
 		return ""
 	}
-	tr := loadOrInitHookSessionTrace(path, wtRoot)
-	if isPacingSourceMutation(p) {
+	tr := loadOrInitHookSessionTrace(path, traceRoot)
+	if isPacingSourceMutation(p) || (isTrunk && isTrunkTaskTransition(p)) {
 		resetReadSpiralCounters(&tr)
 		saveHookSessionTrace(path, tr)
 		return ""
@@ -53,6 +58,22 @@ func evaluateReadSpiralAdvisoryWithProfile(p *HookPayload, hermeticDir string, p
 	if !isExploratoryReadCall(p) {
 		return ""
 	}
+	warnAt, critAt := resolveReadSpiralBounds(profile)
+	tr.ConsecutiveReadCalls++
+	msg := advanceReadSpiralWarning(&tr, warnAt, critAt, isTrunk, profile.AdvisoryStyle)
+	saveHookSessionTrace(path, tr)
+	return msg
+}
+
+func resolvePacingTraceTarget(p *HookPayload, hermeticDir string) (string, string, bool) {
+	if wtRoot := resolveWorktreeTraceRoot(p, hermeticDir); wtRoot != "" {
+		return resolveTraceStateFilePath(wtRoot), wtRoot, false
+	}
+	path, trunkRoot := resolveTrunkSessionTracePath(p, hermeticDir)
+	return path, trunkRoot, path != ""
+}
+
+func resolveReadSpiralBounds(profile HookAdvisoryProfile) (int, int) {
 	warnAt := profile.ReadSpiralWarn
 	if warnAt <= 0 {
 		warnAt = readSpiralWarnThreshold
@@ -61,18 +82,96 @@ func evaluateReadSpiralAdvisoryWithProfile(p *HookPayload, hermeticDir string, p
 	if critAt <= warnAt {
 		critAt = readSpiralCritThreshold
 	}
-	tr.ConsecutiveReadCalls++
-	var msg string
+	return warnAt, critAt
+}
+
+func advanceReadSpiralWarning(tr *hookSessionTrace, warnAt, critAt int, isTrunk bool, style string) string {
 	if tr.ConsecutiveReadCalls >= critAt && !tr.WarnedReadSpiral20 {
 		tr.WarnedReadSpiral12 = true
 		tr.WarnedReadSpiral20 = true
-		msg = formatReadSpiralAdvisory(tr.ConsecutiveReadCalls, true, profile.AdvisoryStyle)
-	} else if tr.ConsecutiveReadCalls >= warnAt && !tr.WarnedReadSpiral12 {
-		tr.WarnedReadSpiral12 = true
-		msg = formatReadSpiralAdvisory(tr.ConsecutiveReadCalls, false, profile.AdvisoryStyle)
+		if isTrunk {
+			return formatTrunkReadSpiralAdvisory(tr.ConsecutiveReadCalls, true, style)
+		}
+		return formatReadSpiralAdvisory(tr.ConsecutiveReadCalls, true, style)
 	}
-	saveHookSessionTrace(path, tr)
-	return msg
+	if tr.ConsecutiveReadCalls >= warnAt && !tr.WarnedReadSpiral12 {
+		tr.WarnedReadSpiral12 = true
+		if isTrunk {
+			return formatTrunkReadSpiralAdvisory(tr.ConsecutiveReadCalls, false, style)
+		}
+		return formatReadSpiralAdvisory(tr.ConsecutiveReadCalls, false, style)
+	}
+	return ""
+}
+
+// resolveTrunkSessionTracePath resolves a session-scoped pacing trace file under NOMOS_HOME/cache/pacing_traces
+// when operating on an idle Nomos-governed trunk with a non-empty session identifier.
+func resolveTrunkSessionTracePath(p *HookPayload, hermeticDir string) (string, string) {
+	if p == nil || hermeticDir != "" {
+		return "", ""
+	}
+	sessID := strings.TrimSpace(p.SessionID)
+	if sessID == "" {
+		return "", ""
+	}
+	trunkRoot := resolveGovernedTrunkRoot(p)
+	if trunkRoot == "" {
+		return "", ""
+	}
+	tracesDir := filepath.Join(config.GetNomosHome(), constants.DirCache, pacingTracesSubdir)
+	if mkErr := os.MkdirAll(tracesDir, 0700); mkErr != nil {
+		return "", ""
+	}
+	fi, stErr := os.Lstat(tracesDir)
+	if stErr != nil || !fi.IsDir() || fi.Mode()&os.ModeSymlink != 0 {
+		return "", ""
+	}
+	sum := sha256.Sum256([]byte(trunkRoot + "|" + sessID))
+	fileName := fmt.Sprintf("trunk-session-%s.json", hex.EncodeToString(sum[:8]))
+	return filepath.Join(tracesDir, fileName), trunkRoot
+}
+
+func resolveGovernedTrunkRoot(p *HookPayload) string {
+	baseCwd := resolveHookWorkspaceDir(p, "")
+	if strings.TrimSpace(baseCwd) == "" {
+		return ""
+	}
+	canonBase := normalizeCanonicalPath(baseCwd, "/")
+	repoRoot := canonBase
+	if pr, err := workspace.FindRepoRoot(canonBase); err == nil && pr != "" {
+		repoRoot = filepath.ToSlash(filepath.Clean(pr))
+	}
+	if !hasNomosWorkspaceMarker(filepath.FromSlash(repoRoot)) {
+		return ""
+	}
+	return repoRoot
+}
+
+func hasNomosWorkspaceMarker(dir string) bool {
+	candidates := []string{
+		filepath.Join(dir, constants.FileNomosYAML),
+		filepath.Join(dir, constants.DirIntent, constants.DirConfig, constants.FileNomosYAML),
+		filepath.Join(dir, constants.DirAgents, constants.FileNomosYAML),
+		filepath.Join(dir, constants.DirNomosHome, constants.FileNomosYAML),
+	}
+	for _, c := range candidates {
+		if fi, err := os.Stat(c); err == nil && !fi.IsDir() {
+			return true
+		}
+	}
+	localHome := filepath.Join(dir, constants.DirNomosHome)
+	if fi, err := os.Stat(localHome); err == nil && fi.IsDir() {
+		return true
+	}
+	return false
+}
+
+func isTrunkTaskTransition(p *HookPayload) bool {
+	if strings.TrimSpace(p.CommandLine) == "" {
+		return false
+	}
+	lower := strings.ToLower(p.CommandLine)
+	return hasAnySubstring(lower, "nomos task chore", "nomos task start", "nomos task pair", "nomos task create")
 }
 
 func resetReadSpiralCounters(tr *hookSessionTrace) {
@@ -125,6 +224,22 @@ func formatReadSpiralAdvisory(readCalls int, urgent bool, style string) string {
 	}
 	return fmt.Sprintf(
 		"🧭 [Nomos Pacing Advisory] %d consecutive read/search calls without a source edit: formulate a minimal draft edit now and validate iteratively with tests.",
+		readCalls,
+	)
+}
+
+func formatTrunkReadSpiralAdvisory(readCalls int, urgent bool, style string) string {
+	if style == advisoryStyleTerse {
+		return fmt.Sprintf("🧭 [Nomos Trunk Pacing] %d trunk read calls: synthesize findings or start an isolated worktree ('nomos task chore \"<title>\"').", readCalls)
+	}
+	if urgent {
+		return fmt.Sprintf(
+			"🧭 [Nomos Trunk Pacing Advisory] %d consecutive exploratory reads on trunk: stop passive exploration and either synthesize your findings now or provision an isolated worktree via 'nomos task chore \"<title>\"' (or 'nomos task start <KEY> --edit').",
+			readCalls,
+		)
+	}
+	return fmt.Sprintf(
+		"🧭 [Nomos Trunk Pacing Advisory] %d consecutive exploratory reads on trunk: converge on a concrete answer or provision an isolated worktree via 'nomos task chore \"<title>\"' before reading further.",
 		readCalls,
 	)
 }
