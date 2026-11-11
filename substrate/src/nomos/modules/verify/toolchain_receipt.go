@@ -26,6 +26,10 @@ const (
 // across committed HEAD blobs and live working-tree modifications, invariant to relative paths
 // and worktree-vs-trunk directory location.
 func computeWorkspaceSnapshotDigest(ctx *VerifyContext, root, targetDir string) string {
+	return computeWorkspaceSnapshotDigestWithPackages(ctx, root, targetDir, nil)
+}
+
+func computeWorkspaceSnapshotDigestWithPackages(ctx *VerifyContext, root, targetDir string, pkgs []string) string {
 	gitDir := resolveSnapshotGitDir(ctx, root)
 	if gitDir == "" {
 		return ""
@@ -45,11 +49,26 @@ func computeWorkspaceSnapshotDigest(ctx *VerifyContext, root, targetDir string) 
 	h := sha256.New()
 	_, _ = h.Write([]byte(receiptSchemaVersion + "\n"))
 	_, _ = h.Write([]byte("target:" + canonicalTargetRelPath(gitDir, targetDir) + "\n"))
+	hashScopedPackageTargets(pkgs, h)
 	hashVerifyConfigFile(ctx, h)
 	for _, rel := range relPaths {
 		_, _ = h.Write([]byte(rel + "\x00" + entries[rel] + "\n"))
 	}
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+func hashScopedPackageTargets(pkgs []string, h interface{ Write([]byte) (int, error) }) {
+	if len(pkgs) == 0 {
+		return
+	}
+	sorted := append([]string(nil), pkgs...)
+	sort.Strings(sorted)
+	if len(sorted) == 1 && sorted[0] == "./..." {
+		return
+	}
+	if _, err := h.Write([]byte("pkgs:" + strings.Join(sorted, ",") + "\n")); err != nil {
+		return
+	}
 }
 
 func resolveSnapshotGitDir(ctx *VerifyContext, root string) string {

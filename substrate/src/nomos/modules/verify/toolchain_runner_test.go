@@ -199,3 +199,55 @@ func TestSharedGoSuite_CanonicalizesRelativeWorktreeAndFastForwardTrunk(t *testi
 	}
 }
 
+func TestParseAverageCoverage_CountsNoTestFilesAsZeroPercent(t *testing.T) {
+	onlyUntested := "?   \texample.com/untested\t[no test files]\n"
+	if got := parseAverageCoverage(onlyUntested); got != 0.0 {
+		t.Fatalf("expected 0.0%% for [no test files] package, got %.1f%%", got)
+	}
+	mixed := strings.Join([]string{
+		"ok  \texample.com/tested\t0.010s\tcoverage: 80.0% of statements",
+		"?   \texample.com/untested\t[no test files]",
+		"ok  \texample.com/consts\t0.004s\tcoverage: [no statements]",
+	}, "\n")
+	if got := parseAverageCoverage(mixed); got != 40.0 {
+		t.Fatalf("expected 40.0%% across 80%% + 0%% (ignoring [no statements]), got %.1f%%", got)
+	}
+}
+
+func TestSnapshotPackageScopeAndReverseImporterExpansion(t *testing.T) {
+	repoDir := initGitTestRepo(t)
+	subDir := filepath.Join(repoDir, "substrate")
+	leafDir := filepath.Join(subDir, "pkg", "leaf")
+	callerDir := filepath.Join(subDir, "pkg", "caller")
+	if err := os.MkdirAll(leafDir, 0755); err != nil {
+		t.Fatalf("mkdir leaf: %v", err)
+	}
+	if err := os.MkdirAll(callerDir, 0755); err != nil {
+		t.Fatalf("mkdir caller: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(leafDir, "leaf.go"), []byte("package leaf\nfunc Val() int { return 1 }\n"), 0644); err != nil {
+		t.Fatalf("write leaf.go: %v", err)
+	}
+	callerSrc := "package caller\nimport \"example.com/testmod/pkg/leaf\"\nfunc Use() int { return leaf.Val() }\n"
+	if err := os.WriteFile(filepath.Join(callerDir, "caller.go"), []byte(callerSrc), 0644); err != nil {
+		t.Fatalf("write caller.go: %v", err)
+	}
+
+	ctx := &VerifyContext{RepoRoot: repoDir, WorktreePath: repoDir}
+	fullHash := computeWorkspaceSnapshotDigestWithPackages(ctx, repoDir, subDir, []string{"./..."})
+	baseHash := computeWorkspaceSnapshotDigest(ctx, repoDir, subDir)
+	narrowHash := computeWorkspaceSnapshotDigestWithPackages(ctx, repoDir, subDir, []string{"./pkg/leaf"})
+	if fullHash == "" || fullHash != baseHash {
+		t.Fatalf("expected default ./... hash parity: full=%q base=%q", fullHash, baseHash)
+	}
+	if narrowHash == fullHash {
+		t.Fatalf("expected narrow package scope hash to differ from full ./... hash")
+	}
+
+	pkgSet := map[string]struct{}{"./pkg/leaf": {}}
+	expandModifiedGoCallerPackages(repoDir, subDir, []string{"substrate/pkg/leaf/leaf.go"}, pkgSet)
+	if _, ok := pkgSet["./pkg/caller"]; !ok {
+		t.Fatalf("expected 1-hop importer ./pkg/caller in pkgSet, got %v", pkgSet)
+	}
+}
+

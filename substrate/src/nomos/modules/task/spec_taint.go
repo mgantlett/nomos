@@ -239,17 +239,7 @@ func collectFileIntentSpecRefs(repoRoot, relFile string, specIndex map[string]st
 		scanTestVectorSpecRefs(full, vectorToSpecs, out)
 		return
 	}
-	dir := filepath.Dir(full)
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		scanSingleSourceSpecRefs(full, specIndex, out)
-		return
-	}
-	for _, ent := range entries {
-		if !ent.IsDir() && !isTaskVerificationSuiteName(ent.Name()) {
-			scanSingleSourceSpecRefs(filepath.Join(dir, ent.Name()), specIndex, out)
-		}
-	}
+	scanSingleSourceSpecRefs(full, specIndex, out)
 }
 
 func scanTestVectorSpecRefs(path string, vectorToSpecs map[string][]string, out map[string]bool) {

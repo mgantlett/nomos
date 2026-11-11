@@ -24,7 +24,10 @@ const (
 	maxToolchainErrOutput = 1600
 )
 
-var goCoverageLineRe = regexp.MustCompile(`coverage:\s+([0-9.]+)%`)
+var (
+	goCoverageLineRe    = regexp.MustCompile(`coverage:\s+([0-9.]+)%`)
+	goNoTestFilesLineRe = regexp.MustCompile(`(?m)^\?\s+\S+\s+\[no test files\]`)
+)
 
 // ToolchainSuiteReceipt stores the shared compilation, test, and statement coverage result for a workspace snapshot.
 type ToolchainSuiteReceipt struct {
@@ -54,13 +57,14 @@ func evaluateSharedGoSuite(ctx *VerifyContext, root, targetDir string) *Toolchai
 		return skipped
 	}
 
-	snapshotKey := computeWorkspaceSnapshotDigest(ctx, root, targetDir)
+	pkgs := resolveGoTestPackages(ctx, root, targetDir)
+	snapshotKey := computeWorkspaceSnapshotDigestWithPackages(ctx, root, targetDir, pkgs)
 	if diskHit := tryLoadDiskReceipt(ctx, snapshotKey); diskHit != nil {
 		storeContextReceipt(ctx, diskHit)
 		return diskHit
 	}
 
-	rec := executeGoTestWithCoverage(ctx, root, targetDir, snapshotKey)
+	rec := executeGoTestWithPackages(ctx, root, targetDir, snapshotKey, pkgs)
 	storeContextReceipt(ctx, rec)
 	trySaveDiskReceipt(ctx, snapshotKey, rec)
 	return rec
@@ -204,7 +208,9 @@ func resolveGoTestPackages(ctx *VerifyContext, root, targetDir string) []string 
 
 func parseAverageCoverage(output string) float64 {
 	matches := goCoverageLineRe.FindAllStringSubmatch(output, -1)
-	if len(matches) == 0 {
+	noTestCount := len(goNoTestFilesLineRe.FindAllString(output, -1))
+	totalPkgs := len(matches) + noTestCount
+	if totalPkgs == 0 {
 		return 100.0
 	}
 	var sum float64
@@ -213,7 +219,7 @@ func parseAverageCoverage(output string) float64 {
 			sum += val
 		}
 	}
-	return sum / float64(len(matches))
+	return sum / float64(totalPkgs)
 }
 
 func truncateToolchainOutput(raw string) string {

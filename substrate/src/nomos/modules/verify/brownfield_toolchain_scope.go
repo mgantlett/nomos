@@ -96,12 +96,48 @@ func resolveModifiedGoPackages(ctx *VerifyContext, root, targetDir string) []str
 	if len(pkgSet) == 0 {
 		return nil
 	}
+	expandModifiedGoCallerPackages(root, targetDir, modified, pkgSet)
 	out := make([]string, 0, len(pkgSet))
 	for p := range pkgSet {
 		out = append(out, p)
 	}
 	sort.Strings(out)
 	return out
+}
+
+func expandModifiedGoCallerPackages(root, targetDir string, modified []string, pkgSet map[string]struct{}) {
+	goReverse := buildGoReverseImportIndex(root)
+	if len(goReverse) == 0 {
+		return
+	}
+	seenPkgDirs := make(map[string]bool)
+	for _, rel := range modified {
+		if !strings.HasSuffix(rel, ".go") || strings.HasSuffix(rel, "_test.go") {
+			continue
+		}
+		pkgDir := filepath.ToSlash(filepath.Dir(rel))
+		if seenPkgDirs[pkgDir] {
+			continue
+		}
+		seenPkgDirs[pkgDir] = true
+		addReverseCallerTargetPkgs(root, targetDir, pkgDir, goReverse, pkgSet)
+	}
+}
+
+func addReverseCallerTargetPkgs(root, targetDir, pkgDir string, goReverse map[string][]string, pkgSet map[string]struct{}) {
+	for _, callerDir := range lookupGoReverseImporterDirs(root, pkgDir, goReverse) {
+		absCaller := filepath.Join(root, filepath.FromSlash(callerDir))
+		relPkg, err := filepath.Rel(targetDir, absCaller)
+		if err != nil || strings.HasPrefix(relPkg, "..") {
+			continue
+		}
+		slash := filepath.ToSlash(relPkg)
+		if slash == "." || slash == "" {
+			pkgSet["."] = struct{}{}
+		} else {
+			pkgSet["./"+slash] = struct{}{}
+		}
+	}
 }
 
 func resolvePythonBinary(root, name string) (string, error) {

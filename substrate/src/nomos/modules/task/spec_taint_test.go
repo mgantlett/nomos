@@ -164,3 +164,38 @@ func TestTestOnlyVerifiesAndContractSpecDigests(t *testing.T) {
 		t.Fatalf("expected direct spec file path in touchedFiles to resolve digest, got: %v", directSpecDigests)
 	}
 }
+
+func TestCollectReferencedSpecDigests_IsolatesUntouchedSiblingSourceFiles(t *testing.T) {
+	repo := initTempGitRepo(t)
+	authSpec := filepath.Join(repo, "specs", "auth_spec.md")
+	sessSpec := filepath.Join(repo, "specs", "session_spec.md")
+	guardGo := filepath.Join(repo, "pkg", "svc", "guard.go")
+	siblingGo := filepath.Join(repo, "pkg", "svc", "sibling.go")
+
+	if err := os.MkdirAll(filepath.Dir(authSpec), 0755); err != nil {
+		t.Fatalf("mkdir specs: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(guardGo), 0755); err != nil {
+		t.Fatalf("mkdir pkg/svc: %v", err)
+	}
+	if err := os.WriteFile(authSpec, []byte("# Auth\n"), 0644); err != nil {
+		t.Fatalf("write auth_spec: %v", err)
+	}
+	if err := os.WriteFile(sessSpec, []byte("# Session\n"), 0644); err != nil {
+		t.Fatalf("write session_spec: %v", err)
+	}
+	if err := os.WriteFile(guardGo, []byte("package svc\n// @intent auth_spec.md\nfunc Guard() {}\n"), 0644); err != nil {
+		t.Fatalf("write guard.go: %v", err)
+	}
+	if err := os.WriteFile(siblingGo, []byte("package svc\n// @intent session_spec.md\nfunc Sibling() {}\n"), 0644); err != nil {
+		t.Fatalf("write sibling.go: %v", err)
+	}
+
+	digests := CollectReferencedSpecDigestsWithRoots(repo, []string{"pkg/svc/guard.go"}, "", []string{"specs"})
+	if digests["specs/auth_spec.md"] == "" {
+		t.Fatalf("expected modified file's auth_spec.md digest, got: %v", digests)
+	}
+	if digests["specs/session_spec.md"] != "" {
+		t.Fatalf("untouched sibling.go must not stamp specs/session_spec.md digest, got: %v", digests)
+	}
+}

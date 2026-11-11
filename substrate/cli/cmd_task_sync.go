@@ -142,7 +142,7 @@ func collectSyncSpecDigests(repoRoot, key string, touchedFiles []string, twinKey
 		contractsActive = c.Enabled && (c.StrictTypes || c.VerifyObligations || c.FailOnStaleObligations)
 		contractRoots = c.SpecRoots
 	}
-	if isInt && !canAutoSealIntentSpecDigests(repoRoot, contractRoots) {
+	if isInt && !canAutoSealIntentSpecDigests(repoRoot, twinKey, contractsActive, contractRoots) {
 		return nil
 	}
 	digests := task.CollectReferencedSpecDigestsWithRoots(repoRoot, touchedFiles, twinKey, intentRoots)
@@ -161,7 +161,10 @@ func collectSyncSpecDigests(repoRoot, key string, touchedFiles []string, twinKey
 	return digests
 }
 
-func canAutoSealIntentSpecDigests(repoRoot string, contractRoots []string) bool {
+func canAutoSealIntentSpecDigests(repoRoot, twinKey string, contractsActive bool, contractRoots []string) bool {
+	if !contractsActive || strings.TrimSpace(twinKey) != "" {
+		return false
+	}
 	srcDir := filepath.Join(repoRoot, "substrate", "src")
 	if len(verify.VerifySpecTypeSignatures(repoRoot, srcDir, contractRoots)) > 0 {
 		return false
