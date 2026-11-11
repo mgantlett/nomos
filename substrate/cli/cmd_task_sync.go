@@ -152,7 +152,7 @@ func collectSyncSpecDigests(repoRoot, key string, touchedFiles []string, twinKey
 	if digests == nil {
 		digests = make(map[string]string)
 	}
-	for k, v := range task.CollectContractSpecDigests(repoRoot, contractRoots) {
+	for k, v := range task.CollectContractSpecDigests(repoRoot, verify.ResolveTaskContractSpecRoots(repoRoot, key, contractRoots)) {
 		digests[k] = v
 	}
 	if len(digests) == 0 {

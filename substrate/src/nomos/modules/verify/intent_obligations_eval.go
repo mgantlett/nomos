@@ -10,6 +10,8 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/task"
 )
 
+// evaluateConfiguredObligations evaluates architecture boundaries and specification contracts
+// declared in nomos.yaml for the active repository or task worktree.
 func evaluateConfiguredObligations(gateName string, ctx *VerifyContext, root, targetDir string) *GateResult {
 	cfg := resolveVerifyConfig(ctx)
 	if cfg == nil {
@@ -20,26 +22,53 @@ func evaluateConfiguredObligations(gateName string, ctx *VerifyContext, root, ta
 			return boundaryFailure
 		}
 	}
+	return evaluateContractObligationChecks(gateName, ctx, cfg, root, targetDir)
+}
+
+// evaluateContractObligationChecks enforces strict contract struct parity, executable TC-*
+// bindings, and stale-digest freshness while isolating concurrent sibling SUB-* twins.
+func evaluateContractObligationChecks(gateName string, ctx *VerifyContext, cfg *config.EcosystemConfig, root, targetDir string) *GateResult {
 	contracts := cfg.Governance.QualityGates.GetContractsBoundary().Contracts
 	if !contracts.Enabled || isIntentPlaneTask(ctx) {
 		return nil
 	}
-	if contracts.StrictTypes {
-		if sigRes := checkContractTypeParity(gateName, root, targetDir, contracts.SpecRoots); sigRes != nil {
+	activeTaskID, scanRoot := resolveContractScanScope(ctx, root)
+	deferredSpecs := collectActiveSiblingTwinSpecs(scanRoot, activeTaskID)
+	effectiveSpecs, hasDeferred := filterDeferredSpecRoots(scanRoot, contracts.SpecRoots, deferredSpecs)
+	hasSpecs := !hasDeferred || len(effectiveSpecs) > 0
+	if contracts.StrictTypes && hasSpecs {
+		if sigRes := checkContractTypeParity(gateName, scanRoot, targetDir, effectiveSpecs); sigRes != nil {
 			return sigRes
 		}
 	}
-	if contracts.VerifyObligations {
-		if oblRes := checkExecutableObligations(gateName, root, contracts.SpecRoots); oblRes != nil {
+	if contracts.VerifyObligations && hasSpecs {
+		if oblRes := checkExecutableObligations(gateName, scanRoot, effectiveSpecs); oblRes != nil {
 			return oblRes
 		}
 	}
 	if contracts.FailOnStaleObligations {
-		return checkStaleSpecObligations(gateName, ctx, root, cfg.Governance.QualityGates.IntentSourceRoots)
+		return checkStaleSpecObligations(gateName, ctx, root, cfg.Governance.QualityGates.IntentSourceRoots, deferredSpecs)
 	}
 	return nil
 }
 
+// resolveContractScanScope determines the active SUB-* task key and filesystem scan root.
+func resolveContractScanScope(ctx *VerifyContext, root string) (string, string) {
+	if ctx == nil {
+		return extractWorktreeSubTaskKey(root), root
+	}
+	scanRoot := root
+	if ctx.WorktreePath != "" {
+		scanRoot = ctx.WorktreePath
+	}
+	taskID := strings.TrimSpace(ctx.TaskID)
+	if taskID == "" {
+		taskID = extractWorktreeSubTaskKey(scanRoot)
+	}
+	return taskID, scanRoot
+}
+
+// checkContractTypeParity verifies fenced spec structs match compiled source AST declarations.
 func checkContractTypeParity(gateName, root, targetDir string, specRoots []string) *GateResult {
 	sigIssues := VerifySpecTypeSignatures(root, targetDir, specRoots)
 	if len(sigIssues) == 0 {
@@ -53,6 +82,7 @@ func checkContractTypeParity(gateName, root, targetDir string, specRoots []strin
 	}
 }
 
+// checkExecutableObligations verifies every table-declared TC-* vector is bound in tests.
 func checkExecutableObligations(gateName, root string, specRoots []string) *GateResult {
 	oblIssues := VerifyExecutableObligations(root, specRoots)
 	if len(oblIssues) == 0 {
@@ -70,7 +100,8 @@ func isIntentPlaneTask(ctx *VerifyContext) bool {
 	return ctx != nil && strings.HasPrefix(strings.TrimSpace(ctx.TaskID), "INT-")
 }
 
-func checkStaleSpecObligations(gateName string, ctx *VerifyContext, root string, intentRoots []string) *GateResult {
+// checkStaleSpecObligations reports specifications whose SHA-256 digest drifted since release sealing.
+func checkStaleSpecObligations(gateName string, ctx *VerifyContext, root string, intentRoots []string, deferredSpecs map[string]bool) *GateResult {
 	stale, err := task.ComputeStaleSpecObligations(root, "")
 	if err != nil || len(stale) == 0 {
 		return nil
@@ -78,7 +109,7 @@ func checkStaleSpecObligations(gateName string, ctx *VerifyContext, root string,
 	inFlightSpecs := collectInFlightSubSpecDigests(ctx, root, intentRoots)
 	var items []string
 	for _, s := range stale {
-		if !inFlightSpecs[s.SpecPath] {
+		if !inFlightSpecs[s.SpecPath] && !deferredSpecs[s.SpecPath] {
 			items = append(items, fmt.Sprintf("%s (last verified by %s)", s.SpecPath, s.LastVerifiedBy))
 		}
 	}

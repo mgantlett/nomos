@@ -98,3 +98,42 @@ func TestVerifySpecTypeSignaturesAndGate(t *testing.T) {
 		t.Fatalf("expected IntentTraceabilityGate to pass once struct and TC-WID-01 are aligned, got: %+v, err=%v", res3, err3)
 	}
 }
+
+func TestSiblingTwinSpecIsolationHelpers(t *testing.T) {
+	if got := extractWorktreeSubTaskKey("/repo/trunk"); got != "" {
+		t.Fatalf("expected empty key for trunk root, got %q", got)
+	}
+	if got := extractWorktreeSubTaskKey("/repo/worktrees/nomos-INT-1951"); got != "" {
+		t.Fatalf("expected empty key for INT worktree, got %q", got)
+	}
+	if got := extractWorktreeSubTaskKey("/repo/worktrees/nomos-SUB-2188"); got != "SUB-2188" {
+		t.Fatalf("expected SUB-2188 for isolated SUB worktree, got %q", got)
+	}
+
+	tmp := t.TempDir()
+	specDir := filepath.Join(tmp, "intent", "architecture", "specs")
+	if err := os.MkdirAll(specDir, 0o755); err != nil {
+		t.Fatalf("mkdir specs: %v", err)
+	}
+	specA := filepath.Join(specDir, "alpha_spec.md")
+	specB := filepath.Join(specDir, "beta_spec.md")
+	if err := os.WriteFile(specA, []byte("# Alpha\n"), 0o644); err != nil {
+		t.Fatalf("write alpha: %v", err)
+	}
+	if err := os.WriteFile(specB, []byte("# Beta\n"), 0o644); err != nil {
+		t.Fatalf("write beta: %v", err)
+	}
+
+	roots := []string{"intent/architecture/specs"}
+	if trunkRoots := ResolveActiveWorktreeSpecRoots(tmp, roots); len(trunkRoots) != 1 || trunkRoots[0] != roots[0] {
+		t.Fatalf("expected trunk root to keep original specRoots, got %v", trunkRoots)
+	}
+	kept, skipped := filterDeferredSpecRoots(tmp, roots, map[string]bool{"intent/architecture/specs/beta_spec.md": true})
+	if !skipped || len(kept) != 1 || filepath.Base(kept[0]) != "alpha_spec.md" {
+		t.Fatalf("expected only alpha_spec.md after deferring beta_spec.md, got kept=%v skipped=%v", kept, skipped)
+	}
+	unchanged, skippedNone := filterDeferredSpecRoots(tmp, roots, map[string]bool{"intent/architecture/specs/other.md": true})
+	if skippedNone || len(unchanged) != 1 {
+		t.Fatalf("expected unchanged roots when deferred path does not match, got %v skipped=%v", unchanged, skippedNone)
+	}
+}

@@ -58,13 +58,15 @@ func TestIntentCharter_ContractSignatureParity(t *testing.T) {
 	}
 	repoRoot := filepath.Clean(filepath.Join(wd, "..", ".."))
 	srcDir := filepath.Join(repoRoot, "substrate", "src")
-	specRoots := []string{"intent/intent.md", "intent/architecture/specs"}
-	issues := verify.VerifySpecTypeSignatures(repoRoot, srcDir, specRoots)
-	if len(issues) != 0 {
-		t.Fatalf("expected zero contract drift across %v, got: %v", specRoots, issues)
-	}
-	if oblIssues := verify.VerifyExecutableObligations(repoRoot, specRoots); len(oblIssues) != 0 {
-		t.Fatalf("expected zero unbound TC-* obligations across %v, got: %v", specRoots, oblIssues)
+	specRoots := verify.ResolveActiveWorktreeSpecRoots(repoRoot, []string{"intent/intent.md", "intent/architecture/specs"})
+	if len(specRoots) > 0 {
+		issues := verify.VerifySpecTypeSignatures(repoRoot, srcDir, specRoots)
+		if len(issues) != 0 {
+			t.Fatalf("expected zero contract drift across %v, got: %v", specRoots, issues)
+		}
+		if oblIssues := verify.VerifyExecutableObligations(repoRoot, specRoots); len(oblIssues) != 0 {
+			t.Fatalf("expected zero unbound TC-* obligations across %v, got: %v", specRoots, oblIssues)
+		}
 	}
 
 	tmpDir := t.TempDir()
