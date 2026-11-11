@@ -11,6 +11,7 @@ import (
 )
 
 // LocateConfigPath resolves the canonical nomos.yaml location dynamically.
+// @intent intent.md
 func LocateConfigPath() (string, error) {
 	if custom := os.Getenv(constants.EnvNomosConfig); custom != "" {
 		if _, err := os.Stat(custom); err == nil {

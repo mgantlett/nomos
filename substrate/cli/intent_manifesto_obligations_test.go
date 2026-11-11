@@ -57,6 +57,9 @@ func TestIntentCharter_ContractSignatureParity(t *testing.T) {
 		t.Fatalf("failed resolving working directory: %v", err)
 	}
 	repoRoot := filepath.Clean(filepath.Join(wd, "..", ".."))
+	if cfg, cErr := config.LoadConfig(filepath.Join(repoRoot, constants.FileNomosYAML)); cErr != nil || cfg == nil {
+		t.Fatalf("expected canonical Layer 1 root nomos.yaml to load cleanly, got cfg=%v err=%v", cfg, cErr)
+	}
 	srcDir := filepath.Join(repoRoot, "substrate", "src")
 	specRoots := verify.ResolveActiveWorktreeSpecRoots(repoRoot, []string{"intent/intent.md", "intent/architecture/specs"})
 	if len(specRoots) > 0 {
