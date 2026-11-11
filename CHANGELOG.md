@@ -6,6 +6,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [v4.15.0] - 2026-11-11
+
+> Verified `nomos update` Self-Updater & 24h Zero-Egress Notice, Canonical Root `nomos.yaml` Singularity & Scoped `spec_roots` Steel-Man Gates, Pre-Verify Rebase & SHA-256 Receipt Caching, Plus JIT Mneme Pitfall Recall & Area-Grouped Release Ledgers (Apache 2.0)
+
+### CLI & Distribution (`nomos update`, `install.sh`, `uninstall.sh`)
+- **Verified `nomos update` Self-Updater & Provenance Quarantine (`INT-1966`, `SUB-2219`, `SUB-2225`)**: Introduces `nomos update` (`--check`, `--json`, `--sync-workspace`) with SHA-256 `checksums.txt` verification prior to atomic binary `os.Rename`, package-manager provenance guards blocking standalone overwrites of Homebrew (`/opt/homebrew`), AUR/system (`/usr/bin`), and Nix store (`/nix/store`) binaries with exact upgrade remedies, a 24-hour cached update notice on `nomos version`, `nomos handshake`, and `nomos hook session-start` (`NOMOS_NO_UPDATE_CHECK=1` opt-out), and bounded `file://` cleanroom vector tests (`CDV_UP_01..04`).
+- **Idempotent Downstream Workspace Sync (`INT-1966`, `SUB-2219`)**: Adds `nomos update --sync-workspace` to refresh downstream `nomos.yaml` `$schema` pins, `AGENTS.md` / `CLAUDE.md` protocol marker blocks (preserving repository-specific instructions outside markers), and `.agents/` hook scripts without overwriting custom project rules.
+- **Zero-FHS POSIX `install.sh` Checksum Hardening (`SUB-2202`)**: Replaces `awk` and `sed` invocations in `install.sh` with pure POSIX parameter expansion for Zero-FHS NixOS and BusyBox/Ash environments, adds `NOMOS_LOCAL_CHECKSUMS` offline verification support, and enforces end-to-end POSIX `sh install.sh` and `sh uninstall.sh` (`NOMOS_PURGE_DATA=1`) lifecycle round-trip tests.
+
+### Configuration & Workspace (`nomos.yaml`)
+- **Canonical Root `nomos.yaml` Promotion (`INT-1967`, `SUB-2224`)**: Promotes Layer 1 governance configuration to canonical repository root `nomos.yaml` (`$schema=./nomos.schema.json`), aligns Layer 0 `intent/intent.md` references, and seals updated Layer 0 SHA-256 `spec_digests` receipts.
+- **Zero-Fallback Config Lookup Singularity (`SUB-2220`, `SUB-2229`)**: Removes legacy `.agents/nomos.yaml`, `.nomos/nomos.yaml`, `intent/config/nomos.yaml`, `nomos.yml`, and `~/.nomos/` home fallback lookup aliases across `config`, `verify`, and `cli` so `<repoRoot>/nomos.yaml` (or explicit `NOMOS_CONFIG`) is the single authoritative configuration path under Law 6.
+
+### Verification & Quality Gates (`nomos verify`)
+- **Scoped `contracts.spec_roots` Steel-Man & Optional Schema Parity (`INT-1969`, `SUB-2226`)**: Declares explicit `verify_scope: diff`, `tdd_mode: strict`, and `coverage_mode: live` in `nomos.yaml`, scopes `IntentSteelmanGate` (`TC-TRC-005`) to configured `contracts.spec_roots` when targeting explicit files or subdirectories, and skips default `nomos.schema.json` checks in `ContractParityGate` when `schema_files` is omitted and no root schema file exists.
+- **Isolated Sibling `INT-*` Parity & Template `$schema` Pin Normalization (`SUB-2223`, `SUB-2232`)**: Skips Substrate AST contract parity inside isolated `INT-*` worktrees so concurrent uncompiled sibling specs do not block Intent-plane configuration updates, and normalizes statutory `$schema` SemVer comment pins in `templates/nomos.yaml` during `chore(release)` commits.
+
+### Task Lifecycle & 2PC Sync (`nomos task sync`)
+- **Pre-Verify Trunk Rebase & 5-Minute Clean-Tree Receipt Cache (`INT-1961`, `SUB-2210`, `SUB-2222`)**: Reorders `rebaseOntoTrunkIfDiverged` ahead of gate execution in `nomos task sync` and caches 5-minute SHA-256 verification receipts keyed by `(treeSHA, trunkHeadSHA)` (`TC-SYNC-020`, `NOMOS_NO_VERIFY_CACHE=1` bypass), eliminating duplicate full-suite gate runs across `nomos task commit` -> `nomos task sync`.
+
+### Ambient Hooks & Pacing (`nomos hook`)
+- **JIT Post-Edit Pitfall Recall & Session Trunk Pacing (`INT-1962`, `SUB-2211`)**: Injects one-time directory-scoped Mneme pitfall recall on the first edit to a package in `nomos hook post-tool` and enforces session-keyed idle-trunk read-spiral pacing (`7/12` Carbon, `12/20` Standard) (`TC-MNM-030`).
+
+### Episodic Memory (`nomos mem`)
+- **Subword Feature Hashing for Local Vector Synthesis (`INT-1956`, `SUB-2203`)**: Upgrades pure-Go 64-dimensional local vector synthesis in `nomos mem` with subword feature hashing for morphological and identifier-stem recall accuracy.
+
+### Session & Boundary Telemetry (`nomos session`)
+- **Authorized `nomos-plugin-*` Workspace Boundaries in Sentinel (`INT-1960`, `SUB-2209`)**: Authorizes workspaces declaring `substrate/cmd/nomos-plugin-*` entrypoints and self-owned packages under `CHARTER-4-BOUNDARY` (`TC-SEN-010`) while preserving `80/100 SUSPICIOUS` boundary detection on external downstream consumers.
+
+### Release & Packaging (`packaging/render-release-notes.sh`, `CHANGELOG.md`)
+- **Area-Grouped Release Ledgers & Historical Backfill (`SUB-2233`)**: Groups SHA-linked `[INT-*]` and `[SUB-*]` commit ledgers in `packaging/render-release-notes.sh` across the 6 canonical Open-Core areas while preserving collapsible `<details>` architecture disclosures and parent `vX.Y.0` milestone rollups, and aligns historical `v4.0.0`..`v4.14.0` `CHANGELOG.md` entries to clean per-area headings.
+
+---
+
 ## [v4.14.0] - 2026-11-10
 
 > 5-Provider Ambient Lifecycle Parity & Native Cursor Hooks, Antigravity 2.0 Calibration & Deliberation Telemetry, AST Normative-Surface Twin Parity & Spec-Taint Scoping, Plus CapBAC Containment, Verify Memoization & Homebrew Cask Distribution (Apache 2.0)
