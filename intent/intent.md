@@ -13,6 +13,7 @@ lineage:
   - INT-1944
   - SUB-2157
   - INT-1951
+  - INT-1952
 plane: intent
 ssot_repository: nomos
 status: active
@@ -27,7 +28,7 @@ version: "4.14.0"
 
 ## 1. Executive Summary & Problem Statement
 
-Nomos is a deterministic Git worktree and AST compiler harness for AI-assisted software engineering.
+Nomos is a deterministic execution substrate and transactional repository layer between coding agents and Git.
 Without mechanical boundaries, coding agents mutate protected branches, violate package dependencies, and drift from specifications.
 Upfront waterfall specifications also decay when hundreds of speculative pages rot after initial commits.
 
@@ -132,7 +133,7 @@ func ValidateWorktreeBoundary(repoRoot, currentBranch, targetFile string) error
 
 ## 6. Cross-Plane Traceability & DoD Verification
 
-1. **Bilateral Task Lineage**: `INT-1941`, `SUB-2134`, `INT-1943`, `SUB-2147`, and `INT-1951`.
+1. **Bilateral Task Lineage**: `INT-1941`, `SUB-2134`, `INT-1943`, `SUB-2147`, `INT-1951`, and `INT-1952`.
 2. **Enforcing 7x3 Matrix Coordinates**: `Cell 4.1 (intent_steelman)`, `Cell 4.1 (intent_traceability)`, `Cell 6.1 (zero_filesystem_alias)`, and `Cell 7.1 (plane_separation)`.
 3. **Executable Obligation Suite**: `substrate/cli/intent_manifesto_obligations_test.go` binds `TC-INT-01` through `TC-INT-06` and all 8 canonical domain specifications.
 4. **Verification Command**: Execute `nomos verify` across all 42 Definition of Done quality gates and assert exit code `0`.

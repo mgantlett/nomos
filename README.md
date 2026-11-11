@@ -4,7 +4,7 @@
 
 # Nomos (Νόμος)
 
-**Agents guess; Git cannot. The transactional governance harness between any coding agent and your repository.**
+**Agents guess; Git cannot. The deterministic execution substrate between any coding agent and Git.**
 
 [![CI](https://github.com/mgantlett/nomos/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/mgantlett/nomos/actions/workflows/ci.yaml)
 [![Release](https://img.shields.io/github/v/release/mgantlett/nomos?color=0EA5E9)](https://github.com/mgantlett/nomos/releases/latest)
@@ -47,12 +47,17 @@ Just as **PostgreSQL placed ACID transactions** between concurrent applications 
 curl -fsSL https://sophialabs.ca/install | bash
 ```
 
-Installs the SHA-256-verified release binary directly to standard Go binary paths (`$GOBIN` / `$(go env GOPATH)/bin` / `~/go/bin`; pass `NOMOS_VERSION=v4.13.2` to pin a specific release tag). Or on **Arch Linux / Omarchy** via AUR, or directly from `main` via the Go toolchain (`substrate/` subdirectory module):
+Installs the SHA-256-verified release binary directly to standard Go binary paths (`$GOBIN` / `$(go env GOPATH)/bin` / `~/go/bin`; pass `NOMOS_VERSION=v4.13.2` to pin a specific release tag). Or install on **macOS / Linux** via Homebrew, on **Arch Linux / Omarchy** via AUR, or directly from `main` via the Go toolchain (`substrate/` subdirectory module):
 
 ```bash
+# macOS & Linux (Homebrew):
+brew install --cask mgantlett/tap/nomos
+
+# Arch Linux / Omarchy (AUR):
 yay -S nomos-bin
-# or build from source:
-CGO_ENABLED=0 go install github.com/mgantlett/nomos/substrate/cmd/nomos@main
+
+# Build from source (requires Go 1.26+; GOTOOLCHAIN=auto auto-fetches Go 1.26+ on older Go installs):
+GOTOOLCHAIN=auto CGO_ENABLED=0 go install github.com/mgantlett/nomos/substrate/cmd/nomos@main
 ```
 
 To cleanly uninstall at any time:
@@ -68,7 +73,7 @@ cd your-project
 nomos init
 ```
 
-`nomos init` detects your language stack, scaffolds [`nomos.yaml`](intent/architecture/specs/go_ssot_and_json_schema_spec.md) (validated against [`nomos.schema.json`](nomos.schema.json)), installs self-healing Git defense hooks (`pre-commit`, `commit-msg`, `pre-push`), and drops indirect-control agent contracts (`AGENTS.md`, `CLAUDE.md`) plus ambient lifecycle hooks across Claude Code, Gemini CLI, OpenCode, and Antigravity (`.claude/settings.json`, `.gemini/settings.json`, `.opencode/plugins/nomos.ts`, `.agents/hooks.json`) into your repo.
+`nomos init` detects your language stack, scaffolds [`nomos.yaml`](intent/architecture/specs/go_ssot_and_json_schema_spec.md) (validated against [`nomos.schema.json`](nomos.schema.json)), installs self-healing Git defense hooks (`pre-commit`, `commit-msg`, `pre-push`), and drops indirect-control agent contracts (`AGENTS.md`, `CLAUDE.md`) plus ambient lifecycle hooks across Claude Code, Gemini CLI, OpenCode, Cursor, and Antigravity (`.claude/settings.json`, `.gemini/settings.json`, `.opencode/plugins/nomos.ts`, `.cursor/hooks.json`, `.agents/hooks.json`) into your repo.
 
 ### 3. Prompt Your Coding Agent Naturally
 
@@ -95,7 +100,7 @@ nomos task sync SUB-1 -F .tmp/walkthrough.md       # 3. Agent atomically merges 
   <img src="intent/assets/nomos_hero_blueprint_v1_5.jpg" alt="Nomos v1.5 Downstream Closed-Loop Lifecycle Architecture" width="100%" />
 </div>
 
-1. **Indirect Control & Persistent Memory (`nomos init` / `nomos hook` / `nomos mem`):** Your coding agent reads the bootstrapped `AGENTS.md` / `CLAUDE.md` protocol, runs sub-5ms compiled lifecycle hooks (`nomos hook session-start`, `pre-tool`, `post-tool`, `stop`, and zero-ceremony `nomos hook install` across Claude Code, Gemini CLI, and OpenCode), and queries **Nomos Mneme** (`nomos mem recall`) for sub-50ms hybrid vector and lexical architectural context before touching code.
+1. **Indirect Control & Persistent Memory (`nomos init` / `nomos hook` / `nomos mem`):** Your coding agent reads the bootstrapped `AGENTS.md` / `CLAUDE.md` protocol, runs sub-5ms compiled lifecycle hooks (`nomos hook session-start`, `pre-tool`, `post-tool`, `stop`, and zero-ceremony `nomos hook install` across Claude Code, Gemini CLI, OpenCode, Cursor, and Antigravity), and queries **Nomos Mneme** (`nomos mem recall`) for sub-50ms hybrid vector and lexical architectural context before touching code.
 2. **Hermetic Worktree Sandbox & Causal Plane DAG (`nomos task`):** Direct commits on `main` fail closed. Tasks separate intent/contract specs (`INT-*`) from substrate code (`SUB-*`) in a local causal DAG (`nomos task pair`, `nomos task chore`, `nomos task dag`), and every task executes inside an isolated Git worktree (`worktrees/<repo>-<task>`) governed by a strict state machine (`IDLE → PLAN → EDIT → REVIEW → SYNC → LEARN`).
 3. **42-Gate Polyglot AST & Toolchain Verification (`nomos verify`):** Before any code can be reviewed or merged, Nomos evaluates `go/ast`, embedded `.scm` S-expression query rules, `wazero` WebAssembly linear-memory scanning, pure-Go multiline-aware structural scanners, and native compiler/coverage probes (`tsc --noEmit`, `pytest`, `cargo check`, `ruby -c`, `cmake`, `gradle`/`mvn`, `dotnet build`, plus LCOV and Cobertura XML ratchets) across **Go, TypeScript/Svelte, Python, Rust, Ruby, C/C++, Java, Kotlin, and C#** - catching empty stubs, `todo!()`/`pass`/`raise NotImplementedError` shims, skipped-test annotations (`t.Skip`, `@pytest.mark.skip`, `#[ignore]`, `xit`, `@Disabled`, `[Fact(Skip=...)]`), functions over `60 LOC` (`400 LOC` file ceiling), cyclomatic complexity spikes (`> 15`), hardcoded paths, security flaws, and test coverage drops.
 4. **1-Turn Auto-Remediation Loop (`NomosError`):** When a gate fails, `nomos verify` emits a structured [`NomosError`](intent/architecture/specs/go_ssot_and_json_schema_spec.md) with the exact file, line, violated law, and remediation instruction so the coding agent fixes its own mistake on the next turn.
@@ -107,7 +112,7 @@ nomos task sync SUB-1 -F .tmp/walkthrough.md       # 3. Agent atomically merges 
 
 | Capability | Canonical CLI Surface | What It Enforces | Architecture Specification |
 | :--- | :--- | :--- | :--- |
-| **Indirect Agent Control** | `nomos init`, `nomos handshake`, `nomos hook` | Bootstraps agent rules (`AGENTS.md`, `CLAUDE.md`), user/project hook installation (`nomos hook install --claude \| --gemini \| --opencode \| --user`), additive lifecycle hooks (`nomos hook session-start \| pre-tool \| post-tool \| stop` at `~4ms` cold start with pure-Go syntax radar, anti-phantom `Stop` verification, and 3-strike + no-edit test-rerun circuit-breaking), and self-healing Git hooks without locking you into a specific model or IDE. | [`intent.md`](intent/intent.md) |
+| **Indirect Agent Control** | `nomos init`, `nomos handshake`, `nomos hook` | Bootstraps agent rules (`AGENTS.md`, `CLAUDE.md`), user/project hook installation (`nomos hook install --claude \| --gemini \| --opencode \| --cursor \| --antigravity \| --user`), additive lifecycle hooks (`nomos hook session-start \| pre-tool \| post-tool \| stop` at `~4ms` cold start with pure-Go syntax radar, anti-phantom `Stop` verification, and 3-strike + no-edit test-rerun circuit-breaking), and self-healing Git hooks without locking you into a specific model or IDE. | [`intent.md`](intent/intent.md) |
 | **Capability-Flow, Outbound Egress & Zero-Trust MCP IFC** | `nomos hook pre-tool \| session-start` | Tracks multi-turn compositional taint (`CapabilityFlowGraph`) across web ingress, local credentials, and release/exfiltration sinks; blocks cloud metadata SSRF (`169.254.169.254`), credential/email leaks, and disallowed domains via declarative `BoundaryConfig` (`egress_mode`, `allowed_egress_domains`, `blocked_egress_domains`); and enforces zero-trust MCP server allow/block lists. | [`nomos_hermetic_worktree_spec.md`](intent/architecture/specs/nomos_hermetic_worktree_spec.md) |
 | **Phase Discipline & Worktrees** | `nomos task chore \| pair \| create \| start \| edit \| review \| dag` | Separates `INT-*` spec tasks from `SUB-*` code tasks in a causal DAG wavefront and enforces `IDLE → PLAN → EDIT → REVIEW → SYNC → LEARN` state transitions inside hermetic `worktrees/<repo>-<task>` sandboxes. | [`nomos_hermetic_worktree_spec.md`](intent/architecture/specs/nomos_hermetic_worktree_spec.md) |
 | **42-Gate AST & DoD Engine** | `nomos verify`, `nomos verify proof` | Runs 42 statutory Definition of Done (DoD) quality gates across the 7x3 Canonical Invariant Matrix (21 Cells) via Go AST, `.scm` S-expression query rules, `wazero` WASM linear-memory scanning, polyglot structural scanners, and native toolchain/coverage probes (`tsc`, `pytest`, `cargo`, `cmake`, `gradle`/`mvn`, `dotnet`). | [`tree_sitter_ast_gate_spec.md`](intent/architecture/specs/tree_sitter_ast_gate_spec.md) · [`nomos_intent_traceability_spec.md`](intent/architecture/specs/nomos_intent_traceability_spec.md) |
@@ -194,7 +199,7 @@ Nomos Community Edition is **100% open-source under Apache 2.0** with zero telem
 
 | Capability Layer | Nomos Community Edition (Apache 2.0) | SophiaLabs Sovereign Enterprise |
 | :--- | :--- | :--- |
-| **Indirect Control for Tier 1 Coding Agents** (`AGENTS.md`, `CLAUDE.md`, `.claude/settings.json`, `.gemini/settings.json`, `.opencode/plugins/nomos.ts`, `.agents/hooks.json`) | ✅ Included | ✅ Included |
+| **Indirect Control for Tier 1 Coding Agents** (`AGENTS.md`, `CLAUDE.md`, `.claude/settings.json`, `.gemini/settings.json`, `.opencode/plugins/nomos.ts`, `.cursor/hooks.json`, `.agents/hooks.json`) | ✅ Included | ✅ Included |
 | **42-Gate Polyglot Verification Engine** (`nomos verify`, Go AST + Polyglot Scanners, 7 Laws + DoD) | ✅ Included | ✅ Included |
 | **Causal `INT-*`/`SUB-*` DAG, Hermetic Worktrees & 2PC Sync** (`nomos task`, trunk-pinned `nomos.yaml`, `refs/notes/nomos/releases`) | ✅ Included | ✅ Included |
 | **Nomos Mneme Hybrid Vector Memory & Sanitized Diagnostic Issues** (`nomos mem`, `nomos issue`) | ✅ Included | ✅ Included |

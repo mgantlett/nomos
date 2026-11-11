@@ -11,7 +11,7 @@ Currently, the Nomos project only provides security updates for the latest major
 
 ## Reporting a Vulnerability
 
-We take the security of our deterministic execution substrate very seriously. A vulnerability in the agentic control harness could result in rogue autonomous behavior, IP leakage, or destruction of local state.
+We take the security of our deterministic execution substrate very seriously. A vulnerability in the deterministic execution substrate could result in rogue autonomous behavior, IP leakage, or destruction of local state.
 
 If you discover a vulnerability, we ask that you report it to us immediately via email at **nomos-security@sophialabs.ca**.
 
