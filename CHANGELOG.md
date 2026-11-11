@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [v4.14.0] - 2026-11-10
+
+> 5-Provider Ambient Lifecycle Parity & Native Cursor Hooks, Antigravity 2.0 Calibration & Deliberation Telemetry, AST Normative-Surface Twin Parity & Spec-Taint Scoping, Plus CapBAC Containment, Verify Memoization & Homebrew Cask Distribution (Apache 2.0)
+
+### 5-Provider Ambient Lifecycle Parity & Native Cursor Hooks (`nomos init`, `nomos hook`, `nomos verify`)
+- **Native Cursor Hook Scaffolding & 5-Provider Default Parity (`INT-1951`, `SUB-2188`)**: Scaffolds `.cursor/hooks.json` (`version: 1`) out of the box in `nomos init` and `nomos hook install --cursor`, establishes full 5-provider default lifecycle parity across `Claude Code`, `Gemini CLI`, `OpenCode`, `Cursor`, and `Antigravity`, normalizes Cursor stdin/stdout lifecycle events (`sessionStart`, `preToolUse`, `beforeShellExecution`, `postToolUse`, `afterFileEdit`, `stop`), and isolates concurrent sibling-twin contract obligations (`ResolveActiveWorktreeSpecRoots`).
+
+### Antigravity 2.0 Calibration & Deliberation Telemetry (`nomos hook`, `nomos handshake`, `nomos session`)
+- **Antigravity 2.0 Lifecycle Calibration & Turn-0 Pacing (`SUB-2177`, `SUB-2178`, `SUB-2179`)**: Aligns Antigravity 2.0 `PostInvocation` hook lifecycle handling, Turn-0 prefix stability, loop digest telemetry, Carbon pacing profiles, and `antigravity/brain` session discovery.
+- **Polymorphic `DeliberationMetrics` Session Telemetry (`INT-1954`, `SUB-2191`)**: Adds `DeliberationMetrics` (`thinking_bytes`, `thinking_step_count`, `max_read_streak`, `mutation_step_count`, `deliberation_to_mutation_ratio`, and `transcript_full.jsonl` recovery) in `nomos session show` across supported agent transcript formats.
+
+### AST Normative-Surface Twin Parity, Spec-Taint Scoping & Mneme Dead-End Capture (`nomos verify`, `nomos task`, `nomos mem`)
+- **AST Normative-Surface Twin Parity & Zero-Drift `spec_digests` Auto-Sealing (`INT-1948`, `SUB-2185`, `SUB-2170`)**: Enforces `NormativeSurfaceDelta` and `ValidateWorktreeIntentTwin` across exported Go contracts, CLI flag surfaces, and embedded configuration templates while automatically sealing `spec_digests` on standalone zero-drift `INT-*` syncs.
+- **Modified-File Spec-Taint Scoping, Diff Provenance & Dead-End Memory Capture (`SUB-2172`, `SUB-2194`)**: Scopes spec-taint receipt obligations to modified files, expands Go verification to 1-hop reverse-importer test packages, verifies walkthrough `## Changes` file provenance against the active worktree diff, and automatically records `dead_end` Mneme memories on reverted worktree edits.
+
+### CapBAC Containment, Verify Memoization & Homebrew Cask Distribution (`nomos verify`, `install.sh`, `.goreleaser.yaml`)
+- **CapBAC Glob Containment & `VerifyContext` Pipeline Memoization (`SUB-2180`, `SUB-2181`)**: Hardens workspace glob containment and protected-branch file deletion blocking, adds a SQLite `PRAGMA user_version` schema initialization fast-path, and memoizes `VerifyContext` configuration and Git file-scope lookups across all 42 Definition of Done quality gates.
+- **Homebrew Cask Distribution & Execution Substrate Framing (`INT-1952`, `SUB-2189`)**: Adds GoReleaser v2 Homebrew Cask packaging (`brew install --cask mgantlett/tap/nomos`), clears macOS Gatekeeper quarantine attributes in `install.sh` and Cask post-install hooks, and aligns deterministic execution substrate category framing across `README.md` and `intent/`.
+
+---
+
 ## [v4.13.2] - 2026-11-10
 
 > Self-Hosted 4-Layer Progressive Intent Compiler, 8 Canonical Layer 2 Domain Specifications (`99` Compiled Go SSoT Contracts, `186` Executable `@verifies TC-*` Vectors, `0` `NCTE-100` Diagnostics), and `N=108` Multi-Lab Open-Weight Brownfield Audit (Apache 2.0)
