@@ -4,12 +4,14 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-11-03"
-last_updated: "2026-11-03"
+last_updated: "2026-11-11"
 lineage:
   - INT-897
   - SUB-1672
   - INT-1944
   - SUB-2157
+  - INT-1976
+  - SUB-2241
 plane: intent
 ssot_repository: nomos
 status: active

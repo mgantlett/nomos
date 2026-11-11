@@ -18,6 +18,8 @@ lineage:
   - SUB-2219
   - INT-1973
   - SUB-2239
+  - INT-1976
+  - SUB-2241
 plane: intent
 ssot_repository: nomos
 status: active
