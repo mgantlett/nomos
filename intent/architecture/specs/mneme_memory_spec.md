@@ -4,7 +4,7 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-23"
-last_updated: "2026-11-10"
+last_updated: "2026-11-11"
 lineage:
   - INT-735
   - INT-855
@@ -20,6 +20,8 @@ lineage:
   - SUB-2157
   - INT-1956
   - SUB-2203
+  - INT-1962
+  - SUB-2211
 plane: intent
 ssot_repository: nomos
 status: active
@@ -204,6 +206,7 @@ $$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{Lexica
 - **Recurrence-Aware Graduation (`RecallGraduationCandidates`)**: Tier-C structural AST gates (`Cognitive Complexity`, `Function Length`, `File Length`, `Docstring Density`, `Statement Coverage`) graduate only when directory-scoped topic recurrence $\ge 2$. Policy-graduatable statutory pitfalls surface as graduation candidates when topic recurrence $\ge 2$ or task-deduplicated `access_count >= 3`.
 - **Symbol-Delta Pitfall Distillation (`DistillTaskLearnings`)**: When a buffered gate failure cites a repository file, 2PC sync parses verified post-fix AST symbols. Distillation prepends `Refactored <file> [<symbols>]` ahead of walkthrough prose.
 - **Unscoped One-Off Pitfall Cooling (`RecallRepoPitfalls`)**: During unscoped handshakes (`targetScope == "workspace"`), single-occurrence pitfalls (`recurrence == 1`) older than 14 days cool out of `LearnedPitfalls`. Pitfalls remain active whenever `modifiedFiles` matches their directory scope or topic recurrence reaches $\ge 2$.
+- **JIT Post-Edit Pitfall Recall & Trunk Pacing (`nomos hook post-tool`)**: First worktree mutation in `relDir` recalls matching directory pitfalls once via `RecallRepoPitfallsForTask` and records `relDir` in session trace. Trunk sessions (`wtRoot == ""`, `SessionID != ""`) track consecutive exploratory reads per session and emit pacing advisories at configured thresholds.
 
 ---
 
@@ -267,12 +270,13 @@ $$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{Lexica
 | `TC-LRN-04` | Cross-scope habit promotion | Identical pitfall recurring across $\ge 3$ distinct package scopes | Promotes pitfall scope to repository-wide orientation. |
 | `TC-LRN-05` | Duplicate memory superseding | `MaintainReport` deduplication pass on identical topic and content | Marks older duplicate `superseded` and preserves newest record. |
 | `TC-LRN-06` | `mneme.db` WAL checkpoint | Periodic maintenance pass over `mneme.db` (`MaintainReport`) | Checkpoints WAL and reclaims fragmented pages cleanly. |
+| `TC-MNM-030` | JIT pitfall recall & trunk pacing | First `post-tool` edit in `relDir`; consecutive trunk reads | Recalls scoped pitfall once per `relDir`; paces trunk reads (`7/12`, `12/20`). |
 
 ---
 
 ## 7. Cross-Plane Traceability & DoD Verification
 
-- **Intent Lineage**: `INT-735`, `INT-855`, `INT-899`, `INT-926`, `INT-927`, `INT-1944`, `INT-1956`.
-- **Substrate SSoT**: `SUB-1213`, `SUB-1524`, `SUB-1680`, `SUB-2157`, `SUB-2203` (`substrate/src/nomos/modules/mem/memory.go`, `substrate/src/nomos/modules/mem/vector.go`, `substrate/src/nomos/modules/mem/search.go`, `substrate/src/nomos/modules/mem/learn.go`, `substrate/src/nomos/modules/mem/learn_reinforce.go`, `substrate/src/nomos/modules/mem/learn_scope.go`, `substrate/src/nomos/modules/mem/patterns.go`, `substrate/src/nomos/modules/mem/maintain.go`).
+- **Intent Lineage**: `INT-735`, `INT-855`, `INT-899`, `INT-926`, `INT-927`, `INT-1944`, `INT-1956`, `INT-1962`.
+- **Substrate SSoT**: `SUB-1213`, `SUB-1524`, `SUB-1680`, `SUB-2157`, `SUB-2203`, `SUB-2211` (`substrate/src/nomos/modules/mem/memory.go`, `substrate/src/nomos/modules/mem/vector.go`, `substrate/src/nomos/modules/mem/search.go`, `substrate/src/nomos/modules/mem/learn.go`, `substrate/src/nomos/modules/mem/learn_reinforce.go`, `substrate/src/nomos/modules/mem/learn_scope.go`, `substrate/src/nomos/modules/mem/patterns.go`, `substrate/src/nomos/modules/mem/maintain.go`, `substrate/cli/cmd_hook_post.go`, `substrate/cli/cmd_hook_pacing.go`, `substrate/cli/cmd_hook_trace.go`).
 - **Canonical 7x3 Matrix Coordinates**: `Cell 1.1 (boundary)`, `Cell 4.1 (intent_traceability)`, `Cell 6.2 (zero_alias)`.
 - **Deterministic Verification**: `nomos verify` executes unit tests across `substrate/src/nomos/modules/mem/` and validates Database Encapsulation and CLI zero-alias invariants with exit code `0`.
