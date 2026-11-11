@@ -4,7 +4,7 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-06"
-last_updated: "2026-11-06"
+last_updated: "2026-11-10"
 lineage:
   - INT-327
   - SUB-327
@@ -12,12 +12,15 @@ lineage:
   - SUB-1894
   - INT-1944
   - SUB-2157
+  - SUB-2177
+  - SUB-2178
+  - INT-1948
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Hermetic Worktree and Git Hygiene Specification"
 type: spec
-version: "4.1.0"
+version: "4.2.0"
 ---
 
 # Hermetic Worktree and Git Hygiene Specification
@@ -224,6 +227,20 @@ package verify
 
 // CommitSchemaGate enforces the Golden Conventional Commit schema across branch commits (#CommitSchemaGate).
 type CommitSchemaGate struct{}
+
+// NormativeSurfaceDelta captures AST and template contract changes between trunk and worktree (#NormativeSurfaceDelta).
+type NormativeSurfaceDelta struct {
+	CLISurface      []string `json:"cli_surface,omitempty"`
+	ConfigSchema    []string `json:"config_schema,omitempty"`
+	GovernanceRules []string `json:"governance_rules,omitempty"`
+	TemplateAssets  []string `json:"template_assets,omitempty"`
+}
+
+// InspectWorktreeNormativeSurface diffs trunk and worktree Go ASTs and embedded templates to detect contract expansion.
+func InspectWorktreeNormativeSurface(worktreeDir string) NormativeSurfaceDelta
+
+// ValidateWorktreeIntentTwin enforces intent_twin_mode across commit headers, AST surface deltas, and Twin provenance.
+func ValidateWorktreeIntentTwin(worktreeDir, commitMsg, mode string) string
 ```
 
 ---
@@ -237,9 +254,9 @@ During `nomos verify`, four dedicated Definition of Done probes enforce hermetic
 | `Cell 3.2` | `hermetic_worktree` | Law 3 | Verifies execution inside an isolated `nomos-<KEY>` worktree rather than trunk. |
 | `Cell 3.1` | `staged_boundaries` | Law 3 / Law 7 | Rejects root trunk mutations and scratch artifacts (`*.tmp`, `*.bak`, `*.orig`, `*.swp`). |
 | `Cell 3.2` | `git_hygiene` | Law 1 / Law 6 | Scans Go ASTs and rejects `exec.Command("git", ...)` bypassing `workspace.SafeGitCommand`. |
-| `Cell 6.3` | `commit_schema` | Law 4 / Law 6 | Enforces `[<KEY>] <type>(<scope>): <summary>` headers and `Task:` / `Twin:` trailers. |
+| `Cell 6.3` | `commit_schema` | Law 4 / Law 6 | Enforces Golden Commit headers, `Task:` / `Twin:` trailers, and AST twin parity. |
 
-`nomos init` and `EnsureHooksInstalled` append `*.tmp`, `*.bak`, `*.orig`, and `*.swp` to Git exclude manifests. `nomos hook pre-tool` blocks shell redirects (`>` / `>>`) targeting protected trunk paths outside `/worktrees/` and `.tmp/`.
+`nomos init` and `EnsureHooksInstalled` append `*.tmp`, `*.bak`, `*.orig`, and `*.swp` to Git exclude manifests. `nomos hook pre-tool` blocks shell redirects (`>` / `>>`) targeting protected trunk paths outside `/worktrees/` and `.tmp/`. Under `--antigravity` and `--advisory-profile carbon`, `nomos hook post-tool` returns `{}` on `PostToolUse` and flushes buffered advisories on `PostInvocation`.
 
 ---
 
@@ -273,6 +290,11 @@ During `nomos verify`, four dedicated Definition of Done probes enforce hermetic
 | `TC-CMT-002` | Missing task prefix rejection | `"feat(cli): missing key prefix"` | `"CommitSchemaGate rejects commit lacking [KEY] header."` | PASS |
 | `TC-CMT-003` | Missing Task trailer rejection | `"[SUB-747] feat(cli): summary without trailer"` | `"CommitSchemaGate rejects commit lacking Task trailer."` | PASS |
 | `TC-CMT-004` | Anti-dump commit body check | Raw file list dumped without rationale prose | `"CommitSchemaGate rejects non-prose commit body."` | PASS |
+| `TC-CMT-005` | Performance type & buzzword guard | `"[SUB-2177] perf(verify): memoize gates"` vs `"self-healing"` | `"Accepts perf commit type and rejects self-healing buzzwords."` | PASS |
+| `TC-CMT-006` | AST normative-surface delta twin check | `refactor(hooks)` adding CLI flag or YAML tag under `intent_twin_mode: feat` | `"Rejects untwinned SUB commit when NormativeSurfaceDelta is non-empty."` | PASS |
+| `TC-CMT-007` | Internal substrate refactor exemption | `refactor(verify)` modifying private helpers with empty `NormativeSurfaceDelta` | `"Permits untwinned internal refactor under intent_twin_mode: feat."` | PASS |
+| `TC-CMT-008` | Referential `Twin:` provenance check | `Twin: INT-999999` absent from trunk history and task ledger | `"Rejects unresolvable Twin trailer lacking trunk or ledger provenance."` | PASS |
+| `TC-HOOK-001` | Antigravity 2.0 `PostInvocation` flush | `nomos hook post-tool --antigravity --advisory-profile carbon` | `"Returns {} on PostToolUse and flushes buffered advisories on PostInvocation."` | PASS |
 
 ---
 
