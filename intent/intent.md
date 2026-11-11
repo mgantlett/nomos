@@ -36,14 +36,14 @@ Upfront waterfall specifications also decay when hundreds of speculative pages r
 
 Nomos resolves both failure modes by self-hosting a **4-Layer Progressive Intent Compiler**:
 1. **Layer 0 (`intent/intent.md`)**: Defines the product North Star, the 7 non-negotiable laws, and the 8 core domains.
-2. **Layer 1 (`intent/config/nomos.yaml`)**: Locks package `architecture_boundaries` and enables `strict_types` and `verify_obligations` across `intent/architecture/specs`.
+2. **Layer 1 (`nomos.yaml`)**: Locks package `architecture_boundaries` and enables `strict_types` and `verify_obligations` across `intent/architecture/specs`.
 3. **Layer 2 (`intent/architecture/specs/*_spec.md`)**: Maintains 8 canonical domain specifications containing compiled Go contracts and `TC-*` obligation tables.
 4. **Layer 3 (`worktrees/<repo>-SUB-<N>` & `refs/notes/nomos/releases`)**: Verifies `@verifies TC-*` tests inside isolated worktrees and seals SHA-256 release receipts.
 
 ```mermaid
 flowchart TD
     L0["Layer 0: North Star Charter<br/>(intent/intent.md - 7 Laws & 8 Domains)"]
-    L1["Layer 1: Executable Physics<br/>(intent/config/nomos.yaml - Boundaries & Contracts)"]
+    L1["Layer 1: Executable Physics<br/>(nomos.yaml - Boundaries & Contracts)"]
     L2["Layer 2: 8 Canonical Domain Specs<br/>(intent/architecture/specs/*_spec.md - Go Types & TC-* Vectors)"]
     L3["Layer 3: Hermetic 2PC Receipt<br/>(worktrees/nomos-SUB-N & refs/notes/nomos/releases)"]
 
@@ -57,7 +57,7 @@ flowchart TD
 ## 2. Axiomatic Invariants & Governing Laws
 
 Every task executes on either the **Intent Plane (`INT-<N>`)** or the **Substrate Plane (`SUB-<N>`)**:
-- **Intent Plane (`INT-<N>`)**: Mutates Layer 0 (`intent/intent.md`), Layer 1 (`intent/config/nomos.yaml`), and Layer 2 (`intent/architecture/specs/*_spec.md`).
+- **Intent Plane (`INT-<N>`)**: Mutates Layer 0 (`intent/intent.md`), Layer 1 (`nomos.yaml`), and Layer 2 (`intent/architecture/specs/*_spec.md`).
 - **Substrate Plane (`SUB-<N>`)**: Mutates Layer 3 (`substrate/**`), binds `@verifies TC-*` tests, and seals `2PC` Git Notes receipts.
 
 Ambient lifecycle hooks govern all five Tier 1 providers (Claude Code, Gemini CLI, OpenCode, Cursor, Antigravity) across `nomos init` and `nomos hook install`.

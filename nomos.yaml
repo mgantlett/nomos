@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=../../nomos.schema.json
+# yaml-language-server: $schema=./nomos.schema.json
 project: nomos
 default_branch: main
 governance:
