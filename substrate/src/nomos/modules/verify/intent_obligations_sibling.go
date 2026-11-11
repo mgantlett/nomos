@@ -12,9 +12,13 @@ import (
 )
 
 // ResolveActiveWorktreeSpecRoots scopes specification paths when running inside an
-// isolated SUB-* worktree, deferring specs mutated exclusively by another in-flight
-// sibling SUB-* task's INT-* twin (@intent nomos_intent_traceability_spec.md #ContractsConfig).
+// isolated worktree, skipping Substrate AST parity inside INT-* worktrees and deferring
+// specs mutated exclusively by another in-flight sibling SUB-* task's INT-* twin
+// (@intent nomos_intent_traceability_spec.md #ContractsConfig).
 func ResolveActiveWorktreeSpecRoots(scanRoot string, specRoots []string) []string {
+	if extractWorktreePrefixedKey(scanRoot, "INT-") != "" {
+		return []string{}
+	}
 	subKey := extractWorktreeSubTaskKey(scanRoot)
 	if subKey == "" {
 		return specRoots
@@ -37,12 +41,16 @@ func ResolveTaskContractSpecRoots(scanRoot, taskKey string, specRoots []string) 
 // extractWorktreeSubTaskKey extracts a canonical SUB-<N> key strictly when scanRoot
 // resides inside an isolated '/worktrees/' directory.
 func extractWorktreeSubTaskKey(scanRoot string) string {
+	return extractWorktreePrefixedKey(scanRoot, "SUB-")
+}
+
+func extractWorktreePrefixedKey(scanRoot, prefix string) string {
 	slash := filepath.ToSlash(filepath.Clean(scanRoot))
 	if !strings.Contains(slash, "/worktrees/") {
 		return ""
 	}
 	baseUpper := strings.ToUpper(filepath.Base(slash))
-	idx := strings.LastIndex(baseUpper, "SUB-")
+	idx := strings.LastIndex(baseUpper, prefix)
 	if idx < 0 {
 		return ""
 	}

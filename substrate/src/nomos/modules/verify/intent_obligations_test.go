@@ -130,6 +130,9 @@ func TestSiblingTwinSpecIsolationHelpers(t *testing.T) {
 	if trunkRoots := ResolveActiveWorktreeSpecRoots(tmp, roots); len(trunkRoots) != 1 || trunkRoots[0] != roots[0] {
 		t.Fatalf("expected trunk root to keep original specRoots, got %v", trunkRoots)
 	}
+	if intRoots := ResolveActiveWorktreeSpecRoots("/repo/worktrees/nomos-INT-1967", roots); intRoots == nil || len(intRoots) != 0 {
+		t.Fatalf("expected isolated INT worktree to skip Substrate AST contract parity roots, got %#v", intRoots)
+	}
 	kept, skipped := filterDeferredSpecRoots(tmp, roots, map[string]bool{"intent/architecture/specs/beta_spec.md": true})
 	if !skipped || len(kept) != 1 || filepath.Base(kept[0]) != "alpha_spec.md" {
 		t.Fatalf("expected only alpha_spec.md after deferring beta_spec.md, got kept=%v skipped=%v", kept, skipped)
