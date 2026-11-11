@@ -90,3 +90,43 @@ func appendPlainBrownfieldTopology(b *strings.Builder, ev *handshake.HandshakeEv
 		b.WriteString(fmt.Sprintf("  %-17s : %s\n", item.label, item.value))
 	}
 }
+
+func appendPlainBoundedList(b *strings.Builder, label, icon string, items []string, limit int) {
+	if len(items) == 0 {
+		return
+	}
+	b.WriteString(fmt.Sprintf("  %-17s : %d active\n", label, len(items)))
+	for i, item := range items {
+		if i >= limit {
+			break
+		}
+		b.WriteString(fmt.Sprintf("    %s %s\n", icon, item))
+	}
+}
+
+// appendPlainTurnZeroTelemetry injects deterministic AST impact, Mneme dead-ends/pitfalls,
+// verified blueprints, and HATEOAS next actions into the Turn-0 SessionStart prefix cache.
+func appendPlainTurnZeroTelemetry(b *strings.Builder, ev *handshake.HandshakeEvent) {
+	if ev == nil {
+		return
+	}
+	appendPlainBoundedList(b, "AST Impact", "↪", ev.ImpactSummary, 4)
+	if len(ev.StaleObligations) > 0 {
+		paths := make([]string, 0, len(ev.StaleObligations))
+		for i, s := range ev.StaleObligations {
+			if i >= 3 {
+				break
+			}
+			paths = append(paths, s.SpecPath)
+		}
+		b.WriteString(fmt.Sprintf("  Stale Specs       : %s\n", strings.Join(paths, ", ")))
+	}
+	appendPlainBoundedList(b, "Learned Pitfalls", "⚡", ev.LearnedPitfalls, 3)
+	appendPlainBoundedList(b, "Verified Patterns", "🧩", ev.VerifiedPatterns, 2)
+	if len(ev.NextActions) > 0 {
+		b.WriteString("  Next Actions      :\n")
+		for _, act := range ev.NextActions {
+			b.WriteString(fmt.Sprintf("    → %s (%s)\n", act.Command, act.Summary))
+		}
+	}
+}

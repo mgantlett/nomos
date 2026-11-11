@@ -18,7 +18,8 @@ const (
 
 var (
 	prefixKeyExtractRegex      = regexp.MustCompile(`^\[((?:INT|SUB)-[1-9][0-9]*(?:-[a-z0-9-]+)?)\]`)
-	goldenSubjectSchema        = regexp.MustCompile(`^\[((?:INT|SUB)-[1-9][0-9]*(?:-[a-z0-9-]+)?)\]\s+(feat|fix|docs|chore|refactor|test)(\([a-z0-9_,/-]+\))?:\s+\S+`)
+	goldenSubjectSchema        = regexp.MustCompile(`^\[((?:INT|SUB)-[1-9][0-9]*(?:-[a-z0-9-]+)?)\]\s+(feat|perf|fix|docs|chore|refactor|test)(\([a-z0-9_,/-]+\))?:\s+\S+`)
+	euphemisticBuzzwordRe      = regexp.MustCompile(`(?i)\bself[- ]healing\b`)
 	trailingDupTaskKeyRegex    = regexp.MustCompile(`(?i)(\[(?:task\s+)?(?:int|sub|arc)-[0-9]+[a-z]?(?:-[a-z0-9-]+)?\]|\((?:int|sub|arc)-[0-9]+[a-z]?(?:-[a-z0-9-]+)?\))\s*$`)
 	canonicalTaskTrailerValRe  = regexp.MustCompile(`^(INT|SUB)-[1-9][0-9]*(-[a-z0-9-]+)?$`)
 	gitTrailerLineRegex        = regexp.MustCompile(`^([A-Za-z][A-Za-z0-9-]*):\s+(\S.*)$`)
@@ -224,7 +225,10 @@ func validateSubjectLine(firstLine string) (string, string) {
 		return "", fmt.Sprintf("commit subject contains duplicate trailing task key token: %q", firstLine)
 	}
 	if !goldenSubjectSchema.MatchString(firstLine) {
-		return "", fmt.Sprintf("commit subject must match '[<INT|SUB-N>] <feat|fix|docs|chore|refactor|test>(<scope>): <summary>': %q", firstLine)
+		return "", fmt.Sprintf("commit subject must match '[<INT|SUB-N>] <feat|perf|fix|docs|chore|refactor|test>(<scope>): <summary>': %q", firstLine)
+	}
+	if euphemisticBuzzwordRe.MatchString(firstLine) {
+		return "", fmt.Sprintf("commit subject contains marketing euphemism in %q; use engineering framing: Parity (feat), Throughput (perf), Hardening/Calibration (refactor), or Defect (fix)", firstLine)
 	}
 	if n := utf8.RuneCountInString(firstLine); n > maxSubjectLineRunes {
 		return "", fmt.Sprintf("commit subject exceeds %d-rune ceiling (%d runes); target <= 80 runes: %q", maxSubjectLineRunes, n, firstLine)

@@ -5,6 +5,7 @@ package handshake
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -166,12 +167,14 @@ func computeActiveTaskImpact(treeRoot, activeTask string) ([]string, []string) {
 	return modified, verify.ComputeWorkspaceImpact(treeRoot, modified)
 }
 
+var scopePathHintRe = regexp.MustCompile(`[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)+\.[a-zA-Z0-9]+`)
+
 func recallMnemeHandshakeContext(primaryRoot, activeTask string, modifiedFiles []string) ([]string, []string, []string) {
 	var pitfalls, patterns []string
-	taskTitle := resolveActiveTaskTitle(activeTask)
+	taskTitle, scopeHints := resolveActiveTaskContext(activeTask)
 	if strings.TrimSpace(activeTask) == "" || len(modifiedFiles) == 0 {
-		pitfalls = mem.RecallRepoPitfallsReadOnly(primaryRoot, modifiedFiles, 3)
-		patterns = mem.RecallRepoPatternsReadOnly(primaryRoot, taskTitle, modifiedFiles, 3)
+		pitfalls = mem.RecallRepoPitfallsReadOnly(primaryRoot, scopeHints, 3)
+		patterns = mem.RecallRepoPatternsReadOnly(primaryRoot, taskTitle, scopeHints, 3)
 	} else {
 		pitfalls = mem.RecallRepoPitfallsForTask(primaryRoot, activeTask, modifiedFiles, 3)
 		patterns = mem.RecallRepoPatternsForTask(primaryRoot, activeTask, taskTitle, modifiedFiles, 3)
@@ -180,13 +183,13 @@ func recallMnemeHandshakeContext(primaryRoot, activeTask string, modifiedFiles [
 	return pitfalls, patterns, graduations
 }
 
-func resolveActiveTaskTitle(activeTask string) string {
+func resolveActiveTaskContext(activeTask string) (string, []string) {
 	if strings.TrimSpace(activeTask) == "" {
-		return ""
+		return "", nil
 	}
 	store, err := task.NewDefaultSQLiteTaskStore()
 	if err != nil {
-		return ""
+		return "", nil
 	}
 	defer func() {
 		if cErr := store.Close(); cErr != nil {
@@ -194,9 +197,10 @@ func resolveActiveTaskTitle(activeTask string) string {
 		}
 	}()
 	if rec, tErr := store.GetTask(activeTask); tErr == nil && rec != nil {
-		return rec.Title
+		hints := scopePathHintRe.FindAllString(rec.Title+"\n"+rec.Description, 8)
+		return rec.Title, hints
 	}
-	return ""
+	return "", nil
 }
 
 func detectBranchAndTask(repoRoot string) (string, string) {
@@ -230,17 +234,11 @@ func checkDatabasesHealth() bool {
 	}
 
 	brainDB := config.ResolveMnemeDBPath()
-	db2, err := storage.OpenDB(brainDB)
+	memStore, err := mem.NewStore(brainDB)
 	if err != nil {
 		return false
 	}
-	if pErr := db2.Ping(); pErr != nil {
-		if cErr := db2.Close(); cErr != nil {
-			// closed
-		}
-		return false
-	}
-	if cErr := db2.Close(); cErr != nil {
+	if cErr := memStore.Close(); cErr != nil {
 		// closed
 	}
 	return true

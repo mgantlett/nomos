@@ -49,6 +49,28 @@ Task: SUB-1698`,
 			wantPassed: true,
 		},
 		{
+			name: "valid perf golden commit for throughput and cache alignment",
+			msg: `[SUB-2177] perf(verify): memoize workspace config and diff state across gates
+
+Cache parsed ecosystem configuration and modified worktree paths on VerifyContext to avoid redundant subprocess forks.
+
+___
+
+Task: SUB-2177`,
+			wantPassed: true,
+		},
+		{
+			name: "euphemistic self-healing buzzword in commit subject rejected",
+			msg: `[SUB-2177] refactor(hooks): add self-healing loop guard recovery
+
+Anchor loop tracking state to the canonical worktree root directory.
+
+___
+
+Task: SUB-2177`,
+			wantPassed: false,
+		},
+		{
 			name: "missing leading [KEY] prefix rejected",
 			msg: `feat(core): implement feature
 

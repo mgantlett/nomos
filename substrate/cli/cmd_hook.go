@@ -255,5 +255,6 @@ func formatPlainHandshakeBanner(ev *handshake.HandshakeEvent) string {
 	if len(ev.ReadyWavefront) > 0 {
 		b.WriteString(fmt.Sprintf("  Ready Wavefront   : [%s]\n", strings.Join(ev.ReadyWavefront, ", ")))
 	}
+	appendPlainTurnZeroTelemetry(&b, ev)
 	return b.String()
 }

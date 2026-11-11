@@ -49,3 +49,24 @@ func TestPlainHandshakeBanner_BrownfieldTopology(t *testing.T) {
 		}
 	}
 }
+
+func TestPlainHandshakeBanner_TurnZeroTelemetryInjection(t *testing.T) {
+	ev := &handshake.HandshakeEvent{
+		Seat:             "workstation-local",
+		Repository:       "nomos",
+		Phase:            types.PhaseEdit,
+		ActiveTask:       "SUB-2177",
+		GateCount:        42,
+		StrictMode:       true,
+		ImpactSummary:    []string{"substrate/cli/cmd_hook.go -> paired test: cmd_hook_test.go"},
+		LearnedPitfalls:  []string{"[Dead-End in substrate/cli] Rolled back un-merged edit"},
+		VerifiedPatterns: []string{"[Pattern in substrate/cli] symbols=[formatPlainHandshakeBanner]"},
+		NextActions:      []types.ActionAffordance{{Command: "nomos verify", Summary: "Evaluate 42 gates"}},
+	}
+	out := formatPlainHandshakeBanner(ev)
+	for _, needle := range []string{"AST Impact", "Learned Pitfalls", "[Dead-End in substrate/cli]", "Verified Patterns", "nomos verify"} {
+		if !strings.Contains(out, needle) {
+			t.Fatalf("expected Turn-0 prefix telemetry %q in banner, got:\n%s", needle, out)
+		}
+	}
+}

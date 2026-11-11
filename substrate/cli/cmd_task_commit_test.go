@@ -114,6 +114,20 @@ func TestNormalizeCommitSubject_DeduplicationCasingAnd80RuneBudget(t *testing.T)
 			stagedFiles: []string{"substrate/src/nomos/modules/verify/gates_standard.go"},
 			want:        "feat(verify): implement comprehensive multi-stage cryptographic...",
 		},
+		{
+			name:        "preserves perf commit type and infers perf/refactor from engineering verbs",
+			taskKey:     "SUB-2177",
+			raw:         "Memoize workspace diff state across verification gates",
+			stagedFiles: []string{"substrate/src/nomos/modules/verify/gate.go"},
+			want:        "perf(verify): memoize workspace diff state across verification gates",
+		},
+		{
+			name:        "maps harden verb to refactor for invariant hardening",
+			taskKey:     "SUB-2178",
+			raw:         "Harden flow taint clearance across pre-tool hooks",
+			stagedFiles: []string{"substrate/src/nomos/core/capbac/flow.go"},
+			want:        "refactor(capbac): harden flow taint clearance across pre-tool hooks",
+		},
 	}
 
 	for _, tc := range cases {

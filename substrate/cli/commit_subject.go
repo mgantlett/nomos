@@ -16,6 +16,7 @@ const (
 	targetSubjectLineRunes = 80
 	minSummaryDescRunes    = 24
 	commitTypeFeat         = "feat"
+	commitTypePerf         = "perf"
 	commitTypeFix          = "fix"
 	commitTypeDocs         = "docs"
 	commitTypeChore        = "chore"
@@ -31,6 +32,7 @@ var (
 
 var canonicalCommitTypes = map[string]string{
 	commitTypeFeat:     commitTypeFeat,
+	commitTypePerf:     commitTypePerf,
 	commitTypeFix:      commitTypeFix,
 	commitTypeDocs:     commitTypeDocs,
 	"doc":              commitTypeDocs,
@@ -40,7 +42,6 @@ var canonicalCommitTypes = map[string]string{
 	"ci":               commitTypeChore,
 	"release":          commitTypeChore,
 	commitTypeRefactor: commitTypeRefactor,
-	"perf":             commitTypeRefactor,
 	"style":            commitTypeRefactor,
 	commitTypeTest:     commitTypeTest,
 	"tests":            commitTypeTest,
@@ -50,9 +51,14 @@ var verbToCommitType = map[string]string{
 	commitTypeFix: commitTypeFix, "fixes": commitTypeFix, "fixed": commitTypeFix, "repair": commitTypeFix,
 	"resolve": commitTypeFix, "bugfix": commitTypeFix, "hotfix": commitTypeFix, "patch": commitTypeFix,
 	"preserve": commitTypeFix, "prevent": commitTypeFix, "restore": commitTypeFix,
+	commitTypePerf: commitTypePerf, "memoize": commitTypePerf, "optimize": commitTypePerf, "cache": commitTypePerf,
+	"accelerate": commitTypePerf, "streamline": commitTypePerf, "batch": commitTypePerf,
 	commitTypeRefactor: commitTypeRefactor, "extract": commitTypeRefactor, "deduplicate": commitTypeRefactor,
 	"dedup": commitTypeRefactor, "split": commitTypeRefactor, "consolidate": commitTypeRefactor,
 	"unify": commitTypeRefactor, "simplify": commitTypeRefactor, "evolve": commitTypeRefactor,
+	"harden": commitTypeRefactor, "tighten": commitTypeRefactor, "bound": commitTypeRefactor,
+	"calibrate": commitTypeRefactor, "normalize": commitTypeRefactor, "align": commitTypeRefactor,
+	"enforce": commitTypeRefactor, "guard": commitTypeRefactor, "isolate": commitTypeRefactor, "sanitize": commitTypeRefactor,
 	commitTypeTest: commitTypeTest, "tests": commitTypeTest,
 	commitTypeChore: commitTypeChore, "prune": commitTypeChore, "remove": commitTypeChore,
 	"delete": commitTypeChore, "bump": commitTypeChore, "clean": commitTypeChore, "sweep": commitTypeChore,

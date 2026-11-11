@@ -43,6 +43,8 @@ func TestSynthesizeBrownfieldTopology_PolyglotRepo(t *testing.T) {
 	mustWrite("typings/index.test-d.ts", strings.Repeat("export type T = string;\n", 200))
 	mustWrite("internal/toml-test/runner.py", bigParser.String())
 	mustWrite("generated/proto_dump.py", bigParser.String())
+	mustWrite("membrane/static/sandbox/assets/three.module-DZxcwB5I.js", strings.Repeat("export const x = 1;\n", 400))
+	mustWrite("lib/vendor.min.js", strings.Repeat("function a(){return 1}\n", 400))
 
 	cfg := &config.EcosystemConfig{
 		Governance: config.GovernanceConfig{

@@ -76,6 +76,16 @@ nomos task commit <KEY> -m "<type(scope): summary>" --rationale "<Why>" --mechan
 ```
 *Effect:* Generates a machine-verifiable Golden Conventional Commit (`[<KEY>] <type>(<scope>): <summary>`, flowing CommonMark rationale prose, zero redundant file dumps, `___` visual divider, and RFC 822 `Task:`/`Twin:` Git trailers) enforced by `CommitSchemaGate`, injects short-lived CapBAC commit token, and executes git commit.
 
+#### Commit Framing & Single-Concern Sizing
+Ship focused single-concern commits (`150-300 LOC`). Frame subjects using engineering categories rather than buzzwords (`self-healing` is rejected by `CommitSchemaGate`) or walls of alarmist `fix` labels:
+
+| Category | Commit Type | Canonical Verbs |
+| :--- | :---: | :--- |
+| **Harness & Model Parity** | `feat` | `add`, `implement`, `wire`, `support` |
+| **Throughput & Cache Alignment** | `perf` | `memoize`, `optimize`, `cache`, `streamline` |
+| **Invariant Hardening & Calibration** | `refactor` | `harden`, `tighten`, `calibrate`, `normalize`, `align` |
+| **Surgical Defect Resolution** | `fix` | `fix`, `resolve`, `repair`, `restore` |
+
 ### Step 5: 2PC Atomic Release (`nomos task sync`)
 From the repository root (outside the worktree):
 ```bash

@@ -5,14 +5,18 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
+
+var bundledAssetHashRe = regexp.MustCompile(`-[A-Za-z0-9_-]{8}\.(?:js|mjs|cjs)$`)
 
 var skippedTopologyDirs = map[string]bool{
 	".git": true, ".hg": true, ".svn": true, ".tmp": true,
 	"worktrees": true, "node_modules": true, "vendor": true,
 	".venv": true, "venv": true, "env": true, "__pycache__": true,
 	"dist": true, "build": true, "out": true, "target": true,
+	"static": true, "public": true, "assets": true, "generated": true, "bundles": true,
 	"coverage": true, "testdata": true, ".agents": true, ".opencode": true,
 }
 
@@ -48,37 +52,47 @@ func isDedicatedTestDir(name string) bool {
 	return dedicatedTestDirs[strings.ToLower(name)]
 }
 
+// isBundledOrMinifiedAsset returns true for minified or content-hashed JS artifacts.
+func isBundledOrMinifiedAsset(name string) bool {
+	lower := strings.ToLower(name)
+	if strings.HasSuffix(lower, ".min.js") || strings.HasSuffix(lower, ".min.mjs") || strings.HasSuffix(lower, ".bundle.js") {
+		return true
+	}
+	return bundledAssetHashRe.MatchString(name)
+}
+
+// topologyLanguageByExt maps canonical source file extensions to brownfield language keys.
+var topologyLanguageByExt = map[string]string{
+	".go":     "go",
+	".py":     "python",
+	".ts":     "typescript",
+	".tsx":    "typescript",
+	".js":     "javascript",
+	".jsx":    "javascript",
+	".mjs":    "javascript",
+	".cjs":    "javascript",
+	".svelte": "svelte",
+	".rs":     "rust",
+	".rb":     "ruby",
+	".c":      "cpp",
+	".cc":     "cpp",
+	".cpp":    "cpp",
+	".cxx":    "cpp",
+	".h":      "cpp",
+	".hpp":    "cpp",
+	".java":   "java",
+	".kt":     "kotlin",
+	".kts":    "kotlin",
+	".cs":     "csharp",
+}
+
+// classifyTopologyLanguage resolves the source language for a file name, excluding generated bundles and type declarations.
 func classifyTopologyLanguage(name string) string {
 	lower := strings.ToLower(name)
-	if strings.HasSuffix(lower, ".d.ts") || strings.HasSuffix(lower, ".test-d.ts") {
+	if strings.HasSuffix(lower, ".d.ts") || strings.HasSuffix(lower, ".test-d.ts") || isBundledOrMinifiedAsset(name) {
 		return ""
 	}
-	switch filepath.Ext(lower) {
-	case ".go":
-		return "go"
-	case ".py":
-		return "python"
-	case ".ts", ".tsx":
-		return "typescript"
-	case ".js", ".jsx", ".mjs", ".cjs":
-		return "javascript"
-	case ".svelte":
-		return "svelte"
-	case ".rs":
-		return "rust"
-	case ".rb":
-		return "ruby"
-	case ".c", ".cc", ".cpp", ".cxx", ".h", ".hpp":
-		return "cpp"
-	case ".java":
-		return "java"
-	case ".kt", ".kts":
-		return "kotlin"
-	case ".cs":
-		return "csharp"
-	default:
-		return ""
-	}
+	return topologyLanguageByExt[filepath.Ext(lower)]
 }
 
 func isTopologyTestFile(slashRel, name string) bool {
