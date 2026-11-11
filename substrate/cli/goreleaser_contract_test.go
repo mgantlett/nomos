@@ -228,6 +228,12 @@ func TestReleaseNotesHybridLedgerAndFailClosed(t *testing.T) {
 	}
 	assertOrderedSubstrings(t, v4131Notes, "> Zero-Ceremony Multi-Agent Onboarding Invisibility", "## Changelog", "[SUB-2133]", "compare/v4.13.0...v4.13.1", "<details>", "Included <code>v4.13.0</code> Milestone Features")
 
+	v414Notes, v414Err := runRenderReleaseNotes(t, repoRoot, "v4.14.0")
+	if v414Err != nil {
+		t.Fatalf("render v4.14.0 release notes failed: %v (%s)", v414Err, v414Notes)
+	}
+	assertOrderedSubstrings(t, v414Notes, "> 5-Provider Ambient Lifecycle Parity", "## Changelog", "[SUB-2188]", "compare/v4.13.2...v4.14.0", "<details>", "brew install --cask mgantlett/tap/nomos")
+
 	genesisNotes, gErr := runRenderReleaseNotes(t, repoRoot, "v4.0.0")
 	if gErr != nil {
 		t.Fatalf("render v4.0.0 release notes failed: %v (%s)", gErr, genesisNotes)
