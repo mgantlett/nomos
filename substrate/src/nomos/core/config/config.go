@@ -252,14 +252,35 @@ func LoadConfig(path string) (*EcosystemConfig, error) {
 	return cfg, nil
 }
 
+type strictEcosystemEnvelope struct {
+	*EcosystemConfig `yaml:",inline"`
+	Extensions       map[string]any `yaml:",inline"`
+}
+
+var misplacedRootConfigKeys = map[string]bool{
+	"boundary":      true,
+	"contracts":     true,
+	"defaultBranch": true,
+	"governence":    true,
+	"quality_gates": true,
+	"strict_mode":   true,
+	"thresholds":    true,
+}
+
 func decodeConfigYAMLStrict(data []byte, cfg *EcosystemConfig) error {
 	if len(bytes.TrimSpace(data)) == 0 {
 		return nil
 	}
+	env := strictEcosystemEnvelope{EcosystemConfig: cfg}
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	dec.KnownFields(true)
-	if err := dec.Decode(cfg); err != nil && !errors.Is(err, io.EOF) {
+	if err := dec.Decode(&env); err != nil && !errors.Is(err, io.EOF) {
 		return err
+	}
+	for k := range env.Extensions {
+		if misplacedRootConfigKeys[k] {
+			return fmt.Errorf("field %s is mis-nested or misspelled at nomos.yaml root", k)
+		}
 	}
 	return nil
 }

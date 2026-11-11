@@ -98,6 +98,24 @@ func TestLoadConfigRejectsUnknownKeysAndDisambiguatesContractsDescriptions(t *te
 		t.Fatalf("expected KnownFields(true) to reject mis-nested quality_gates.contracts.enabled")
 	}
 
+	misplacedRoot := filepath.Join(tmpDir, "misplaced-root.yaml")
+	if err := os.WriteFile(misplacedRoot, []byte("project: demo\nquality_gates:\n  strict_mode: true\n"), 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	if _, err := LoadConfig(misplacedRoot); err == nil {
+		t.Fatalf("expected root-level quality_gates mis-indentation to fail closed")
+	}
+
+	composedYAML := filepath.Join(tmpDir, "composed.yaml")
+	extBody := "project: demo\ndefault_branch: main\ngovernance:\n  boundary:\n    enforce: true\nplugins:\n  analytics:\n    enabled: true\n"
+	if err := os.WriteFile(composedYAML, []byte(extBody), 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	loadedComposed, err := LoadConfig(composedYAML)
+	if err != nil || loadedComposed.Project != "demo" || !loadedComposed.Governance.QualityGates.StrictMode {
+		t.Fatalf("expected inline plugin extension block to coexist with strict governance defaults, got cfg=%+v err=%v", loadedComposed, err)
+	}
+
 	commentOnly := filepath.Join(tmpDir, "comments.yaml")
 	if err := os.WriteFile(commentOnly, []byte("# comment only\n"), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
