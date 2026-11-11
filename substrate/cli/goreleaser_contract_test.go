@@ -122,8 +122,11 @@ func TestGoReleaserV2StrictSchemaAndEnvSafety(t *testing.T) {
 		t.Fatalf("expected at least 1 AUR target in .goreleaser.yaml")
 	}
 	for _, aur := range cfg.AURs {
-		if strings.Contains(aur.PrivateKey, ".Env.") || strings.Contains(aur.SkipUpload, ".Env.") {
-			t.Fatalf("AUR target %s uses unguarded .Env.<KEY> lookup (use index .Env \"KEY\" to avoid missingkey errors)", aur.Name)
+		if strings.TrimSpace(aur.PrivateKey) != "{{ .Env.AUR_KEY }}" {
+			t.Fatalf("AUR target %s private_key must use GoReleaser v2.20+ {{ .Env.AUR_KEY }}, got %q", aur.Name, aur.PrivateKey)
+		}
+		if !strings.Contains(aur.SkipUpload, `index .Env "AUR_KEY"`) || strings.Contains(aur.SkipUpload, ".Env.") {
+			t.Fatalf("AUR target %s skip_upload uses unguarded .Env.<KEY> lookup (use index .Env \"KEY\" to avoid missingkey errors)", aur.Name)
 		}
 	}
 

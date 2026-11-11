@@ -79,12 +79,13 @@ func assertCanonicalNomosCask(t *testing.T, casks []strictGoReleaserHomebrewCask
 	if cask.Repository.Owner != "mgantlett" || cask.Repository.Name != "homebrew-tap" || cask.Repository.Branch != "main" {
 		t.Fatalf("expected mgantlett/homebrew-tap@main repository target, got %+v", cask.Repository)
 	}
+	const wantSecretToken = "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
 	const wantEnvGuard = `index .Env "HOMEBREW_TAP_GITHUB_TOKEN"`
-	if !strings.Contains(cask.Repository.Token, wantEnvGuard) || !strings.Contains(cask.SkipUpload, wantEnvGuard) {
-		t.Fatalf("expected guarded %s in token and skip_upload, got token=%q skip_upload=%q", wantEnvGuard, cask.Repository.Token, cask.SkipUpload)
+	if strings.TrimSpace(cask.Repository.Token) != wantSecretToken {
+		t.Fatalf("expected GoReleaser v2.20+ secret token %q, got %q", wantSecretToken, cask.Repository.Token)
 	}
-	if strings.Contains(cask.Repository.Token, ".Env.") || strings.Contains(cask.SkipUpload, ".Env.") {
-		t.Fatalf("homebrew_casks target %s uses unguarded .Env.<KEY> lookup", cask.Name)
+	if !strings.Contains(cask.SkipUpload, wantEnvGuard) || strings.Contains(cask.SkipUpload, ".Env.") {
+		t.Fatalf("expected guarded %s in skip_upload (without unguarded .Env.<KEY>), got %q", wantEnvGuard, cask.SkipUpload)
 	}
 	if !strings.Contains(cask.Hooks.Post.InstallSteps, "on_macos do") || !strings.Contains(cask.Hooks.Post.InstallSteps, "com.apple.quarantine") {
 		t.Fatalf("expected macOS Gatekeeper quarantine clearing in hooks.post.install_steps, got %q", cask.Hooks.Post.InstallSteps)
