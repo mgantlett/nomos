@@ -92,3 +92,51 @@ func TestExtractNomosBinary_ZipAndAtomicReplace(t *testing.T) {
 	}
 }
 
+func TestUpdateCmd_OfflineFileURLContainerFixture(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX file:// container fixture")
+	}
+	fixtureDir := t.TempDir()
+	assetName, err := cli.FormatReleaseAssetName(runtime.GOOS, runtime.GOARCH)
+	if err != nil {
+		t.Fatalf("FormatReleaseAssetName: %v", err)
+	}
+	wantBin := []byte("#!/bin/sh\necho container-nomos-v99.6.0\n")
+	archiveBytes, sumHex := buildTestTarGzArchive(t, "nomos", wantBin)
+
+	apiFile := filepath.Join(fixtureDir, "latest.json")
+	dlDir := filepath.Join(fixtureDir, "dl", "v99.6.0")
+	if mErr := os.MkdirAll(dlDir, 0755); mErr != nil {
+		t.Fatalf("MkdirAll: %v", mErr)
+	}
+	if wErr := os.WriteFile(apiFile, []byte(`{"tag_name":"v99.6.0"}`), 0644); wErr != nil {
+		t.Fatalf("WriteFile latest.json: %v", wErr)
+	}
+	if wErr := os.WriteFile(filepath.Join(dlDir, assetName), archiveBytes, 0644); wErr != nil {
+		t.Fatalf("WriteFile archive: %v", wErr)
+	}
+	if wErr := os.WriteFile(filepath.Join(dlDir, "checksums.txt"), []byte(sumHex+"  "+assetName+"\n"), 0644); wErr != nil {
+		t.Fatalf("WriteFile checksums: %v", wErr)
+	}
+
+	binPath := filepath.Join(t.TempDir(), "nomos")
+	if wErr := os.WriteFile(binPath, []byte("old"), 0755); wErr != nil {
+		t.Fatalf("WriteFile bin: %v", wErr)
+	}
+	t.Setenv(constants.EnvNomosHome, t.TempDir())
+	t.Setenv(constants.EnvNomosBinaryPath, binPath)
+	t.Setenv(constants.EnvNomosUpdateAPIURL, "file://"+filepath.ToSlash(apiFile))
+	t.Setenv(constants.EnvNomosUpdateBaseURL, "file://"+filepath.ToSlash(filepath.Join(fixtureDir, "dl")))
+
+	root := cli.NewRootCmd()
+	root.SetOut(new(bytes.Buffer))
+	root.SetArgs([]string{"update"})
+	if exErr := root.Execute(); exErr != nil {
+		t.Fatalf("offline file:// nomos update failed: %v", exErr)
+	}
+	got, rErr := os.ReadFile(binPath)
+	if rErr != nil || !bytes.Equal(got, wantBin) {
+		t.Fatalf("expected offline file:// binary replacement")
+	}
+}
+

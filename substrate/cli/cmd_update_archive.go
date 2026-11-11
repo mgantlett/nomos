@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -95,8 +96,11 @@ func downloadVerifyAndReplaceBinary(ctx context.Context, tag, binaryPath string)
 	return sum, nil
 }
 
-func fetchBoundedBytes(ctx context.Context, url string, maxBytes int64) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+func fetchBoundedBytes(ctx context.Context, rawURL string, maxBytes int64) ([]byte, error) {
+	if strings.HasPrefix(rawURL, "file://") {
+		return readBoundedFileURL(rawURL, maxBytes)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +118,23 @@ func fetchBoundedBytes(ctx context.Context, url string, maxBytes int64) ([]byte,
 		return nil, fmt.Errorf("unexpected HTTP status %d", resp.StatusCode)
 	}
 	return io.ReadAll(io.LimitReader(resp.Body, maxBytes))
+}
+
+func readBoundedFileURL(rawURL string, maxBytes int64) ([]byte, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Scheme != "file" || parsed.Path == "" {
+		return nil, fmt.Errorf("invalid file URL %q", rawURL)
+	}
+	f, err := os.Open(filepath.FromSlash(parsed.Path))
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if cErr := f.Close(); cErr != nil {
+			// local fixture closed
+		}
+	}()
+	return io.ReadAll(io.LimitReader(f, maxBytes))
 }
 
 // VerifyArchiveChecksum validates archiveBytes against checksums.txt and returns the hex SHA-256 digest.
