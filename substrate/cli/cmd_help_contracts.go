@@ -70,9 +70,10 @@ nomos verify executes, and block container-sandbox exits with syntax or verifier
   echo '{"hook_event_name":"AfterAgent","cwd":"/app"}' | nomos hook stop --container-sandbox`
 
 	helpHookInstallLong = `Additively install or merge Nomos lifecycle hooks (SessionStart, PreToolUse,
-PostToolUse, and Stop/AfterAgent) for Claude Code, Gemini CLI, and OpenCode into
-project-scoped or user-scoped configuration manifests without clobbering existing hooks.`
+PostToolUse, and Stop/AfterAgent) across Claude Code, Gemini CLI, OpenCode, Cursor,
+and Antigravity into project-scoped or user-scoped manifests without clobbering existing hooks.`
 	helpHookInstallExample = `  nomos hook install --claude --user
+  nomos hook install --cursor --antigravity --dir ./my-service
   nomos hook install --gemini --opencode --dir ./my-service`
 
 	helpDirectiveExample = `  nomos directive

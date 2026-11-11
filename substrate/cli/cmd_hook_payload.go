@@ -27,6 +27,7 @@ type HookPayload struct {
 	StopHookActive     bool
 	IsClaudeEvent      bool
 	IsGeminiEvent      bool
+	IsCursorEvent      bool
 	IsAntigravityEvent bool
 	IsPostInvoke       bool
 }
@@ -72,6 +73,7 @@ func parseHookPayload(raw []byte) *HookPayload {
 		extractStringField(m, "conversation_id"),
 	)
 	p.IsAntigravityEvent = isAntigravityHookEnvelope(m)
+	p.IsCursorEvent = isCursorHookEnvelope(m)
 	_, p.IsPostInvoke = m["invocationNum"]
 	p.TerminationReason = extractStringField(m, "terminationReason")
 	p.Cwd = extractEffectiveCwd(m)
@@ -82,8 +84,9 @@ func parseHookPayload(raw []byte) *HookPayload {
 		extractStringField(m, "toolName"),
 		extractStringField(m, "tool"),
 	)
+	eventName := extractStringField(m, "hook_event_name")
 	p.IsClaudeEvent, p.IsGeminiEvent = classifyHookEventFamily(
-		extractStringField(m, "hook_event_name"),
+		eventName,
 		p.ToolName,
 		p.HasToolInput,
 		hasSessionID,
@@ -99,6 +102,7 @@ func parseHookPayload(raw []byte) *HookPayload {
 	p.CommandLine = extractCommandField(m)
 	p.ArgsDigest = extractArgsDigestField(m)
 	p.ToolResponseText = extractToolResponseText(m)
+	normalizeCursorPayload(p, m, eventName)
 	return p
 }
 
@@ -163,6 +167,8 @@ func extractTargetFileField(m map[string]any) string {
 		extractNestedString(m, hookFieldArgs, hookFieldFilePathCamel),
 		extractNestedString(m, hookFieldArgs, hookFieldDirPath),
 		extractNestedString(m, hookFieldArgs, hookFieldPath),
+		extractStringField(m, hookFieldFilePath),
+		extractStringField(m, hookFieldFilePathCamel),
 		extractPatchTargetFile(m),
 	)
 }
@@ -196,6 +202,7 @@ func extractCommandField(m map[string]any) string {
 		extractDeepString(m, hookFieldToolCall, hookFieldArgs, hookFieldCommand),
 		extractNestedString(m, hookFieldToolInput, hookFieldCommand),
 		extractNestedString(m, hookFieldArgs, hookFieldCommand),
+		extractStringField(m, hookFieldCommand),
 	)
 }
 
@@ -222,6 +229,7 @@ func extractWrittenContentField(m map[string]any) string {
 		extractNestedString(m, hookFieldToolInput, hookFieldPatchText),
 		extractNestedString(m, hookFieldArgs, "content"),
 		extractNestedString(m, hookFieldArgs, "new_string"),
+		extractCursorEditsContent(m),
 	)
 }
 
@@ -281,6 +289,9 @@ func firstNonEmpty(vals ...string) string {
 func resolveHookWorkspaceDir(p *HookPayload, hermeticDir string) string {
 	if hermeticDir != "" {
 		return hermeticDir
+	}
+	if p != nil && p.IsCursorEvent && p.Cwd != "" {
+		return p.Cwd
 	}
 	if len(p.WorkspacePaths) > 0 {
 		return p.WorkspacePaths[0]

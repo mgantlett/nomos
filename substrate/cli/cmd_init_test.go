@@ -224,7 +224,7 @@ func assertScaffoldedHooks(t *testing.T, dir string) {
 		t.Errorf("expected OpenCode before/after hooks in nomos.ts, got:\n%s", string(ocBody))
 	}
 
-	for _, rel := range []string{filepath.Join(".claude", "settings.json"), filepath.Join(".gemini", "settings.json")} {
+	for _, rel := range []string{filepath.Join(".claude", "settings.json"), filepath.Join(".gemini", "settings.json"), filepath.Join(".cursor", "hooks.json")} {
 		settingsBytes, sErr := os.ReadFile(filepath.Join(dir, rel))
 		if sErr != nil {
 			t.Fatalf("expected %s to exist after executeInit: %v", rel, sErr)

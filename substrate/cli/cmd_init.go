@@ -151,7 +151,7 @@ func printInitializationSummary(absDir string, isGitRepo, createdBaselineCommit 
 	fmt.Printf("  %s Scaffolded downstream configuration %s\n", check, uiCommandStyle.Render("(nomos.yaml)"))
 	fmt.Printf("  %s Scaffolded universal agent protocol %s\n", check, uiCommandStyle.Render("(AGENTS.md)"))
 	fmt.Printf("  %s Scaffolded Tier 1 agent protocol %s\n", check, uiCommandStyle.Render("(CLAUDE.md)"))
-	fmt.Printf("  %s Scaffolded ambient session & defense hooks %s\n", check, uiMutedStyle.Render("(Claude Code, Gemini CLI, OpenCode, Antigravity)"))
+	fmt.Printf("  %s Scaffolded ambient session & defense hooks %s\n", check, uiMutedStyle.Render("(Claude Code, Gemini CLI, OpenCode, Cursor, Antigravity)"))
 	if createdBaselineCommit {
 		fmt.Printf("  %s Created initial baseline commit on %s\n", check, uiBoldValueStyle.Render(defaultBranch))
 	}
@@ -264,7 +264,7 @@ func pruneLegacyWorkflows(dir string) {
 }
 
 func scaffoldAmbientHooks(dir string) error {
-	agentsDir := filepath.Join(dir, ".agents")
+	agentsDir := filepath.Join(dir, agentsDirToken)
 	if err := writeAmbientHookBundle(agentsDir); err != nil {
 		return err
 	}
@@ -275,6 +275,10 @@ func scaffoldAmbientHooks(dir string) error {
 	geminiSettingsPath := filepath.Join(dir, geminiDirToken, settingsFileName)
 	if gErr := writeMergedJSONManifest(geminiSettingsPath, DefaultGeminiSettingsHooksJSON()); gErr != nil {
 		return gErr
+	}
+	cursorHooksPath := filepath.Join(dir, cursorDirToken, hooksFileName)
+	if curErr := writeMergedJSONManifest(cursorHooksPath, DefaultCursorHooksJSON()); curErr != nil {
+		return curErr
 	}
 	return scaffoldOpenCodePlugin(dir)
 }

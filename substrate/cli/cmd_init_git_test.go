@@ -55,7 +55,7 @@ func TestStageAndCommitGovernanceOnly_PreservesPreStagedUserIndex(t *testing.T) 
 			if strings.Contains(headStat, "wip_feature.go") {
 				t.Fatalf("expected pre-staged wip_feature.go NOT to be swept into baseline init commit, got HEAD files:\n%s", headStat)
 			}
-			for _, gov := range []string{"nomos.yaml", "AGENTS.md", "CLAUDE.md", ".claude/settings.json", ".gemini/settings.json", ".opencode/plugins/nomos.ts"} {
+			for _, gov := range []string{"nomos.yaml", "AGENTS.md", "CLAUDE.md", filepath.Join(claudeDirToken, settingsFileName), filepath.Join(geminiDirToken, settingsFileName), filepath.Join(cursorDirToken, hooksFileName), filepath.Join(openCodeDirToken, "plugins", "nomos.ts")} {
 				if !strings.Contains(headStat, gov) {
 					t.Errorf("expected %s committed in baseline governance commit, got:\n%s", gov, headStat)
 				}

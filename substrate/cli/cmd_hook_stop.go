@@ -54,6 +54,9 @@ func newHookStopCmd(hermeticDir *string, containerSandbox *bool) *cobra.Command 
 					Reason:   dec.Reason,
 				})
 			}
+			if payload != nil && payload.IsCursorEvent {
+				return writeCursorStopResponse(cmd.OutOrStdout(), dec.Reason)
+			}
 			return writeHookDecision(cmd.OutOrStdout(), dec)
 		},
 	}

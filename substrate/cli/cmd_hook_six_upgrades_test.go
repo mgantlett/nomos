@@ -240,8 +240,8 @@ func TestHookInstall_UserAndProjectAdditiveMerge(t *testing.T) {
 	if err := json.Unmarshal([]byte(raw), &receipt); err != nil {
 		t.Fatalf("invalid receipt JSON %q: %v", raw, err)
 	}
-	if receipt.Scope != "user" || len(receipt.Targets) != 3 {
-		t.Fatalf("expected 3 user targets, got %+v", receipt)
+	if receipt.Scope != "user" || len(receipt.Targets) != 5 {
+		t.Fatalf("expected 5 user targets, got %+v", receipt)
 	}
 	claudeBytes, err := os.ReadFile(filepath.Join(claudeDir, "settings.json"))
 	if err != nil {

@@ -15,9 +15,10 @@ func collectGovernanceStagePaths(absDir string) []string {
 		"nomos.yaml",
 		"AGENTS.md",
 		"CLAUDE.md",
-		".agents",
+		agentsDirToken,
 		filepath.Join(claudeDirToken, settingsFileName),
 		filepath.Join(geminiDirToken, settingsFileName),
+		filepath.Join(cursorDirToken, hooksFileName),
 		filepath.Join(openCodeDirToken, "plugins", "nomos.ts"),
 	}
 	existing := make([]string, 0, len(candidates))

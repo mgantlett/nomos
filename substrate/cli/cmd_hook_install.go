@@ -39,17 +39,26 @@ type hookInstallFlags struct {
 	claude      bool
 	gemini      bool
 	opencode    bool
+	cursor      bool
 	antigravity bool
 	userScope   bool
 	targetDir   string
 	jsonOutput  bool
 }
 
+type selectedHookProviders struct {
+	claude      bool
+	gemini      bool
+	opencode    bool
+	cursor      bool
+	antigravity bool
+}
+
 func newHookInstallCmd() *cobra.Command {
 	var f hookInstallFlags
 	cmd := &cobra.Command{
 		Use:     "install",
-		Short:   "Install or additively merge Nomos lifecycle hooks for Claude Code, Gemini CLI, or OpenCode",
+		Short:   "Install or additively merge Nomos lifecycle hooks across Claude Code, Gemini CLI, OpenCode, Cursor, and Antigravity",
 		Long:    helpHookInstallLong,
 		Example: helpHookInstallExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -76,6 +85,7 @@ func newHookInstallCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.claude, "claude", false, "Install or merge Claude Code hooks (SessionStart, PreToolUse, PostToolUse, Stop)")
 	cmd.Flags().BoolVar(&f.gemini, "gemini", false, "Install or merge Gemini CLI hooks (SessionStart, BeforeTool, AfterTool, AfterAgent)")
 	cmd.Flags().BoolVar(&f.opencode, "opencode", false, "Install or merge OpenCode governance plugin (nomos.ts)")
+	cmd.Flags().BoolVar(&f.cursor, "cursor", false, "Install or merge Cursor hooks (sessionStart, preToolUse, beforeShellExecution, postToolUse, afterFileEdit, stop)")
 	cmd.Flags().BoolVar(&f.antigravity, "antigravity", false, "Install or merge Antigravity 2.0 hooks (hooks.json and scripts)")
 	cmd.Flags().BoolVar(&f.userScope, "user", false, "Install into user-global agent configuration directories instead of project scope")
 	cmd.Flags().StringVarP(&f.targetDir, "dir", "d", "", "Project directory when --user is false (defaults to current directory)")
@@ -83,23 +93,29 @@ func newHookInstallCmd() *cobra.Command {
 	return cmd
 }
 
-func resolveSelectedHookProviders(f hookInstallFlags) (bool, bool, bool) {
-	allProviders := !f.claude && !f.gemini && !f.opencode && !f.antigravity
-	return f.claude || allProviders, f.gemini || allProviders, f.opencode || allProviders
+func resolveSelectedHookProviders(f hookInstallFlags) selectedHookProviders {
+	allProviders := !f.claude && !f.gemini && !f.opencode && !f.cursor && !f.antigravity
+	return selectedHookProviders{
+		claude:      f.claude || allProviders,
+		gemini:      f.gemini || allProviders,
+		opencode:    f.opencode || allProviders,
+		cursor:      f.cursor || allProviders,
+		antigravity: f.antigravity || allProviders,
+	}
 }
 
 func executeHookInstall(f hookInstallFlags) (*HookInstallReceipt, error) {
-	wantClaude, wantGemini, wantOpenCode := resolveSelectedHookProviders(f)
+	sel := resolveSelectedHookProviders(f)
 
 	baseDir, scope, err := resolveHookInstallBase(f.userScope, f.targetDir)
 	if err != nil {
 		return nil, err
 	}
-	installed, err := installCoreHookProviders(f.userScope, baseDir, wantClaude, wantGemini, wantOpenCode)
+	installed, err := installCoreHookProviders(f.userScope, baseDir, sel)
 	if err != nil {
 		return nil, err
 	}
-	if f.antigravity {
+	if sel.antigravity {
 		p, aErr := installAntigravityHooks(f.userScope, baseDir)
 		if aErr != nil {
 			return nil, aErr
@@ -109,25 +125,32 @@ func executeHookInstall(f hookInstallFlags) (*HookInstallReceipt, error) {
 	return &HookInstallReceipt{Scope: scope, Targets: installed}, nil
 }
 
-func installCoreHookProviders(userScope bool, baseDir string, wantClaude, wantGemini, wantOpenCode bool) ([]string, error) {
+func installCoreHookProviders(userScope bool, baseDir string, sel selectedHookProviders) ([]string, error) {
 	var installed []string
-	if wantClaude {
+	if sel.claude {
 		p := resolveClaudeManifestPath(userScope, baseDir)
 		if err := writeMergedJSONManifest(p, DefaultClaudeSettingsHooksJSON()); err != nil {
 			return nil, err
 		}
 		installed = append(installed, p)
 	}
-	if wantGemini {
+	if sel.gemini {
 		p := resolveGeminiManifestPath(userScope, baseDir)
 		if err := writeMergedJSONManifest(p, DefaultGeminiSettingsHooksJSON()); err != nil {
 			return nil, err
 		}
 		installed = append(installed, p)
 	}
-	if wantOpenCode {
+	if sel.opencode {
 		p := resolveOpenCodePluginPath(userScope, baseDir)
 		if err := writeMergedOpenCodePlugin(p); err != nil {
+			return nil, err
+		}
+		installed = append(installed, p)
+	}
+	if sel.cursor {
+		p := resolveCursorManifestPath(userScope, baseDir)
+		if err := writeMergedJSONManifest(p, DefaultCursorHooksJSON()); err != nil {
 			return nil, err
 		}
 		installed = append(installed, p)
@@ -136,14 +159,14 @@ func installCoreHookProviders(userScope bool, baseDir string, wantClaude, wantGe
 }
 
 func installAntigravityHooks(userScope bool, baseDir string) (string, error) {
-	rootDir := filepath.Join(baseDir, ".agents")
+	rootDir := filepath.Join(baseDir, agentsDirToken)
 	if userScope {
 		rootDir = filepath.Join(baseDir, geminiDirToken, "config")
 	}
 	if err := writeAmbientHookBundle(rootDir); err != nil {
 		return "", err
 	}
-	return filepath.Join(rootDir, "hooks.json"), nil
+	return filepath.Join(rootDir, hooksFileName), nil
 }
 
 func resolveHookInstallBase(userScope bool, targetDir string) (string, string, error) {

@@ -86,6 +86,9 @@ func newHookSessionStartCmd(hermeticDir *string, budgetSec *int) *cobra.Command 
 			}
 
 			banner := formatPlainHandshakeBanner(ev)
+			if payload.IsCursorEvent {
+				return writeCursorSessionStartResponse(cmd.OutOrStdout(), banner)
+			}
 			return writeSessionStartInjection(cmd.OutOrStdout(), banner)
 		},
 	}
@@ -172,6 +175,9 @@ func writeEmptyJSON(w io.Writer) error {
 }
 
 func writePreToolResponse(w io.Writer, payload *HookPayload, dec HookDecision) error {
+	if payload != nil && payload.IsCursorEvent {
+		return writeCursorPreToolResponse(w, dec)
+	}
 	if payload != nil && payload.IsClaudeEvent {
 		if dec.Decision != "deny" {
 			return writeEmptyJSON(w)
@@ -222,6 +228,9 @@ func writeSessionStartInjection(w io.Writer, msg string) error {
 }
 
 func writePostToolAdvisory(w io.Writer, payload *HookPayload, msg string) error {
+	if payload != nil && payload.IsCursorEvent {
+		return writeCursorPostToolResponse(w, msg)
+	}
 	if payload != nil && payload.IsGeminiEvent {
 		return writeJSONMap(w, map[string]any{
 			"hookSpecificOutput": map[string]string{
