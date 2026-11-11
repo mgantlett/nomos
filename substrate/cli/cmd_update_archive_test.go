@@ -92,6 +92,37 @@ func TestExtractNomosBinary_ZipAndAtomicReplace(t *testing.T) {
 	}
 }
 
+// @verifies TC-UPD-006
+func TestAtomicReplaceBinaryWithBackup_WindowsOldStageAndHostProvenance(t *testing.T) {
+	dir := t.TempDir()
+	exePath := filepath.Join(dir, "nomos.exe")
+	orig := []byte("MZ-old-running-binary")
+	next := []byte("MZ-new-verified-binary")
+	if err := os.WriteFile(exePath, orig, 0755); err != nil {
+		t.Fatalf("WriteFile orig: %v", err)
+	}
+	if err := cli.AtomicReplaceBinaryWithBackup(exePath, next, true); err != nil {
+		t.Fatalf("AtomicReplaceBinaryWithBackup failed: %v", err)
+	}
+	gotNew, err := os.ReadFile(exePath)
+	if err != nil || !bytes.Equal(gotNew, next) {
+		t.Fatalf("expected updated binary at %s, got err=%v", exePath, err)
+	}
+	gotOld, oErr := os.ReadFile(exePath + ".old")
+	if oErr != nil || !bytes.Equal(gotOld, orig) {
+		t.Fatalf("expected active Windows binary staged at %s.old, got err=%v", exePath, oErr)
+	}
+
+	mArch, rArch := cli.DetectInstallMethodForHost("/usr/bin/nomos", true)
+	if mArch != "aur" || rArch != "yay -Syu nomos-bin" {
+		t.Fatalf("expected Arch /usr/bin classified as aur, got (%q, %q)", mArch, rArch)
+	}
+	mDeb, _ := cli.DetectInstallMethodForHost("/usr/bin/nomos", false)
+	if mDeb != "system" {
+		t.Fatalf("expected non-Arch /usr/bin classified as system, got %q", mDeb)
+	}
+}
+
 func TestUpdateCmd_OfflineFileURLContainerFixture(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("POSIX file:// container fixture")

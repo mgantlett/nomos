@@ -201,9 +201,9 @@ func TestSQLiteTaskStore_ProjectRoundTripAndInspection(t *testing.T) {
 	rec := TaskRecord{
 		Key:        "SUB-401",
 		Plane:      "substrate",
-		Project:    "gsi-sov",
+		Project:    "acme-api",
 		SchemaType: SchemaSubstrate,
-		Title:      "Sovereign Cockpit Feature",
+		Title:      "Downstream Storage Feature",
 		Status:     StatusTodo,
 		Tier:       Tier1,
 		Priority:   75,
@@ -216,16 +216,16 @@ func TestSQLiteTaskStore_ProjectRoundTripAndInspection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetTask failed: %v", err)
 	}
-	if got.Project != "gsi-sov" {
-		t.Fatalf("expected project 'gsi-sov', got %q", got.Project)
+	if got.Project != "acme-api" {
+		t.Fatalf("expected project 'acme-api', got %q", got.Project)
 	}
 
 	wf, err := store.GetWavefront()
 	if err != nil {
 		t.Fatalf("GetWavefront failed: %v", err)
 	}
-	if len(wf) != 1 || wf[0].Project != "gsi-sov" {
-		t.Fatalf("expected wavefront candidate project 'gsi-sov', got %+v", wf)
+	if len(wf) != 1 || wf[0].Project != "acme-api" {
+		t.Fatalf("expected wavefront candidate project 'acme-api', got %+v", wf)
 	}
 
 	got.Project = "nomos"

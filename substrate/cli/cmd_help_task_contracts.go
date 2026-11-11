@@ -48,7 +48,7 @@ worktree in EDIT phase with an active CapBAC lease and zero card boilerplate.`
   nomos task chore "Fix typo in architecture spec" --plane intent`
 
 	helpTaskProjectLong = `Assign or reconcile the repository project identifier on one or more existing
-Living Ledger task keys through canonical SQLite encapsulation (ADR-0062).`
+Living Ledger task keys through canonical SQLite encapsulation (Law 1).`
 	helpTaskProjectExample = `  nomos task project nomos SUB-101 SUB-102
   nomos task project my-service INT-40,SUB-85`
 

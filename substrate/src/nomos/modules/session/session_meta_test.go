@@ -20,12 +20,12 @@ func TestSaveAndReadSessionName(t *testing.T) {
 	}
 
 	// 2. Save session name
-	meta, err := SaveSessionName(tempBrain, sessID, "Cockpit Session Enhancements")
+	meta, err := SaveSessionName(tempBrain, sessID, "Cache Layer Refactor")
 	if err != nil {
 		t.Fatalf("SaveSessionName failed: %v", err)
 	}
-	if meta.Name != "Cockpit Session Enhancements" {
-		t.Errorf("expected name %q, got %q", "Cockpit Session Enhancements", meta.Name)
+	if meta.Name != "Cache Layer Refactor" {
+		t.Errorf("expected name %q, got %q", "Cache Layer Refactor", meta.Name)
 	}
 	if meta.ID != sessID {
 		t.Errorf("expected id %q, got %q", sessID, meta.ID)
@@ -33,8 +33,8 @@ func TestSaveAndReadSessionName(t *testing.T) {
 
 	// 3. Read back via readSessionCustomName
 	readBack := readSessionCustomName(sessDir)
-	if readBack != "Cockpit Session Enhancements" {
-		t.Errorf("expected readBack %q, got %q", "Cockpit Session Enhancements", readBack)
+	if readBack != "Cache Layer Refactor" {
+		t.Errorf("expected readBack %q, got %q", "Cache Layer Refactor", readBack)
 	}
 
 	// 4. Overwrite session name

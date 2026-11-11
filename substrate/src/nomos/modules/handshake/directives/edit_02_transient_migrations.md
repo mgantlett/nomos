@@ -51,7 +51,7 @@ graph LR
 
 1. **CapBAC Ephemeral Leases**: Mutations and file writes require a valid CapBAC capability token scoped to `(task_key, phase)`. Token budgets and allowed file paths are enforced by Substrate pre-flight hooks.
 2. **Zero-Touch Autonomy**: When running in automated modes, phase transitions execute deterministically without conversational pauses once pre-conditions are satisfied.
-3. **Database Encapsulation**: Direct mutation or querying of internal SQLite databases (`nomos_global.db`, `mneme.db`) is strictly forbidden (Rule 0.1 / ADR-0062). All interactions proceed through canonical CLI commands (`nomos task`, `nomos mem`).
+3. **Database Encapsulation**: Direct mutation or querying of internal SQLite databases (`nomos_global.db`, `mneme.db`) is strictly forbidden (Rule 0.1 / Law 1). All interactions proceed through canonical CLI commands (`nomos task`, `nomos mem`).
 
 ---
 
@@ -69,6 +69,6 @@ graph LR
 | **VEC-TRAN-01** | Write source file | `EDIT` | `worktrees/<repo>-SUB-747/main.go` | `ALLOW` | Law 3: Valid worktree mutation |
 | **VEC-TRAN-02** | Write source file | `PLAN` | `worktrees/<repo>-SUB-747/main.go` | `BLOCK` (Exit Code 1) | Law 7: Phase must be `EDIT` |
 | **VEC-TRAN-03** | Write to trunk | `EDIT` | `<repo>/src/main.go` | `BLOCK` (Exit Code 1) | Law 3: Trunk read-only lockout |
-| **VEC-TRAN-04** | Direct `sqlite3` call | Any | `nomos_global.db` | `BLOCK` (Exit Code 1) | ADR-0062 database encapsulation |
+| **VEC-TRAN-04** | Direct `sqlite3` call | Any | `nomos_global.db` | `BLOCK` (Exit Code 1) | Law 1 database encapsulation |
 | **VEC-TRAN-05** | Transition to `AUDIT` | `EDIT` | N/A | `FAIL` (Exit Code 1) | Law 6: Non-canonical phase rejected |
 

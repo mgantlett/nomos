@@ -71,11 +71,11 @@ func TestNomosLearnTrapDistillationAndRepoIsolation(t *testing.T) {
 func TestDistillTaskLearnings_ExtractsSalientFailLineAndDeduplicatesPairedGates(t *testing.T) {
 	t.Setenv("NOMOS_HOME", t.TempDir())
 	repo := filepath.Join(t.TempDir(), "gamma-service")
-	touched := []string{"substrate/pkg/cockpit/ops_test.go"}
+	touched := []string{"substrate/pkg/scheduler/ops_test.go"}
 
 	traps := []GateTrapEntry{
-		{GateName: "Go Toolchain Gate", Message: "Go compilation/test failed: --- FAIL: TestOps (0.12s)\n    ops_test.go:76: expected 1, got 0\nFAIL\tgithub.com/acme/pkg/cockpit\t0.15s"},
-		{GateName: "Statement Coverage Invariant (Law 2)", Message: "Go test coverage execution failed: --- FAIL: TestOps (0.12s)\n    ops_test.go:76: expected 1, got 0\nFAIL\tgithub.com/acme/pkg/cockpit\t0.15s"},
+		{GateName: "Go Toolchain Gate", Message: "Go compilation/test failed: --- FAIL: TestOps (0.12s)\n    ops_test.go:76: expected 1, got 0\nFAIL\tgithub.com/acme/pkg/scheduler\t0.15s"},
+		{GateName: "Statement Coverage Invariant (Law 2)", Message: "Go test coverage execution failed: --- FAIL: TestOps (0.12s)\n    ops_test.go:76: expected 1, got 0\nFAIL\tgithub.com/acme/pkg/scheduler\t0.15s"},
 	}
 	if err := RecordGateTrap(repo, "SUB-9", touched, traps); err != nil {
 		t.Fatalf("RecordGateTrap: %v", err)

@@ -29,9 +29,14 @@ const (
 	maxBinaryExtractSize   = 256 << 20 // 256 MiB
 )
 
-// ResolveLatestReleaseTag queries the latest published release tag via API JSON.
+// ResolveLatestReleaseTag queries the latest published release tag via HTTP redirect or API JSON fallback.
 // @intent task_lifecycle_cli_spec.md #UpdateCheckCache
 func ResolveLatestReleaseTag(ctx context.Context) (string, error) {
+	if strings.TrimSpace(os.Getenv(constants.EnvNomosUpdateAPIURL)) == "" {
+		if redirected, rErr := resolveLatestTagViaRedirect(ctx); rErr == nil && redirected != "" {
+			return redirected, nil
+		}
+	}
 	apiURL := resolveReleaseAPIURL()
 	body, err := fetchBoundedBytes(ctx, apiURL, 1<<20)
 	if err != nil {
@@ -44,6 +49,36 @@ func ResolveLatestReleaseTag(ctx context.Context) (string, error) {
 		return "", types.NewNomosError(types.ErrCodeSubstrate, "failed decoding release metadata JSON: %v", uErr)
 	}
 	return NormalizeReleaseTag(payload.TagName)
+}
+
+func resolveLatestTagViaRedirect(ctx context.Context) (string, error) {
+	latestURL := fmt.Sprintf("https://github.com/%s/releases/latest", resolveTargetGitHubRepo())
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, latestURL, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("User-Agent", "nomos-cli/"+RootCmdVersion)
+	noRedirect := &http.Client{
+		Timeout:       updateHTTPTimeout,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	resp, err := noRedirect.Do(req)
+	if err != nil {
+		return "", err
+	}
+	if cErr := resp.Body.Close(); cErr != nil {
+		// redirect response closed
+	}
+	loc := strings.TrimSpace(resp.Header.Get("Location"))
+	idx := strings.Index(loc, "/releases/tag/")
+	if idx < 0 {
+		return "", fmt.Errorf("missing release tag redirect location")
+	}
+	tagPart := strings.Trim(loc[idx+len("/releases/tag/"):], "/")
+	if qIdx := strings.IndexByte(tagPart, '?'); qIdx >= 0 {
+		tagPart = tagPart[:qIdx]
+	}
+	return NormalizeReleaseTag(tagPart)
 }
 
 func resolveReleaseAPIURL() string {
@@ -105,6 +140,7 @@ func fetchBoundedBytes(ctx context.Context, rawURL string, maxBytes int64) ([]by
 		return nil, err
 	}
 	req.Header.Set("User-Agent", "nomos-cli/"+RootCmdVersion)
+	attachGitHubAuthIfAvailable(req)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -118,6 +154,19 @@ func fetchBoundedBytes(ctx context.Context, rawURL string, maxBytes int64) ([]by
 		return nil, fmt.Errorf("unexpected HTTP status %d", resp.StatusCode)
 	}
 	return io.ReadAll(io.LimitReader(resp.Body, maxBytes))
+}
+
+func attachGitHubAuthIfAvailable(req *http.Request) {
+	if req == nil || req.URL == nil || !strings.EqualFold(req.URL.Hostname(), "api.github.com") {
+		return
+	}
+	tok := strings.TrimSpace(os.Getenv("GITHUB_TOKEN"))
+	if tok == "" {
+		tok = strings.TrimSpace(os.Getenv("GH_TOKEN"))
+	}
+	if tok != "" {
+		req.Header.Set("Authorization", "Bearer "+tok)
+	}
 }
 
 func readBoundedFileURL(rawURL string, maxBytes int64) ([]byte, error) {
@@ -240,6 +289,11 @@ func readBoundedEntry(r io.Reader, name string) ([]byte, error) {
 // AtomicReplaceBinary stages binBytes into a sibling temporary file and renames it atomically into targetPath.
 // @intent task_lifecycle_cli_spec.md #UpdateReport
 func AtomicReplaceBinary(targetPath string, binBytes []byte) error {
+	return AtomicReplaceBinaryWithBackup(targetPath, binBytes, runtime.GOOS == "windows")
+}
+
+// AtomicReplaceBinaryWithBackup stages binBytes and optionally moves an active targetPath aside (.old) first.
+func AtomicReplaceBinaryWithBackup(targetPath string, binBytes []byte, stageOldAside bool) error {
 	dir := filepath.Dir(targetPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return types.NewNomosError(types.ErrCodeBoundary, "failed preparing binary directory %s: %v", dir, err)
@@ -248,8 +302,24 @@ func AtomicReplaceBinary(targetPath string, binBytes []byte) error {
 	if err != nil {
 		return err
 	}
+	backupPath := ""
+	if stageOldAside {
+		if _, stErr := os.Stat(targetPath); stErr == nil {
+			backupPath = targetPath + ".old"
+			removeTempBestEffort(backupPath)
+			if bErr := os.Rename(targetPath, backupPath); bErr != nil {
+				removeTempBestEffort(tmpPath)
+				return types.NewNomosError(types.ErrCodeSubstrate, "failed staging active binary %s aside: %v", targetPath, bErr)
+			}
+		}
+	}
 	if rErr := os.Rename(tmpPath, targetPath); rErr != nil {
 		removeTempBestEffort(tmpPath)
+		if backupPath != "" {
+			if rbErr := os.Rename(backupPath, targetPath); rbErr != nil {
+				// best-effort rollback restore
+			}
+		}
 		return types.NewNomosError(types.ErrCodeSubstrate, "failed atomically replacing %s: %v", targetPath, rErr)
 	}
 	return nil

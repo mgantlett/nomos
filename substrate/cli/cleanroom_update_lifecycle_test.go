@@ -17,7 +17,7 @@ import (
 )
 
 // TestCleanroomDownstreamVectors_VerifiedUpdateNoticeAndWorkspaceSync executes the 4-probe
-// CDV-UPDATE adversarial cleanroom suite invoked by Cockpit CDV go_vectors.
+// CDV-UPDATE adversarial cleanroom verification suite.
 func TestCleanroomDownstreamVectors_VerifiedUpdateNoticeAndWorkspaceSync(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("POSIX cleanroom downstream vector suite")
@@ -33,9 +33,10 @@ func verifyCDVUpdateProvenanceQuarantine(t *testing.T) {
 	srv := startMockReleaseServer(t, "v99.7.0", "nomos_Linux_x86_64.tar.gz", []byte("x"), "00")
 	t.Setenv(constants.EnvNomosUpdateAPIURL, srv.URL+"/api/latest")
 
+	_, wantUsrBinCmd := cli.DetectInstallMethod(filepath.Join("/usr", "bin", "nomos"))
 	guards := map[string]string{
 		filepath.Join("/opt", "homebrew", "bin", "nomos"):         "brew upgrade --cask mgantlett/tap/nomos",
-		filepath.Join("/usr", "bin", "nomos"):                     "yay -Syu nomos-bin",
+		filepath.Join("/usr", "bin", "nomos"):                     wantUsrBinCmd,
 		filepath.Join("/nix", "store", "hash-nomos", "bin/nomos"): "nix profile upgrade nomos",
 	}
 	for managedPath, wantCmd := range guards {

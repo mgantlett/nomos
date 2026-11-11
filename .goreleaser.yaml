@@ -84,6 +84,8 @@ aurs:
       install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/nomos-bin/LICENSE"
       install -Dm644 "./NOTICE" "${pkgdir}/usr/share/licenses/nomos-bin/NOTICE"
       install -Dm644 "./THIRD_PARTY_NOTICES.md" "${pkgdir}/usr/share/licenses/nomos-bin/THIRD_PARTY_NOTICES.md"
+      install -Dm644 "./README.md" "${pkgdir}/usr/share/doc/nomos-bin/README.md"
+      install -Dm644 "./CHANGELOG.md" "${pkgdir}/usr/share/doc/nomos-bin/CHANGELOG.md"
 
 changelog:
   sort: asc

@@ -1,3 +1,4 @@
+// Package cli implements external nomos-plugin-* executable discovery and dispatch.
 package cli
 
 import (
@@ -11,8 +12,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// discoverPlugins scans the NOMOS_PLUGINS_ROOT for executable shims starting with "nomos-plugin-"
-// and registers them as native commands on the root.
+const (
+	externalPluginGroupID    = "plugins"
+	externalPluginGroupTitle = "External Plugins:"
+)
+
+// discoverPlugins scans the configured plugin binary root for executable shims starting
+// with "nomos-plugin-" and registers them as subcommands on the root CLI without shadowing
+// built-in substrate commands (Law 6).
 func discoverPlugins(rootCmd *cobra.Command) {
 	pluginsRoot := getPluginsRoot()
 	if pluginsRoot == "" {
@@ -21,35 +28,39 @@ func discoverPlugins(rootCmd *cobra.Command) {
 
 	entries, err := os.ReadDir(pluginsRoot)
 	if err != nil {
-		return // Silently ignore if no plugins directory exists
+		return
 	}
 
 	groupAdded := false
 	for _, entry := range entries {
-		if isValidPlugin(pluginsRoot, entry) {
-			pluginCmd := buildPluginCmd(pluginsRoot, entry.Name())
-			// Law 6 (Canonical Singularity): Never shadow or duplicate native substrate commands.
-			if existing, _, err := rootCmd.Find([]string{pluginCmd.Use}); err == nil && existing != nil && existing != rootCmd {
-				continue
-			}
-			if !groupAdded {
-				rootCmd.AddGroup(&cobra.Group{ID: "sovereign", Title: "Sovereign Commercial Plugins (ADR-0031):"})
-				groupAdded = true
-			}
-			rootCmd.AddCommand(pluginCmd)
+		if !isValidPlugin(pluginsRoot, entry) {
+			continue
 		}
+		pluginCmd := buildPluginCmd(pluginsRoot, entry.Name())
+		// Law 6 (Canonical Singularity): Never shadow or duplicate native substrate commands.
+		if existing, _, fErr := rootCmd.Find([]string{pluginCmd.Use}); fErr == nil && existing != nil && existing != rootCmd {
+			continue
+		}
+		if !groupAdded {
+			rootCmd.AddGroup(&cobra.Group{ID: externalPluginGroupID, Title: externalPluginGroupTitle})
+			groupAdded = true
+		}
+		rootCmd.AddCommand(pluginCmd)
 	}
 }
 
-// getPluginsRoot returns the configured plugin directory, or dynamically resolves to $(go env GOPATH)/bin.
-// It checks NOMOS_PLUGINS_ROOT environment variable first for explicit overrides.
-// It falls back to resolving $(go env GOPATH)/bin dynamically adhering to Law 5.
+// getPluginsRoot returns NOMOS_PLUGINS_ROOT, GOBIN, or the first $(go env GOPATH)/bin directory.
 func getPluginsRoot() string {
-	if root := os.Getenv("NOMOS_PLUGINS_ROOT"); root != "" {
+	if root := strings.TrimSpace(os.Getenv("NOMOS_PLUGINS_ROOT")); root != "" {
 		return root
 	}
-	// Zero-Hardcoded-Path Law (Law 5): Dynamic resolution only.
-	gopath := build.Default.GOPATH
+	if gobin := strings.TrimSpace(os.Getenv("GOBIN")); gobin != "" {
+		if _, err := os.Stat(gobin); err == nil {
+			return gobin
+		}
+	}
+	// Zero-Hardcoded-Path Law (Law 5): Dynamic GOPATH resolution with multi-entry SplitList support.
+	gopath := firstGoPathEntry(build.Default.GOPATH)
 	if gopath == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
@@ -60,6 +71,15 @@ func getPluginsRoot() string {
 	expectedBinDir := filepath.Join(gopath, "bin")
 	if _, err := os.Stat(expectedBinDir); err == nil {
 		return expectedBinDir
+	}
+	return ""
+}
+
+func firstGoPathEntry(raw string) string {
+	for _, entry := range filepath.SplitList(strings.TrimSpace(raw)) {
+		if trimmed := strings.TrimSpace(entry); trimmed != "" {
+			return trimmed
+		}
 	}
 	return ""
 }
@@ -86,8 +106,8 @@ func buildPluginCmd(pluginsRoot, filename string) *cobra.Command {
 
 	return &cobra.Command{
 		Use:                pluginName,
-		GroupID:            "sovereign",
-		Short:              fmt.Sprintf("Sovereign plugin: %s", pluginName),
+		GroupID:            externalPluginGroupID,
+		Short:              fmt.Sprintf("External plugin: %s", pluginName),
 		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			execCmd := exec.Command(pluginPath, args...)

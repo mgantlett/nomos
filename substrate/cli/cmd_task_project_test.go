@@ -145,7 +145,7 @@ func TestMultiRepoLedgerIsolation_ListDAGStatusAndStartGuard(t *testing.T) {
 	_ = setupTaskTestDB(t)
 
 	repoA := workspace.InitHermeticGitRepo(t)
-	if err := os.WriteFile(filepath.Join(repoA, "nomos.yaml"), []byte("version: \"1.0\"\nproject: \"alpha-svc\"\ndefault_branch: \"main\"\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(repoA, "nomos.yaml"), []byte("project: \"alpha-svc\"\ndefault_branch: \"main\"\n"), 0644); err != nil {
 		t.Fatalf("write alpha nomos.yaml: %v", err)
 	}
 

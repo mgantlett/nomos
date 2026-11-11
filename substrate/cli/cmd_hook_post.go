@@ -44,7 +44,7 @@ func evaluateCommandGuard(cmdLine, baseCwd, hermeticDir string) HookDecision {
 	if isForbiddenSQLiteCmd(cmdLine) {
 		return HookDecision{
 			Decision: hookDecisionDeny,
-			Reason:   "❌ [NOMOS INTERCEPT] Direct SQLite access prohibited (Law 1 & ADR-0062). Use canonical CLI commands: 'nomos mem recall', 'nomos mem list', or 'nomos task show'.",
+			Reason:   "❌ [NOMOS INTERCEPT] Direct SQLite access prohibited (Law 1 Database Encapsulation). Use canonical CLI commands: 'nomos mem recall', 'nomos mem list', or 'nomos task show'.",
 		}
 	}
 	if isForbiddenGitStashCmd(cmdLine) {

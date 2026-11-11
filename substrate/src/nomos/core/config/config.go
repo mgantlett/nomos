@@ -3,7 +3,10 @@
 package config
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -242,11 +245,23 @@ func LoadConfig(path string) (*EcosystemConfig, error) {
 	}
 
 	cfg := DefaultNomosConfig()
-	if err := yaml.Unmarshal(data, cfg); err != nil {
+	if err := decodeConfigYAMLStrict(data, cfg); err != nil {
 		return nil, fmt.Errorf("failed parsing config yaml: %w", err)
 	}
 	cfg.Governance.QualityGates.HasForbiddenLiteralsOverride = hasExplicitForbiddenLiteralsKey(data)
 	return cfg, nil
+}
+
+func decodeConfigYAMLStrict(data []byte, cfg *EcosystemConfig) error {
+	if len(bytes.TrimSpace(data)) == 0 {
+		return nil
+	}
+	dec := yaml.NewDecoder(bytes.NewReader(data))
+	dec.KnownFields(true)
+	if err := dec.Decode(cfg); err != nil && !errors.Is(err, io.EOF) {
+		return err
+	}
+	return nil
 }
 
 func resolveLoadTarget(path string) (string, bool, error) {

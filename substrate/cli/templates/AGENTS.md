@@ -32,7 +32,7 @@
    - `nomos capabilities` / `nomos capabilities <id>` — Inspect active quality gates, ambient hooks, directives, and CLI engines.
    - `nomos verify --impact` — Inspect deterministic 1-hop AST blast radius for modified worktree files.
 4. **Pure 2-Plane Singularity:** All tasks strictly use keys `INT-<N>` (intent/config plane) or `SUB-<N>` (code/substrate plane). Cross-plane mutations in a single task fail closed (`PlaneSeparationGate`).
-5. **Database Encapsulation:** Tier 1 agents are strictly prohibited from directly querying or mutating internal database files. Use canonical CLI commands (`nomos task`, `nomos mem`) per ADR-0062.
+5. **Database Encapsulation:** Tier 1 agents are strictly prohibited from directly querying or mutating internal database files. Use canonical CLI commands (`nomos task`, `nomos mem`).
 6. **Memory Scoping:** Nomos Mneme memories are partitioned per repository (`repo_id`). Use `nomos mem recall <query>` for workspace search, `-A/--cross-repo` for cross-repo discovery, `nomos mem list [-A]` for inspection, and `nomos mem save -p <repo> <content>` for reflections.
 
 ---
@@ -43,7 +43,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | `TC-AGT-01` | Direct commit on `main` | Law 3 (Hermetic Worktree) | CapBAC Pre-Commit Hook | Fail Closed (Exit 1) |
 | `TC-AGT-02` | invalid: `nomos task create "Task" --key CUST-1` | Law 6 (Canonical Singularity) | Regex Key Gate (`task.ValidateTaskKey`) | Fail Closed (`ERR_CANONICAL_VIOLATION`) |
-| `TC-AGT-03` | Direct internal database file tampering | Law 1 & ADR-0062 (Encapsulation) | ForbiddenCommandGate | Fail Closed (`ERR_DIRECT_DB_ACCESS_FORBIDDEN`) |
+| `TC-AGT-03` | Direct internal database file tampering | Law 1 (Database Encapsulation) | ForbiddenCommandGate | Fail Closed (`ERR_DIRECT_DB_ACCESS_FORBIDDEN`) |
 | `TC-AGT-04` | Execute `nomos verify` | Law 2 (Non-Verbal Proof) | 42 Quality Gates | Pass (Exit 0) |
 | `TC-AGT-05` | Symlink creation in repository | Law 6 (Canonical Singularity) | ZeroFilesystemAliasGate | Fail Closed (`ERR_SYMLINK_FORBIDDEN`) |
 | `TC-AGT-06` | Cross-plane commit (`INT-*` modifying code roots) | Law 7 (Plane Separation) | PlaneSeparationGate | Fail Closed (`ERR_CROSS_PLANE_MUTATION`) |

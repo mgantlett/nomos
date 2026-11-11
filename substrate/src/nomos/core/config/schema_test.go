@@ -85,3 +85,38 @@ func TestWorkspaceNomosSchemaByteParity(t *testing.T) {
 		t.Fatalf("root nomos.schema.json drifted from compiled EcosystemConfig: %v", err)
 	}
 }
+
+// @verifies TC-SSOT-05
+func TestLoadConfigRejectsUnknownKeysAndDisambiguatesContractsDescriptions(t *testing.T) {
+	tmpDir := t.TempDir()
+	misnested := filepath.Join(tmpDir, "nomos.yaml")
+	badYAML := "project: demo\ndefault_branch: main\ngovernance:\n  quality_gates:\n    contracts:\n      enabled: true\n"
+	if err := os.WriteFile(misnested, []byte(badYAML), 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	if _, err := LoadConfig(misnested); err == nil {
+		t.Fatalf("expected KnownFields(true) to reject mis-nested quality_gates.contracts.enabled")
+	}
+
+	commentOnly := filepath.Join(tmpDir, "comments.yaml")
+	if err := os.WriteFile(commentOnly, []byte("# comment only\n"), 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	if _, err := LoadConfig(commentOnly); err != nil {
+		t.Fatalf("expected comment-only config to fall back to defaults cleanly: %v", err)
+	}
+
+	rawSchema, err := GenerateConfigJSONSchema()
+	if err != nil {
+		t.Fatalf("GenerateConfigJSONSchema: %v", err)
+	}
+	var root JSONSchemaNode
+	if err := json.Unmarshal(rawSchema, &root); err != nil {
+		t.Fatalf("Unmarshal schema: %v", err)
+	}
+	outer := root.Properties["governance"].Properties["quality_gates"].Properties["contracts"]
+	inner := outer.Properties["contracts"]
+	if outer == nil || inner == nil || outer.Description == "" || inner.Description == "" || outer.Description == inner.Description {
+		t.Fatalf("expected distinct outer vs inner contracts descriptions, got outer=%q inner=%q", outer.Description, inner.Description)
+	}
+}

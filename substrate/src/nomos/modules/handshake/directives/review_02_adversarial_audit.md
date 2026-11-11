@@ -30,7 +30,7 @@ version: "4.5.0"
 
 ## 1. Executive Orientation and Phase Boundary
 
-Verification executes strictly during the **`REVIEW`** phase within the isolated task worktree prior to two-phase release sync (`SYNC`). Per **ADR-0031 (Open-Core Boundary)**, open-core verification relies 100% on deterministic compiled Go gates, empirical test execution, and bilateral `INT`/`SUB` traceability rather than external LLM review daemons.
+Verification executes strictly during the **`REVIEW`** phase within the isolated task worktree prior to two-phase release sync (`SYNC`). Open-core verification relies 100% on deterministic compiled Go gates, empirical test execution, and bilateral `INT`/`SUB` traceability rather than external LLM review daemons.
 
 ---
 

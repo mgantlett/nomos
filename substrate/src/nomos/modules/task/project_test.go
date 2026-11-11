@@ -15,7 +15,7 @@ func TestResolveRepoProject_AndProjectMatching(t *testing.T) {
 		t.Fatalf("expected directory basename acme-ledger, got %q", got)
 	}
 
-	if err := os.WriteFile(filepath.Join(dir, "nomos.yaml"), []byte("version: \"1.0\"\nproject: \"custom-proj\"\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "nomos.yaml"), []byte("project: \"custom-proj\"\ndefault_branch: \"main\"\n"), 0644); err != nil {
 		t.Fatalf("write nomos.yaml: %v", err)
 	}
 	if got := ResolveRepoProject(dir); got != "custom-proj" {

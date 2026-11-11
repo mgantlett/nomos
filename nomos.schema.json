@@ -144,7 +144,7 @@
                   "type": "boolean"
                 },
                 "contracts": {
-                  "description": "Contract schema parity, UI membrane, and ingress boundaries.",
+                  "description": "Specification, JSON Schema, and backend source contract parity settings.",
                   "type": "object",
                   "properties": {
                     "backend_roots": {

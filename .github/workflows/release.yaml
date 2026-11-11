@@ -24,6 +24,10 @@ jobs:
           ref: ${{ inputs.tag || github.ref }}
           fetch-depth: 0
 
+      - name: Fetch Nomos Release Receipts (Git Notes)
+        run: |
+          git fetch origin +refs/notes/nomos/releases:refs/notes/nomos/releases || true
+
       - name: Set up Go
         uses: actions/setup-go@v6
         with:

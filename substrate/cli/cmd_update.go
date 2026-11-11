@@ -26,11 +26,13 @@ const (
 	installMethodHomebrew   = "homebrew"
 	installMethodAUR        = "aur"
 	installMethodNix        = "nix"
+	installMethodSystem     = "system"
 
 	upgradeCmdStandalone = "nomos update"
 	upgradeCmdHomebrew   = "brew upgrade --cask mgantlett/tap/nomos"
 	upgradeCmdAUR        = "yay -Syu nomos-bin"
 	upgradeCmdNix        = "nix profile upgrade nomos"
+	upgradeCmdSystem     = "upgrade nomos via your system package manager or reinstall via curl -fsSL https://sophialabs.ca/install | bash"
 
 	updateHTTPTimeout = 30 * time.Second
 )
@@ -94,6 +96,11 @@ func NewUpdateCmd() *cobra.Command {
 // DetectInstallMethod classifies binary ownership to protect package-manager installations.
 // @intent task_lifecycle_cli_spec.md #UpdateReport
 func DetectInstallMethod(binaryPath string) (string, string) {
+	return DetectInstallMethodForHost(binaryPath, isArchLinuxHost())
+}
+
+// DetectInstallMethodForHost classifies binary ownership given explicit Arch Linux host detection.
+func DetectInstallMethodForHost(binaryPath string, isArchLinux bool) (string, string) {
 	lower := strings.ToLower(filepath.ToSlash(strings.TrimSpace(binaryPath)))
 	if strings.Contains(lower, "/opt/homebrew/") ||
 		strings.Contains(lower, "/cellar/") ||
@@ -105,9 +112,17 @@ func DetectInstallMethod(binaryPath string) (string, string) {
 		return installMethodNix, upgradeCmdNix
 	}
 	if strings.HasPrefix(lower, "/usr/bin/") || strings.HasPrefix(lower, "/bin/") {
-		return installMethodAUR, upgradeCmdAUR
+		if isArchLinux {
+			return installMethodAUR, upgradeCmdAUR
+		}
+		return installMethodSystem, upgradeCmdSystem
 	}
 	return installMethodStandalone, upgradeCmdStandalone
+}
+
+func isArchLinuxHost() bool {
+	_, err := os.Stat("/etc/arch-release")
+	return err == nil
 }
 
 func resolveCurrentBinaryPath() (string, error) {
@@ -146,6 +161,7 @@ func executeUpdate(cmd *cobra.Command, opts updateOptions) error {
 	if err != nil {
 		return err
 	}
+	removeTempBestEffort(binPath + ".old")
 	method, upgradeCmd := DetectInstallMethod(binPath)
 	wsRoot := resolveUpdateWorkspaceRoot(opts.targetDir)
 

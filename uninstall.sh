@@ -22,7 +22,8 @@ if command -v go >/dev/null 2>&1; then
     GO_ENV_GOPATH="$(go env GOPATH 2>/dev/null || true)"
 fi
 
-CANDIDATE_DIRS=""
+REMOVED_COUNT=0
+SEEN_DIRS=""
 for dir in \
     "${NOMOS_INSTALL_DIR:-}" \
     "${GOBIN:-}" \
@@ -33,16 +34,16 @@ for dir in \
     "$HOME/bin" \
     "/usr/local/bin" \
     "$HOME/.nomos/bin"; do
-    if [ -n "$dir" ]; then
-        case " $CANDIDATE_DIRS " in
-            *" $dir "*) ;;
-            *) CANDIDATE_DIRS="$CANDIDATE_DIRS $dir" ;;
-        esac
-    fi
-done
-
-REMOVED_COUNT=0
-for dir in $CANDIDATE_DIRS; do
+    [ -n "$dir" ] || continue
+    case "
+$SEEN_DIRS
+" in
+        *"
+$dir
+"*) continue ;;
+    esac
+    SEEN_DIRS="${SEEN_DIRS}
+${dir}"
     BIN_PATH="$dir/nomos"
     if [ -f "$BIN_PATH" ]; then
         if [ -w "$BIN_PATH" ] || [ -w "$dir" ]; then

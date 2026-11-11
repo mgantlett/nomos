@@ -29,18 +29,18 @@ func TestVEC_ROOT_SourceRootVectors(t *testing.T) {
 		}
 	})
 
-	t.Run("VEC-ROOT-02 Svelte Membrane Root Binding", func(t *testing.T) {
+	t.Run("VEC-ROOT-02 Svelte Frontend Root Binding", func(t *testing.T) {
 		manifest := &PolyglotWorkspaceManifest{
 			SourceRoots: []SourceRootConfig{
-				{Path: "substrate/membrane/cockpit", Language: LanguageSvelte},
+				{Path: "apps/frontend/dashboard", Language: LanguageSvelte},
 			},
 		}
 		resolver := NewSourceRootResolver(manifest)
-		res, err := resolver.Resolve(ctx, "substrate/membrane/cockpit/src/App.svelte")
+		res, err := resolver.Resolve(ctx, "apps/frontend/dashboard/src/App.svelte")
 		if err != nil {
 			t.Fatalf("expected VEC-ROOT-02 to pass, got err: %v", err)
 		}
-		if res.MatchedRoot.Path != "substrate/membrane/cockpit" || res.Language != LanguageSvelte {
+		if res.MatchedRoot.Path != "apps/frontend/dashboard" || res.Language != LanguageSvelte {
 			t.Errorf("unexpected match: %+v", res)
 		}
 	})
@@ -49,14 +49,14 @@ func TestVEC_ROOT_SourceRootVectors(t *testing.T) {
 		manifest := &PolyglotWorkspaceManifest{
 			SourceRoots: []SourceRootConfig{
 				{
-					Path:            "substrate/membrane/cockpit",
+					Path:            "apps/frontend/dashboard",
 					Language:        LanguageSvelte,
 					ExcludePatterns: []string{"**/node_modules/**"},
 				},
 			},
 		}
 		resolver := NewSourceRootResolver(manifest)
-		res, err := resolver.Resolve(ctx, "substrate/membrane/cockpit/node_modules/pkg/index.js")
+		res, err := resolver.Resolve(ctx, "apps/frontend/dashboard/node_modules/pkg/index.js")
 		if err != nil {
 			t.Fatalf("expected VEC-ROOT-03 resolve without error, got: %v", err)
 		}

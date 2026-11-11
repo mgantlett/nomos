@@ -47,14 +47,14 @@ Just as **PostgreSQL placed ACID transactions** between concurrent applications 
 curl -fsSL https://sophialabs.ca/install | bash
 ```
 
-Installs the SHA-256-verified release binary directly to standard Go binary paths (`$GOBIN` / `$(go env GOPATH)/bin` / `~/go/bin`; pass `NOMOS_VERSION=v4.15.0` to pin a specific release tag). Or install on **macOS / Linux** via Homebrew, on **Arch Linux / Omarchy** via AUR, or directly from `main` via the Go toolchain (`substrate/` subdirectory module):
+Installs the SHA-256-verified release binary directly to standard Go binary paths (`$GOBIN` / `$(go env GOPATH)/bin` / `~/go/bin`; pass `NOMOS_VERSION=v4.15.0` to pin a specific release tag). Or install on **macOS / Linux** via Homebrew, on **Arch Linux / Omarchy** via `makepkg`, or directly from `main` via the Go toolchain (`substrate/` subdirectory module):
 
 ```bash
 # macOS & Linux (Homebrew):
 brew install --cask mgantlett/tap/nomos
 
-# Arch Linux / Omarchy (AUR):
-yay -S nomos-bin
+# Arch Linux / Omarchy (verified PKGBUILD):
+(tmp="$(mktemp -d)" && cd "$tmp" && curl -fsSLO https://raw.githubusercontent.com/mgantlett/nomos/main/packaging/aur/PKGBUILD && makepkg -si && rm -rf "$tmp")
 
 # Build from source (requires Go 1.26+; GOTOOLCHAIN=auto auto-fetches Go 1.26+ on older Go installs):
 GOTOOLCHAIN=auto CGO_ENABLED=0 go install github.com/mgantlett/nomos/substrate/cmd/nomos@main
@@ -118,7 +118,7 @@ nomos task sync SUB-1 -F .tmp/walkthrough.md       # 3. Agent atomically merges 
 | Capability | Canonical CLI Surface | What It Enforces | Architecture Specification |
 | :--- | :--- | :--- | :--- |
 | **Indirect Agent Control** | `nomos init`, `nomos handshake`, `nomos hook` | Bootstraps agent rules (`AGENTS.md`, `CLAUDE.md`), user/project hook installation (`nomos hook install --claude \| --gemini \| --opencode \| --cursor \| --antigravity \| --user`), additive lifecycle hooks (`nomos hook session-start \| pre-tool \| post-tool \| stop` at `~4ms` cold start with pure-Go syntax radar, anti-phantom `Stop` verification, and 3-strike + no-edit test-rerun circuit-breaking), and self-healing Git hooks without locking you into a specific model or IDE. | [`intent.md`](intent/intent.md) |
-| **Capability-Flow, Outbound Egress & Zero-Trust MCP IFC** | `nomos hook pre-tool \| session-start` | Tracks multi-turn compositional taint (`CapabilityFlowGraph`) across web ingress, local credentials, and release/exfiltration sinks; blocks cloud metadata SSRF (`169.254.169.254`), credential/email leaks, and disallowed domains via declarative `BoundaryConfig` (`egress_mode`, `allowed_egress_domains`, `blocked_egress_domains`); and enforces zero-trust MCP server allow/block lists. | [`nomos_hermetic_worktree_spec.md`](intent/architecture/specs/nomos_hermetic_worktree_spec.md) |
+| **Capability-Flow, Host-Credential Airlock & Zero-Trust MCP IFC** | `nomos hook pre-tool \| session-start` | Tracks multi-turn compositional taint (`CapabilityFlowGraph`) across web ingress, local credentials, and release/exfiltration sinks; blocks host credential reads (`~/.ssh`, `~/.aws`, `~/.kube`, `~/.gnupg`, `~/.config/gcloud`, `.netrc`, `.npmrc`, `.pypirc` + `blocked_read_paths`) via `credential_read_mode`; blocks cloud metadata SSRF (`169.254.169.254`), credential/email leaks, and disallowed domains via `BoundaryConfig` (`egress_mode`, `allowed_egress_domains`, `blocked_egress_domains`); and enforces zero-trust MCP server allow/block lists. | [`nomos_hermetic_worktree_spec.md`](intent/architecture/specs/nomos_hermetic_worktree_spec.md) |
 | **Phase Discipline & Worktrees** | `nomos task chore \| pair \| create \| start \| edit \| review \| dag` | Separates `INT-*` spec tasks from `SUB-*` code tasks in a causal DAG wavefront and enforces `IDLE → PLAN → EDIT → REVIEW → SYNC → LEARN` state transitions inside hermetic `worktrees/<repo>-<task>` sandboxes. | [`nomos_hermetic_worktree_spec.md`](intent/architecture/specs/nomos_hermetic_worktree_spec.md) |
 | **42-Gate AST & DoD Engine** | `nomos verify`, `nomos verify proof` | Runs 42 statutory Definition of Done (DoD) quality gates across the 7x3 Canonical Invariant Matrix (21 Cells) via Go AST, `.scm` S-expression query rules, `wazero` WASM linear-memory scanning, polyglot structural scanners, and native toolchain/coverage probes (`tsc`, `pytest`, `cargo`, `cmake`, `gradle`/`mvn`, `dotnet`). | [`tree_sitter_ast_gate_spec.md`](intent/architecture/specs/tree_sitter_ast_gate_spec.md) · [`nomos_intent_traceability_spec.md`](intent/architecture/specs/nomos_intent_traceability_spec.md) |
 | **Polyglot Architectural Obligation Proofs** | `nomos verify`, `nomos handshake`, `nomos status` | Enforces `<5ms` declarative hexagonal `architecture_boundaries` across 11 languages, polyglot fenced spec contract signature parity (`strict_types`), executable `TC-*` test obligation binding (`verify_obligations`), and cryptographic `spec_digests` SHA-256 taint alerts when upstream specs evolve. | [`nomos_intent_traceability_spec.md`](intent/architecture/specs/nomos_intent_traceability_spec.md) |
@@ -167,12 +167,12 @@ Nomos is engineered so deterministic governance adds sub-second overhead on ever
 | Engineering Metric | Verified Result | Reproducible Proof / Implementation |
 | :--- | :--- | :--- |
 | **42-Gate Structural & AST Overhead** | **`~460 ms` (`~24 ms` `--fast-file`)** | `nomos verify` structural/AST gate pass across Go/TS/Svelte/Py/Rust/C/JVM/C# (plus project `go test`/`tsc`/`pytest`/`cargo`/`gradle`/`dotnet` runtime) |
-| **Static Binary Footprint** | **`19 MB` stripped (`CGO_ENABLED=0`)** | Single Go release binary (`-ldflags="-s -w"`) with embedded `modernc.org/sqlite` WAL + `wazero` WASM runtime host; zero host runtime deps |
+| **Static Binary Footprint** | **`~20 MB` stripped (`CGO_ENABLED=0`)** | Single Go release binary (`-ldflags="-s -w"`) with embedded `modernc.org/sqlite` WAL + `wazero` WASM runtime host; zero host runtime deps |
 | **Adversarial Fail-Closed Suite (`VEC-TTB-01..07`)** | **`7/7` vectors blocked in `1.98s`** | [`cleanroom_tracetrial_bench_test.go`](substrate/cli/cleanroom_tracetrial_bench_test.go) (`go -C substrate test ./cli -run TestTraceTrialBench -v`) |
 | **Multi-Lab Polyglot Brownfield Audit (`N = 108`)** | **`86.1%` (`31/36`) vs. `27.8%` (`10/36` Stock; `0%` layer purity)** | `108` paired Python/TS/Go brownfield episodes across `14B-32B` (`Qwen`, `Mistral`, local `16GB VRAM`) + [`cleanroom_obligation_polyglot_stress_test.go`](substrate/cli/cleanroom_obligation_polyglot_stress_test.go) |
 | **Config & Boundary Tamper Resistance** | **`0` trunk leaks** | Worktree edits to `nomos.yaml` fail closed against pinned `main`; mid-2PC gate panics abort before `main` fast-forwards |
 | **Nomos Mneme Episodic Recall** | **`< 50 ms` local query** | 64-dim subword feature-hash + lexical SQLite recall (`mneme.db`, plus optional `LOCAL_EMBEDDING_URL`); mints `pattern`/`pitfall` records strictly after verified 2PC `Git Notes` release |
-| **Open-Core Automated Test Suite** | **`645` tests across `16` packages + `6` cleanroom suites** | Pure Apache 2.0 local test execution with zero cloud or telemetry dependencies |
+| **Open-Core Automated Test Suite** | **`860+` test cases across `16` packages + `8` cleanroom suites** | Pure Apache 2.0 local test execution with zero cloud or telemetry dependencies |
 
 ### Terminal-Bench 2.0 Controlled A/B ([`Harbor`](https://github.com/harbor-framework/harbor) · [`nomos-harbor`](https://github.com/mgantlett/nomos-harbor) · `89 / 89` Tasks)
 

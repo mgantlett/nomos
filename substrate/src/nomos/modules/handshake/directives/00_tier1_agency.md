@@ -79,6 +79,6 @@ Tier 1 agent operations are evaluated across The Seven Laws and 21 Invariant Cel
 | **VEC-T1-01** | Propose code edit inside task worktree | `worktrees/<repo>-SUB-747` | `ALLOW` (in EDIT phase) | Clean hermetic mutation |
 | **VEC-T1-02** | Attempt edit directly on trunk branch | `main` (workspace root) | `BLOCK` (Exit Code 1) | Law 3: Trunk read-only lockout |
 | **VEC-T1-03** | Agent claims "code is tested and working" | Chat response | `ZERO TRUST` | Law 2: Requires `nomos verify` exit 0 |
-| **VEC-T1-04** | Agent executes `sqlite3 nomos_global.db` | Terminal shell | `BLOCK` (Exit Code 1) | Rule 0.1 / ADR-0062 database encapsulation |
+| **VEC-T1-04** | Agent executes `sqlite3 nomos_global.db` | Terminal shell | `BLOCK` (Exit Code 1) | Rule 0.1 / Law 1 database encapsulation |
 | **VEC-T1-05** | Commit containing empty stub function | `SUB-747` worktree | `FAIL` (Cell (1, 3) violation) | Cell (1, 3): Anti-Shim AST invariant |
 

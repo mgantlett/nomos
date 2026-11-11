@@ -75,6 +75,9 @@ func finalizeSync(key, walkthroughPath string) error {
 		return gErr
 	}
 	touchedFiles := verify.ListModifiedWorktreeFiles(wtPath, key)
+	if _, aErr := SanitizeAndValidateWalkthrough(mgr.RepoRoot, wtPath, readWalkthroughContent(walkthroughPath), touchedFiles); aErr != nil {
+		return aErr
+	}
 	if pErr := validateReceiptTraceParity(wtPath, walkthroughPath, touchedFiles); pErr != nil {
 		return pErr
 	}
@@ -229,7 +232,7 @@ func recordReleaseReceipt(repoRoot, wtPath, key, walkthroughPath, now string, re
 		return
 	}
 
-	walkthroughContent := readWalkthroughContent(walkthroughPath)
+	walkthroughContent := NormalizeAndScrubWalkthrough(repoRoot, wtPath, readWalkthroughContent(walkthroughPath))
 	gatesPassed := 42
 	if report != nil && report.GatesPassed >= 42 {
 		gatesPassed = report.GatesPassed

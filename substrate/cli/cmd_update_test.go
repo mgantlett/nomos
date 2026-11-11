@@ -112,13 +112,15 @@ func TestUpdateCmd_PackageManagerGuardBlocksOverwrite(t *testing.T) {
 	srv := startMockReleaseServer(t, "v99.3.0", "nomos_Linux_x86_64.tar.gz", []byte("noop"), "00")
 	t.Setenv(constants.EnvNomosUpdateAPIURL, srv.URL+"/api/latest")
 
+	_, wantUsrBinRemedy := cli.DetectInstallMethod(filepath.Join("/usr", "bin", "nomos"))
+	wantUsrBinMethod, _ := cli.DetectInstallMethod(filepath.Join("/usr", "bin", "nomos"))
 	cases := []struct {
 		binPath    string
 		wantMethod string
 		wantRemedy string
 	}{
 		{filepath.Join("/opt", "homebrew", "bin", "nomos"), "homebrew", "brew upgrade --cask mgantlett/tap/nomos"},
-		{filepath.Join("/usr", "bin", "nomos"), "aur", "yay -Syu nomos-bin"},
+		{filepath.Join("/usr", "bin", "nomos"), wantUsrBinMethod, wantUsrBinRemedy},
 		{filepath.Join("/nix", "store", "abc-nomos", "bin", "nomos"), "nix", "nix profile upgrade nomos"},
 	}
 

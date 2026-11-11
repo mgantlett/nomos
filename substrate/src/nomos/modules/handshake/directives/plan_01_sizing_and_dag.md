@@ -9,7 +9,7 @@ items:
     - "Cognitive Load Index (CLI): Tasks sized <= 3 routed to atomic commits; sized >= 6 require twin-plane decomposition"
     - "4-Phase Long-Horizon DAG Protocol: Declarative Upfront Scaffolding -> Wavefront Discovery -> Phase Discipline -> Terminal Release"
     - "Parent Cycle Preservation Invariant: Cycles remain IN_PROGRESS until all child tasks in the DAG reach terminal state"
-    - "Dynamic Story Sizing Formula: Estimated size = burden + depth; auto-infers non-zero baselines from CLI tags (ADR-0016)"
+    - "Dynamic Story Sizing Formula: Estimated size = burden + depth; auto-infers non-zero baselines from CLI tags"
     - "Zero-Flat-File Planning Boundary: Draft implementation plans strictly in brain artifact directory"
     - "Bidirectional Verifiability: Every plan requires explicit acceptance criteria and DoD boundary"
 last_updated: "2026-10-27"
@@ -37,7 +37,7 @@ This directive defines the authoritative operational invariants for backlog tria
   - `cli:low` (Sizing ≤ 3): Leaf refactors, docstrings, unit tests, and typo fixes. Fast, atomic single-commit tasks.
   - `cli:medium` (Sizing 4..5): Single-module features, isolated schema migrations, and contract updates.
   - `cli:high` (Sizing ≥ 6): Core architectural designs, multi-plane coordinate systems, and kernel state machines. Recommended to decompose into atomic twin pairs (`INT-*` / `SUB-*`).
-- **Dynamic Story Sizing (ADR-0016)**:
+- **Dynamic Story Sizing**:
   - Story points are mathematically calculated as:
     `estimated_size = ContextBurden (b) + LogicDepth (d)`
   - Baseline for unclassified tasks is set to `b=1, d=1` (Size 2) rather than 0.

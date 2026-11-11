@@ -13,12 +13,12 @@ func TestMatchTDDExcludeGlobAndConfigHygiene(t *testing.T) {
 		relPath string
 		want    bool
 	}{
-		{"**/*.svelte", "substrate/cockpit-ui/src/lib/PortalsPulseTab.svelte", true},
-		{"**/*.svelte", "PortalsPulseTab.svelte", true},
-		{"**/*.svelte", "substrate/cockpit-ui/src/lib/trafficAiOverlay.ts", false},
-		{"**/routes/**/+*.ts", "substrate/cockpit-ui/src/routes/cockpit-docs/about/+page.ts", true},
-		{"**/routes/**/+*.ts", "substrate/cockpit-ui/src/routes/api/traffic/ai-daily-ledger.ts", false},
-		{"substrate/membrane/src/routes", "substrate/membrane/src/routes/privacy/+page.ts", true},
+		{"**/*.svelte", "apps/dashboard-ui/src/lib/MetricsTab.svelte", true},
+		{"**/*.svelte", "MetricsTab.svelte", true},
+		{"**/*.svelte", "apps/dashboard-ui/src/lib/trafficOverlay.ts", false},
+		{"**/routes/**/+*.ts", "apps/dashboard-ui/src/routes/docs/about/+page.ts", true},
+		{"**/routes/**/+*.ts", "apps/dashboard-ui/src/routes/api/traffic/daily-ledger.ts", false},
+		{"apps/portal/src/routes", "apps/portal/src/routes/privacy/+page.ts", true},
 		{"", "src/index.ts", false},
 	}
 	for _, tc := range cases {
@@ -30,18 +30,18 @@ func TestMatchTDDExcludeGlobAndConfigHygiene(t *testing.T) {
 	if isPolyglotImplFileForTDD("vite.config.ts") || isPolyglotImplFileForTDD("svelte.config.js") || isPolyglotImplFileForTDD("app.d.ts") {
 		t.Fatalf("expected build config and ambient declaration files to be ignored by TDDGate")
 	}
-	if !isPolyglotImplFileForTDD("trafficAiOverlay.ts") {
+	if !isPolyglotImplFileForTDD("trafficOverlay.ts") {
 		t.Fatalf("expected TypeScript logic module to be tracked by TDDGate")
 	}
 }
 
 func TestWorktreeDiffScopeVsRepoScopeAndTDDExclude(t *testing.T) {
 	repo := initTestGitRepo(t)
-	strictYAML := "project: sov-test\ndefault_branch: main\ngovernance:\n  quality_gates:\n    strict_mode: true\n    tdd_exclude:\n      - \"**/*.svelte\"\n      - \"**/routes/**/+*.ts\"\n"
+	strictYAML := "project: acme-web\ndefault_branch: main\ngovernance:\n  quality_gates:\n    strict_mode: true\n    tdd_exclude:\n      - \"**/*.svelte\"\n      - \"**/routes/**/+*.ts\"\n"
 	if err := os.WriteFile(filepath.Join(repo, "nomos.yaml"), []byte(strictYAML), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(repo, "package.json"), []byte(`{"name":"sov-test","scripts":{"test":"node --test"}}`), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(repo, "package.json"), []byte(`{"name":"acme-web","scripts":{"test":"node --test"}}`), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(repo, "vite.config.ts"), []byte("export default {};\n"), 0644); err != nil {
@@ -64,7 +64,7 @@ func TestWorktreeDiffScopeVsRepoScopeAndTDDExclude(t *testing.T) {
 	commitAllTestGit(t, repo, "baseline")
 
 	// Simulate an active task worktree editing a tested module + excluded Svelte file.
-	featureDir := filepath.Join(repo, "src", "cockpit")
+	featureDir := filepath.Join(repo, "src", "widgets")
 	if err := os.MkdirAll(featureDir, 0755); err != nil {
 		t.Fatal(err)
 	}

@@ -145,7 +145,9 @@ func reflectStructSchema(t reflect.Type, defVal reflect.Value) *JSONSchemaNode {
 			fieldDef = defVal.Field(i)
 		}
 		propNode := reflectFieldSchema(field.Type, fieldDef, name)
-		if desc, ok := configFieldDescriptions[name]; ok && propNode.Description == "" {
+		if t.Name() == "ContractsBoundaryConfig" && name == "contracts" {
+			propNode.Description = "Specification, JSON Schema, and backend source contract parity settings."
+		} else if desc, ok := configFieldDescriptions[name]; ok && propNode.Description == "" {
 			propNode.Description = desc
 		}
 		applyStringEnumMetadata(name, propNode)
