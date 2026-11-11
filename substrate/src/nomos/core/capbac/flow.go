@@ -43,7 +43,7 @@ var (
 	wgetExfilFlagRe   = regexp.MustCompile(`(?i)\bwget\b[^\n]*--post-(?:data|file)\b`)
 	netExfilCmdRe     = regexp.MustCompile(`(?i)(?:^|[;&|]\s*)(?:scp|nc|ncat|netcat)\s+`)
 	releaseSinkCmdRe  = regexp.MustCompile(`(?i)(?:^|[;&|]\s*)(?:git\s+push|gh\s+(?:release|pr\s+merge)|npm\s+publish|cargo\s+publish|twine\s+upload|docker\s+push)\b`)
-	verifySanitizerRe = regexp.MustCompile(`(?:^|[;&|\s])nomos\s+(?:verify|task\s+review)\b`)
+	verifySanitizerRe = regexp.MustCompile(`^\s*(?:cd\s+\S+\s*&&\s*)?(?:\S+/)?nomos\s+(?:verify|task\s+review)(?:\s|$)`)
 
 	externalFetchTools = map[string]bool{
 		"webfetch": true, "web_search": true, "search_web": true,
@@ -157,7 +157,7 @@ func (g *CapabilityFlowGraph) EvaluateToolFlow(inv ToolFlowInvocation) FlowDecis
 	if sinkDec, blocked := g.evaluateSinkViolation(cmd); blocked {
 		return sinkDec
 	}
-	if cmd != "" && verifySanitizerRe.MatchString(cmd) {
+	if cmd != "" && isStandaloneVerifySanitizer(cmd) {
 		g.ClearTaint(TaintUntrustedExternal)
 		g.ClearTaint(TaintMCPUntrustedIngress)
 		return FlowDecision{Allowed: true, Role: FlowRoleSanitizer}
@@ -211,6 +211,22 @@ func (g *CapabilityFlowGraph) evaluateSinkViolation(cmd string) (FlowDecision, b
 
 func isExfiltrationCommand(cmd string) bool {
 	return curlExfilFlagRe.MatchString(cmd) || wgetExfilFlagRe.MatchString(cmd) || netExfilCmdRe.MatchString(cmd)
+}
+
+func isStandaloneVerifySanitizer(cmd string) bool {
+	if !verifySanitizerRe.MatchString(cmd) {
+		return false
+	}
+	if strings.ContainsAny(cmd, ";|") {
+		return false
+	}
+	lower := strings.ToLower(cmd)
+	for _, nonGateFlag := range []string{"--impact", "--fast-file", "--help", " -h"} {
+		if strings.Contains(lower, nonGateFlag) {
+			return false
+		}
+	}
+	return true
 }
 
 func classifyFlowSources(inv ToolFlowInvocation) ([]TaintLabel, string) {

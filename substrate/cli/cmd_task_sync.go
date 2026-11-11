@@ -86,25 +86,28 @@ func finalizeSync(key, walkthroughPath string) error {
 		}
 		report = rebasedReport
 	}
+	preMergeSHA := readGitHeadSHA(mgr.RepoRoot)
 	if mErr := fastForwardTrunkMerge(mgr.RepoRoot, branch); mErr != nil {
 		return mErr
 	}
-	return completeSyncedTaskMetadata(mgr, store, t, wtPath, key, walkthroughPath, touchedFiles, report)
+	return completeSyncedTaskMetadata(mgr, store, t, walkthroughPath, preMergeSHA, touchedFiles, report)
 }
 
-func completeSyncedTaskMetadata(mgr *workspace.Manager, store task.TaskStore, t *task.TaskRecord, wtPath, key, walkthroughPath string, touchedFiles []string, report *verify.PipelineReport) error {
+func completeSyncedTaskMetadata(mgr *workspace.Manager, store task.TaskStore, t *task.TaskRecord, walkthroughPath, preMergeSHA string, touchedFiles []string, report *verify.PipelineReport) error {
+	wtPath := mgr.WorktreePath(t.Key)
 	now := time.Now().UTC().Format(time.RFC3339)
 	t.Status = task.StatusDone
 	t.CompletedAt = &now
 	if err := store.UpdateTask(*t); err != nil {
+		rollbackTrunkMergeOnDBError(mgr.RepoRoot, preMergeSHA)
 		return err
 	}
-	specDigests := collectSyncSpecDigests(mgr.RepoRoot, key, touchedFiles, t.TwinKey)
-	recordReleaseReceipt(mgr.RepoRoot, wtPath, key, walkthroughPath, now, report, specDigests)
-	revokeActiveLease(key)
-	distillAndMaintainOnSync(mgr.RepoRoot, wtPath, key, walkthroughPath, touchedFiles)
+	specDigests := collectSyncSpecDigests(mgr.RepoRoot, t.Key, touchedFiles, t.TwinKey)
+	recordReleaseReceipt(mgr.RepoRoot, wtPath, t.Key, walkthroughPath, now, report, specDigests)
+	revokeActiveLease(t.Key)
+	distillAndMaintainOnSync(mgr.RepoRoot, wtPath, t.Key, walkthroughPath, touchedFiles)
 	clearHookSessionTrace(wtPath)
-	cleanupAndAnnounceSyncedTask(mgr, key)
+	cleanupAndAnnounceSyncedTask(mgr, t.Key)
 	return nil
 }
 

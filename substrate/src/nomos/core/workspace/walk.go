@@ -59,18 +59,48 @@ func IsExcluded(absPath string, isDir bool, name string, excludes []string) bool
 		}
 	}
 	for _, ex := range excludes {
-		cleanEx := filepath.Clean(ex)
-		if absPath == cleanEx || strings.HasPrefix(absPath, cleanEx+string(filepath.Separator)) {
-			return true
-		}
-		if strings.EqualFold(absPath, cleanEx) {
-			return true
-		}
-		if matched, err := filepath.Match(filepath.Base(cleanEx), name); err == nil && matched {
+		if matchesExcludePattern(absPath, name, ex) {
 			return true
 		}
 	}
 	return false
+}
+
+func matchesExcludePattern(absPath, name, rawRule string) bool {
+	trimmed := strings.TrimSpace(rawRule)
+	if trimmed == "" {
+		return false
+	}
+	slashRule := filepath.ToSlash(trimmed)
+	if strings.HasSuffix(slashRule, "/**") || strings.HasSuffix(slashRule, "/*") {
+		prefix := strings.TrimSuffix(strings.TrimSuffix(slashRule, "/**"), "/*")
+		cleanPrefix := filepath.Clean(filepath.FromSlash(prefix))
+		return isSameOrChildPath(absPath, cleanPrefix)
+	}
+	cleanEx := filepath.Clean(trimmed)
+	if isSameOrChildPath(absPath, cleanEx) {
+		return true
+	}
+	base := filepath.Base(cleanEx)
+	if base == "*" || base == "**" || !strings.ContainsAny(base, "*?[") {
+		return false
+	}
+	dirPrefix := filepath.Dir(cleanEx)
+	if dirPrefix != "." && !isSameOrChildPath(filepath.Dir(absPath), dirPrefix) {
+		return false
+	}
+	matched, err := filepath.Match(base, name)
+	return err == nil && matched
+}
+
+func isSameOrChildPath(absPath, cleanPrefix string) bool {
+	if cleanPrefix == "" || cleanPrefix == "." {
+		return false
+	}
+	if absPath == cleanPrefix || strings.EqualFold(absPath, cleanPrefix) {
+		return true
+	}
+	return strings.HasPrefix(absPath, cleanPrefix+string(filepath.Separator))
 }
 
 // GetExcludes resolves repository-level and target-level exclusion paths.

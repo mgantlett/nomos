@@ -12,7 +12,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/capbac"
 )
 
 // hookSessionTrace summarizes verified tool and shell activity inside an active task worktree.
@@ -32,11 +32,7 @@ type hookSessionTrace struct {
 	MutatedFiles         []string `json:"mutated_files,omitempty"`
 }
 
-var (
-	exclusiveScopePattern   = regexp.MustCompile("(?i)\\bonly\\s+(?:modified|edited|changed|touched)\\s+`?([a-zA-Z0-9_./-]+\\.[a-zA-Z0-9]+)`?")
-	explicitTestRunClaimPat = regexp.MustCompile("(?i)\\b(?:ran|executed)\\s+`?(?:go\\s+test|pytest|cargo\\s+test|npm\\s+test|pnpm\\s+test|yarn\\s+test|vitest|jest|bun\\s+test)\\b")
-	changesBulletFilePat    = regexp.MustCompile("^[-*]\\s+`?([A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+\\.[A-Za-z0-9]+)`?\\s*:")
-)
+var standaloneVerifyCmdRe = regexp.MustCompile(`(?i)^\s*(?:cd\s+\S+\s*&&\s*)?(?:\S+/)?nomos\s+(?:verify|task\s+review|task\s+sync)(?:\s|$)`)
 
 // recordPreToolSessionTrace records allowed or denied PreToolUse activity scoped to an active worktree.
 func recordPreToolSessionTrace(p *HookPayload, hermeticDir string, denied bool) {
@@ -81,7 +77,11 @@ func evaluateWorktreeChurnAdvisory(p *HookPayload, hermeticDir, style string) st
 	}
 	tr := loadOrInitHookSessionTrace(path, wtRoot)
 	if isNomosVerificationCommand(p.CommandLine) {
-		resetWorktreeChurnCounters(&tr)
+		if hasFailedVerificationResponse(p.ToolResponseText) {
+			tr.DirtyUnverifiedEdits = true
+		} else {
+			resetWorktreeChurnCounters(&tr)
+		}
 		saveHookSessionTrace(path, tr)
 		return ""
 	}
@@ -99,6 +99,21 @@ func evaluateWorktreeChurnAdvisory(p *HookPayload, hermeticDir, style string) st
 	return msg
 }
 
+// markWorktreeVerificationFailed preserves DirtyUnverifiedEdits when 'nomos verify' fails in-process.
+func markWorktreeVerificationFailed(worktreeDir string) {
+	wtRoot := extractEnclosingWorktreeRoot(normalizeCanonicalPath(worktreeDir, "/"))
+	if wtRoot == "" {
+		return
+	}
+	path := resolveTraceStateFilePath(wtRoot)
+	if path == "" {
+		return
+	}
+	tr := loadOrInitHookSessionTrace(path, wtRoot)
+	tr.DirtyUnverifiedEdits = true
+	saveHookSessionTrace(path, tr)
+}
+
 func resetWorktreeChurnCounters(tr *hookSessionTrace) {
 	tr.UnverifiedCalls = 0
 	tr.DirtyUnverifiedEdits = false
@@ -107,11 +122,25 @@ func resetWorktreeChurnCounters(tr *hookSessionTrace) {
 }
 
 func isNomosVerificationCommand(cmdLine string) bool {
-	lower := strings.ToLower(strings.TrimSpace(cmdLine))
+	trimmed := strings.TrimSpace(cmdLine)
+	if trimmed == "" || !standaloneVerifyCmdRe.MatchString(trimmed) || strings.ContainsAny(trimmed, ";|") {
+		return false
+	}
+	lower := strings.ToLower(trimmed)
+	return !hasAnySubstring(lower, "--impact", "--fast-file", "--help", " -h")
+}
+
+func hasFailedVerificationResponse(resp string) bool {
+	lower := strings.ToLower(strings.TrimSpace(resp))
 	if lower == "" {
 		return false
 	}
-	return hasAnySubstring(lower, "nomos verify", "nomos task review", "nomos task sync")
+	return hasAnySubstring(lower,
+		"verification failed",
+		"dod verification failed",
+		"exited with code 1",
+		"exit status 1",
+	)
 }
 
 // recordPostToolSessionTrace records PostToolUse file mutations or shell runs when PreToolUse was not invoked.
@@ -132,6 +161,9 @@ func recordPostToolSessionTrace(p *HookPayload, hermeticDir string) {
 		tr.ToolCallsCount = 1
 	}
 	recordTracePayloadDetails(&tr, p, wtRoot)
+	if isNomosVerificationCommand(p.CommandLine) && hasFailedVerificationResponse(p.ToolResponseText) {
+		tr.DirtyUnverifiedEdits = true
+	}
 	saveHookSessionTrace(path, tr)
 }
 
@@ -142,9 +174,22 @@ func recordTracePayloadDetails(tr *hookSessionTrace, p *HookPayload, wtRoot stri
 			tr.TestCommandsCount++
 		}
 	}
-	if p.TargetFile != "" && p.CommandLine == "" && !isReadOnlyTool(p.ToolName) {
-		resolved := normalizeCanonicalPath(p.TargetFile, wtRoot)
+	if p.TargetFile == "" || p.CommandLine != "" || isReadOnlyTool(p.ToolName) {
+		return
+	}
+	targets := p.TargetFiles
+	if len(targets) == 0 {
+		targets = []string{p.TargetFile}
+	}
+	for _, rawTarget := range targets {
+		resolved := normalizeCanonicalPath(rawTarget, wtRoot)
+		if !strings.HasPrefix(resolved, wtRoot+"/") {
+			continue
+		}
 		rel := strings.TrimPrefix(resolved, wtRoot+"/")
+		if rel == "" || strings.HasPrefix(rel, ".tmp/") {
+			continue
+		}
 		tr.MutatedFiles = appendUniqueBounded(tr.MutatedFiles, rel, 64)
 		tr.DirtyUnverifiedEdits = true
 	}
@@ -266,7 +311,7 @@ func saveHookSessionTrace(path string, tr hookSessionTrace) {
 	if err != nil {
 		return
 	}
-	if wErr := os.WriteFile(path, data, 0600); wErr != nil {
+	if wErr := capbac.WriteStateFileAtomically(path, data); wErr != nil {
 		return
 	}
 }
@@ -276,118 +321,4 @@ func clearHookSessionTrace(wtPath string) {
 	if path := resolveTraceStateFilePath(wtPath); path != "" {
 		removeBestEffort(path)
 	}
-}
-
-// validateReceiptTraceParity cross-checks walkthrough claims against git diff touchedFiles and
-// any recorded worktree hook trace, degrading gracefully when no hook session log exists.
-func validateReceiptTraceParity(wtPath, walkthroughPath string, touchedFiles []string) error {
-	content := strings.TrimSpace(readWalkthroughContent(walkthroughPath))
-	if content == "" {
-		return nil
-	}
-	trace := loadHookSessionTrace(wtPath)
-	mutatedCount := len(touchedFiles)
-	if mutatedCount == 0 && trace != nil {
-		mutatedCount = len(trace.MutatedFiles)
-	}
-	if mutatedCount > 0 && walkthroughClaimsZeroMutations(content) {
-		return types.NewNomosError(
-			types.ErrCodeValidationFailed,
-			"Receipt-Trace Parity Violation (Law 2): walkthrough claims zero file modifications, but %d file(s) were mutated in the task diff/trace",
-			mutatedCount,
-		).WithRemedy("update the walkthrough summary to accurately reflect the modified files before re-running 'nomos task sync'")
-	}
-	if offender, claimed := findExclusiveScopeContradiction(content, touchedFiles); offender != "" {
-		return types.NewNomosError(
-			types.ErrCodeValidationFailed,
-			"Receipt-Trace Parity Violation (Law 2): walkthrough claims exclusive modification of '%s', but git diff also modified '%s'",
-			claimed, offender,
-		).WithRemedy("list all modified files or remove false single-file exclusivity claims in the walkthrough")
-	}
-	if phantom := findUnchangedClaimedFileInChangesSection(content, touchedFiles); phantom != "" {
-		return types.NewNomosError(
-			types.ErrCodeValidationFailed,
-			"Receipt-Trace Parity Violation (Law 2): walkthrough ## Changes claims modification of '%s', which has zero diff in the worktree",
-			phantom,
-		).WithRemedy("remove un-modified files from walkthrough ## Changes or stage the missing edits before 'nomos task sync'")
-	}
-	if trace == nil || trace.ToolCallsCount == 0 || trace.ShellCommandsCount == 0 {
-		return nil
-	}
-	if trace.TestCommandsCount == 0 && explicitTestRunClaimPat.MatchString(content) {
-		return types.NewNomosError(
-			types.ErrCodeValidationFailed,
-			"Receipt-Trace Parity Violation (Law 2): walkthrough claims explicit test-runner execution, but the active hook session trace recorded 0 test commands across %d shell call(s)",
-			trace.ShellCommandsCount,
-		).WithRemedy("execute the test suite in the task worktree or remove unverified test-execution claims from the walkthrough")
-	}
-	return nil
-}
-
-func walkthroughClaimsZeroMutations(content string) bool {
-	lower := strings.ToLower(content)
-	return hasAnySubstring(lower,
-		"no files were modified",
-		"no files modified",
-		"zero files modified",
-		"zero files changed",
-		"no code changes were made",
-		"made no file modifications",
-	)
-}
-
-func findExclusiveScopeContradiction(content string, touchedFiles []string) (string, string) {
-	if len(touchedFiles) <= 1 {
-		return "", ""
-	}
-	matches := exclusiveScopePattern.FindStringSubmatch(content)
-	if len(matches) < 2 {
-		return "", ""
-	}
-	claimed := filepath.ToSlash(strings.TrimSpace(matches[1]))
-	claimedBase := filepath.Base(claimed)
-	for _, f := range touchedFiles {
-		norm := filepath.ToSlash(strings.TrimSpace(f))
-		if norm == "" {
-			continue
-		}
-		if norm != claimed && !strings.HasSuffix(norm, "/"+claimed) && filepath.Base(norm) != claimedBase {
-			return norm, claimed
-		}
-	}
-	return "", ""
-}
-
-func findUnchangedClaimedFileInChangesSection(content string, touchedFiles []string) string {
-	if len(touchedFiles) == 0 {
-		return ""
-	}
-	inChanges := false
-	for _, rawLine := range strings.Split(content, "\n") {
-		line := strings.TrimSpace(rawLine)
-		if strings.HasPrefix(line, "## ") {
-			inChanges = strings.EqualFold(strings.TrimSpace(strings.TrimPrefix(line, "## ")), "Changes")
-			continue
-		}
-		if !inChanges {
-			continue
-		}
-		m := changesBulletFilePat.FindStringSubmatch(line)
-		if len(m) == 2 && !matchesAnyTouchedFile(m[1], touchedFiles) {
-			return m[1]
-		}
-	}
-	return ""
-}
-
-func matchesAnyTouchedFile(claimed string, touchedFiles []string) bool {
-	normClaim := strings.TrimPrefix(filepath.ToSlash(strings.TrimSpace(claimed)), "./")
-	claimBase := filepath.Base(normClaim)
-	for _, tf := range touchedFiles {
-		norm := strings.TrimPrefix(filepath.ToSlash(strings.TrimSpace(tf)), "./")
-		if norm == normClaim || strings.HasSuffix(norm, "/"+normClaim) || strings.HasSuffix(normClaim, "/"+norm) || filepath.Base(norm) == claimBase {
-			return true
-		}
-	}
-	return false
 }

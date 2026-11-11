@@ -201,7 +201,12 @@ func evaluateWorktreeBoundary(rawTarget, resolved, toolName string) HookDecision
 }
 
 func isPermittedWorktreePath(resolved string) bool {
-	return strings.Contains(resolved, "/worktrees/") || strings.Contains(resolved, "/.tmp/") || strings.Contains(resolved, "/brain/")
+	if strings.Contains(resolved, "/worktrees/") || strings.Contains(resolved, "/.tmp/") {
+		return true
+	}
+	return strings.Contains(resolved, "/antigravity/brain/") ||
+		strings.Contains(resolved, "/antigravity-ide/brain/") ||
+		strings.Contains(resolved, "/antigravity-cli/brain/")
 }
 
 func isSystemRootPath(resolved string) bool {

@@ -150,7 +150,7 @@ func applyGlobalAxiomSlotCap(sorted []*SearchResult, opts SearchOptions, limit i
 }
 
 func matchesSearchFilter(m *Memory, opts SearchOptions) bool {
-	if opts.Kind != "" && m.Kind != opts.Kind {
+	if opts.Kind != "" && NormalizeMemoryKind(m.Kind) != NormalizeMemoryKind(opts.Kind) {
 		return false
 	}
 	if opts.Topic != "" && !strings.EqualFold(m.Topic, opts.Topic) {
@@ -177,12 +177,12 @@ func CalculateTemporalDecay(createdAt time.Time, kind MemoryKind) float64 {
 	}
 
 	var lambda float64
-	switch kind {
+	switch NormalizeMemoryKind(kind) {
 	case KindAxiom:
 		lambda = 0.005
 	case KindPattern:
 		lambda = 0.006
-	case KindPitfall:
+	case KindPitfall, KindDeadEnd:
 		lambda = 0.008
 	case KindReflection:
 		lambda = 0.02

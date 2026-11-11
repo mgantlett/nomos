@@ -94,3 +94,29 @@ func Evaluate() (*GateResult, error) {
 		t.Errorf("expected Evaluate to be identified as trivial pass shim")
 	}
 }
+
+func TestAntiShim_AllowsRealPanicErrAndFlagsUnconditionalGoTestSkip(t *testing.T) {
+	fset := token.NewFileSet()
+	realPanicSrc := "package sample\nfunc MustCheck(err error) {\n\tpanic(err)\n}\n"
+	parsed, err := parser.ParseFile(fset, "must.go", []byte(realPanicSrc), 0)
+	if err != nil {
+		t.Fatalf("parse must.go: %v", err)
+	}
+	fn, ok := parsed.Decls[0].(*ast.FuncDecl)
+	if !ok {
+		t.Fatalf("expected FuncDecl")
+	}
+	if dto := ScanFunctionAntiShim(fn); dto.IsPanicShim {
+		t.Fatalf("expected panic(err) helper not to be flagged as placeholder shim, got %+v", dto)
+	}
+
+	skipSrc := "package sample\nimport \"testing\"\nfunc TestSkipped(t *testing.T) {\n\tt.Skip(\"skip suite\")\n\tif 1 != 2 { t.Fatal(\"unreachable\") }\n}\n"
+	skipFile, pErr := parser.ParseFile(fset, "sample_test.go", []byte(skipSrc), 0)
+	if pErr != nil {
+		t.Fatalf("parse sample_test.go: %v", pErr)
+	}
+	skipFn, okCast := skipFile.Decls[1].(*ast.FuncDecl)
+	if !okCast || !isUnconditionalGoTestSkip(skipFn) {
+		t.Fatalf("expected unconditional first-statement t.Skip to be flagged")
+	}
+}

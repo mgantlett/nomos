@@ -36,6 +36,9 @@ func locateInHierarchy() string {
 		if found := checkConfigPaths(curr); found != "" {
 			return found
 		}
+		if hasGitRootMarker(curr) {
+			break
+		}
 		parent := filepath.Dir(curr)
 		if parent == curr {
 			break
@@ -43,6 +46,15 @@ func locateInHierarchy() string {
 		curr = parent
 	}
 	return ""
+}
+
+func hasGitRootMarker(dir string) bool {
+	fi, err := os.Stat(filepath.Join(dir, ".git"))
+	if err != nil {
+		return false
+	}
+	// Stop at standalone repository roots (.git directory), while allowing git worktrees (.git file) to inspect enclosing workspace roots.
+	return fi.IsDir()
 }
 
 func checkConfigPaths(dir string) string {
@@ -115,6 +127,9 @@ func ResolveLocalDBDir() string {
 		candidateData := filepath.Join(curr, constants.DirNomosHome, constants.DirData)
 		if fi, err := os.Stat(candidateData); err == nil && fi.IsDir() {
 			return candidateData
+		}
+		if hasGitRootMarker(curr) {
+			break
 		}
 		parent := filepath.Dir(curr)
 		if parent == curr {

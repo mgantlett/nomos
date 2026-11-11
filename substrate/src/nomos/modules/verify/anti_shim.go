@@ -125,14 +125,22 @@ func checkSinglePanicShim(stmt ast.Stmt) bool {
 	if !ok || ident.Name != "panic" {
 		return false
 	}
-
-	if len(call.Args) > 0 {
-		if lit, ok := call.Args[0].(*ast.BasicLit); ok {
-			val := strings.ToLower(lit.Value)
-			return strings.Contains(val, "todo") || strings.Contains(val, "not implemented")
-		}
+	if len(call.Args) == 0 {
+		return true
 	}
-	return true
+	if argIdent, isIdent := call.Args[0].(*ast.Ident); isIdent && argIdent.Name == "nil" {
+		return true
+	}
+	lit, isLit := call.Args[0].(*ast.BasicLit)
+	if !isLit {
+		return false
+	}
+	val := strings.TrimSpace(strings.Trim(strings.ToLower(lit.Value), "\"`"))
+	return val == "" ||
+		strings.Contains(val, "todo") ||
+		strings.Contains(val, "not implemented") ||
+		strings.Contains(val, "unimplemented") ||
+		strings.Contains(val, "stub")
 }
 
 // AntiShimGate verifies that source code does not contain empty stubs or panic shims.
@@ -201,16 +209,47 @@ func scanGoFileAntiShim(fset *token.FileSet, path, relPath string) []string {
 	if parseErr != nil {
 		return nil
 	}
+	isGoTest := strings.HasSuffix(path, "_test.go")
 	var violations []string
 	for _, decl := range node.Decls {
-		if fn, ok := decl.(*ast.FuncDecl); ok && fn.Body != nil {
-			dto := ScanFunctionAntiShim(fn)
-			if valErr := ValidateAntiShim(dto); valErr != nil {
-				violations = append(violations, fmt.Sprintf("%s:%s", relPath, valErr.Error()))
-			}
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Body == nil {
+			continue
+		}
+		dto := ScanFunctionAntiShim(fn)
+		if valErr := ValidateAntiShim(dto); valErr != nil {
+			violations = append(violations, fmt.Sprintf("%s:%s", relPath, valErr.Error()))
+			continue
+		}
+		if isGoTest && isUnconditionalGoTestSkip(fn) {
+			violations = append(violations, fmt.Sprintf("%s: test_skip_reward_hack (%s)", relPath, fn.Name.Name))
 		}
 	}
 	return violations
+}
+
+func isUnconditionalGoTestSkip(fn *ast.FuncDecl) bool {
+	if fn == nil || fn.Name == nil || !strings.HasPrefix(fn.Name.Name, "Test") || fn.Body == nil || len(fn.Body.List) == 0 {
+		return false
+	}
+	exprStmt, ok := fn.Body.List[0].(*ast.ExprStmt)
+	if !ok {
+		return false
+	}
+	call, ok := exprStmt.X.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || sel.Sel == nil {
+		return false
+	}
+	switch sel.Sel.Name {
+	case "Skip", "SkipNow", "Skipf":
+		return true
+	default:
+		return false
+	}
 }
 
 func scanCustomForbiddenShims(path, relPath string, markers []string) []string {

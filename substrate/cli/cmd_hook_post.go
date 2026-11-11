@@ -17,7 +17,11 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/treesitter"
 )
 
-var wildRmPattern = regexp.MustCompile(`(?i)(?:^|[;&|]\s*|\bsudo\s+)rm\s+(?:(?:-[a-z]*r[a-z]*|--recursive)\s+(?:/|\*+|~|\.\.?)(?:\s|$|/)|(?:-[a-z]+\s+)*[^\n;|&]*\*)`)
+var (
+	wildRmPattern      = regexp.MustCompile(`(?i)(?:^|[;&|]\s*|\bsudo\s+)rm\s+(?:(?:-[a-z]*r[a-z]*|--recursive)\s+(?:/|\*+|~|\.\.?)(?:\s|$|/)|(?:-[a-z]+\s+)*[^\n;|&]*\*)`)
+	gitNoVerifyPattern = regexp.MustCompile(`(?i)\bgit\s+(?:commit|merge|push)\b[^\n;|&]*(?:--no-verify\b|\s-n(?:\s|$))`)
+	bypassEnvPattern   = regexp.MustCompile(`\bNOMOS_(?:INIT|COMMIT)_IN_PROGRESS\s*=`)
+)
 
 const (
 	hookDecisionDeny  = "deny"
@@ -53,6 +57,12 @@ func evaluateCommandGuard(cmdLine, baseCwd, hermeticDir string) HookDecision {
 		return HookDecision{
 			Decision: hookDecisionDeny,
 			Reason:   "❌ [NOMOS INTERCEPT] Tampering with CapBAC Git defense hooks (.git/hooks) is strictly prohibited (Law 3 & Law 7).",
+		}
+	}
+	if isForbiddenHookBypassCmd(cmdLine) {
+		return HookDecision{
+			Decision: hookDecisionDeny,
+			Reason:   "❌ [NOMOS INTERCEPT] Bypassing CapBAC Git verification hooks ('--no-verify', 'git commit -n', or internal NOMOS_*_IN_PROGRESS env spoofing) is strictly prohibited (Law 2 & Law 7).",
 		}
 	}
 	if hermeticDir != "" && strings.Contains(cmdLine, "/etc/") {
@@ -96,6 +106,10 @@ func isForbiddenGitHooksCmd(cmdLine string) bool {
 		}
 	}
 	return false
+}
+
+func isForbiddenHookBypassCmd(cmdLine string) bool {
+	return gitNoVerifyPattern.MatchString(cmdLine) || bypassEnvPattern.MatchString(cmdLine)
 }
 
 // evaluatePostToolHostHealth surfaces deduplicated host/tool-health snapshots on verified PostToolUse faults.

@@ -80,11 +80,6 @@ func validateFileBoundary(repoRoot, currentBranch, f, activeTaskKey string) erro
 		return types.NewNomosError(types.ErrCodeBoundary, "worktree boundary violation: scratch files and walkthroughs must go in .tmp/ (e.g., .tmp/%s)", base)
 	}
 	target := filepath.Join(repoRoot, f)
-	if rootInfo, err := os.Stat(repoRoot); err == nil && rootInfo.IsDir() {
-		if _, err := os.Stat(target); os.IsNotExist(err) {
-			return nil
-		}
-	}
 	return ValidateWorktreeTaskBoundary(repoRoot, currentBranch, target, activeTaskKey)
 }
 

@@ -94,12 +94,23 @@ func (m *Manager) evaluateWorktreeDirEntry(
 		return
 	}
 
+	if hasUnregisteredDirtyGitTree(fullPath) {
+		rep.SkippedActive = append(rep.SkippedActive, dirName)
+		return
+	}
 	if !dryRun {
 		if err := os.RemoveAll(fullPath); err != nil {
 			return
 		}
 	}
 	rep.RemovedDirs = append(rep.RemovedDirs, dirName)
+}
+
+func hasUnregisteredDirtyGitTree(fullPath string) bool {
+	if _, err := os.Stat(filepath.Join(fullPath, ".git")); err != nil {
+		return false
+	}
+	return hasDirtyGitState(fullPath)
 }
 
 func hasDirtyGitState(wtPath string) bool {

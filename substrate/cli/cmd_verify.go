@@ -125,6 +125,7 @@ func runVerificationOutput(out io.Writer, targetDir, commitRange string, baselin
 
 func handleFailedVerificationReport(repoRoot, targetDir, activeTask string, allFiles, baseline bool, report *verify.PipelineReport) error {
 	if !allFiles && !baseline {
+		markWorktreeVerificationFailed(targetDir)
 		recordFailedReportTraps(repoRoot, targetDir, activeTask, report)
 	}
 	for _, res := range report.GateResults {

@@ -72,7 +72,47 @@ func SaveWorkspaceFlowGraph(workspaceDir string, graph CapabilityFlowGraph) erro
 	if mErr != nil {
 		return mErr
 	}
-	return os.WriteFile(statePath, data, 0600)
+	return WriteStateFileAtomically(statePath, data)
+}
+
+// WriteStateFileAtomically writes data to targetPath via a 0600 sibling temporary file and atomic rename.
+func WriteStateFileAtomically(targetPath string, data []byte) error {
+	dir := filepath.Dir(targetPath)
+	tmp, err := os.CreateTemp(dir, ".capflow-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	cleanupTmp := func() {
+		if rErr := os.Remove(tmpPath); rErr != nil && !os.IsNotExist(rErr) {
+			return
+		}
+	}
+	if cErr := tmp.Chmod(0600); cErr != nil {
+		if closeErr := tmp.Close(); closeErr != nil {
+			cleanupTmp()
+			return closeErr
+		}
+		cleanupTmp()
+		return cErr
+	}
+	if _, wErr := tmp.Write(data); wErr != nil {
+		if closeErr := tmp.Close(); closeErr != nil {
+			cleanupTmp()
+			return closeErr
+		}
+		cleanupTmp()
+		return wErr
+	}
+	if closeErr := tmp.Close(); closeErr != nil {
+		cleanupTmp()
+		return closeErr
+	}
+	if renErr := os.Rename(tmpPath, targetPath); renErr != nil {
+		cleanupTmp()
+		return renErr
+	}
+	return nil
 }
 
 // ResetWorkspaceFlowState clears active taint edges for workspaceDir upon session initialization.
