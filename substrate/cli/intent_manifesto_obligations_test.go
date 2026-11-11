@@ -142,7 +142,7 @@ func TestDomainSpecs_CoreSchemaAndWorktreeObligations(t *testing.T) {
 // TestDomainSpecs_TaskMemoryAndPhysicsObligations verifies Domain 3 (Task), Domain 5 (Tree-sitter), Domain 6 (Mneme), Domain 7 (NCTE), and Domain 8 (Physics).
 // @verifies TC-TSK-01 TC-TSK-02 TC-TSK-03 TC-TSK-04 TC-TSK-05 TC-TSK-06 TC-TSK-07 TC-TSK-08 TC-TSK-09 TC-TSK-10 TC-TSK-11 TC-TSK-12 TC-TSK-13 TC-TSK-14 TC-TSK-15 TC-TSK-16 TC-TSK-17
 // @verifies TC-TS-01 TC-TS-02 TC-TS-03 TC-TS-04 TC-TS-05 TC-TS-06 TC-TS-07 TC-TS-08 TC-TS-09 TC-TS-10
-// @verifies TC-MEM-01 TC-MEM-02 TC-MEM-03 TC-MEM-04 TC-MEM-05 TC-MEM-06 TC-MEM-07 TC-MEM-08 TC-MEM-09 TC-MEM-10 TC-MEM-11 TC-MEM-12 TC-MEM-13 TC-MEM-14
+// @verifies TC-MEM-01 TC-MEM-02 TC-MEM-03 TC-MEM-04 TC-MEM-05 TC-MEM-06 TC-MEM-07 TC-MEM-08 TC-MEM-09 TC-MEM-10 TC-MEM-11 TC-MEM-12 TC-MEM-13 TC-MEM-14 TC-MEM-15
 // @verifies TC-NCTE-01 TC-NCTE-02 TC-NCTE-03 TC-NCTE-04 TC-NCTE-05 TC-NCTE-06 TC-NCTE-07 TC-NCTE-08
 // @verifies TC-PHY-01 TC-PHY-02 TC-PHY-03 TC-PHY-04
 func TestDomainSpecs_TaskMemoryAndPhysicsObligations(t *testing.T) {
@@ -160,6 +160,9 @@ func TestDomainSpecs_TaskMemoryAndPhysicsObligations(t *testing.T) {
 	}
 	if err := mem.ValidateAdvisoryWriteKind("reflection"); err != nil {
 		t.Fatalf("expected advisory kind 'reflection' to pass ValidateAdvisoryWriteKind: %v", err)
+	}
+	if vec := mem.GenerateDeterministicLocalVector("ValidateWorktreeBoundary", 64); len(vec) != 64 || vec[0] == vec[32] {
+		t.Fatal("expected 64-dim subword feature hash with independent halves")
 	}
 	hullA := &cli.WorktreeHull{TaskKey: "SUB-1", WorktreePath: "wt-a", MutatedExports: []string{"Foo"}}
 	hullB := &cli.WorktreeHull{TaskKey: "SUB-2", WorktreePath: "wt-b", MutatedExports: []string{"Foo"}}

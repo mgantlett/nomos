@@ -95,8 +95,8 @@ Nomos Mneme SQLite storage partitioned to the active repository scope.`
 	helpMemSaveExample = `  nomos mem save "Prefer modular helper files under 300 LOC"
   nomos mem save --kind decision --topic verify --project nomos "Audit CLI help in Cell 6.2"`
 
-	helpMemRecallLong = `Query Nomos Mneme episodic and statutory memory records using hybrid lexical
-and semantic vector similarity scoped to the active repository (or --cross-repo).`
+	helpMemRecallLong = `Query Nomos Mneme episodic and statutory memory records using hybrid lexical,
+subword feature-hash, and optional local embedding similarity scoped to the active repository (or --cross-repo).`
 	helpMemRecallExample = `  nomos mem recall "plane separation"
   nomos mem recall "worktree" --cross-repo --limit 10 --json`
 

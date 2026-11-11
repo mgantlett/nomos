@@ -21,9 +21,9 @@ import (
 func NewMemCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "mem",
-		Short: "Nomos Mneme episodic and semantic memory",
-		Long: `Nomos Mneme episodic memory subsystem. Records reflections,
-axioms, and architectural decisions with deterministic vector recall.`,
+		Short: "Nomos Mneme receipt-gated episodic memory",
+		Long: `Nomos Mneme receipt-gated episodic memory subsystem. Records reflections,
+axioms, and architectural decisions with hybrid subword, lexical, and optional local embedding recall.`,
 		Example: helpMemExample,
 	}
 
@@ -147,7 +147,7 @@ func newMemRecallCmd() *cobra.Command {
 	var r recallArgs
 	cmd := &cobra.Command{
 		Use:     "recall <query>",
-		Short:   "Search Nomos Mneme memory using semantic and lexical relevance",
+		Short:   "Search Nomos Mneme memory using hybrid subword and lexical relevance",
 		Long:    helpMemRecallLong,
 		Example: helpMemRecallExample,
 		Args:    cobra.ExactArgs(1),

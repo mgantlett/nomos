@@ -1,9 +1,8 @@
-// Package mem implements the Nomos Mneme episodic and vector memory system.
+// Package mem implements the Nomos Mneme receipt-gated episodic memory system.
 package mem
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -111,26 +110,14 @@ func LexicalScore(query, text string) float64 {
 	return float64(matched) / float64(len(qTokens))
 }
 
-func tokenizeWords(s string) []string {
-	words := strings.FieldsFunc(strings.ToLower(s), func(r rune) bool {
-		return (r < 'a' || r > 'z') && (r < '0' || r > '9')
-	})
-	var clean []string
-	for _, w := range words {
-		if len(w) > 1 {
-			clean = append(clean, w)
-		}
-	}
-	return clean
-}
-
-// CombinedScore calculates a hybrid relevance score using cosine similarity and lexical overlap.
+// CombinedScore calculates a hybrid relevance score using subword/neural cosine similarity and lexical overlap.
 func CombinedScore(query string, queryEmb []float32, text string, targetEmb []float32) float64 {
 	lex := LexicalScore(query, text)
-	if len(queryEmb) > 0 && len(targetEmb) > 0 && len(queryEmb) == len(targetEmb) {
-		cos := CosineSimilarity(queryEmb, targetEmb)
+	qVec, tVec := resolveCompatibleVectors(query, queryEmb, text, targetEmb)
+	if len(qVec) > 0 && len(qVec) == len(tVec) {
+		cos := CosineSimilarity(qVec, tVec)
 		if cos > 0 {
-			if lex == 0 && cos < 0.50 {
+			if lex == 0 && cos < 0.45 {
 				return 0.0
 			}
 			return 0.75*cos + 0.25*lex
@@ -139,24 +126,48 @@ func CombinedScore(query string, queryEmb []float32, text string, targetEmb []fl
 	return lex
 }
 
-// GenerateDeterministicLocalVector computes a normalized float32 vector from content hashes.
+// resolveCompatibleVectors aligns stored and query embeddings or synthesizes 64-dim subword vectors when dimensions or legacy encodings differ.
+func resolveCompatibleVectors(query string, queryEmb []float32, text string, targetEmb []float32) ([]float32, []float32) {
+	if len(queryEmb) > 0 && len(targetEmb) > 0 {
+		if len(queryEmb) == len(targetEmb) && !isLegacyDuplicatedVector(queryEmb) && !isLegacyDuplicatedVector(targetEmb) {
+			return queryEmb, targetEmb
+		}
+		return GenerateDeterministicLocalVector(query, DefaultEmbeddingDimension),
+			GenerateDeterministicLocalVector(text, DefaultEmbeddingDimension)
+	}
+	return nil, nil
+}
+
+// isLegacyDuplicatedVector detects pre-v4.14 64-dim vectors where 32-byte SHA-256 digests repeated across both halves.
+func isLegacyDuplicatedVector(vec []float32) bool {
+	if len(vec) != DefaultEmbeddingDimension {
+		return false
+	}
+	nonZero := false
+	for i := 0; i < 8; i++ {
+		if vec[i] != 0 {
+			nonZero = true
+		}
+		if vec[i] != vec[i+32] {
+			return false
+		}
+	}
+	return nonZero
+}
+
+// GenerateDeterministicLocalVector computes a unit-normalized subword feature-hash vector across dim independent coordinates.
 func GenerateDeterministicLocalVector(text string, dim int) []float32 {
 	if dim <= 0 {
 		dim = DefaultEmbeddingDimension
 	}
 	vec := make([]float32, dim)
-	words := strings.Fields(strings.ToLower(text))
-	if len(words) == 0 {
+	features := extractSubwordFeatures(text)
+	if len(features) == 0 {
 		return vec
 	}
 
-	for _, w := range words {
-		hash := sha256.Sum256([]byte(w))
-		for i := 0; i < dim; i++ {
-			b := hash[i%len(hash)]
-			val := (float32(b)/128.0 - 1.0)
-			vec[i] += val
-		}
+	for _, feat := range features {
+		projectFeatureDigest(vec, feat)
 	}
 
 	var sumSquares float64
@@ -235,7 +246,7 @@ func queryLocalEmbedder(text string) ([]float32, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("local embedder returned status %d", resp.StatusCode)

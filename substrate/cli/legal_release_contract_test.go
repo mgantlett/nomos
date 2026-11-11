@@ -121,12 +121,18 @@ func operationalSurfaceContractCases() []repoContractCase {
 			forbid:   []string{"nomos parity", "Nomos v4.0.0"},
 		},
 		{
-			name:    "TC-REL-012 README links arXiv:2610.32285 and deterministic @main go install",
+			name:    "TC-REL-012 README links arXiv:2610.32285, receipt-gated episodic memory, and pure open-core boundary",
 			relPath: "README.md",
 			mustHave: []string{
 				"CGO_ENABLED=0 go install github.com/mgantlett/nomos/substrate/cmd/nomos@main",
 				"https://arxiv.org/abs/2610.32285",
 				"https://github.com/TraceLite-AI/TraceTrial-Bench",
+				"Receipt-Gated Episodic Memory",
+				"Multi-Repository Causal DAGs & Cross-Team Fleet Governance",
+			},
+			forbid: []string{
+				"Autonomous Tier 2 Coding Agent",
+				"Cockpit Control Plane",
 			},
 		},
 		{

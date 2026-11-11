@@ -43,6 +43,8 @@ func TestCosineSimilarity(t *testing.T) {
 	}
 }
 
+// TestGenerateDeterministicLocalVector verifies deterministic unit-length 64-dim subword feature hashing.
+// @verifies TC-MEM-04 TC-MEM-15
 func TestGenerateDeterministicLocalVector(t *testing.T) {
 	text := "Deterministic SQLite Episodic Memory Architecture"
 	v1 := GenerateDeterministicLocalVector(text, 64)
@@ -52,10 +54,17 @@ func TestGenerateDeterministicLocalVector(t *testing.T) {
 		t.Fatalf("expected 64 dimensions, got %d", len(v1))
 	}
 
+	identicalHalves := true
 	for i := range v1 {
 		if v1[i] != v2[i] {
 			t.Fatalf("expected identical deterministic vector, mismatch at %d", i)
 		}
+		if i < 32 && v1[i] != v1[i+32] {
+			identicalHalves = false
+		}
+	}
+	if identicalHalves {
+		t.Fatal("TC-MEM-15: expected independent 64-dim projection (v[:32] != v[32:64])")
 	}
 
 	var sumSq float64
@@ -64,6 +73,67 @@ func TestGenerateDeterministicLocalVector(t *testing.T) {
 	}
 	if math.Abs(sumSq-1.0) > 1e-4 {
 		t.Errorf("expected unit length (norm=1.0), got %f", sumSq)
+	}
+}
+
+// TestSubwordIdentifierNoiseAndDimensionFallback verifies camelCase/morphology matching, stop-word noise rejection, and mixed-dimension fallback.
+// @verifies TC-MEM-15
+func TestSubwordIdentifierNoiseAndDimensionFallback(t *testing.T) {
+	qCamel := "worktree boundary validation"
+	docCamel := "ValidateWorktreeBoundary blocks direct trunk commits."
+	scoreCamel := CombinedScore(
+		qCamel,
+		GenerateDeterministicLocalVector(qCamel, DefaultEmbeddingDimension),
+		docCamel,
+		GenerateDeterministicLocalVector(docCamel, DefaultEmbeddingDimension),
+	)
+	if scoreCamel < 0.55 {
+		t.Fatalf("TC-MEM-15: expected camelCase identifier match >= 0.55, got %.3f", scoreCamel)
+	}
+
+	qStem := "embedding"
+	docStem := "Local embed pipeline projects subword vectors."
+	scoreStem := CombinedScore(
+		qStem,
+		GenerateDeterministicLocalVector(qStem, DefaultEmbeddingDimension),
+		docStem,
+		GenerateDeterministicLocalVector(docStem, DefaultEmbeddingDimension),
+	)
+	if scoreStem <= 0.0 {
+		t.Fatalf("TC-MEM-15: expected morphological subword stem match > 0, got %.3f", scoreStem)
+	}
+
+	noiseQuery := "the memory in the store for the agent with the hook"
+	noiseDoc := "the shader in the canvas for the camera with the mesh"
+	noiseScore := CombinedScore(
+		noiseQuery,
+		GenerateDeterministicLocalVector(noiseQuery, DefaultEmbeddingDimension),
+		noiseDoc,
+		GenerateDeterministicLocalVector(noiseDoc, DefaultEmbeddingDimension),
+	)
+	if noiseScore != 0.0 {
+		t.Fatalf("TC-MEM-15: expected unrelated stop-word-heavy pair to score 0.0, got %.3f", noiseScore)
+	}
+
+	neural768 := make([]float32, 768)
+	for i := range neural768 {
+		neural768[i] = 0.03
+	}
+	offline64 := GenerateDeterministicLocalVector(qCamel, DefaultEmbeddingDimension)
+	mixedScore := CombinedScore(qCamel, offline64, docCamel, neural768)
+	if mixedScore < 0.55 {
+		t.Fatalf("TC-MEM-15: expected mixed 64-vs-768 dimension fallback score >= 0.55, got %.3f", mixedScore)
+	}
+
+	legacy64 := make([]float32, 64)
+	for i := 0; i < 32; i++ {
+		val := float32(i+1) * 0.01
+		legacy64[i] = val
+		legacy64[i+32] = val
+	}
+	legacyScore := CombinedScore(qCamel, offline64, docCamel, legacy64)
+	if legacyScore < 0.55 {
+		t.Fatalf("TC-MEM-15: expected legacy duplicated-half 64-dim vector to re-project cleanly, got %.3f", legacyScore)
 	}
 }
 
