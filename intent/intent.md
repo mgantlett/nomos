@@ -12,12 +12,13 @@ lineage:
   - SUB-2147
   - INT-1944
   - SUB-2157
+  - INT-1951
 plane: intent
 ssot_repository: nomos
 status: active
 title: "The Nomos Layer 0 North Star Charter and 4-Layer Progressive Intent Compiler"
 type: spec
-version: "4.13.1"
+version: "4.14.0"
 ---
 
 # The Nomos Layer 0 North Star Charter and 4-Layer Progressive Intent Compiler
@@ -55,6 +56,8 @@ flowchart TD
 Every task executes on either the **Intent Plane (`INT-<N>`)** or the **Substrate Plane (`SUB-<N>`)**:
 - **Intent Plane (`INT-<N>`)**: Mutates Layer 0 (`intent/intent.md`), Layer 1 (`intent/config/nomos.yaml`), and Layer 2 (`intent/architecture/specs/*_spec.md`).
 - **Substrate Plane (`SUB-<N>`)**: Mutates Layer 3 (`substrate/**`), binds `@verifies TC-*` tests, and seals `2PC` Git Notes receipts.
+
+Ambient lifecycle hooks govern all five Tier 1 providers (Claude Code, Gemini CLI, OpenCode, Cursor, Antigravity) across `nomos init` and `nomos hook install`.
 
 | Law # | Law Name | Core Architectural Invariant | Enforcing Substrate Gate |
 | :---: | :--- | :--- | :--- |
@@ -129,7 +132,7 @@ func ValidateWorktreeBoundary(repoRoot, currentBranch, targetFile string) error
 
 ## 6. Cross-Plane Traceability & DoD Verification
 
-1. **Bilateral Task Lineage**: `INT-1941`, `SUB-2134`, `INT-1943`, and `SUB-2147`.
+1. **Bilateral Task Lineage**: `INT-1941`, `SUB-2134`, `INT-1943`, `SUB-2147`, and `INT-1951`.
 2. **Enforcing 7x3 Matrix Coordinates**: `Cell 4.1 (intent_steelman)`, `Cell 4.1 (intent_traceability)`, `Cell 6.1 (zero_filesystem_alias)`, and `Cell 7.1 (plane_separation)`.
 3. **Executable Obligation Suite**: `substrate/cli/intent_manifesto_obligations_test.go` binds `TC-INT-01` through `TC-INT-06` and all 8 canonical domain specifications.
 4. **Verification Command**: Execute `nomos verify` across all 42 Definition of Done quality gates and assert exit code `0`.

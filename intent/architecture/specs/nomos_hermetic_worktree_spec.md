@@ -15,12 +15,13 @@ lineage:
   - SUB-2177
   - SUB-2178
   - INT-1948
+  - INT-1951
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Hermetic Worktree and Git Hygiene Specification"
 type: spec
-version: "4.2.0"
+version: "4.3.0"
 ---
 
 # Hermetic Worktree and Git Hygiene Specification
@@ -37,7 +38,7 @@ This specification formalizes the **Hermetic Worktree and Git Hygiene Subsystem*
 
 ## 2. Axiomatic Invariants & Governing Laws
 
-- **Law 1: The Dual-Core Inversion Law**: The Go Substrate engine retains absolute governance over worktree creation, branch provisioning, and git executions. Tier 1 coding agents (AGY-IDE, Claude Code, OpenCode) execute within the hermetic boundary under indirect control. The substrate prohibits raw `git` shell invocations that bypass substrate envelopes.
+- **Law 1: The Dual-Core Inversion Law**: The Go Substrate engine retains absolute governance over worktree creation, branch provisioning, and git executions. Tier 1 coding agents (Claude Code, Gemini CLI, OpenCode, Cursor, Antigravity) execute within the hermetic boundary under indirect control. The substrate prohibits raw `git` shell invocations that bypass substrate envelopes.
 - **Law 2: The Non-Verbal Proof Law**: Automated, deterministic table-driven verification vectors continuously prove worktree boundary integrity and subprocess sanitization.
 - **Law 3: The Hermetic Worktree Law**: Git pre-commit hooks and CapBAC boundary checks guard protected trunk branches against direct mutation. Code modifications, dependency installs, and file generation must execute exclusively inside isolated task worktrees (`worktrees/nomos-<KEY>`).
 - **Law 4: The Single Source of Truth Law**: Worktree configuration schemas bind directly to compiled Go structs in `nomos/core/workspace` and `nomos/core/config`, reflected into `nomos.schema.json`.
@@ -258,6 +259,8 @@ During `nomos verify`, four dedicated Definition of Done probes enforce hermetic
 
 `nomos init` and `EnsureHooksInstalled` append `*.tmp`, `*.bak`, `*.orig`, and `*.swp` to Git exclude manifests. `nomos hook pre-tool` blocks shell redirects (`>` / `>>`) targeting protected trunk paths outside `/worktrees/` and `.tmp/`. Under `--antigravity` and `--advisory-profile carbon`, `nomos hook post-tool` returns `{}` on `PostToolUse` and flushes buffered advisories on `PostInvocation`.
 
+`nomos init` and default `nomos hook install` scaffold all five Tier 1 provider manifests (Claude Code, Gemini CLI, OpenCode, Cursor, Antigravity). `nomos hook install --cursor` merges `.cursor/hooks.json` (`"version": 1`) at project scope or `~/.cursor/hooks.json` under `--user`. `.cursor/hooks.json` wires `sessionStart`, `preToolUse`, `beforeShellExecution`, `postToolUse`, `afterFileEdit`, and `stop` with POSIX `$PATH` discovery and `{}` fallback. `nomos hook` normalizes Cursor `conversation_id`, `workspace_roots`, `command`, `file_path`, and `edits` payloads across pre-tool, post-tool, and stop lifecycles.
+
 ---
 
 ## 6. Table-Driven Verification Vectors
@@ -295,14 +298,16 @@ During `nomos verify`, four dedicated Definition of Done probes enforce hermetic
 | `TC-CMT-007` | Internal substrate refactor exemption | `refactor(verify)` modifying private helpers with empty `NormativeSurfaceDelta` | `"Permits untwinned internal refactor under intent_twin_mode: feat."` | PASS |
 | `TC-CMT-008` | Referential `Twin:` provenance check | `Twin: INT-999999` absent from trunk history and task ledger | `"Rejects unresolvable Twin trailer lacking trunk or ledger provenance."` | PASS |
 | `TC-HOOK-001` | Antigravity 2.0 `PostInvocation` flush | `nomos hook post-tool --antigravity --advisory-profile carbon` | `"Returns {} on PostToolUse and flushes buffered advisories on PostInvocation."` | PASS |
+| `TC-HOOK-002` | 5-provider `init` & `hook install` parity | `nomos init` and `nomos hook install` (`--cursor`, `--user`, default) | `"Scaffolds and merges Claude, Gemini, OpenCode, Cursor (.cursor/hooks.json v1), and Antigravity hooks."` | PASS |
+| `TC-HOOK-003` | Cursor lifecycle payload normalization | `nomos hook pre-tool` (`beforeShellExecution`) and `post-tool` (`afterFileEdit`) | `"Denies unsafe Cursor shell execution via permission=deny and runs AST radar on file_path edits."` | PASS |
 
 ---
 
 ## 7. Cross-Plane Traceability & DoD Verification
 
 1. **Bilateral Plane Lineage:**
-   - **Intent Plane:** `INT-327` (Hermetic Worktree Architecture).
-   - **Substrate Plane:** `SUB-327` (`substrate/src/nomos/core/workspace/` and `substrate/src/nomos/core/config/`).
+   - **Intent Plane:** `INT-327` and `INT-1951` (Hermetic Worktree and 5-Provider Hook Architecture).
+   - **Substrate Plane:** `SUB-327` (`substrate/src/nomos/core/workspace/`, `substrate/src/nomos/core/config/`, and `substrate/cli/`).
 2. **7x3 Invariant Matrix Coordinates:**
    - `Cell 3.1 (staged_boundaries)` enforces uncommitted and staged worktree boundary isolation.
    - `Cell 3.2 (hermetic_worktree)` and `Cell 3.2 (git_hygiene)` enforce worktree confinement and `SafeGitCommand` subprocess wrapping.
