@@ -66,6 +66,10 @@ func finalizeSync(key, walkthroughPath string) error {
 	if cErr := autoCommitDirtyWorktree(wtPath, key, t, walkthroughPath); cErr != nil {
 		return cErr
 	}
+	branch := mgr.BranchName(key)
+	if _, rErr := rebaseOntoTrunkIfDiverged(mgr.RepoRoot, wtPath, branch); rErr != nil {
+		return rErr
+	}
 	report, gErr := executeGateCheckForTask(key)
 	if gErr != nil {
 		return gErr
@@ -73,18 +77,6 @@ func finalizeSync(key, walkthroughPath string) error {
 	touchedFiles := verify.ListModifiedWorktreeFiles(wtPath, key)
 	if pErr := validateReceiptTraceParity(wtPath, walkthroughPath, touchedFiles); pErr != nil {
 		return pErr
-	}
-	branch := mgr.BranchName(key)
-	rebased, rErr := rebaseOntoTrunkIfDiverged(mgr.RepoRoot, wtPath, branch)
-	if rErr != nil {
-		return rErr
-	}
-	if rebased {
-		rebasedReport, vErr := executeGateCheckForTask(key)
-		if vErr != nil {
-			return vErr
-		}
-		report = rebasedReport
 	}
 	preMergeSHA := readGitHeadSHA(mgr.RepoRoot)
 	if mErr := fastForwardTrunkMerge(mgr.RepoRoot, branch); mErr != nil {
@@ -112,6 +104,7 @@ func completeSyncedTaskMetadata(mgr *workspace.Manager, store task.TaskStore, t 
 }
 
 func cleanupAndAnnounceSyncedTask(mgr *workspace.Manager, key string) {
+	invalidateWorktreeVerifyReceipt(mgr.RepoRoot, mgr.WorktreePath(key))
 	if remErr := mgr.RemoveWorktree(key); remErr != nil {
 		// logged or soft failure
 	}

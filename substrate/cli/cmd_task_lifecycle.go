@@ -287,23 +287,13 @@ func updateActiveLeasePhase(taskKey, phase string) {
 }
 
 func executeGateCheckForTask(taskKey string) (*verify.PipelineReport, error) {
-	targetDir, err := os.Getwd()
-	if err != nil {
-		targetDir = "."
-	}
-	repoRoot, err := workspace.FindRepoRoot(targetDir)
-	if err != nil {
-		repoRoot = targetDir
-	}
-	worktreePath := targetDir
-
-	if taskKey != "" {
-		if mgr, mErr := workspace.NewManager(repoRoot); mErr == nil {
-			wt := mgr.WorktreePath(taskKey)
-			if fi, sErr := os.Stat(wt); sErr == nil && fi.IsDir() {
-				worktreePath = wt
-			}
-		}
+	repoRoot, worktreePath := resolveTaskGateTargets(taskKey)
+	if cached := loadValidWorktreeVerifyReceipt(repoRoot, worktreePath, taskKey, time.Now()); cached != nil {
+		fmt.Printf("🔍 %s %s %s\n",
+			uiSuccessStyle.Render("DoD Verification Succeeded:"),
+			uiBoldValueStyle.Render(fmt.Sprintf("%d/%d gates passed", cached.GatesPassed, cached.GatesTotal)),
+			uiMutedStyle.Render("(clean-tree receipt cache)"))
+		return cached, nil
 	}
 
 	ctx := &verify.VerifyContext{
@@ -316,28 +306,35 @@ func executeGateCheckForTask(taskKey string) (*verify.PipelineReport, error) {
 	report, err := pipeline.Execute(ctx)
 	recordVerificationAnomalies(repoRoot, taskKey, "task-review", report, err)
 	if err != nil {
+		invalidateWorktreeVerifyReceipt(repoRoot, worktreePath)
 		return nil, err
 	}
 	if !report.Passed {
+		invalidateWorktreeVerifyReceipt(repoRoot, worktreePath)
 		recordFailedReportTraps(repoRoot, worktreePath, taskKey, report)
-		var failedMsgs []string
-		for _, res := range report.GateResults {
-			if !res.Passed {
-				if res.GateName == "Plane Separation Invariant" {
-					nErr := types.NewNomosError(types.ErrCodeCrossPlaneMutation, "%s", res.Message)
-					nErr.Remedy = res.Remedy
-					return nil, nErr
-				}
-				failedMsgs = append(failedMsgs, fmt.Sprintf("%s: %s", res.GateName, res.Message))
-			}
-		}
-		return nil, types.NewNomosError(types.ErrCodeInvariant, "DoD verification failed: %d/%d gates passed\n  - %s",
-			report.GatesPassed, report.GatesTotal, strings.Join(failedMsgs, "\n  - "))
+		return nil, formatFailedTaskGateReport(report)
 	}
+	saveWorktreeVerifyReceipt(repoRoot, worktreePath, taskKey, report)
 	fmt.Printf("🔍 %s %s\n",
 		uiSuccessStyle.Render("DoD Verification Succeeded:"),
 		uiBoldValueStyle.Render(fmt.Sprintf("%d/%d gates passed", report.GatesPassed, report.GatesTotal)))
 	return report, nil
+}
+
+func formatFailedTaskGateReport(report *verify.PipelineReport) error {
+	var failedMsgs []string
+	for _, res := range report.GateResults {
+		if !res.Passed {
+			if res.GateName == "Plane Separation Invariant" {
+				nErr := types.NewNomosError(types.ErrCodeCrossPlaneMutation, "%s", res.Message)
+				nErr.Remedy = res.Remedy
+				return nErr
+			}
+			failedMsgs = append(failedMsgs, fmt.Sprintf("%s: %s", res.GateName, res.Message))
+		}
+	}
+	return types.NewNomosError(types.ErrCodeInvariant, "DoD verification failed: %d/%d gates passed\n  - %s",
+		report.GatesPassed, report.GatesTotal, strings.Join(failedMsgs, "\n  - "))
 }
 
 func newTaskAbortCmd() *cobra.Command {

@@ -103,6 +103,7 @@ func runVerificationOutput(out io.Writer, targetDir, commitRange string, baselin
 	pipeline := verify.NewPipeline(verify.DefaultBaselineGates())
 	report, err := pipeline.Execute(ctx)
 	recordVerificationAnomalies(repoRoot, activeTask, "verify", report, err)
+	syncVerifyCommandReceipt(repoRoot, targetDir, activeTask, commitRange, baseline, report)
 	if err != nil {
 		return err
 	}
