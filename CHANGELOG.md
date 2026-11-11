@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [v4.16.2] - 2026-11-11
+
+> GoReleaser v2.20 Secret-Token Interpolation Fix Enabling Live Automated `mgantlett/homebrew-tap` Cask Publishing & AUR Secret Hygiene (Apache 2.0)
+
+### Release & Packaging (`.goreleaser.yaml`)
+- **GoReleaser v2.20+ Secret-Token Interpolation (`SUB-2252`)**: Updates `homebrew_casks[].repository.token` (`{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}`) and `aurs[].private_key` (`{{ .Env.AUR_KEY }}`) to GoReleaser v2.20+ strict secret-only template syntax while preserving `index .Env` guards in `skip_upload`, enabling zero-touch `mgantlett/homebrew-tap` Cask updates on every tag push.
+
+---
+
 ## [v4.16.1] - 2026-11-11
 
 > Canonical `@AGENTS.md` `CLAUDE.md` SSoT Import Collapse, Root `nomos.yaml` Inline Extension Envelope, Plus Automated Homebrew Tap Publishing & GitHub Discussions Forms (Apache 2.0)

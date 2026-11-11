@@ -44,7 +44,7 @@ body:
     attributes:
       label: Environment & Version
       description: Operating system, architecture, and output of `nomos version`.
-      placeholder: "e.g., Linux amd64, Go 1.26, Nomos v4.16.1"
+      placeholder: "e.g., Linux amd64, Go 1.26, Nomos v4.16.2"
     validations:
       required: true
   - type: textarea
