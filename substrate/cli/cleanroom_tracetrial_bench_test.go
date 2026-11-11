@@ -156,6 +156,8 @@ func provisionCompliantWorktreeForLifecycle(t *testing.T, repoDir string) string
 
 func assertPillar4GateCrashAbortsMerge(t *testing.T, repoDir, key string) {
 	t.Helper()
+	// Force in-process 2PC gate execution rather than reusing pre-commit subprocess receipt cache.
+	t.Setenv(envDisableVerifyReceiptCache, "1")
 	headBefore := gitRevParseHead(t, repoDir)
 	verify.RegisterGate("uasset_dependency", func() verify.Gate { return &crashingGateProbe{} })
 	defer verify.RegisterGate("uasset_dependency", func() verify.Gate { return &verify.UAssetDependencyGate{} })
