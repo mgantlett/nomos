@@ -8,12 +8,13 @@ last_updated: "2026-11-10"
 lineage:
   - INT-1944
   - SUB-2157
+  - INT-1954
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Nomos Software Physics Engine - Kinematics, Continuous Collision Detection & Phase Ballistics Specification"
 type: spec
-version: "4.0.0"
+version: "4.1.0"
 ---
 
 # Nomos Software Physics Engine: Kinematics, Continuous Collision Detection & Phase Ballistics Specification
@@ -263,28 +264,39 @@ type SentinelScorecard struct {
 	Invariants      []InvariantResult `json:"invariants"`
 }
 
+// DeliberationMetrics quantifies reasoning verbosity, read streaks, and deliberation-to-mutation ratios (#DeliberationMetrics).
+type DeliberationMetrics struct {
+	ThinkingBytes               int     `json:"thinking_bytes"`
+	ThinkingStepCount           int     `json:"thinking_step_count"`
+	MaxReadStreak               int     `json:"max_read_streak"`
+	MutationCallCount           int     `json:"mutation_call_count"`
+	DeliberationToMutationRatio float64 `json:"deliberation_to_mutation_ratio"`
+}
+
 // SessionDetail captures the deep causal inspection telemetry of an agent session (#SessionDetail).
 type SessionDetail struct {
 	AgentSession
-	ToolsSummary  map[string]int     `json:"tools_summary"`
-	Events        []SessionEvent     `json:"events"`
-	RecentPrompts []string           `json:"recent_prompts,omitempty"`
-	Sentinel      *SentinelScorecard `json:"sentinel,omitempty"`
-	Trajectory    *SessionTrajectory `json:"trajectory,omitempty"`
-	Persona       string             `json:"persona,omitempty"`
+	ToolsSummary  map[string]int       `json:"tools_summary"`
+	Events        []SessionEvent       `json:"events"`
+	RecentPrompts []string             `json:"recent_prompts,omitempty"`
+	Sentinel      *SentinelScorecard   `json:"sentinel,omitempty"`
+	Trajectory    *SessionTrajectory   `json:"trajectory,omitempty"`
+	Deliberation  *DeliberationMetrics `json:"deliberation,omitempty"`
+	Persona       string               `json:"persona,omitempty"`
 }
 
 // SessionDatasetRecord joins session telemetry, Sentinel PRM scores, Git Note receipts, and Mneme learnings (#SessionDatasetRecord).
 type SessionDatasetRecord struct {
-	Session        AgentSession       `json:"session"`
-	Sentinel       *SentinelScorecard `json:"sentinel,omitempty"`
-	Trajectory     *SessionTrajectory `json:"trajectory,omitempty"`
-	ToolsSummary   map[string]int     `json:"tools_summary,omitempty"`
-	ReleaseCommit  string             `json:"release_commit,omitempty"`
-	DoDGatesPassed int                `json:"dod_gates_passed,omitempty"`
-	SHA256Receipt  string             `json:"sha256_receipt,omitempty"`
-	PitfallsFixed  []string           `json:"pitfalls_fixed,omitempty"`
-	PatternsMinted []string           `json:"patterns_minted,omitempty"`
+	Session        AgentSession         `json:"session"`
+	Sentinel       *SentinelScorecard   `json:"sentinel,omitempty"`
+	Trajectory     *SessionTrajectory   `json:"trajectory,omitempty"`
+	Deliberation   *DeliberationMetrics `json:"deliberation,omitempty"`
+	ToolsSummary   map[string]int       `json:"tools_summary,omitempty"`
+	ReleaseCommit  string               `json:"release_commit,omitempty"`
+	DoDGatesPassed int                  `json:"dod_gates_passed,omitempty"`
+	SHA256Receipt  string               `json:"sha256_receipt,omitempty"`
+	PitfallsFixed  []string             `json:"pitfalls_fixed,omitempty"`
+	PatternsMinted []string             `json:"patterns_minted,omitempty"`
 }
 ```
 
@@ -330,6 +342,7 @@ The Open-Core Software Physics Engine exposes real-time worktree AST mass, inert
 | `TC-SES-04` | Deep Session Detail Inspection | `nomos session show <id>` (`SessionDetail`) | `PASS` (Surfaces tool summary, events, and Sentinel scorecard) |
 | `TC-SES-05` | Topological Session Graph | `SessionVisualGraph` Mermaid synthesis | `PASS` (Emits valid Mermaid graph of active agent sessions) |
 | `TC-SES-06` | JSONL Trajectory Dataset Export | `nomos session export` (`SessionDatasetRecord`) | `PASS` (Joins session, Sentinel PRM, 2PC receipt, and Mneme learnings) |
+| `TC-SES-07` | Deliberation Verbosity Telemetry | `DeliberationMetrics` over full session transcript | `PASS` (Measures thinking bytes, read streaks, and mutation ratios) |
 | `TC-LAUNCH-001` | Capability Invocation Telemetry | `RecordInvocationWithDetails` on CLI execution (`CapabilityMetrics`) | `PASS` (Increments `InvocationCount` and updates `LastAccessedAt`) |
 | `TC-LAUNCH-002` | Fail-Safe Telemetry Recording | `RecordInvocationSafe` with unavailable database path | `PASS` (Degrades silently with zero panic or CLI disruption) |
 | `TC-LAUNCH-003` | Capability Matrix Inspection | `nomos capabilities --json` | `PASS` (Emits structured capability and 7x3 gate registry JSON) |
