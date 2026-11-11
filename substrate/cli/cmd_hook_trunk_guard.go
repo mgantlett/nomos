@@ -44,7 +44,7 @@ func checkRedirectTargetAgainstTrunk(rawTarget, cwd string) HookDecision {
 		return HookDecision{Decision: hookDecisionAllow}
 	}
 	resolved := normalizeCanonicalPath(rawTarget, cwd)
-	if isPermittedWorktreePath(resolved) {
+	if isPermittedWorktreePath(resolved, cwd) {
 		return HookDecision{Decision: hookDecisionAllow}
 	}
 	parentDir := filepath.Dir(resolved)

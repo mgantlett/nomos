@@ -104,7 +104,7 @@ func enforcePreCommitIntentTwinMode(dir, taskKey, commitMsg string) error {
 		return nil
 	}
 	mode := cfg.Governance.QualityGates.EffectiveIntentTwinMode()
-	if violation := verify.ValidateCommitIntentTwinMode(commitMsg, mode); violation != "" {
+	if violation := verify.ValidateWorktreeIntentTwin(dir, commitMsg, mode); violation != "" {
 		return types.NewNomosError(
 			types.ErrCodeBoundary,
 			"%s\n  Remedy: %s",

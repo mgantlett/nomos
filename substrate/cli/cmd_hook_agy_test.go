@@ -10,6 +10,7 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 )
 
+// @verifies TC-HOOK-001
 func TestHookAntigravity_PostToolBufferingAndGoSyntaxFlush(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	repoDir := t.TempDir()

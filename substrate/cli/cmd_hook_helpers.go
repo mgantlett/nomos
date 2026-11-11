@@ -166,7 +166,7 @@ func evaluateFileMutationGuard(p *HookPayload, hermeticDir string) HookDecision 
 	if hermeticDir != "" {
 		return evaluateHermeticDirBoundary(p.TargetFile, resolved, hermeticDir)
 	}
-	return evaluateWorktreeBoundary(p.TargetFile, resolved, p.ToolName)
+	return evaluateWorktreeBoundary(p.TargetFile, resolved, baseCwd, p.ToolName)
 }
 
 func evaluateHermeticDirBoundary(rawTarget, resolved, hermeticDir string) HookDecision {
@@ -180,8 +180,8 @@ func evaluateHermeticDirBoundary(rawTarget, resolved, hermeticDir string) HookDe
 	}
 }
 
-func evaluateWorktreeBoundary(rawTarget, resolved, toolName string) HookDecision {
-	if isPermittedWorktreePath(resolved) {
+func evaluateWorktreeBoundary(rawTarget, resolved, baseCwd, toolName string) HookDecision {
+	if isPermittedWorktreePath(resolved, baseCwd) {
 		return HookDecision{Decision: hookDecisionAllow}
 	}
 	if toolName == "" {
@@ -200,13 +200,49 @@ func evaluateWorktreeBoundary(rawTarget, resolved, toolName string) HookDecision
 	}
 }
 
-func isPermittedWorktreePath(resolved string) bool {
+func isPermittedWorktreePath(resolved, baseCwd string) bool {
 	if strings.Contains(resolved, "/worktrees/") || strings.Contains(resolved, "/.tmp/") {
 		return true
 	}
-	return strings.Contains(resolved, "/antigravity/brain/") ||
-		strings.Contains(resolved, "/antigravity-ide/brain/") ||
-		strings.Contains(resolved, "/antigravity-cli/brain/")
+	return isExternalAgentBrainPath(resolved, baseCwd)
+}
+
+func isExternalAgentBrainPath(resolved, baseCwd string) bool {
+	if !strings.Contains(resolved, "/brain/") {
+		return false
+	}
+	if isInsideWorkspaceRoot(resolved, baseCwd) {
+		return false
+	}
+	return hasAgentBrainParentSegment(resolved)
+}
+
+func isInsideWorkspaceRoot(resolved, baseCwd string) bool {
+	if baseCwd == "" {
+		return false
+	}
+	canonBase := normalizeCanonicalPath(baseCwd, "/")
+	if pr, err := workspace.FindRepoRoot(canonBase); err == nil && pr != "" {
+		canonBase = filepath.ToSlash(filepath.Clean(pr))
+	}
+	return resolved == canonBase || strings.HasPrefix(resolved, canonBase+"/")
+}
+
+func hasAgentBrainParentSegment(resolved string) bool {
+	segs := strings.Split(resolved, "/")
+	for i := 1; i < len(segs)-1; i++ {
+		if segs[i] != "brain" {
+			continue
+		}
+		parent := segs[i-1]
+		if parent == "antigravity" || parent == "antigravity-ide" || parent == "antigravity-cli" {
+			return true
+		}
+		if len(parent) > 1 && strings.HasPrefix(parent, ".") {
+			return true
+		}
+	}
+	return false
 }
 
 func isSystemRootPath(resolved string) bool {

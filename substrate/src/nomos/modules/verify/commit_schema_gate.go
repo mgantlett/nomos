@@ -66,7 +66,7 @@ func (g *CommitSchemaGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	}
 
 	for _, entry := range commits {
-		res, err := checkCommitComplianceWithMode(g.Name(), entry.body, mode)
+		res, err := checkCommitComplianceInWorktree(g.Name(), root, entry.body, mode)
 		if err != nil || !res.Passed {
 			if res != nil && entry.shortSHA != "" {
 				res.Message = fmt.Sprintf("commit %s: %s", entry.shortSHA, res.Message)
@@ -96,7 +96,7 @@ func evaluateSingleHeadCommitWithMode(gateName, root, mode string) (*GateResult,
 	if commitMsg == "" {
 		return &GateResult{GateName: gateName, Passed: false, Message: "HEAD commit message is empty", Remedy: remedyAmendCommit}, nil
 	}
-	return checkCommitComplianceWithMode(gateName, commitMsg, mode)
+	return checkCommitComplianceInWorktree(gateName, root, commitMsg, mode)
 }
 
 type auditedCommitEntry struct {
@@ -185,10 +185,14 @@ func isPreCommitExempt(worktreePath string) bool {
 }
 
 func checkCommitCompliance(gateName, commitMsg string) (*GateResult, error) {
-	return checkCommitComplianceWithMode(gateName, commitMsg, "")
+	return checkCommitComplianceInWorktree(gateName, "", commitMsg, "")
 }
 
 func checkCommitComplianceWithMode(gateName, commitMsg, mode string) (*GateResult, error) {
+	return checkCommitComplianceInWorktree(gateName, "", commitMsg, mode)
+}
+
+func checkCommitComplianceInWorktree(gateName, worktreeDir, commitMsg, mode string) (*GateResult, error) {
 	trimmedMsg := strings.TrimSpace(commitMsg)
 	if trimmedMsg == "" {
 		return &GateResult{GateName: gateName, Passed: false, Message: "commit message is empty", Remedy: remedyAmendCommit}, nil
@@ -209,7 +213,7 @@ func checkCommitComplianceWithMode(gateName, commitMsg, mode string) (*GateResul
 	if violation := validateBodyAndTrailers(lines[1:], subjectKey); violation != "" {
 		return &GateResult{GateName: gateName, Passed: false, Message: violation, Remedy: remedyAmendCommit}, nil
 	}
-	if violation := ValidateCommitIntentTwinMode(trimmedMsg, mode); violation != "" {
+	if violation := ValidateWorktreeIntentTwin(worktreeDir, trimmedMsg, mode); violation != "" {
 		return &GateResult{GateName: gateName, Passed: false, Message: violation, Remedy: IntentTwinModeRemedy(subjectKey)}, nil
 	}
 

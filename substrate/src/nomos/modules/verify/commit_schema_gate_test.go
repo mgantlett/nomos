@@ -16,6 +16,7 @@ func TestCommitSchemaGate_Name(t *testing.T) {
 	}
 }
 
+// @verifies TC-CMT-005
 func TestCheckCommitCompliance(t *testing.T) {
 	tests := []struct {
 		name       string

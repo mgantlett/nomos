@@ -48,18 +48,20 @@ func ensureCompiledHookTestEnv(t *testing.T) []string {
 		t.Fatalf("failed building compiled nomos binary for hook test: %v", compiledHookTestErr)
 	}
 	env := os.Environ()
-	out := make([]string, 0, len(env)+1)
+	out := make([]string, 0, len(env)+2)
 	for _, kv := range env {
-		if !strings.HasPrefix(kv, "PATH=") {
+		if !strings.HasPrefix(kv, "PATH=") && !strings.HasPrefix(kv, "GOBIN=") {
 			out = append(out, kv)
 		}
 	}
+	out = append(out, "GOBIN="+compiledHookTestBinDir)
 	return append(out, "PATH="+compiledHookTestBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 
 func useCompiledNomosInPath(t *testing.T) {
 	t.Helper()
 	_ = ensureCompiledHookTestEnv(t)
+	t.Setenv("GOBIN", compiledHookTestBinDir)
 	t.Setenv("PATH", compiledHookTestBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 
