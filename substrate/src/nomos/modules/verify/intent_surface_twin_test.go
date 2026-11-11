@@ -48,6 +48,10 @@ func NewDemoCmd() *cobra.Command {
 	if err := os.WriteFile(tplFile, []byte(`{"version":1}`), 0644); err != nil {
 		t.Fatal(err)
 	}
+	nomosTpl := filepath.Join(repo, "substrate", "cli", "templates", "nomos.yaml")
+	if err := os.WriteFile(nomosTpl, []byte("# yaml-language-server: $schema=https://raw.githubusercontent.com/mgantlett/nomos/v4.14.0/nomos.schema.json\nproject: demo\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 	runSurfaceGit(t, repo, "add", "-A")
 	runSurfaceGit(t, repo, "commit", "-m", "[INT-42] docs(specs): seed demo baseline\n\nSeed baseline spec and command.\n\n___\n\nTask: INT-42")
 	return repo
@@ -165,5 +169,29 @@ func NewDemoCmd() *cobra.Command {
 	refactorLedgerTwin := refactorUntwinned + "\nTwin: INT-55"
 	if v := ValidateWorktreeIntentTwin(repo, refactorLedgerTwin, config.IntentTwinModeFeat); v != "" {
 		t.Fatalf("TC-CMT-008: expected Twin: INT-55 backed by Living Ledger to pass, got: %s", v)
+	}
+}
+
+func TestInspectWorktreeNormativeSurface_TemplateSchemaVersionPin(t *testing.T) {
+	repo := initSurfaceTestRepo(t)
+	runSurfaceGit(t, repo, "checkout", "-b", "feature/SUB-102")
+	nomosTpl := filepath.Join(repo, "substrate", "cli", "templates", "nomos.yaml")
+
+	if err := os.WriteFile(nomosTpl, []byte("# yaml-language-server: $schema=https://raw.githubusercontent.com/mgantlett/nomos/v4.15.0/nomos.schema.json\nproject: demo\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if delta := InspectWorktreeNormativeSurface(repo); delta.HasChanges() {
+		t.Fatalf("expected statutory schema SemVer pin bump to produce zero normative delta, got: %+v", delta)
+	}
+	releaseCommit := "[SUB-102] chore(release): prepare v4.15.0 milestone release\n\nAlign statutory version pins.\n\n___\n\nTask: SUB-102"
+	if v := ValidateWorktreeIntentTwin(repo, releaseCommit, config.IntentTwinModeFeat); v != "" {
+		t.Fatalf("expected chore(release) schema SemVer pin bump to pass without Twin, got: %s", v)
+	}
+
+	if err := os.WriteFile(nomosTpl, []byte("# yaml-language-server: $schema=https://raw.githubusercontent.com/mgantlett/nomos/v4.15.0/nomos.schema.json\nproject: mutated\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if v := ValidateWorktreeIntentTwin(repo, releaseCommit, config.IntentTwinModeFeat); !strings.Contains(v, "template_assets[nomos.yaml]") {
+		t.Fatalf("expected body mutation in templates/nomos.yaml to require Twin, got: %s", v)
 	}
 }

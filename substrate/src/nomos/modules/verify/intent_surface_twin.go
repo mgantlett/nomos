@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -17,6 +18,8 @@ import (
 )
 
 const embeddedTemplatesRelPrefix = "substrate/cli/templates/"
+
+var templateSchemaSemVerPinRe = regexp.MustCompile(`(#\s*yaml-language-server:\s*\$schema=\S+/nomos/)v[0-9]+\.[0-9]+\.[0-9]+(/nomos\.schema\.json)`)
 
 // NormativeSurfaceDelta captures AST and template contract changes between trunk and worktree (#NormativeSurfaceDelta).
 type NormativeSurfaceDelta struct {
@@ -102,10 +105,11 @@ func inspectChangedNormativeFile(worktreeDir, baseRef, rel string, cliSet, cfgSe
 		return
 	}
 	if strings.HasPrefix(normRel, embeddedTemplatesRelPrefix) {
-		baseBytes := readGitRevisionBytes(worktreeDir, baseRef, normRel)
-		currBytes := readWorktreeDiskBytes(filepath.Join(worktreeDir, filepath.FromSlash(normRel)))
+		assetName := strings.TrimPrefix(normRel, embeddedTemplatesRelPrefix)
+		baseBytes := normalizeEmbeddedTemplateBytes(assetName, readGitRevisionBytes(worktreeDir, baseRef, normRel))
+		currBytes := normalizeEmbeddedTemplateBytes(assetName, readWorktreeDiskBytes(filepath.Join(worktreeDir, filepath.FromSlash(normRel))))
 		if !bytes.Equal(baseBytes, currBytes) {
-			tplSet[strings.TrimPrefix(normRel, embeddedTemplatesRelPrefix)] = true
+			tplSet[assetName] = true
 		}
 		return
 	}
@@ -117,6 +121,13 @@ func inspectChangedNormativeFile(worktreeDir, baseRef, rel string, cliSet, cfgSe
 	mergeSymmetricDiff(cliSet, baseFP.cliTokens, currFP.cliTokens)
 	mergeSymmetricDiff(cfgSet, baseFP.yamlFields, currFP.yamlFields)
 	mergeSymmetricDiff(govSet, baseFP.govTokens, currFP.govTokens)
+}
+
+func normalizeEmbeddedTemplateBytes(assetName string, raw []byte) []byte {
+	if assetName != "nomos.yaml" || len(raw) == 0 {
+		return raw
+	}
+	return templateSchemaSemVerPinRe.ReplaceAll(raw, []byte("${1}v0.0.0${2}"))
 }
 
 // ValidateWorktreeIntentTwin enforces intent_twin_mode across commit headers, AST surface deltas, and Twin provenance.
