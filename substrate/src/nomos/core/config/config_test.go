@@ -258,45 +258,65 @@ func TestLocateConfigPath(t *testing.T) {
 	}
 }
 
-func TestLocateHomeConfig(t *testing.T) {
+func TestLocateConfigPathRejectsHomeDirectoryFallback(t *testing.T) {
 	tempHome := t.TempDir()
 	t.Setenv("HOME", tempHome)
 	t.Setenv(constants.EnvNomosConfig, "")
 
-	homeConfigDir := filepath.Join(tempHome, constants.DirNomosHome, constants.DirConfig)
-	if err := os.MkdirAll(homeConfigDir, 0755); err != nil {
-		t.Fatalf("failed creating home config dir: %v", err)
-	}
-	cfgPath := filepath.Join(homeConfigDir, constants.FileNomosYAML)
-	if err := os.WriteFile(cfgPath, []byte("project: home-test\n"), 0644); err != nil {
-		t.Fatalf("failed writing home config: %v", err)
+	for _, rel := range []string{
+		filepath.Join(constants.DirNomosHome, constants.FileNomosYAML),
+		filepath.Join(constants.DirNomosHome, constants.DirConfig, constants.FileNomosYAML),
+	} {
+		full := filepath.Join(tempHome, rel)
+		if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
+			t.Fatalf("failed creating home config dir: %v", err)
+		}
+		if err := os.WriteFile(full, []byte("project: home-test\n"), 0644); err != nil {
+			t.Fatalf("failed writing home config: %v", err)
+		}
 	}
 
-	found := locateHomeConfig()
-	if found != cfgPath {
-		t.Errorf("expected %s, got %s", cfgPath, found)
+	unconfiguredRepo := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(unconfiguredRepo, ".git"), 0755); err != nil {
+		t.Fatalf("failed creating git root marker: %v", err)
+	}
+	t.Chdir(unconfiguredRepo)
+	if found, err := LocateConfigPath(); err == nil {
+		t.Fatalf("expected LocateConfigPath to reject home fallback in unconfigured repo, got %s", found)
 	}
 }
 
-func TestCheckConfigPaths(t *testing.T) {
+func TestCheckConfigPathsEnforcesRootSingularity(t *testing.T) {
 	tempDir := t.TempDir()
-	agentsDir := filepath.Join(tempDir, constants.DirAgents)
-	if err := os.MkdirAll(agentsDir, 0755); err != nil {
-		t.Fatalf("failed creating agents dir: %v", err)
+	if err := os.MkdirAll(filepath.Join(tempDir, ".git"), 0755); err != nil {
+		t.Fatalf("failed creating git root marker: %v", err)
 	}
-	cfgPath := filepath.Join(agentsDir, constants.FileNomosYAML)
-	if err := os.WriteFile(cfgPath, []byte("project: agent-test\n"), 0644); err != nil {
-		t.Fatalf("failed writing agent config: %v", err)
+	for _, subDir := range []string{constants.DirAgents, constants.DirNomosHome} {
+		dirPath := filepath.Join(tempDir, subDir)
+		if err := os.MkdirAll(dirPath, 0755); err != nil {
+			t.Fatalf("failed creating %s dir: %v", subDir, err)
+		}
+		if err := os.WriteFile(filepath.Join(dirPath, constants.FileNomosYAML), []byte("project: hidden-alias\n"), 0644); err != nil {
+			t.Fatalf("failed writing hidden alias config: %v", err)
+		}
 	}
 
-	found := checkConfigPaths(tempDir)
-	if found != cfgPath {
-		t.Errorf("expected %s, got %s", cfgPath, found)
+	if got := checkConfigPaths(tempDir); got != "" {
+		t.Fatalf("expected hidden .agents/.nomos config aliases to be ignored, got %s", got)
+	}
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv(constants.EnvNomosConfig, "")
+	t.Chdir(tempDir)
+	if found, err := LocateConfigPath(); err == nil {
+		t.Fatalf("expected LocateConfigPath error when only hidden config aliases exist, got %s", found)
 	}
 
-	emptyDir := t.TempDir()
-	if got := checkConfigPaths(emptyDir); got != "" {
-		t.Errorf("expected empty string for dir without config, got %s", got)
+	rootCfg := filepath.Join(tempDir, constants.FileNomosYAML)
+	if err := os.WriteFile(rootCfg, []byte("project: root-ssot\n"), 0644); err != nil {
+		t.Fatalf("failed writing root nomos.yaml: %v", err)
+	}
+	if got := checkConfigPaths(tempDir); got != rootCfg {
+		t.Fatalf("expected %s, got %s", rootCfg, got)
 	}
 }
 

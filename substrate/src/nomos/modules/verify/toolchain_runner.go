@@ -331,7 +331,7 @@ func hasGoOrContractImpact(files []string) bool {
 			return true
 		}
 		switch base {
-		case "go.mod", "go.sum", "nomos.schema.json", "nomos.yaml", "nomos.yml", ".nomos.yaml", ".nomos.yml":
+		case "go.mod", "go.sum", "nomos.schema.json", "nomos.yaml":
 			return true
 		}
 	}

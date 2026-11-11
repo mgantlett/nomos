@@ -21,10 +21,7 @@ func LocateConfigPath() (string, error) {
 	if found := locateInHierarchy(); found != "" {
 		return found, nil
 	}
-	if home := locateHomeConfig(); home != "" {
-		return home, nil
-	}
-	return "", fmt.Errorf("nomos.yaml could not be located in workspace hierarchy or home")
+	return "", fmt.Errorf("nomos.yaml could not be located in workspace hierarchy")
 }
 
 func locateInHierarchy() string {
@@ -59,32 +56,9 @@ func hasGitRootMarker(dir string) bool {
 }
 
 func checkConfigPaths(dir string) string {
-	candidates := []string{
-		filepath.Join(dir, constants.FileNomosYAML),
-		filepath.Join(dir, constants.DirAgents, constants.FileNomosYAML),
-		filepath.Join(dir, constants.DirNomosHome, constants.FileNomosYAML),
-	}
-	for _, c := range candidates {
-		if _, err := os.Stat(c); err == nil {
-			return c
-		}
-	}
-	return ""
-}
-
-func locateHomeConfig() string {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	candidates := []string{
-		filepath.Join(homeDir, constants.DirNomosHome, constants.FileNomosYAML),
-		filepath.Join(homeDir, constants.DirNomosHome, constants.DirConfig, constants.FileNomosYAML),
-	}
-	for _, c := range candidates {
-		if _, err := os.Stat(c); err == nil {
-			return c
-		}
+	cand := filepath.Join(dir, constants.FileNomosYAML)
+	if fi, err := os.Stat(cand); err == nil && !fi.IsDir() {
+		return cand
 	}
 	return ""
 }

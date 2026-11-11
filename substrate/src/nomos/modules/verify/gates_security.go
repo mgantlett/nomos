@@ -339,7 +339,7 @@ func (g *ConfigImmutabilityGate) Evaluate(ctx *VerifyContext) (*GateResult, erro
 }
 
 func isConfigFile(base string) bool {
-	return base == "nomos.yaml" || base == "nomos.yml" || base == ".nomos.yaml" || base == ".nomos.yml"
+	return base == "nomos.yaml"
 }
 
 func pathInRoots(path string, roots []string, defaultRoot string) bool {

@@ -61,7 +61,8 @@ func TestIsIntentConfigPath(t *testing.T) {
 		want           bool
 	}{
 		{"nomos.yaml", nil, nil, true},
-		{".nomos.yaml", nil, nil, true},
+		{".nomos.yaml", nil, nil, false},
+		{"nomos.yml", nil, nil, false},
 		{"intent/config/nomos.yaml", nil, nil, true},
 		{"substrate/cli/templates/nomos.yaml", nil, nil, false},
 		{"src/templates/nomos.yaml", []string{"docs"}, []string{"src"}, false},

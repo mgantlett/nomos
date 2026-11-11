@@ -75,16 +75,9 @@ func hasLocalConfig(root string) string {
 	if root == "" {
 		return ""
 	}
-	candidates := []string{
-		"nomos.yaml", "nomos.yml", ".nomos.yaml", ".nomos.yml",
-		filepath.Join(".agents", "nomos.yaml"),
-		filepath.Join(".nomos", "nomos.yaml"),
-	}
-	for _, sub := range candidates {
-		p := filepath.Join(root, sub)
-		if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
-			return p
-		}
+	p := filepath.Join(root, "nomos.yaml")
+	if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
+		return p
 	}
 	return ""
 }

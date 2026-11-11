@@ -148,15 +148,9 @@ func resolveGovernedTrunkRoot(p *HookPayload) string {
 }
 
 func hasNomosWorkspaceMarker(dir string) bool {
-	candidates := []string{
-		filepath.Join(dir, constants.FileNomosYAML),
-		filepath.Join(dir, constants.DirAgents, constants.FileNomosYAML),
-		filepath.Join(dir, constants.DirNomosHome, constants.FileNomosYAML),
-	}
-	for _, c := range candidates {
-		if fi, err := os.Stat(c); err == nil && !fi.IsDir() {
-			return true
-		}
+	cand := filepath.Join(dir, constants.FileNomosYAML)
+	if fi, err := os.Stat(cand); err == nil && !fi.IsDir() {
+		return true
 	}
 	localHome := filepath.Join(dir, constants.DirNomosHome)
 	if fi, err := os.Stat(localHome); err == nil && fi.IsDir() {
