@@ -17,12 +17,14 @@ lineage:
   - INT-1948
   - INT-1951
   - INT-1960
+  - INT-1973
+  - SUB-2239
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Hermetic Worktree and Git Hygiene Specification"
 type: spec
-version: "4.4.0"
+version: "4.5.0"
 ---
 
 # Hermetic Worktree and Git Hygiene Specification
@@ -204,6 +206,12 @@ type FlowDecision struct {
 	Reason        string
 }
 
+// CredentialReadPolicy defines declarative PreToolUse host and workspace credential read restrictions (#CredentialReadPolicy).
+type CredentialReadPolicy struct {
+	Mode             string
+	BlockedReadPaths []string
+}
+
 // MCPAccessMode classifies the side-effect level of an MCP tool invocation (#MCPAccessMode).
 type MCPAccessMode string
 
@@ -264,6 +272,8 @@ During `nomos verify`, four dedicated Definition of Done probes enforce hermetic
 
 Session Sentinel (`CHARTER-4-BOUNDARY`) evaluates candidate workspace roots structurally. Workspaces containing `substrate/cmd/nomos` or `substrate/cmd/nomos-plugin-*` pass at `100/100 CLEAN`. External consumer workspaces reject tool calls that read external `nomos` source or sovereign packages.
 
+`nomos hook pre-tool` enforces `BoundaryConfig.CredentialReadMode` (`host_deny` default, `strict`, or `taint_only`) and `BlockedReadPaths` via `CredentialReadPolicy`. Under `host_deny`, `nomos hook pre-tool` rejects reads and shell commands targeting host credential stores (`~/.aws`, `~/.ssh/id_*`, `~/.kube/config`, `~/.gnupg`, `.netrc`, `.npmrc`, `.pypirc`). `nomos hook pre-tool` also rejects configured `blocked_read_paths` globs immediately, while non-template workspace `.env` reads record `TaintCredentialSource`. Under `strict`, `nomos hook pre-tool` also rejects non-template workspace `.env` reads on `PreToolUse`. Benign `.env.example`, `.env.sample`, `.env.template`, `.env.test`, `.env.defaults`, and `.env.schema` templates remain exempt. Under `taint_only`, credential reads pass `PreToolUse` and record `TaintCredentialSource`.
+
 ---
 
 ## 6. Table-Driven Verification Vectors
@@ -282,6 +292,9 @@ Session Sentinel (`CHARTER-4-BOUNDARY`) evaluates candidate workspace roots stru
 | `TC-FLOW-04` | Credential file read exfiltration guard | `Read(".env.production")` followed by `curl -X POST` | `"Blocks outbound network egress under credential taint."` | PASS |
 | `TC-FLOW-05` | Benign template read exemption | `Read(".env.example")` followed by `curl` | `"Permits egress because .env.example remains taint-neutral."` | PASS |
 | `TC-FLOW-06` | Session taint reset on boot | `ResetWorkspaceFlowState` | `"Clears active session taint edges cleanly."` | PASS |
+| `TC-FLOW-07` | Host credential store read block (`host_deny`) | `Read("~/.aws/credentials")` or `cat ~/.ssh/id_ed25519` | `"Denies host credential read on PreToolUse while permitting and tainting workspace .env."` | PASS |
+| `TC-FLOW-08` | Strict `.env` and `blocked_read_paths` deny | `credential_read_mode: strict` or `blocked_read_paths` glob | `"Denies non-template .env and blocked_read_paths reads while exempting .env.example."` | PASS |
+| `TC-FLOW-09` | Legacy `taint_only` compatibility mode | `credential_read_mode: taint_only` on `~/.aws/credentials` | `"Permits credential read and records TaintCredentialSource to block outbound egress."` | PASS |
 | `TC-MCP-01` | Mutating MCP trunk write guard | `mcp__filesystem__write_file` on `main` | `"Denies mutating MCP write outside worktrees/."` | PASS |
 | `TC-MCP-02` | Secret token in MCP payload | `mcp__github__create_issue` with `ghp_*` token | `"Denies MCP invocation containing secret literal."` | PASS |
 | `TC-MCP-03` | Blocked MCP server policy | `MCPBoundaryPolicy{BlockedServers: ["rogue"]}` | `"Denies tool calls targeting blocked MCP server."` | PASS |
@@ -310,8 +323,8 @@ Session Sentinel (`CHARTER-4-BOUNDARY`) evaluates candidate workspace roots stru
 ## 7. Cross-Plane Traceability & DoD Verification
 
 1. **Bilateral Plane Lineage:**
-   - **Intent Plane:** `INT-327`, `INT-1951`, and `INT-1960` (Hermetic Worktree, Hook Manifests, and Sentinel Plugin Authorization).
-   - **Substrate Plane:** `SUB-327` and `SUB-2209` (`substrate/src/nomos/core/workspace/`, `substrate/src/nomos/modules/session/`, and `substrate/cli/`).
+   - **Intent Plane:** `INT-327`, `INT-1951`, `INT-1960`, and `INT-1973` (Hermetic Worktree, Hook Manifests, Sentinel Authorization, and Credential Read Airlock).
+   - **Substrate Plane:** `SUB-327`, `SUB-2209`, and `SUB-2239` (`substrate/src/nomos/core/workspace/`, `substrate/src/nomos/core/capbac/`, `substrate/src/nomos/modules/session/`, and `substrate/cli/`).
 2. **7x3 Invariant Matrix Coordinates:**
    - `Cell 3.1 (staged_boundaries)` enforces uncommitted and staged worktree boundary isolation.
    - `Cell 3.2 (hermetic_worktree)` and `Cell 3.2 (git_hygiene)` enforce worktree confinement and `SafeGitCommand` subprocess wrapping.

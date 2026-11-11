@@ -16,12 +16,14 @@ lineage:
   - INT-1952
   - INT-1966
   - SUB-2219
+  - INT-1973
+  - SUB-2239
 plane: intent
 ssot_repository: nomos
 status: active
 title: "The Nomos Layer 0 North Star Charter and 4-Layer Progressive Intent Compiler"
 type: spec
-version: "4.14.0"
+version: "4.15.0"
 ---
 
 # The Nomos Layer 0 North Star Charter and 4-Layer Progressive Intent Compiler
@@ -81,7 +83,7 @@ Instead of scattered task notes, `intent/architecture/specs/` maintains **8 Cano
 | Domain # | Canonical Layer 2 Specification | Target `substrate/` Package | Primary Compiled Go SSoT Contracts |
 | :---: | :--- | :--- | :--- |
 | **1** | `go_ssot_and_json_schema_spec.md` | `core/config`, `core/types` | `EcosystemConfig`, `QualityGatesConfig`, `ThresholdsConfig`, `JSONSchemaNode`, `NomosError`, `ActionAffordance`, `PhaseState`, `PolyglotWorkspaceManifest` |
-| **2** | `nomos_hermetic_worktree_spec.md` | `core/workspace`, `core/capbac`, `modules/verify` | `Manager`, `WorktreeSession`, `EmbeddedAsset`, `ParityAuditReport`, `CapBACLease`, `CapabilityFlowGraph`, `MCPInvocation`, `CommitSchemaGate` |
+| **2** | `nomos_hermetic_worktree_spec.md` | `core/workspace`, `core/capbac`, `modules/verify` | `Manager`, `WorktreeSession`, `EmbeddedAsset`, `ParityAuditReport`, `CapBACLease`, `CapabilityFlowGraph`, `CredentialReadPolicy`, `MCPInvocation`, `CommitSchemaGate` |
 | **3** | `task_lifecycle_cli_spec.md` | `modules/task`, `core/storage`, `cli` | `TaskRecord`, `TaskCardInput`, `WavefrontCandidate`, `ReleaseNotePayload`, `ReleaseHookTrace`, `RuntimeMaintainReport`, `IssueReport`, `UpdateReport`, `UpdateCheckCache` |
 | **4** | `nomos_intent_traceability_spec.md` | `modules/verify`, `core/config` | `ContractsConfig`, `ArchitectureBoundaryRule`, `StaleSpecObligation`, `CanonicalMatrixModel`, `InvariantCellSpec`, `GateSpec`, `PipelineReport`, `ProofReport`, `AntiShimDTO` |
 | **5** | `tree_sitter_ast_gate_spec.md` | `modules/verify/treesitter` | `FunctionMetric`, `FileMetric`, `GateEvaluationReport`, `EngineThresholds`, `SCMQuerySpec`, `WazeroTreeSitterEngine` |
@@ -109,6 +111,8 @@ type BoundaryConfig struct {
 	EgressMode           string   `yaml:"egress_mode,omitempty" json:"egress_mode,omitempty"`
 	AllowedEgressDomains []string `yaml:"allowed_egress_domains,omitempty" json:"allowed_egress_domains,omitempty"`
 	BlockedEgressDomains []string `yaml:"blocked_egress_domains,omitempty" json:"blocked_egress_domains,omitempty"`
+	CredentialReadMode   string   `yaml:"credential_read_mode,omitempty" json:"credential_read_mode,omitempty"`
+	BlockedReadPaths     []string `yaml:"blocked_read_paths,omitempty" json:"blocked_read_paths,omitempty"`
 }
 
 // ValidateTaskKey enforces canonical 2-plane task key singularity (INT-<N> or SUB-<N>).
