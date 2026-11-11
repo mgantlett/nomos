@@ -4,7 +4,7 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-06"
-last_updated: "2026-11-10"
+last_updated: "2026-11-11"
 lineage:
   - INT-327
   - SUB-327
@@ -16,12 +16,13 @@ lineage:
   - SUB-2178
   - INT-1948
   - INT-1951
+  - INT-1960
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Hermetic Worktree and Git Hygiene Specification"
 type: spec
-version: "4.3.0"
+version: "4.4.0"
 ---
 
 # Hermetic Worktree and Git Hygiene Specification
@@ -261,6 +262,8 @@ During `nomos verify`, four dedicated Definition of Done probes enforce hermetic
 
 `nomos init` and default `nomos hook install` scaffold all five Tier 1 provider manifests (Claude Code, Gemini CLI, OpenCode, Cursor, Antigravity). `nomos hook install --cursor` merges `.cursor/hooks.json` (`"version": 1`) at project scope or `~/.cursor/hooks.json` under `--user`. `.cursor/hooks.json` wires `sessionStart`, `preToolUse`, `beforeShellExecution`, `postToolUse`, `afterFileEdit`, and `stop` with POSIX `$PATH` discovery and `{}` fallback. `nomos hook` normalizes Cursor `conversation_id`, `workspace_roots`, `command`, `file_path`, and `edits` payloads across pre-tool, post-tool, and stop lifecycles.
 
+Session Sentinel (`CHARTER-4-BOUNDARY`) evaluates candidate workspace roots structurally. Workspaces containing `substrate/cmd/nomos` or `substrate/cmd/nomos-plugin-*` pass at `100/100 CLEAN`. External consumer workspaces reject tool calls that read external `nomos` source or sovereign packages.
+
 ---
 
 ## 6. Table-Driven Verification Vectors
@@ -300,14 +303,15 @@ During `nomos verify`, four dedicated Definition of Done probes enforce hermetic
 | `TC-HOOK-001` | Antigravity 2.0 `PostInvocation` flush | `nomos hook post-tool --antigravity --advisory-profile carbon` | `"Returns {} on PostToolUse and flushes buffered advisories on PostInvocation."` | PASS |
 | `TC-HOOK-002` | 5-provider `init` & `hook install` parity | `nomos init` and `nomos hook install` (`--cursor`, `--user`, default) | `"Scaffolds and merges Claude, Gemini, OpenCode, Cursor (.cursor/hooks.json v1), and Antigravity hooks."` | PASS |
 | `TC-HOOK-003` | Cursor lifecycle payload normalization | `nomos hook pre-tool` (`beforeShellExecution`) and `post-tool` (`afterFileEdit`) | `"Denies unsafe Cursor shell execution via permission=deny and runs AST radar on file_path edits."` | PASS |
+| `TC-SEN-010` | Sentinel plugin workspace authorization (`CHARTER-4-BOUNDARY`) | `EvaluateSentinel` across `substrate/cmd/nomos-plugin-*` vs consumer repo | `"Authorizes Substrate and plugin workspaces at 100/100 CLEAN and flags external consumer peeking."` | PASS |
 
 ---
 
 ## 7. Cross-Plane Traceability & DoD Verification
 
 1. **Bilateral Plane Lineage:**
-   - **Intent Plane:** `INT-327` and `INT-1951` (Hermetic Worktree and 5-Provider Hook Architecture).
-   - **Substrate Plane:** `SUB-327` (`substrate/src/nomos/core/workspace/`, `substrate/src/nomos/core/config/`, and `substrate/cli/`).
+   - **Intent Plane:** `INT-327`, `INT-1951`, and `INT-1960` (Hermetic Worktree, Hook Manifests, and Sentinel Plugin Authorization).
+   - **Substrate Plane:** `SUB-327` and `SUB-2209` (`substrate/src/nomos/core/workspace/`, `substrate/src/nomos/modules/session/`, and `substrate/cli/`).
 2. **7x3 Invariant Matrix Coordinates:**
    - `Cell 3.1 (staged_boundaries)` enforces uncommitted and staged worktree boundary isolation.
    - `Cell 3.2 (hermetic_worktree)` and `Cell 3.2 (git_hygiene)` enforce worktree confinement and `SafeGitCommand` subprocess wrapping.
