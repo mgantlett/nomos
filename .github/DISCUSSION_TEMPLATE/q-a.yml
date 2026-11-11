@@ -1,0 +1,37 @@
+title: "[Q&A]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 💬 Nomos Setup & Workflow Q&A
+        Ask questions about `nomos init`, `nomos.yaml` governance tuning, brownfield onboarding, or coding-agent hook integration. *(For reproducible runtime defects, please open a [Bug Report Issue](https://github.com/mgantlett/nomos/issues/new?template=01_bug_report.yml) instead.)*
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Coding Agent Harness
+      description: Which coding agent or CLI environment are you pairing with Nomos?
+      options:
+        - "Claude Code"
+        - "Cursor"
+        - "Google Antigravity (AGY)"
+        - "OpenCode"
+        - "Gemini CLI"
+        - "Windsurf / Aider"
+        - "Standalone CLI / CI Only"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment & Nomos Version
+      description: Output of `nomos version` and target language stack (e.g. Go, TypeScript, Python, Rust).
+      placeholder: "e.g., macOS arm64, Nomos v4.16.0, TypeScript + Go monorepo"
+    validations:
+      required: false
+  - type: textarea
+    id: question
+    attributes:
+      label: Question & Context
+      description: Share what you are trying to configure, relevant `nomos.yaml` snippets, or gate output.
+    validations:
+      required: true

@@ -54,6 +54,12 @@ Every contribution is verified deterministically against the 7 core architectura
    ```
    Locally on trunk, maintainers merge via atomic Two-Phase Commit (`nomos task sync <KEY> -F .tmp/walkthrough-<KEY>.md`); external contributors can push their `feature/<KEY>` branch and open a Pull Request.
 
+## Questions, Ideas & Community
+
+- **Setup Q&A, `nomos.yaml` tuning & early ideas:** Join [GitHub Discussions](https://github.com/mgantlett/nomos/discussions) (`Q&A`, `Ideas`, and `Show and tell`).
+- **Reproducible defects & formal invariant proposals:** Open an issue via the [GitHub Issue Chooser](https://github.com/mgantlett/nomos/issues/new/choose).
+- **Community standards & security:** Participation is governed by [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md). Never report security vulnerabilities in public issues or discussions; see [`SECURITY.md`](SECURITY.md).
+
 ## Pull Requests & Contributor Provenance (DCO)
 
 All Pull Requests run the full Go unit/cleanroom test suite and `nomos verify --all --strict` (`42/42` Definition of Done quality gates) in GitHub Actions CI. Please include table-driven unit tests alongside all behavioral changes.

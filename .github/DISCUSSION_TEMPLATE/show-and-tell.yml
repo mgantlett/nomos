@@ -1,0 +1,14 @@
+title: "[Show & Tell]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 🚀 Show & Tell
+        Share custom `nomos-plugin-*` binaries, polyglot `nomos.yaml` configurations, benchmark runs, or real-world agent shortcuts caught by `nomos verify`!
+  - type: textarea
+    id: showcase
+    attributes:
+      label: What You Built or Caught
+      description: Share links, configuration snippets, terminal output, or lessons learned.
+    validations:
+      required: true

@@ -1,0 +1,33 @@
+title: "[Idea]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 💡 Early Gate, Language Probe, or Workflow Idea
+        Explore new AST verification rules, polyglot compiler/coverage probes, or agent lifecycle hooks with the community before drafting a formal [Invariant Proposal Issue](https://github.com/mgantlett/nomos/issues/new?template=02_invariant_proposal.yml).
+  - type: dropdown
+    id: area
+    attributes:
+      label: Subsystem Area
+      options:
+        - "Quality Gates & Polyglot AST Probes (nomos verify)"
+        - "Ambient Agent Hooks & Pacing (nomos hook / nomos init)"
+        - "Worktree Sandboxes & 2PC Lifecycle (nomos task)"
+        - "Episodic Memory & Recall (nomos mem)"
+        - "External Plugins & Distribution (nomos-plugin-* / packaging)"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Agent Failure Mode or Workflow Friction
+      description: What reward-hacking shortcut, drift pattern, or developer friction would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: sketch
+    attributes:
+      label: Proposed Behavior
+      description: Sketch how Nomos should detect, enforce, or surface this deterministically.
+    validations:
+      required: false
