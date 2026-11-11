@@ -232,7 +232,21 @@ func TestReleaseNotesHybridLedgerAndFailClosed(t *testing.T) {
 	if v414Err != nil {
 		t.Fatalf("render v4.14.0 release notes failed: %v (%s)", v414Err, v414Notes)
 	}
-	assertOrderedSubstrings(t, v414Notes, "> 5-Provider Ambient Lifecycle Parity", "## Changelog", "[SUB-2188]", "compare/v4.13.2...v4.14.0", "<details>", "brew install --cask mgantlett/tap/nomos")
+	assertOrderedSubstrings(
+		t,
+		v414Notes,
+		"> 5-Provider Ambient Lifecycle Parity",
+		"## Changelog",
+		"### Intent & Specifications",
+		"### CLI, Distribution & Hooks",
+		"[SUB-2188]",
+		"### Verification & Quality Gates",
+		"### Task, Memory & Session",
+		"### Release & Packaging",
+		"compare/v4.13.2...v4.14.0",
+		"<details>",
+		"brew install --cask mgantlett/tap/nomos",
+	)
 
 	genesisNotes, gErr := runRenderReleaseNotes(t, repoRoot, "v4.0.0")
 	if gErr != nil {

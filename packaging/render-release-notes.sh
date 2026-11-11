@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # render-release-notes.sh - Compile hybrid GitHub Release notes from CHANGELOG.md and Git DAG history.
 #
-# Leads with the 1-line release summary (`> ...`) and the chronological SHA-linked `[INT-*]` / `[SUB-*]`
-# commit ledger (`## Changelog`), followed by collapsible `<details>` disclosures for curated
-# `CHANGELOG.md` architecture notes and automatic parent `vX.Y.0` milestone rollups on patch releases.
+# Leads with the 1-line release summary (`> ...`) and the SHA-linked `[INT-*]` / `[SUB-*]` commit
+# ledger (`## Changelog`) grouped by the 6 canonical Open-Core areas, followed by collapsible
+# `<details>` disclosures for curated `CHANGELOG.md` architecture notes and automatic parent
+# `vX.Y.0` milestone rollups on patch releases.
 
 set -euo pipefail
 
@@ -35,6 +36,68 @@ trim_markdown() {
     END {
       while (n > 0 && lines[n] ~ /^[[:space:]]*$/) n--
       for (i = 1; i <= n; i++) print lines[i]
+    }
+  '
+}
+
+group_commit_ledger() {
+  awk '
+    NF == 0 { next }
+    {
+      rest = $0
+      sub(/^\* [^ ]+ /, "", rest)
+      bucket = 0
+      if (rest ~ /^\[INT-[0-9]+\]/) {
+        bucket = 1
+      } else {
+        conv = rest
+        sub(/^\[[A-Z]+-[0-9]+\][[:space:]]*/, "", conv)
+        scope = ""
+        if (conv ~ /^[A-Za-z0-9_-]+\([^)]+\)!?:/) {
+          lparen = index(conv, "(")
+          rparen = index(conv, ")")
+          if (lparen > 0 && rparen > lparen) {
+            raw_scope = tolower(substr(conv, lparen + 1, rparen - lparen - 1))
+            sub(/[,\/[:space:]].*$/, "", raw_scope)
+            scope = raw_scope
+          }
+        }
+        if (scope ~ /^(intent|spec|specs)$/) {
+          bucket = 1
+        } else if (scope ~ /^(cli|install|update|handshake|hook|hooks|ui)$/) {
+          bucket = 2
+        } else if (scope ~ /^(verify|ncte|treesitter|capbac|physics|ast)$/) {
+          bucket = 3
+        } else if (scope ~ /^(config|workspace|storage|constants|types)$/) {
+          bucket = 4
+        } else if (scope ~ /^(task|mem|session|telemetry|learn)$/) {
+          bucket = 5
+        } else {
+          bucket = 6
+        }
+      }
+      if (count[bucket] == 0) {
+        items[bucket] = $0
+      } else {
+        items[bucket] = items[bucket] "\n" $0
+      }
+      count[bucket]++
+    }
+    END {
+      headers[1] = "### Intent & Specifications"
+      headers[2] = "### CLI, Distribution & Hooks"
+      headers[3] = "### Verification & Quality Gates"
+      headers[4] = "### Configuration & Workspace"
+      headers[5] = "### Task, Memory & Session"
+      headers[6] = "### Release & Packaging"
+      printed = 0
+      for (b = 1; b <= 6; b++) {
+        if (count[b] > 0) {
+          if (printed) printf "\n"
+          printf "%s\n%s\n", headers[b], items[b]
+          printed = 1
+        }
+      }
     }
   '
 }
@@ -102,7 +165,8 @@ if [ -n "$TAGLINE" ]; then
 fi
 
 if [ -n "$COMMIT_LEDGER" ]; then
-  LEDGER_SECTION="$(printf '## Changelog\n\n%s' "$COMMIT_LEDGER")"
+  GROUPED_LEDGER="$(printf '%s\n' "$COMMIT_LEDGER" | group_commit_ledger)"
+  LEDGER_SECTION="$(printf '## Changelog\n\n%s' "$GROUPED_LEDGER")"
   if [ -n "$PREV_TAG" ]; then
     LEDGER_SECTION="$(printf '%s\n\n**Full Changelog**: https://github.com/%s/compare/%s...%s' "$LEDGER_SECTION" "$REPO_SLUG" "$PREV_TAG" "$TAG")"
   fi
