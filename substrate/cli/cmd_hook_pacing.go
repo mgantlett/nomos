@@ -150,7 +150,6 @@ func resolveGovernedTrunkRoot(p *HookPayload) string {
 func hasNomosWorkspaceMarker(dir string) bool {
 	candidates := []string{
 		filepath.Join(dir, constants.FileNomosYAML),
-		filepath.Join(dir, constants.DirIntent, constants.DirConfig, constants.FileNomosYAML),
 		filepath.Join(dir, constants.DirAgents, constants.FileNomosYAML),
 		filepath.Join(dir, constants.DirNomosHome, constants.FileNomosYAML),
 	}

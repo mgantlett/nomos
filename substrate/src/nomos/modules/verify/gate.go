@@ -78,10 +78,7 @@ func hasLocalConfig(root string) string {
 	candidates := []string{
 		"nomos.yaml", "nomos.yml", ".nomos.yaml", ".nomos.yml",
 		filepath.Join(".agents", "nomos.yaml"),
-		filepath.Join(".agents", "nomos_sov.yaml"),
 		filepath.Join(".nomos", "nomos.yaml"),
-		filepath.Join("intent", "config", "nomos.yaml"),
-		filepath.Join("intent", "runtime", "config", "nomos.yaml"),
 	}
 	for _, sub := range candidates {
 		p := filepath.Join(root, sub)

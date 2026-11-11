@@ -62,8 +62,6 @@ func checkConfigPaths(dir string) string {
 		filepath.Join(dir, constants.FileNomosYAML),
 		filepath.Join(dir, constants.DirAgents, constants.FileNomosYAML),
 		filepath.Join(dir, constants.DirNomosHome, constants.FileNomosYAML),
-		filepath.Join(dir, constants.DirIntent, constants.DirConfig, constants.FileNomosYAML),
-		filepath.Join(dir, constants.DirIntent, constants.DirRuntime, constants.DirConfig, constants.FileNomosYAML),
 	}
 	for _, c := range candidates {
 		if _, err := os.Stat(c); err == nil {

@@ -236,7 +236,6 @@ func hasExplicitNomosConfig(resolved, baseCwd string) bool {
 	}
 	candidates := []string{
 		filepath.Join(repoRoot, "nomos.yaml"),
-		filepath.Join(repoRoot, "intent", "config", "nomos.yaml"),
 	}
 	for _, c := range candidates {
 		if fi, err := os.Stat(c); err == nil && !fi.IsDir() {

@@ -300,6 +300,43 @@ func TestCheckConfigPaths(t *testing.T) {
 	}
 }
 
+func TestRootConfigDiscoveryRejectsLegacyIntentSubpaths(t *testing.T) {
+	legacyOnly := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(legacyOnly, ".git"), 0755); err != nil {
+		t.Fatalf("failed creating git root marker: %v", err)
+	}
+	legacyCfg := filepath.Join(legacyOnly, constants.DirIntent, constants.DirConfig, constants.FileNomosYAML)
+	if err := os.MkdirAll(filepath.Dir(legacyCfg), 0755); err != nil {
+		t.Fatalf("failed creating legacy intent config dir: %v", err)
+	}
+	if err := os.WriteFile(legacyCfg, []byte("project: legacy\n"), 0644); err != nil {
+		t.Fatalf("failed writing legacy intent config: %v", err)
+	}
+	if got := checkConfigPaths(legacyOnly); got != "" {
+		t.Fatalf("expected unpromoted intent/config/nomos.yaml not to resolve, got %s", got)
+	}
+
+	tempHome := t.TempDir()
+	t.Setenv("HOME", tempHome)
+	t.Setenv(constants.EnvNomosConfig, "")
+	t.Chdir(legacyOnly)
+	if found, err := LocateConfigPath(); err == nil {
+		t.Fatalf("expected LocateConfigPath error for unpromoted intent/config/nomos.yaml, got %s", found)
+	}
+
+	rootCfg := filepath.Join(legacyOnly, constants.FileNomosYAML)
+	if err := os.WriteFile(rootCfg, []byte("project: canonical-root\n"), 0644); err != nil {
+		t.Fatalf("failed writing root nomos.yaml: %v", err)
+	}
+	if got := checkConfigPaths(legacyOnly); got != rootCfg {
+		t.Fatalf("expected canonical root %s, got %s", rootCfg, got)
+	}
+	found, err := LocateConfigPath()
+	if err != nil || found != rootCfg {
+		t.Fatalf("expected LocateConfigPath to resolve root %s, got path=%s err=%v", rootCfg, found, err)
+	}
+}
+
 func TestResolveIntentPath(t *testing.T) {
 	tempDir := t.TempDir()
 	intentDir := filepath.Join(tempDir, constants.DirIntent)
