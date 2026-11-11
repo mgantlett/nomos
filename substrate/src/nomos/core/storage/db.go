@@ -101,8 +101,15 @@ func pingAndInit(db *sql.DB) error {
 	if err := db.Ping(); err != nil {
 		return types.NewNomosError(types.ErrCodeSubstrate, "database ping failed: %v", err)
 	}
+	if isSchemaAtCurrentVersion(db) {
+		return nil
+	}
 	return InitSchema(db)
 }
+
+// currentSchemaUserVersion tracks the authoritative SQLite schema version in the page-1 header.
+// Increment whenever SchemaDDL or migrateLegacyColumns changes so OpenDB skips redundant DDL writes.
+const currentSchemaUserVersion = 2
 
 // InitSchema executes idempotent table definitions, indexes, and runtime pragmas.
 func InitSchema(db *sql.DB) error {
@@ -116,11 +123,29 @@ func InitSchema(db *sql.DB) error {
 			return types.NewNomosError(types.ErrCodeInvariant, "failed to apply pragma %s: %v", pragma, err)
 		}
 	}
-
 	if _, err := db.Exec(SchemaDDL); err != nil {
 		return types.NewNomosError(types.ErrCodeInvariant, "failed to initialize sqlite schema: %v", err)
 	}
-	return migrateLegacyColumns(db)
+	if err := migrateLegacyColumns(db); err != nil {
+		return err
+	}
+	versionStmt := fmt.Sprintf("PRAGMA user_version = %d;", currentSchemaUserVersion)
+	if _, err := db.Exec(versionStmt); err != nil {
+		return types.NewNomosError(types.ErrCodeInvariant, "failed to stamp schema user_version: %v", err)
+	}
+	return nil
+}
+
+func isSchemaAtCurrentVersion(db *sql.DB) bool {
+	var uv int
+	if err := db.QueryRow("PRAGMA user_version;").Scan(&uv); err != nil || uv < currentSchemaUserVersion {
+		return false
+	}
+	var exists int
+	if err := db.QueryRow("SELECT 1 FROM sqlite_master WHERE type='table' AND name='tasks' LIMIT 1;").Scan(&exists); err != nil {
+		return false
+	}
+	return exists == 1
 }
 
 func migrateLegacyColumns(db *sql.DB) error {

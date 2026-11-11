@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -23,10 +24,14 @@ type polyglotTargetSpec struct {
 }
 
 func countPolyglotStemImporters(root, targetRel string) int {
+	return len(listPolyglotStemImporters(root, targetRel))
+}
+
+func listPolyglotStemImporters(root, targetRel string) []string {
 	targetExt := strings.ToLower(filepath.Ext(targetRel))
 	stem := strings.TrimSuffix(filepath.Base(targetRel), filepath.Ext(targetRel))
 	if len(stem) < 2 || ignoredPolyglotStems[stem] {
-		return 0
+		return nil
 	}
 	spec := polyglotTargetSpec{
 		rel:    targetRel,
@@ -36,7 +41,7 @@ func countPolyglotStemImporters(root, targetRel string) int {
 		wordRe: regexp.MustCompile(`\b` + regexp.QuoteMeta(stem) + `\b`),
 	}
 
-	count := 0
+	var dependents []string
 	if err := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil || d == nil {
 			return nil
@@ -48,13 +53,17 @@ func countPolyglotStemImporters(root, targetRel string) int {
 			return nil
 		}
 		if fileDependsOnPolyglotTarget(root, path, spec) {
-			count++
+			if rel, rErr := filepath.Rel(root, path); rErr == nil {
+				dependents = append(dependents, filepath.ToSlash(rel))
+			}
 		}
 		return nil
 	}); err != nil {
-		return count
+		sort.Strings(dependents)
+		return dependents
 	}
-	return count
+	sort.Strings(dependents)
+	return dependents
 }
 
 func extractTargetModuleMeta(absPath, ext string) string {
@@ -186,4 +195,3 @@ func matchesManagedNamespaceReference(callerExt, content string, spec polyglotTa
 	}
 	return spec.meta != "" && (strings.Contains(content, "package "+spec.meta) || strings.Contains(content, "import "+spec.meta+".*"))
 }
-

@@ -3,6 +3,7 @@ package verify
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
@@ -85,6 +86,12 @@ func getModifiedPolyglotFiles(ctx *VerifyContext) (map[string]bool, error) {
 	if ctx == nil || ctx.AllFiles {
 		return nil, nil
 	}
+	return memoizedPolyglotFiles(ctx, func() (map[string]bool, error) {
+		return loadModifiedPolyglotFilesUncached(ctx)
+	})
+}
+
+func loadModifiedPolyglotFilesUncached(ctx *VerifyContext) (map[string]bool, error) {
 	if hasCommitRangeScope(ctx) {
 		return collectRangePolyglotFiles(ctx), nil
 	}
@@ -112,7 +119,8 @@ func collectTaskCommitPolyglotFiles(dir, taskID string, modified map[string]bool
 	if taskID == "" {
 		return
 	}
-	cmd := workspace.SafeGitCommand(dir, "log", "-E", "--grep=\\[(Task )?"+taskID, "--name-only", "--pretty=format:")
+	pattern := "\\[(Task )?" + regexp.QuoteMeta(taskID) + "(\\]|:)"
+	cmd := workspace.SafeGitCommand(dir, "log", "-E", "--grep="+pattern, "--name-only", "--pretty=format:")
 	out, err := cmd.Output()
 	if err != nil {
 		return

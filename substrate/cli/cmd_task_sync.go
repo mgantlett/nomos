@@ -37,18 +37,14 @@ func newTaskSyncCmd() *cobra.Command {
 				return types.NewNomosError(types.ErrCodeValidationFailed, "walkthrough file %s missing or empty", walkthroughPath).
 					WithRemedy(fmt.Sprintf("write non-empty release notes to %s and re-run: nomos task sync %s -F %s", walkthroughPath, key, walkthroughPath))
 			}
-			report, err := executeGateCheckForTask(key)
-			if err != nil {
-				return err
-			}
-			return finalizeSync(key, walkthroughPath, report)
+			return finalizeSync(key, walkthroughPath)
 		},
 	}
 	cmd.Flags().StringVarP(&walkthroughPath, "file", "F", "", "Path to walkthrough markdown file")
 	return cmd
 }
 
-func finalizeSync(key, walkthroughPath string, report *verify.PipelineReport) error {
+func finalizeSync(key, walkthroughPath string) error {
 	mgr, err := workspace.NewManager("")
 	if err != nil {
 		return err
@@ -70,6 +66,10 @@ func finalizeSync(key, walkthroughPath string, report *verify.PipelineReport) er
 	if cErr := autoCommitDirtyWorktree(wtPath, key, t, walkthroughPath); cErr != nil {
 		return cErr
 	}
+	report, gErr := executeGateCheckForTask(key)
+	if gErr != nil {
+		return gErr
+	}
 	touchedFiles := verify.ListModifiedWorktreeFiles(wtPath, key)
 	if pErr := validateReceiptTraceParity(wtPath, walkthroughPath, touchedFiles); pErr != nil {
 		return pErr
@@ -89,13 +89,16 @@ func finalizeSync(key, walkthroughPath string, report *verify.PipelineReport) er
 	if mErr := fastForwardTrunkMerge(mgr.RepoRoot, branch); mErr != nil {
 		return mErr
 	}
+	return completeSyncedTaskMetadata(mgr, store, t, wtPath, key, walkthroughPath, touchedFiles, report)
+}
+
+func completeSyncedTaskMetadata(mgr *workspace.Manager, store task.TaskStore, t *task.TaskRecord, wtPath, key, walkthroughPath string, touchedFiles []string, report *verify.PipelineReport) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 	t.Status = task.StatusDone
 	t.CompletedAt = &now
 	if err := store.UpdateTask(*t); err != nil {
 		return err
 	}
-
 	specDigests := collectSyncSpecDigests(mgr.RepoRoot, key, touchedFiles, t.TwinKey)
 	recordReleaseReceipt(mgr.RepoRoot, wtPath, key, walkthroughPath, now, report, specDigests)
 	revokeActiveLease(key)

@@ -116,13 +116,13 @@ func buildSingleFileImpact(root, rel string, goReverse map[string][]string, seen
 		pkgDir := filepath.ToSlash(filepath.Dir(rel))
 		if !seenGoDirs[pkgDir] {
 			seenGoDirs[pkgDir] = true
-			if rev := lookupGoReverseImporters(pkgDir, goReverse); len(rev) > 0 {
-				revNote = fmt.Sprintf("importers(%d): %s", len(rev), strings.Join(limitSlice(rev, 3), ", "))
+			if dirs := lookupGoReverseImporterDirs(root, pkgDir, goReverse); len(dirs) > 0 {
+				revNote = formatGoImportersSummary(dirs)
 			}
 		}
 	} else {
-		if cnt := countPolyglotStemImporters(root, rel); cnt > 0 {
-			revNote = fmt.Sprintf("1-hop dependents: %d file(s)", cnt)
+		if deps := listPolyglotStemImporters(root, rel); len(deps) > 0 {
+			revNote = fmt.Sprintf("1-hop dependents: %d file(s) [%s]", len(deps), strings.Join(limitSlice(deps, 4), ", "))
 		}
 	}
 
@@ -230,13 +230,25 @@ func flattenGoReverseIndex(index map[string]map[string]bool) map[string][]string
 }
 
 func lookupGoReverseImporters(pkgDir string, goReverse map[string][]string) []string {
+	return lookupGoReverseImporterDirs("", pkgDir, goReverse)
+}
+
+func lookupGoReverseImporterDirs(root, pkgDir string, goReverse map[string][]string) []string {
+	exactImport := resolveExactGoImportPath(root, pkgDir)
 	seen := make(map[string]bool)
 	for impPath, callers := range goReverse {
-		if impPath == pkgDir || strings.HasSuffix(impPath, "/"+pkgDir) {
-			for _, c := range callers {
-				if c != pkgDir {
-					seen[filepath.Base(c)] = true
-				}
+		matched := false
+		if exactImport != "" {
+			matched = impPath == exactImport
+		} else {
+			matched = impPath == pkgDir || strings.HasSuffix(impPath, "/"+pkgDir)
+		}
+		if !matched {
+			continue
+		}
+		for _, c := range callers {
+			if c != pkgDir {
+				seen[c] = true
 			}
 		}
 	}
@@ -246,6 +258,75 @@ func lookupGoReverseImporters(pkgDir string, goReverse map[string][]string) []st
 	}
 	sort.Strings(out)
 	return out
+}
+
+func formatGoImportersSummary(dirs []string) string {
+	baseSeen := make(map[string]bool, len(dirs))
+	names := make([]string, 0, len(dirs))
+	hasNested := false
+	for _, d := range dirs {
+		base := filepath.Base(d)
+		if d != base {
+			hasNested = true
+		}
+		if !baseSeen[base] {
+			baseSeen[base] = true
+			names = append(names, base)
+		}
+	}
+	summary := fmt.Sprintf("importers(%d): %s", len(dirs), strings.Join(limitSlice(names, 3), ", "))
+	if hasNested {
+		summary += fmt.Sprintf(" [%s]", strings.Join(limitSlice(dirs, 4), ", "))
+	}
+	return summary
+}
+
+func resolveExactGoImportPath(root, pkgDir string) string {
+	if strings.TrimSpace(root) == "" || strings.TrimSpace(pkgDir) == "" {
+		return ""
+	}
+	absRoot := filepath.Clean(root)
+	cur := filepath.Clean(filepath.Join(absRoot, filepath.FromSlash(pkgDir)))
+	for {
+		modName := readGoModModulePath(filepath.Join(cur, "go.mod"))
+		if modName != "" {
+			rel, err := filepath.Rel(cur, filepath.Join(absRoot, filepath.FromSlash(pkgDir)))
+			if err != nil {
+				return ""
+			}
+			relSlash := filepath.ToSlash(rel)
+			if relSlash == "." || relSlash == "" {
+				return modName
+			}
+			return modName + "/" + relSlash
+		}
+		if cur == absRoot {
+			break
+		}
+		parent := filepath.Dir(cur)
+		if parent == cur || !strings.HasPrefix(parent, absRoot) {
+			break
+		}
+		cur = parent
+	}
+	return ""
+}
+
+func readGoModModulePath(goModPath string) string {
+	data, err := os.ReadFile(goModPath)
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "module ") {
+			fields := strings.Fields(trimmed)
+			if len(fields) >= 2 {
+				return strings.Trim(fields[1], "\"")
+			}
+		}
+	}
+	return ""
 }
 
 var ignoredPolyglotStems = map[string]bool{

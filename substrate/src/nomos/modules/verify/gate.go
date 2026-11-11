@@ -97,6 +97,12 @@ func resolveVerifyConfig(ctx *VerifyContext) *config.EcosystemConfig {
 	if ctx == nil {
 		return config.DefaultNomosConfig()
 	}
+	return memoizedVerifyConfig(ctx, func() *config.EcosystemConfig {
+		return loadVerifyConfigUncached(ctx)
+	})
+}
+
+func loadVerifyConfigUncached(ctx *VerifyContext) *config.EcosystemConfig {
 	root := ctx.WorktreePath
 	if root == "" {
 		root = ctx.RepoRoot
@@ -193,36 +199,41 @@ func collectScopeDiffFiles(workDir string, fileSet map[string]struct{}) {
 }
 
 func getModifiedFilesInScope(ctx *VerifyContext, workDir string) []string {
-	fileSet := make(map[string]struct{})
-	collectScopePolyglotFiles(ctx, workDir, fileSet)
-	collectScopeStatusFiles(workDir, fileSet)
-	collectScopeDiffFiles(workDir, fileSet)
+	return memoizedScopeFiles(ctx, workDir, func() []string {
+		fileSet := make(map[string]struct{})
+		collectScopePolyglotFiles(ctx, workDir, fileSet)
+		collectScopeStatusFiles(workDir, fileSet)
+		collectScopeDiffFiles(workDir, fileSet)
 
-	var files []string
-	for f := range fileSet {
-		files = append(files, f)
-	}
-	return files
+		files := make([]string, 0, len(fileSet))
+		for f := range fileSet {
+			files = append(files, f)
+		}
+		return files
+	})
 }
 
 func resolveScopeExcludes(ctx *VerifyContext, workDir, rootDir string) []string {
-	excludes := workspace.GetExcludes(workDir)
-	cfg := resolveVerifyConfig(ctx)
-	if cfg == nil {
-		return excludes
-	}
-	for _, ex := range cfg.Governance.QualityGates.Exclude {
-		cleanEx := filepath.Clean(ex)
-		if filepath.IsAbs(cleanEx) {
-			excludes = append(excludes, cleanEx)
-		} else {
-			excludes = append(excludes, filepath.Join(workDir, cleanEx))
-			if rootDir != "" && rootDir != workDir {
-				excludes = append(excludes, filepath.Join(rootDir, cleanEx))
+	cacheKey := workDir + "|" + rootDir
+	return memoizedScopeExcludes(ctx, cacheKey, func() []string {
+		excludes := workspace.GetExcludes(workDir)
+		cfg := resolveVerifyConfig(ctx)
+		if cfg == nil {
+			return excludes
+		}
+		for _, ex := range cfg.Governance.QualityGates.Exclude {
+			cleanEx := filepath.Clean(ex)
+			if filepath.IsAbs(cleanEx) {
+				excludes = append(excludes, cleanEx)
+			} else {
+				excludes = append(excludes, filepath.Join(workDir, cleanEx))
+				if rootDir != "" && rootDir != workDir {
+					excludes = append(excludes, filepath.Join(rootDir, cleanEx))
+				}
 			}
 		}
-	}
-	return excludes
+		return excludes
+	})
 }
 
 func resolveWalkDirs(ctx *VerifyContext, root string) (string, string, string) {

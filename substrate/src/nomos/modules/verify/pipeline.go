@@ -65,6 +65,8 @@ func (p *Pipeline) Execute(ctx *VerifyContext) (*PipelineReport, error) {
 	if ctx == nil {
 		return nil, types.NewNomosError(types.ErrCodeValidationFailed, "verify context cannot be nil")
 	}
+	beginVerifyContextCache(ctx)
+	defer endVerifyContextCache(ctx)
 
 	start := time.Now()
 	results := make([]*GateResult, 0, len(p.gates))

@@ -98,9 +98,13 @@ const CommitMsgHookScript = `#!/usr/bin/env bash
     fi
 
     # 1. Enforce canonical [<INT|SUB-N>] + Conventional Commit subject (<= 110 chars ceiling, <= 80 target)
-    if ! printf '%s\n' "$FIRST_LINE" | grep -qE '^\[(INT|SUB)-[1-9][0-9]*(-[a-z0-9-]+)?\][[:space:]]+(feat|fix|docs|chore|refactor|test)(\([a-z0-9_,/-]+\))?:[[:space:]]+[^[:space:]]'; then
-        echo -e "\n\e[31m❌ Commit Blocked: Subject must match '[<INT|SUB-N>] <feat|fix|docs|chore|refactor|test>(<scope>): <summary>'.\e[0m"
+    if ! printf '%s\n' "$FIRST_LINE" | grep -qE '^\[(INT|SUB)-[1-9][0-9]*(-[a-z0-9-]+)?\][[:space:]]+(feat|fix|perf|docs|chore|refactor|test)(\([a-z0-9_,/-]+\))?:[[:space:]]+[^[:space:]]'; then
+        echo -e "\n\e[31m❌ Commit Blocked: Subject must match '[<INT|SUB-N>] <feat|fix|perf|docs|chore|refactor|test>(<scope>): <summary>'.\e[0m"
         echo "Please use 'nomos task commit' or 'nomos task sync -F <walkthrough>' to generate compliant Golden Commits."
+        exit 1
+    fi
+    if printf '%s\n' "$FIRST_LINE" | grep -qiE '\bself[- ]healing\b'; then
+        echo -e "\n\e[31m❌ Commit Blocked: Avoid marketing euphemisms ('self-healing'); use concrete engineering terms (feat, perf, refactor, fix).\e[0m"
         exit 1
     fi
     if printf '%s\n' "$FIRST_LINE" | grep -qiE '(\[(task[[:space:]]+)?(int|sub|arc)-[0-9]+[a-z]?(-[a-z0-9-]+)?\]|\((int|sub|arc)-[0-9]+[a-z]?(-[a-z0-9-]+)?\))[[:space:]]*$'; then

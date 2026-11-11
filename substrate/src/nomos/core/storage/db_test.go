@@ -91,3 +91,37 @@ func TestMigrateLegacyColumns(t *testing.T) {
 	}
 }
 
+func TestInitSchema_UserVersionFastPath(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "fastpath.db")
+
+	db, err := OpenDB(dbPath)
+	if err != nil {
+		t.Fatalf("OpenDB failed: %v", err)
+	}
+	defer func() {
+		if closeErr := db.Close(); closeErr != nil {
+			t.Errorf("failed closing db: %v", closeErr)
+		}
+	}()
+
+	var uv int
+	if err := db.QueryRow("PRAGMA user_version;").Scan(&uv); err != nil {
+		t.Fatalf("query user_version: %v", err)
+	}
+	if uv != currentSchemaUserVersion {
+		t.Fatalf("expected user_version=%d, got %d", currentSchemaUserVersion, uv)
+	}
+	if !isSchemaAtCurrentVersion(db) {
+		t.Fatalf("expected isSchemaAtCurrentVersion to return true after OpenDB")
+	}
+
+	db2, err := OpenDB(dbPath)
+	if err != nil {
+		t.Fatalf("second OpenDB failed: %v", err)
+	}
+	if closeErr := db2.Close(); closeErr != nil {
+		t.Fatalf("close second OpenDB: %v", closeErr)
+	}
+}
+

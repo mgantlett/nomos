@@ -21,7 +21,7 @@ const (
 	envNoVerifyCache      = "NOMOS_NO_VERIFY_CACHE"
 	envForceFullGoTest    = "NOMOS_FORCE_FULL_GO_TEST"
 	goToolchainTimeout    = 120 * time.Second
-	maxToolchainErrOutput = 400
+	maxToolchainErrOutput = 1600
 )
 
 var goCoverageLineRe = regexp.MustCompile(`coverage:\s+([0-9.]+)%`)
@@ -218,21 +218,35 @@ func parseAverageCoverage(output string) float64 {
 
 func truncateToolchainOutput(raw string) string {
 	msg := strings.TrimSpace(raw)
-	if len(msg) <= maxToolchainErrOutput {
-		return msg
-	}
 	if anchor := findToolchainFailureOffset(msg); anchor > 0 {
 		msg = strings.TrimSpace(msg[anchor:])
-		if len(msg) <= maxToolchainErrOutput {
-			return msg
-		}
+	}
+	if len(msg) <= maxToolchainErrOutput {
+		return msg
 	}
 	return msg[:maxToolchainErrOutput] + "..."
 }
 
 func findToolchainFailureOffset(msg string) int {
-	for _, marker := range []string{"\n--- FAIL:", "--- FAIL:", "\npanic:", "\nFAIL\t"} {
+	if strings.HasPrefix(msg, "# ") || strings.HasPrefix(msg, "--- FAIL:") || strings.HasPrefix(msg, "panic:") {
+		return 0
+	}
+	markers := []string{
+		"\n# ",
+		"\n--- FAIL:",
+		"\npanic:",
+		": syntax error:",
+		": undefined:",
+		": cannot use ",
+		"\nFAIL\t",
+	}
+	for _, marker := range markers {
 		if idx := strings.Index(msg, marker); idx >= 0 {
+			if !strings.HasPrefix(marker, "\n") {
+				if nl := strings.LastIndex(msg[:idx], "\n"); nl >= 0 {
+					return nl + 1
+				}
+			}
 			return idx
 		}
 	}
