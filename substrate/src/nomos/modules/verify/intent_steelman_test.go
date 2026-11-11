@@ -220,3 +220,74 @@ func TestRepositoryIntentCorpusPassesStrictSteelman(t *testing.T) {
 			count, strings.Join(issues, "\n"))
 	}
 }
+
+// TestIntentSteelmanGateScopedSpecRoots verifies scoped spec_roots audit behavior.
+// @intent nomos_intent_traceability_spec.md #ContractsConfig
+// @verifies TC-TRC-005
+func TestIntentSteelmanGateScopedSpecRoots(t *testing.T) {
+	validScopedSpec := "---\nauthors:\n  - Test Author\nclassification: internal\ndate: \"2026-11-11\"\nlast_updated: \"2026-11-11\"\nplane: intent\nstatus: active\ntitle: \"Scoped Domain Spec\"\ntype: spec\nversion: 1.0.0\n---\n\n# Scoped Domain Spec\n\n## 1. Overview\n\n`ServiceEngine` enforces request validation.\n\n```go\ntype ServiceEngine struct {\n\tReady bool\n}\n```\n"
+	cases := []struct {
+		name      string
+		specRoots string
+		specBody  string
+		wantPass  bool
+		wantSub   string
+	}{
+		{
+			name:      "scoped_nested_file_ignores_sibling_adrs",
+			specRoots: `["intent/architecture/specs/subpkg/service_spec.md"]`,
+			specBody:  validScopedSpec,
+			wantPass:  true,
+		},
+		{
+			name:      "scoped_subdir_rejects_ncte_modal",
+			specRoots: `["intent/architecture/specs/subpkg"]`,
+			specBody:  validScopedSpec + "\nOperators should skip checks.\n",
+			wantPass:  false,
+			wantSub:   "ERR_NCTE_AMBIGUOUS_MODAL",
+		},
+		{
+			name:      "full_specs_root_still_rejects_sibling_adr_topology",
+			specRoots: `["intent/architecture/specs"]`,
+			specBody:  canonicalStrictSpecFixture,
+			wantPass:  false,
+			wantSub:   "unexpected Intent document path",
+		},
+	}
+
+	g := &IntentSteelmanGate{}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			cfgYAML := "project: scoped-test\ndefault_branch: main\ngovernance:\n  quality_gates:\n    strict_mode: true\n    contracts:\n      contracts:\n        enabled: true\n        spec_roots: " + tc.specRoots + "\n"
+			if err := os.WriteFile(filepath.Join(root, "nomos.yaml"), []byte(cfgYAML), 0644); err != nil {
+				t.Fatalf("write nomos.yaml: %v", err)
+			}
+			adrFile := filepath.Join(root, "intent", "architecture", "adrs", "0001-decision.md")
+			if err := os.MkdirAll(filepath.Dir(adrFile), 0755); err != nil {
+				t.Fatalf("mkdir adrs: %v", err)
+			}
+			if err := os.WriteFile(adrFile, []byte("---\ntitle: \"ADR 0001\"\nplane: intent\nstatus: active\n---\n\n# ADR 0001\n\nHistorical architecture record.\n"), 0644); err != nil {
+				t.Fatalf("write adr: %v", err)
+			}
+			specFile := filepath.Join(root, "intent", "architecture", "specs", "subpkg", "service_spec.md")
+			if err := os.MkdirAll(filepath.Dir(specFile), 0755); err != nil {
+				t.Fatalf("mkdir subpkg: %v", err)
+			}
+			if err := os.WriteFile(specFile, []byte(tc.specBody), 0644); err != nil {
+				t.Fatalf("write spec: %v", err)
+			}
+
+			res, err := g.Evaluate(&VerifyContext{RepoRoot: root, WorktreePath: root})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if res.Passed != tc.wantPass {
+				t.Fatalf("expected Passed=%v, got res=%+v", tc.wantPass, res)
+			}
+			if tc.wantSub != "" && !strings.Contains(res.Message, tc.wantSub) {
+				t.Fatalf("expected message containing %q, got %q", tc.wantSub, res.Message)
+			}
+		})
+	}
+}

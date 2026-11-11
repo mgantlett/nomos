@@ -111,23 +111,17 @@ func (g *IntentSteelmanGate) Name() string { return "Intent Steel-Man Parity Gat
 
 // Evaluate audits all Intent Markdown documents for valid YAML frontmatter, balanced fences, and strict NCTE-100 compliance.
 // @intent nomos_controlled_technical_english_spec.md #NCTEPolicy
+// @intent nomos_intent_traceability_spec.md #ContractsConfig
 func (g *IntentSteelmanGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	root := resolveIntentRoot(ctx)
-	intentDir := filepath.Join(root, "intent")
-	if _, err := os.Stat(intentDir); os.IsNotExist(err) {
+	cfg := resolveVerifyConfig(ctx)
+	docCount, issues, skipped := evaluateConfiguredIntentSteelman(root, cfg)
+	if skipped {
 		return &GateResult{
 			GateName: g.Name(), ProbeID: probeIntentSteelman, Law: 4, Ring: RingSyntactic,
 			Passed: true, Message: "no Intent directory detected; skipping steel-man audit",
 		}, nil
 	}
-
-	cfg := resolveVerifyConfig(ctx)
-	contractsEnabled := cfg != nil && cfg.Governance.QualityGates.GetContractsBoundary().Contracts.Enabled
-	opts := intentSteelmanOptions{
-		RequireFrontmatter: contractsEnabled,
-		StrictStandard:     contractsEnabled && cfg.Governance.QualityGates.StrictMode,
-	}
-	docCount, issues := validateIntentDocumentsWithOptions(intentDir, opts)
 	if len(issues) > 0 {
 		return &GateResult{
 			GateName: g.Name(), ProbeID: probeIntentSteelman, Law: 4, Ring: RingSyntactic,

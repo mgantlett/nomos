@@ -178,3 +178,84 @@ func TestContractParityGate_WorktreeInheritance(t *testing.T) {
 		t.Fatalf("expected pass when contracts disabled in parent repo config, got: %s", res.Message)
 	}
 }
+
+// TestContractParityGate_OptionalDefaultSchema verifies omitted schema_files behavior.
+// @intent nomos_intent_traceability_spec.md #ContractsConfig
+// @verifies TC-TRC-005
+func TestContractParityGate_OptionalDefaultSchema(t *testing.T) {
+	gate := &ContractParityGate{}
+	cases := []struct {
+		name         string
+		schemaConfig string
+		writeBackend bool
+		writeDrifted bool
+		wantPass     bool
+		wantSub      string
+	}{
+		{
+			name:         "omitted_schema_files_without_root_schema_enforces_backend_roots",
+			schemaConfig: "",
+			writeBackend: true,
+			wantPass:     true,
+		},
+		{
+			name:         "omitted_schema_files_fails_when_backend_roots_empty_on_disk",
+			schemaConfig: "",
+			writeBackend: false,
+			wantPass:     false,
+			wantSub:      "0 polyglot backend files",
+		},
+		{
+			name:         "omitted_schema_files_still_verifies_root_schema_when_present",
+			schemaConfig: "",
+			writeBackend: true,
+			writeDrifted: true,
+			wantPass:     false,
+			wantSub:      "drifted",
+		},
+		{
+			name:         "explicit_schema_files_fails_closed_when_missing",
+			schemaConfig: "        schema_files: [\"nomos.schema.json\"]\n",
+			writeBackend: true,
+			wantPass:     false,
+			wantSub:      "missing or unreadable schema artifact",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			if err := os.MkdirAll(filepath.Join(root, "intent"), 0755); err != nil {
+				t.Fatalf("mkdir intent: %v", err)
+			}
+			cfgYAML := "project: schema-opt-test\ndefault_branch: main\ngovernance:\n  quality_gates:\n    contracts:\n      contracts:\n        enabled: true\n" + tc.schemaConfig + "        backend_roots: [\"substrate/pkg\"]\n"
+			if err := os.WriteFile(filepath.Join(root, "nomos.yaml"), []byte(cfgYAML), 0644); err != nil {
+				t.Fatalf("write nomos.yaml: %v", err)
+			}
+			if tc.writeBackend {
+				pkgDir := filepath.Join(root, "substrate", "pkg")
+				if err := os.MkdirAll(pkgDir, 0755); err != nil {
+					t.Fatalf("mkdir pkg: %v", err)
+				}
+				if err := os.WriteFile(filepath.Join(pkgDir, "svc.go"), []byte("package pkg\n"), 0644); err != nil {
+					t.Fatalf("write svc.go: %v", err)
+				}
+			}
+			if tc.writeDrifted {
+				if err := os.WriteFile(filepath.Join(root, "nomos.schema.json"), []byte(`{"type":"object"}`), 0644); err != nil {
+					t.Fatalf("write drifted schema: %v", err)
+				}
+			}
+			res, err := gate.Evaluate(&VerifyContext{RepoRoot: root, WorktreePath: root})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if res.Passed != tc.wantPass {
+				t.Fatalf("expected Passed=%v, got res=%+v", tc.wantPass, res)
+			}
+			if tc.wantSub != "" && !strings.Contains(res.Message, tc.wantSub) {
+				t.Fatalf("expected message containing %q, got %q", tc.wantSub, res.Message)
+			}
+		})
+	}
+}

@@ -136,6 +136,7 @@ type ContractParityGate struct{}
 func (g *ContractParityGate) Name() string { return "Contract Schema Integrity Invariant" }
 
 // Evaluate validates JSON Schema artifacts against compiled Go SSoT structures and backend packages.
+// @intent nomos_intent_traceability_spec.md #ContractsConfig
 func (g *ContractParityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	root := resolveBoundaryRoot(ctx)
 	cfg := resolveVerifyConfig(ctx)
@@ -144,10 +145,7 @@ func (g *ContractParityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		return &GateResult{GateName: g.Name(), Passed: true, Message: "contract boundary verification disabled in configuration (skip)"}, nil
 	}
 
-	schemaFiles := contracts.SchemaFiles
-	if len(schemaFiles) == 0 {
-		schemaFiles = []string{"nomos.schema.json"}
-	}
+	schemaFiles := resolveContractSchemaFiles(root, contracts.SchemaFiles)
 	if !hasContractBoundaryScope(root, contracts.SchemaFiles) {
 		return &GateResult{
 			GateName: g.Name(),
@@ -174,6 +172,16 @@ func (g *ContractParityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	}
 
 	return evaluateEngineParity(g.Name(), ctx, root, len(schemaFiles), backendCount)
+}
+
+func resolveContractSchemaFiles(root string, configured []string) []string {
+	if len(configured) > 0 {
+		return configured
+	}
+	if fileExists(filepath.Join(root, "nomos.schema.json")) {
+		return []string{"nomos.schema.json"}
+	}
+	return nil
 }
 
 func verifySchemaArtifacts(root string, schemaFiles []string) string {

@@ -78,6 +78,7 @@ type intentFrontmatter struct {
 type intentSteelmanOptions struct {
 	RequireFrontmatter bool
 	StrictStandard     bool
+	EnforceNCTE        bool
 }
 
 // validateIntentDocuments audits Markdown files under intentDir using baseline frontmatter rules.
@@ -137,6 +138,12 @@ func auditSingleIntentMarkdownWithOptions(rel, path string, opts intentSteelmanO
 		return mermaidErr
 	}
 	if !hasFM || !opts.StrictStandard {
+		if opts.EnforceNCTE {
+			if strings.ContainsRune(normalized, '\u2014') || strings.ContainsRune(normalized, '\u2013') {
+				return "contains prohibited Unicode em-dash or en-dash; use ASCII hyphens or colons"
+			}
+			return auditIntentMarkdownNCTE(rel, raw)
+		}
 		return ""
 	}
 	return evaluateStrictIntentStandard(rel, raw, normalized, fmRaw, fm, body)
