@@ -8,11 +8,12 @@ set -eu
 #   curl -fsSL https://sophialabs.ca/install | bash
 #
 # Environment Overrides:
-#   NOMOS_INSTALL_DIR : Custom destination directory (defaults to GOBIN / GOPATH/bin)
-#   NOMOS_VERSION     : Explicit release tag (e.g. v4.1.0)
-#   NOMOS_LOCAL_TAR   : Local tar.gz archive for offline/testing validation
-#   NOMOS_LOCAL_BIN   : Local binary path for zero-download testing validation
-#   NOMOS_REPO        : GitHub repository (default: mgantlett/nomos)
+#   NOMOS_INSTALL_DIR     : Custom destination directory (defaults to GOBIN / GOPATH/bin)
+#   NOMOS_VERSION         : Explicit release tag (e.g. v4.1.0)
+#   NOMOS_LOCAL_TAR       : Local tar.gz archive for offline/testing validation
+#   NOMOS_LOCAL_CHECKSUMS : Local checksums.txt file for offline SHA-256 verification
+#   NOMOS_LOCAL_BIN       : Local binary path for zero-download testing validation
+#   NOMOS_REPO            : GitHub repository (default: mgantlett/nomos)
 # ==============================================================================
 
 echo "🚀 Installing Nomos Deterministic Engineering Substrate..."
@@ -87,36 +88,39 @@ else
 fi
 
 verify_sha256_checksum() {
-    local dir="$1"
-    local tar_name="$2"
-    local sums_file="$dir/checksums.txt"
+    _chk_dir="$1"
+    _chk_tar="$2"
+    _chk_sums="$_chk_dir/checksums.txt"
 
-    local expected
-    expected="$(grep -E "[[:space:]]${tar_name}\$" "$sums_file" | awk '{print $1}' | head -n 1 || true)"
-    if [ -z "$expected" ]; then
-        echo "❌ Error: Archive '$tar_name' not found in checksums.txt."
+    _chk_line="$(grep -E "[[:space:]]${_chk_tar}\$" "$_chk_sums" | head -n 1 || true)"
+    _chk_expected="${_chk_line%%[[:space:]]*}"
+    if [ -z "$_chk_expected" ]; then
+        echo "❌ Error: Archive '$_chk_tar' not found in checksums.txt."
         exit 1
     fi
 
-    local actual=""
+    _chk_actual=""
     if command -v sha256sum >/dev/null 2>&1; then
-        actual="$(sha256sum "$dir/$tar_name" | awk '{print $1}')"
+        _chk_raw="$(sha256sum "$_chk_dir/$_chk_tar")"
+        _chk_actual="${_chk_raw%%[[:space:]]*}"
     elif command -v shasum >/dev/null 2>&1; then
-        actual="$(shasum -a 256 "$dir/$tar_name" | awk '{print $1}')"
+        _chk_raw="$(shasum -a 256 "$_chk_dir/$_chk_tar")"
+        _chk_actual="${_chk_raw%%[[:space:]]*}"
     elif command -v openssl >/dev/null 2>&1; then
-        actual="$(openssl dgst -sha256 "$dir/$tar_name" | awk '{print $NF}')"
+        _chk_raw="$(openssl dgst -sha256 "$_chk_dir/$_chk_tar")"
+        _chk_actual="${_chk_raw##* }"
     else
         echo "❌ Error: No SHA-256 tool (sha256sum, shasum, openssl) available to verify archive."
         exit 1
     fi
 
-    if [ "$actual" != "$expected" ]; then
-        echo "❌ Error: SHA-256 checksum mismatch for $tar_name!"
-        echo "   Expected: $expected"
-        echo "   Actual  : $actual"
+    if [ "$_chk_actual" != "$_chk_expected" ]; then
+        echo "❌ Error: SHA-256 checksum mismatch for $_chk_tar!"
+        echo "   Expected: $_chk_expected"
+        echo "   Actual  : $_chk_actual"
         exit 1
     fi
-    echo "🔒 Verified SHA-256 checksum ($actual)"
+    echo "🔒 Verified SHA-256 checksum ($_chk_actual)"
 }
 
 # 2. Source resolution inside isolated mktemp directory
@@ -132,6 +136,14 @@ else
     if [ -n "${NOMOS_LOCAL_TAR:-}" ] && [ -f "$NOMOS_LOCAL_TAR" ]; then
         echo "📦 Using local release archive: $NOMOS_LOCAL_TAR"
         cp "$NOMOS_LOCAL_TAR" "$TMP_DIR/$TAR_FILE"
+        if [ -n "${NOMOS_LOCAL_CHECKSUMS:-}" ]; then
+            if [ ! -f "$NOMOS_LOCAL_CHECKSUMS" ]; then
+                echo "❌ Error: Local checksums file not found ($NOMOS_LOCAL_CHECKSUMS)."
+                exit 1
+            fi
+            cp "$NOMOS_LOCAL_CHECKSUMS" "$TMP_DIR/checksums.txt"
+            verify_sha256_checksum "$TMP_DIR" "$TAR_FILE"
+        fi
     else
         REPO="${NOMOS_REPO:-mgantlett/nomos}"
         LATEST_RELEASE="${NOMOS_VERSION:-}"
@@ -146,7 +158,12 @@ else
             esac
         fi
         if [ -z "$LATEST_RELEASE" ]; then
-            LATEST_RELEASE="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null | grep '"tag_name":' | head -n 1 | sed -E 's/.*"([^"]+)".*/\1/' || true)"
+            TAG_LINE="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null | grep '"tag_name"' | head -n 1 || true)"
+            if [ -n "$TAG_LINE" ]; then
+                TAG_REST="${TAG_LINE#*\"tag_name\"}"
+                TAG_REST="${TAG_REST#*\"}"
+                LATEST_RELEASE="${TAG_REST%%\"*}"
+            fi
         fi
 
         if [ -z "$LATEST_RELEASE" ]; then
