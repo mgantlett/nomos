@@ -31,13 +31,23 @@ func TestExtractProtocolMarkerBlock_AndMarkerParity(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte(withCustomSuffix), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "CLAUDE.md"), []byte(withCustomSuffix), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "CLAUDE.md"), []byte("@AGENTS.md\n\n# Custom Claude Notes\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
 	drifts := auditTemplateByteParity(root)
 	if len(drifts) != 0 {
-		t.Fatalf("expected zero parity drift when custom project notes follow protocol end marker, got: %v", drifts)
+		t.Fatalf("expected zero parity drift when custom project notes follow protocol end marker and CLAUDE.md imports @AGENTS.md, got: %v", drifts)
+	}
+
+	if err := os.WriteFile(filepath.Join(root, "CLAUDE.md"), []byte(withCustomSuffix), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if claudeDrifts := auditTemplateByteParity(root); len(claudeDrifts) == 0 {
+		t.Fatalf("expected parity drift when CLAUDE.md duplicates managed protocol block instead of @AGENTS.md import")
+	}
+	if err := os.WriteFile(filepath.Join(root, "CLAUDE.md"), []byte("@AGENTS.md\n"), 0644); err != nil {
+		t.Fatal(err)
 	}
 
 	tampered := strings.Replace(withCustomSuffix, "# Nomos Protocol", "# Tampered Protocol", 1)

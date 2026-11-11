@@ -42,7 +42,7 @@ func DetectWorkspaceContractDrift(repoRoot string) []string {
 	if hasProtocolFileDrift(filepath.Join(cleanRoot, "AGENTS.md")) {
 		drifted = append(drifted, "AGENTS.md")
 	}
-	if hasProtocolFileDrift(filepath.Join(cleanRoot, "CLAUDE.md")) {
+	if hasClaudeFileDrift(filepath.Join(cleanRoot, "CLAUDE.md")) {
 		drifted = append(drifted, "CLAUDE.md")
 	}
 	if hasAmbientHookScriptsDrift(cleanRoot) {
@@ -86,6 +86,15 @@ func hasProtocolFileDrift(targetPath string) bool {
 		return false
 	}
 	merged := mergeProtocolContent(existing, tmpl)
+	return !bytes.Equal(bytes.TrimSpace(existing), bytes.TrimSpace(merged))
+}
+
+func hasClaudeFileDrift(targetPath string) bool {
+	existing, err := os.ReadFile(targetPath)
+	if err != nil {
+		return false
+	}
+	merged := mergeClaudeImportContent(existing)
 	return !bytes.Equal(bytes.TrimSpace(existing), bytes.TrimSpace(merged))
 }
 

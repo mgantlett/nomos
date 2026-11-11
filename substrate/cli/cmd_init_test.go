@@ -165,8 +165,8 @@ func assertScaffoldedFiles(t *testing.T, dir string) {
 	if err != nil {
 		t.Fatalf("failed reading CLAUDE.md: %v", err)
 	}
-	if string(claudeData) != string(agentsData) {
-		t.Errorf("expected byte parity between AGENTS.md and CLAUDE.md")
+	if string(claudeData) != "@AGENTS.md\n" {
+		t.Errorf("expected CLAUDE.md to be canonical '@AGENTS.md\\n' import stub, got: %q", string(claudeData))
 	}
 
 	nomosYAML, err := os.ReadFile(filepath.Join(dir, "nomos.yaml"))
@@ -329,7 +329,7 @@ func TestExecuteInit_BrownfieldMerge(t *testing.T) {
 		t.Errorf("Nomos invariant card was not added to brownfield AGENTS.md:\n%s", aStr)
 	}
 
-	// Verify CLAUDE.md retains custom instructions AND includes Nomos protocol
+	// Verify CLAUDE.md retains custom instructions AND links canonical AGENTS.md SSoT
 	claudeData, err := os.ReadFile(filepath.Join(tempDir, "CLAUDE.md"))
 	if err != nil {
 		t.Fatalf("failed reading CLAUDE.md: %v", err)
@@ -338,8 +338,11 @@ func TestExecuteInit_BrownfieldMerge(t *testing.T) {
 	if !strings.Contains(cStr, "Claude Rules") || !strings.Contains(cStr, "concise markdown") {
 		t.Errorf("custom rules were lost in brownfield CLAUDE.md merge:\n%s", cStr)
 	}
-	if !strings.Contains(cStr, "THE ONE-PAGE INVARIANT CARD") {
-		t.Errorf("Nomos invariant card was not added to brownfield CLAUDE.md:\n%s", cStr)
+	if !hasClaudeAgentsImportLine(cStr) {
+		t.Errorf("@AGENTS.md import pointer was not added to brownfield CLAUDE.md:\n%s", cStr)
+	}
+	if strings.Contains(cStr, "THE ONE-PAGE INVARIANT CARD") {
+		t.Errorf("expected CLAUDE.md not to duplicate full AGENTS.md invariant card:\n%s", cStr)
 	}
 }
 

@@ -162,7 +162,7 @@ func (g *IntentParityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 			Ring:     RingCryptographic,
 			Passed:   false,
 			Message:  fmt.Sprintf("detected %d cryptographic byte parity drift(s) between workspace and substrate templates:\n    - %s", len(drifts), strings.Join(drifts, "\n    - ")),
-			Remedy:   "run 'nomos init' to synchronize the managed protocol block in AGENTS.md/CLAUDE.md and ambient hooks (Law 4 & Law 6)",
+			Remedy:   "run 'nomos init' or 'nomos update --sync-workspace' to synchronize AGENTS.md, CLAUDE.md (@AGENTS.md), and ambient hooks (Law 4 & Law 6)",
 		}, nil
 	}
 

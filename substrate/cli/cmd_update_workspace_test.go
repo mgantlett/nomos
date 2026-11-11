@@ -47,14 +47,20 @@ func TestWorkspaceContractSync_DetectsDriftAndRefreshesIdempotently(t *testing.T
 		t.Fatalf("WriteFile stale AGENTS.md: %v", wErr)
 	}
 
+	claudePath := filepath.Join(repoDir, "CLAUDE.md")
+	legacyClaude := "<!-- NOMOS_OPEN_CORE_PROTOCOL_START -->\nlegacy duplicated block\n<!-- NOMOS_OPEN_CORE_PROTOCOL_END -->\n\n---\n\n## Custom Claude Note\nPrefer concise diffs.\n"
+	if wErr := os.WriteFile(claudePath, []byte(legacyClaude), 0644); wErr != nil {
+		t.Fatalf("WriteFile legacy CLAUDE.md: %v", wErr)
+	}
+
 	hookScript := filepath.Join(repoDir, constants.DirAgents, "scripts", "session-start.sh")
 	if wErr := os.WriteFile(hookScript, []byte("#!/bin/sh\necho outdated\n"), 0755); wErr != nil {
 		t.Fatalf("WriteFile stale hook script: %v", wErr)
 	}
 
 	drift := cli.DetectWorkspaceContractDrift(repoDir)
-	if len(drift) < 3 {
-		t.Fatalf("expected nomos.yaml, AGENTS.md, and hook script drift, got %v", drift)
+	if len(drift) < 4 {
+		t.Fatalf("expected nomos.yaml, AGENTS.md, CLAUDE.md, and hook script drift, got %v", drift)
 	}
 	if notice := cli.FormatWorkspaceDriftNotice(repoDir); !strings.Contains(notice, "--sync-workspace") {
 		t.Fatalf("expected actionable drift notice, got %q", notice)
@@ -87,6 +93,10 @@ func TestWorkspaceContractSync_DetectsDriftAndRefreshesIdempotently(t *testing.T
 	refreshedAgents, rErr := os.ReadFile(agentsPath)
 	if rErr != nil || !strings.Contains(string(refreshedAgents), "Custom Team Rule") || strings.Contains(string(refreshedAgents), "stale protocol") {
 		t.Fatalf("expected AGENTS.md protocol refreshed while preserving custom rules")
+	}
+	refreshedClaude, clErr := os.ReadFile(claudePath)
+	if clErr != nil || !strings.Contains(string(refreshedClaude), "@AGENTS.md") || !strings.Contains(string(refreshedClaude), "Custom Claude Note") || strings.Contains(string(refreshedClaude), "legacy duplicated block") {
+		t.Fatalf("expected CLAUDE.md collapsed to @AGENTS.md while preserving custom Claude note, got %q", string(refreshedClaude))
 	}
 	refreshedCfg, cErr := os.ReadFile(cfgPath)
 	if cErr != nil || !strings.Contains(string(refreshedCfg), "v"+cli.RootCmdVersion+"/nomos.schema.json") {

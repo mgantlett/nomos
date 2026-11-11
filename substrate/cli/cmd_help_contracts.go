@@ -20,7 +20,7 @@ const (
   nomos verify --all`
 
 	helpInitLong = `Bootstrap or synchronize a repository with Nomos governance contracts:
-scaffolds nomos.yaml, synchronizes managed protocol blocks in AGENTS.md and CLAUDE.md,
+scaffolds nomos.yaml, synchronizes the managed protocol block in AGENTS.md and @AGENTS.md import in CLAUDE.md,
 chains ambient lifecycle hooks, and installs Git pre-commit/commit-msg/pre-push guards.`
 	helpInitExample = `  nomos init
   nomos init --dir ./my-service`

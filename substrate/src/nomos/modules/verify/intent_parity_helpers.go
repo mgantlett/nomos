@@ -16,9 +16,11 @@ const (
 	ProtocolStartMarker = "<!-- NOMOS_OPEN_CORE_PROTOCOL_START -->"
 	// ProtocolEndMarker delimits the end of the canonical Nomos protocol region (#ProtocolMarkerBounds).
 	ProtocolEndMarker = "<!-- NOMOS_OPEN_CORE_PROTOCOL_END -->"
+	// ClaudeAgentsImport is the canonical SSoT import line required in CLAUDE.md (Law 4 & Law 6).
+	ClaudeAgentsImport = "@AGENTS.md"
 )
 
-// ExtractProtocolMarkerBlock extracts the canonical marker-bounded protocol block from AGENTS.md or CLAUDE.md.
+// ExtractProtocolMarkerBlock extracts the canonical marker-bounded protocol block from AGENTS.md.
 // @intent INT-841 #IntentParityGate
 func ExtractProtocolMarkerBlock(content []byte) ([]byte, bool) {
 	text := string(content)
@@ -48,7 +50,7 @@ func auditTemplateByteParity(root string) []string {
 	var drifts []string
 	tplAgents := filepath.Join(root, "substrate", "cli", "templates", "AGENTS.md")
 	drifts = append(drifts, auditProtocolDocParity(root, "AGENTS.md", tplAgents)...)
-	drifts = append(drifts, auditProtocolDocParity(root, "CLAUDE.md", tplAgents)...)
+	drifts = append(drifts, auditClaudeImportParity(root, tplAgents)...)
 
 	agentsDir := filepath.Join(root, ".agents")
 	drifts = append(drifts, auditLegacyWorkflowPlaybooks(root, agentsDir)...)
@@ -79,6 +81,40 @@ func auditProtocolDocParity(root, docName, tplPath string) []string {
 		return []string{fmt.Sprintf("%s protocol block drifted from template (doc=%s, tpl=%s)", docName, docHash[:8], tplHash[:8])}
 	}
 	return nil
+}
+
+func auditClaudeImportParity(root, tplPath string) []string {
+	fiTpl, tplErr := os.Stat(tplPath)
+	if tplErr != nil || fiTpl.IsDir() {
+		return nil
+	}
+	claudePath := filepath.Join(root, "CLAUDE.md")
+	fiDoc, err := os.Stat(claudePath)
+	if err != nil || fiDoc.IsDir() {
+		return nil
+	}
+	raw, rErr := os.ReadFile(claudePath)
+	if rErr != nil {
+		return []string{fmt.Sprintf("failed reading CLAUDE.md: %v", rErr)}
+	}
+	text := string(raw)
+	var drifts []string
+	if strings.Contains(text, ProtocolStartMarker) || strings.Contains(text, ProtocolEndMarker) {
+		drifts = append(drifts, "CLAUDE.md duplicates managed protocol block; collapse to '@AGENTS.md' import (Law 4 & Law 6)")
+	}
+	if !containsTrimmedLine(text, ClaudeAgentsImport) {
+		drifts = append(drifts, "CLAUDE.md missing canonical '@AGENTS.md' SSoT import pointer")
+	}
+	return drifts
+}
+
+func containsTrimmedLine(content, target string) bool {
+	for _, line := range strings.Split(content, "\n") {
+		if strings.TrimSpace(line) == target {
+			return true
+		}
+	}
+	return false
 }
 
 func auditLegacyWorkflowPlaybooks(root, agentsDir string) []string {

@@ -150,7 +150,7 @@ func printInitializationSummary(absDir string, isGitRepo, createdBaselineCommit 
 	fmt.Printf("  %s Scaffolded operational boundaries %s\n", check, uiMutedStyle.Render("(worktrees/, .tmp/)"))
 	fmt.Printf("  %s Scaffolded downstream configuration %s\n", check, uiCommandStyle.Render("(nomos.yaml)"))
 	fmt.Printf("  %s Scaffolded universal agent protocol %s\n", check, uiCommandStyle.Render("(AGENTS.md)"))
-	fmt.Printf("  %s Scaffolded Tier 1 agent protocol %s\n", check, uiCommandStyle.Render("(CLAUDE.md)"))
+	fmt.Printf("  %s Scaffolded Tier 1 agent import pointer %s\n", check, uiCommandStyle.Render("(CLAUDE.md -> @AGENTS.md)"))
 	fmt.Printf("  %s Scaffolded ambient session & defense hooks %s\n", check, uiMutedStyle.Render("(Claude Code, Gemini CLI, OpenCode, Cursor, Antigravity)"))
 	if createdBaselineCommit {
 		fmt.Printf("  %s Created initial baseline commit on %s\n", check, uiBoldValueStyle.Render(defaultBranch))
@@ -185,67 +185,6 @@ func scaffoldNomosConfig(dir string) error {
 	branch := detectDefaultBranch(dir)
 	content := renderScaffoldedNomosYAML(dir, string(tmplBytes), projectName, branch)
 	return os.WriteFile(configPath, []byte(content), 0644)
-}
-
-const (
-	protocolStartMarker = "<!-- NOMOS_OPEN_CORE_PROTOCOL_START -->"
-	protocolEndMarker   = "<!-- NOMOS_OPEN_CORE_PROTOCOL_END -->"
-)
-
-func scaffoldClaudeConfig(dir string) error {
-	claudePath := filepath.Join(dir, "CLAUDE.md")
-	return scaffoldOrMergeProtocolFile(claudePath)
-}
-
-func scaffoldAgentsConfig(dir string) error {
-	agentsPath := filepath.Join(dir, "AGENTS.md")
-	return scaffoldOrMergeProtocolFile(agentsPath)
-}
-
-func scaffoldOrMergeProtocolFile(targetPath string) error {
-	tmplBytes, err := initTemplates.ReadFile("templates/AGENTS.md")
-	if err != nil {
-		return err
-	}
-
-	existingBytes, err := os.ReadFile(targetPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return os.WriteFile(targetPath, tmplBytes, 0644)
-		}
-		return err
-	}
-
-	mergedBytes := mergeProtocolContent(existingBytes, tmplBytes)
-	return os.WriteFile(targetPath, mergedBytes, 0644)
-}
-
-func mergeProtocolContent(existingBytes, templateBytes []byte) []byte {
-	existing := string(existingBytes)
-	template := strings.TrimSpace(string(templateBytes))
-
-	if strings.TrimSpace(existing) == "" {
-		return []byte(template + "\n")
-	}
-
-	startIdx := strings.Index(existing, protocolStartMarker)
-	endIdx := strings.Index(existing, protocolEndMarker)
-
-	if startIdx != -1 && endIdx != -1 && endIdx >= startIdx {
-		endIdx += len(protocolEndMarker)
-		var sb strings.Builder
-		sb.WriteString(existing[:startIdx])
-		sb.WriteString(template)
-		sb.WriteString(existing[endIdx:])
-		return []byte(sb.String())
-	}
-
-	var sb strings.Builder
-	sb.WriteString(template)
-	sb.WriteString("\n\n---\n\n")
-	sb.WriteString(strings.TrimSpace(existing))
-	sb.WriteString("\n")
-	return []byte(sb.String())
 }
 
 func pruneLegacyWorkflows(dir string) {
