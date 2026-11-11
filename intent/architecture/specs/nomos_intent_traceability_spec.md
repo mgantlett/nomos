@@ -4,7 +4,7 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-05"
-last_updated: "2026-11-09"
+last_updated: "2026-11-11"
 lineage:
   - INT-541
   - INT-1935
@@ -12,12 +12,13 @@ lineage:
   - INT-1937
   - INT-1944
   - SUB-2157
+  - INT-1969
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Nomos Intent Traceability & Architectural Obligation Proofs Specification"
 type: spec
-version: "4.13.2"
+version: "4.14.0"
 ---
 
 # Nomos Intent Traceability & Architectural Obligation Proofs Specification
@@ -309,6 +310,10 @@ func EvaluateArchitectureBoundaries(root string, files []string, rules []config.
 5. **Polyglot Architecture Boundary Enforcement (`architecture_boundaries`):**
    - Evaluates imports across Go (`go/parser`) and polyglot files (`import`, `require`, `from`, `use`, `using`, `#include`) against matching `from` globs.
    - Executes in under `5ms` inside both `EvaluateFastFileRadar` (`PreToolUse` / `PostToolUse` hooks) and `nomos verify`.
+6. **Scoped `spec_roots` Steel-Man & Optional Schema Parity (`TC-TRC-005`):**
+   - When `contracts.spec_roots` targets explicit files or nested subdirectories, `IntentSteelmanGate` audits only those paths and ignores sibling `intent/` directories.
+   - When `contracts.spec_roots` includes `intent/architecture/specs` or remains empty, `IntentSteelmanGate` enforces flat `intent/architecture/specs/*_spec.md` placement across `intent/`.
+   - When `contracts.schema_files` is empty and root `nomos.schema.json` is absent, `ContractParityGate` skips JSON schema checks while enforcing `backend_roots`.
 
 ---
 
@@ -320,6 +325,7 @@ func EvaluateArchitectureBoundaries(root string, files []string, rules []config.
 | `TC-TRC-002` | `verifyIntentASTAnchors` | `"// @intent #NCTEPolicy (nomos_controlled_technical_english_spec.md)"` | Resolves `NCTEPolicy` and spec file | Law 4 |
 | `TC-TRC-003` | `verifyIntentASTAnchors` | `"// @intent #NonExistentPhantomType"` | Fails closed naming `#NonExistentPhantomType` | Law 2 & Law 7 |
 | `TC-TRC-004` | `verifyIntentASTAnchors` | `"// @intent missing_ghost_spec.md"` | Fails closed naming missing spec | Law 4 & Law 7 |
+| `TC-TRC-005` | `IntentSteelmanGate`, `ContractParityGate` | Scoped `spec_roots` subpaths without root `nomos.schema.json` | Audits scoped specs only and skips absent default schema | Law 4 & Law 6 |
 | `TC-OBL-001` | `VerifyExecutableObligations` | Spec declares `TC-AUTH-01`; Go/polyglot suite tags `@verifies TC-AUTH-01` | Passes with zero unbound obligations | Law 2 & Law 4 |
 | `TC-OBL-002` | `VerifyExecutableObligations` | Spec declares `TC-AUTH-99` with zero verification references | Fails closed naming `TC-AUTH-99` | Law 2 & Law 7 |
 | `TC-OBL-003` | `VerifySpecTypeSignatures` | Spec Go or polyglot block declares field omitted in source | Fails closed naming field drift | Law 4 & Law 7 |

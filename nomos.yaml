@@ -7,9 +7,12 @@ governance:
         prohibited_packages:
             - "pkg/sovereign"
             - "substrate/membrane"
+            - "substrate/cockpit-ui"
         prohibited_commands:
             - "code"
             - "cockpit"
+            - "outreach"
+            - "soma"
             - "ship"
             - "broadcast"
             - "vector"
@@ -30,6 +33,9 @@ governance:
             - '"/workstations/'
         strict_mode: true
         intent_twin_mode: feat
+        verify_scope: diff
+        tdd_mode: strict
+        coverage_mode: live
         exclude: []
         intent_source_roots:
             - "intent"
