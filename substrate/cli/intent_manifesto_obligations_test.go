@@ -176,7 +176,7 @@ func TestDomainSpecs_TaskMemoryAndPhysicsObligations(t *testing.T) {
 
 // TestDomainSpecs_ErrorAffordanceCapBACAndStorageObligations verifies Domain 1-3 synthesized contracts and TC-* obligations.
 // @verifies TC-ERR-001 TC-ERR-002 TC-ERR-003 TC-ERR-004 TC-HAT-01 TC-HAT-02 TC-HAT-03 TC-HAT-04 TC-ROOT-01 TC-ROOT-02 TC-ROOT-03 TC-ROOT-04
-// @verifies TC-FLOW-01 TC-FLOW-02 TC-FLOW-03 TC-FLOW-04 TC-FLOW-05 TC-FLOW-06 TC-MCP-01 TC-MCP-02 TC-MCP-03 TC-MCP-04 TC-MCP-05 TC-MCP-06
+// @verifies TC-FLOW-01 TC-FLOW-02 TC-FLOW-03 TC-FLOW-04 TC-FLOW-05 TC-FLOW-06 TC-FLOW-07 TC-FLOW-08 TC-FLOW-09 TC-MCP-01 TC-MCP-02 TC-MCP-03 TC-MCP-04 TC-MCP-05 TC-MCP-06
 // @verifies TC-EMBED-001 TC-EMBED-002 TC-EMBED-003 TC-EMBED-004 TC-CMT-001 TC-CMT-002 TC-CMT-003 TC-CMT-004
 // @verifies TC-SCH-01 TC-SCH-02 TC-SCH-03 TC-SCH-04 TC-DBNOTE-001 TC-DBNOTE-002 TC-DBNOTE-003 TC-DBNOTE-004 TC-SQL-01 TC-SQL-02 TC-SQL-03 TC-SQL-04 TC-ISS-01 TC-ISS-02 TC-ISS-03 TC-ISS-04 TC-ISS-05 TC-ISS-06
 func TestDomainSpecs_ErrorAffordanceCapBACAndStorageObligations(t *testing.T) {
@@ -202,6 +202,9 @@ func TestDomainSpecs_ErrorAffordanceCapBACAndStorageObligations(t *testing.T) {
 	}
 	if (&verify.CommitSchemaGate{}).Name() == "" || len((capbac.MCPBoundaryPolicy{BlockedServers: []string{"rogue"}}).BlockedServers) != 1 {
 		t.Fatal("unexpected CommitSchemaGate or MCPBoundaryPolicy")
+	}
+	if (capbac.CredentialReadPolicy{}).EffectiveMode() != config.CredentialReadModeHostDeny {
+		t.Fatal("expected default CredentialReadPolicy mode to match host_deny")
 	}
 	if body, err := task.RenderTaskCardBody(task.TaskCardInput{Scope: "substrate/cli", AcceptanceCriteria: []string{"pass"}, Verification: "nomos verify", Burden: 3}); err != nil || body == "" {
 		t.Fatalf("expected synthesized task card body, err=%v", err)

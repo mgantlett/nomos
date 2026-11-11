@@ -34,6 +34,9 @@ func EvaluatePreToolHookWithProfile(p *HookPayload, hermeticDir string, profile 
 	if dec := evaluateOutboundEgressGuard(p, wsRoot); dec.Decision == hookDecisionDeny {
 		return dec
 	}
+	if dec := evaluateCredentialReadGuard(p, wsRoot); dec.Decision == hookDecisionDeny {
+		return dec
+	}
 	if dec := evaluateMCPPreToolGuard(p, hermeticDir); dec.Decision == hookDecisionDeny {
 		return dec
 	}

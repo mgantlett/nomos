@@ -24,6 +24,13 @@ const (
 	CoverageModeArtifact = "artifact"
 	// CoverageModeLive executes zero-dependency live coverage probes (Go, Python trace, Node V8, Ruby Coverage) and parses artifacts.
 	CoverageModeLive = "live"
+
+	// CredentialReadModeHostDeny denies PreToolUse reads of host credential stores while taint-tracking workspace .env (default).
+	CredentialReadModeHostDeny = "host_deny"
+	// CredentialReadModeStrict denies PreToolUse reads of both host credential stores and non-template workspace .env files.
+	CredentialReadModeStrict = "strict"
+	// CredentialReadModeTaintOnly permits credential reads on PreToolUse and records TaintCredentialSource to block outbound egress.
+	CredentialReadModeTaintOnly = "taint_only"
 )
 
 // EffectiveVerifyScope returns the active worktree verification scope, defaulting to "diff" (@intent: #QualityGatesConfig).
@@ -110,5 +117,27 @@ func CoverageModeRank(mode string) (int, bool) {
 		return 2, true
 	default:
 		return -1, false
+	}
+}
+
+// EffectiveCredentialReadMode returns normalized credential_read_mode, defaulting to "host_deny" (@intent: #BoundaryConfig).
+func (b *BoundaryConfig) EffectiveCredentialReadMode() string {
+	if b == nil {
+		return CredentialReadModeHostDeny
+	}
+	norm := strings.ToLower(strings.TrimSpace(b.CredentialReadMode))
+	if norm == "" {
+		return CredentialReadModeHostDeny
+	}
+	return norm
+}
+
+// IsValidCredentialReadMode reports whether mode is a valid BoundaryConfig.CredentialReadMode setting (@intent: #BoundaryConfig).
+func IsValidCredentialReadMode(mode string) bool {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "", CredentialReadModeHostDeny, CredentialReadModeStrict, CredentialReadModeTaintOnly:
+		return true
+	default:
+		return false
 	}
 }

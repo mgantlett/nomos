@@ -49,5 +49,21 @@ func TestVerifyScopeAndTDDModeHelpers(t *testing.T) {
 	if err := ValidateConfig(cfg); err != nil {
 		t.Fatalf("expected valid VerifyScope and TDDExclude to pass ValidateConfig: %v", err)
 	}
+
+	var nilBoundary *BoundaryConfig
+	if got := nilBoundary.EffectiveCredentialReadMode(); got != CredentialReadModeHostDeny {
+		t.Fatalf("expected nil BoundaryConfig credential_read_mode=%s, got %s", CredentialReadModeHostDeny, got)
+	}
+	cfg.Governance.Boundary.CredentialReadMode = " STRICT "
+	if got := cfg.Governance.Boundary.EffectiveCredentialReadMode(); got != CredentialReadModeStrict {
+		t.Fatalf("expected normalized credential_read_mode=strict, got %s", got)
+	}
+	if err := ValidateConfig(cfg); err != nil {
+		t.Fatalf("expected strict credential_read_mode to pass ValidateConfig: %v", err)
+	}
+	cfg.Governance.Boundary.CredentialReadMode = "invalid_mode"
+	if err := ValidateConfig(cfg); err == nil {
+		t.Fatalf("expected ValidateConfig to reject invalid credential_read_mode")
+	}
 }
 

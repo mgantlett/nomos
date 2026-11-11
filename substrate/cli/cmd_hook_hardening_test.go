@@ -132,3 +132,41 @@ func TestReceiptTraceParity_ZeroDiffChangesSectionFailsClosed(t *testing.T) {
 		t.Fatalf("expected 0-diff task claiming ## Changes bullet to fail closed, got %v", err)
 	}
 }
+
+func TestPreToolHook_CredentialReadModeAndBlockedReadPaths(t *testing.T) {
+	t.Setenv("NOMOS_HOME", t.TempDir())
+	wsRoot := t.TempDir()
+
+	// Default host_deny blocks ~/.aws and cat ~/.aws/credentials while permitting & tainting workspace .env.
+	for _, p := range []*HookPayload{
+		{ToolName: "Read", TargetFile: "~/.aws/credentials", Cwd: wsRoot},
+		{ToolName: "Read", TargetFile: "/root/.ssh/id_ed25519", Cwd: wsRoot},
+		{ToolName: "Bash", CommandLine: "cat ~/.aws/credentials", Cwd: wsRoot},
+	} {
+		dec := EvaluatePreToolHook(p, "")
+		if dec.Decision != hookDecisionDeny || !strings.Contains(dec.Reason, "Credential Read Airlock") {
+			t.Fatalf("expected default host_deny PreToolUse block for %+v, got %+v", p, dec)
+		}
+	}
+
+	envPath := filepath.Join(wsRoot, ".env")
+	if err := os.WriteFile(envPath, []byte("PORT=8080\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if dec := EvaluatePreToolHook(&HookPayload{ToolName: "Read", TargetFile: envPath, Cwd: wsRoot}, ""); dec.Decision != hookDecisionAllow {
+		t.Fatalf("expected workspace .env read to be allowed under default host_deny, got %+v", dec)
+	}
+
+	// Configure strict mode + blocked_read_paths in nomos.yaml.
+	strictYAML := "project: demo\ndefault_branch: main\ngovernance:\n  boundary:\n    enforce: true\n    credential_read_mode: strict\n    blocked_read_paths:\n      - \"secrets/**\"\n"
+	if err := os.WriteFile(filepath.Join(wsRoot, "nomos.yaml"), []byte(strictYAML), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if dec := EvaluatePreToolHook(&HookPayload{ToolName: "Read", TargetFile: envPath, Cwd: wsRoot}, ""); dec.Decision != hookDecisionDeny {
+		t.Fatalf("expected strict mode to deny workspace .env read, got %+v", dec)
+	}
+	secretFile := filepath.Join(wsRoot, "secrets", "prod.json")
+	if dec := EvaluatePreToolHook(&HookPayload{ToolName: "Read", TargetFile: secretFile, Cwd: wsRoot}, ""); dec.Decision != hookDecisionDeny {
+		t.Fatalf("expected blocked_read_paths 'secrets/**' to deny read, got %+v", dec)
+	}
+}

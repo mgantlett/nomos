@@ -55,6 +55,9 @@ func EvaluateContainerPreToolHookWithProfile(p *HookPayload, profile HookAdvisor
 	if dec := evaluateOutboundEgressGuard(p, baseCwd); dec.Decision == hookDecisionDeny {
 		return dec
 	}
+	if dec := evaluateCredentialReadGuard(p, baseCwd); dec.Decision == hookDecisionDeny {
+		return dec
+	}
 	if dec := evaluateMCPPreToolGuard(p, baseCwd); dec.Decision == hookDecisionDeny {
 		return dec
 	}

@@ -273,21 +273,7 @@ func extractRemoteFetchHost(cmd string) (string, bool) {
 // IsSensitiveCredentialPath reports whether path targets a credential store or non-template .env file.
 // @intent nomos_hermetic_worktree_spec.md #TaintEdge
 func IsSensitiveCredentialPath(rawPath string) bool {
-	clean := filepath.ToSlash(strings.TrimSpace(rawPath))
-	if clean == "" {
-		return false
-	}
-	base := strings.ToLower(filepath.Base(clean))
-	if allowedTemplateEnvFiles[base] {
-		return false
-	}
-	if base == ".env" || strings.HasPrefix(base, ".env.") || sensitiveBasenames[base] {
-		return true
-	}
-	lower := strings.ToLower(clean)
-	return strings.Contains(lower, "/.aws/credentials") ||
-		strings.Contains(lower, "/.kube/config") ||
-		strings.Contains(lower, "/.ssh/id_")
+	return IsHostCredentialStorePath(rawPath) || IsRestrictedWorkspaceEnvPath(rawPath)
 }
 
 func detectCredentialAccess(targetFile, cmdLine string) (string, bool) {

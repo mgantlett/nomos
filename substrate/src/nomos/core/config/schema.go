@@ -47,6 +47,8 @@ var configFieldDescriptions = map[string]string{
 	"egress_mode":                  "Outbound agent HTTP/HTTPS egress policy on PreToolUse: standard (default), offline, or allowlist.",
 	"allowed_egress_domains":       "Explicit allowlist of permitted outbound domains when egress_mode is allowlist.",
 	"blocked_egress_domains":       "Explicit denylist of prohibited outbound domains blocked on PreToolUse.",
+	"credential_read_mode":         "PreToolUse credential file read policy: host_deny (default), strict, or taint_only.",
+	"blocked_read_paths":           "Explicit workspace-relative or host path globs denied for agent read access on PreToolUse.",
 	"quality_gates":                "Static AST, test hygiene, and cross-plane verification settings.",
 	"forbidden_literals":           "Hardcoded string or path literals rejected by Law 5.",
 	"forbidden_shims":              "Stub or placeholder patterns rejected by the Anti-Shim Gate.",
@@ -175,6 +177,9 @@ func applyStringEnumMetadata(name string, propNode *JSONSchemaNode) {
 	case "egress_mode":
 		propNode.Enum = []string{EgressModeStandard, EgressModeOffline, EgressModeAllowlist}
 		propNode.Default = EgressModeStandard
+	case "credential_read_mode":
+		propNode.Enum = []string{CredentialReadModeHostDeny, CredentialReadModeStrict, CredentialReadModeTaintOnly}
+		propNode.Default = CredentialReadModeHostDeny
 	}
 }
 

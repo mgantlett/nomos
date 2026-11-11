@@ -38,6 +38,8 @@ type BoundaryConfig struct {
 	EgressMode           string   `yaml:"egress_mode,omitempty" json:"egress_mode,omitempty"`
 	AllowedEgressDomains []string `yaml:"allowed_egress_domains,omitempty" json:"allowed_egress_domains,omitempty"`
 	BlockedEgressDomains []string `yaml:"blocked_egress_domains,omitempty" json:"blocked_egress_domains,omitempty"`
+	CredentialReadMode   string   `yaml:"credential_read_mode,omitempty" json:"credential_read_mode,omitempty"`
+	BlockedReadPaths     []string `yaml:"blocked_read_paths,omitempty" json:"blocked_read_paths,omitempty"`
 }
 
 // EffectiveEgressMode returns normalized egress_mode, defaulting to "standard" (@intent: #BoundaryConfig).
@@ -305,6 +307,10 @@ func ValidateConfig(cfg *EcosystemConfig) error {
 	if thresholds.MaxFuncLOC <= 0 {
 		return fmt.Errorf("max_func_loc must be greater than zero, got %d", thresholds.MaxFuncLOC)
 	}
+	return validateGovernanceModes(cfg)
+}
+
+func validateGovernanceModes(cfg *EcosystemConfig) error {
 	if _, ok := VerifyScopeRank(cfg.Governance.QualityGates.VerifyScope); !ok {
 		return fmt.Errorf("verify_scope must be diff or repo, got %q", cfg.Governance.QualityGates.VerifyScope)
 	}
@@ -319,6 +325,9 @@ func ValidateConfig(cfg *EcosystemConfig) error {
 	}
 	if !IsValidEgressMode(cfg.Governance.Boundary.EgressMode) {
 		return fmt.Errorf("egress_mode must be standard, offline, or allowlist, got %q", cfg.Governance.Boundary.EgressMode)
+	}
+	if !IsValidCredentialReadMode(cfg.Governance.Boundary.CredentialReadMode) {
+		return fmt.Errorf("credential_read_mode must be host_deny, strict, or taint_only, got %q", cfg.Governance.Boundary.CredentialReadMode)
 	}
 	return nil
 }

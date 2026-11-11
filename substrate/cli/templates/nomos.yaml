@@ -34,6 +34,13 @@ governance:
         # (go.mod, package.json, Cargo.toml, pyproject.toml, uv.lock, etc.)
         # lock_dependencies: true
 
+        # Optional: PreToolUse credential read airlock mode:
+        # "host_deny" (default: deny ~/.aws, ~/.ssh, ~/.kube, ~/.gnupg, .netrc, .npmrc, .pypirc; taint workspace .env),
+        # "strict" (also deny non-template workspace .env reads), or "taint_only".
+        # credential_read_mode: "host_deny"
+        # blocked_read_paths:
+        #     - "secrets/**"
+
     # --------------------------------------------------------------------------
     # Law 2, 4, 5, 6 & 7 (Deterministic AST & Runtime Quality Gates):
     # Machine-enforced across supported polyglot languages (Go, TS, JS, Svelte,

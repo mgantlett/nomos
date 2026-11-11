@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/capbac"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 )
@@ -196,4 +197,27 @@ func containsEmailExfiltration(material, email string) bool {
 	lowerEmail := strings.ToLower(email)
 	encodedEmail := strings.ReplaceAll(lowerEmail, "@", "%40")
 	return strings.Contains(lowerMat, lowerEmail) || strings.Contains(lowerMat, encodedEmail)
+}
+
+func evaluateCredentialReadGuard(p *HookPayload, wsRoot string) HookDecision {
+	if p == nil || (p.TargetFile == "" && len(p.TargetFiles) == 0 && p.CommandLine == "" && p.ArgsDigest == "") {
+		return HookDecision{Decision: hookDecisionAllow}
+	}
+	boundary := loadWorkspaceBoundaryConfig(wsRoot)
+	dec := capbac.EvaluateCredentialReadAirlock(wsRoot, capbac.ToolFlowInvocation{
+		ToolName:    p.ToolName,
+		TargetFile:  p.TargetFile,
+		CommandLine: p.CommandLine,
+		ArgsDigest:  p.ArgsDigest,
+	}, p.TargetFiles, capbac.CredentialReadPolicy{
+		Mode:             boundary.EffectiveCredentialReadMode(),
+		BlockedReadPaths: boundary.BlockedReadPaths,
+	})
+	if !dec.Allowed {
+		return HookDecision{
+			Decision: hookDecisionDeny,
+			Reason:   dec.Reason,
+		}
+	}
+	return HookDecision{Decision: hookDecisionAllow}
 }

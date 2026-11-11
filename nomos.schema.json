@@ -46,6 +46,23 @@
                 "type": "string"
               }
             },
+            "blocked_read_paths": {
+              "description": "Explicit workspace-relative or host path globs denied for agent read access on PreToolUse.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "credential_read_mode": {
+              "description": "PreToolUse credential file read policy: host_deny (default), strict, or taint_only.",
+              "type": "string",
+              "enum": [
+                "host_deny",
+                "strict",
+                "taint_only"
+              ],
+              "default": "host_deny"
+            },
             "egress_mode": {
               "description": "Outbound agent HTTP/HTTPS egress policy on PreToolUse: standard (default), offline, or allowlist.",
               "type": "string",
