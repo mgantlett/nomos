@@ -4,7 +4,7 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-23"
-last_updated: "2026-11-06"
+last_updated: "2026-11-10"
 lineage:
   - INT-735
   - INT-855
@@ -18,25 +18,27 @@ lineage:
   - SUB-1806
   - INT-1944
   - SUB-2157
+  - INT-1956
+  - SUB-2203
 plane: intent
 ssot_repository: nomos
 status: active
-title: "Nomos Mneme Episodic and Semantic Memory Subsystem Specification"
+title: "Nomos Mneme Receipt-Gated Episodic Memory Subsystem Specification"
 type: spec
-version: "4.6.0"
+version: "4.14.0"
 ---
 
-# Nomos Mneme Episodic and Semantic Memory Subsystem Specification
+# Nomos Mneme Receipt-Gated Episodic Memory Subsystem Specification
 
 ---
 
 ## 1. Executive Summary & Problem Statement
 
-In autonomous multi-task engineering cycles, Tier 1 coding agents frequently repeat identical mistakes across sessions unless provided with persistent episodic memory. Conversely, monolithic context dumping rapidly consumes the agent's context window.
+In autonomous multi-task engineering cycles, Tier 1 coding agents repeat identical mistakes across sessions without persistent episodic memory. Conversely, monolithic context dumping rapidly consumes the agent's context window.
 
-Under **Law 1** and **Law 4**, **Nomos Mneme** (`mneme.db`) provides a pure-Go transactional episodic and vector store for reflections, axioms, and decisions.
+Under **Law 1** and **Law 4**, **Nomos Mneme** (`mneme.db`) provides a pure-Go receipt-gated transactional episodic store for reflections, axioms, pitfalls, and structural patterns.
 
-Nomos Mneme runs with zero CGO dependencies via `GenerateDeterministicLocalVector` and hybrid ranking (cosine, lexical overlap, Ebbinghaus decay) partitioned per `repo_id`.
+Nomos Mneme pairs AST-scoped pitfall injection with zero-CGO subword hashing (`GenerateDeterministicLocalVector`), lexical overlap, Ebbinghaus decay, and optional `LOCAL_EMBEDDING_URL` vectors per `repo_id`.
 
 ---
 
@@ -177,25 +179,25 @@ CREATE INDEX IF NOT EXISTS idx_memories_repo_kind_status ON memories(repo_id, ki
 - `topic`: Categorization label (such as `Architecture`, `Verification`, or `pattern:substrate/src/nomos/modules/mem`).
 - `content`: Markdown text of the reflection, pitfall fix, or verified structural blueprint.
 - `task_id`: Linked task key (`INT-734`, `SUB-1212`).
-- `embedding`: 64-dimensional float32 vector encoded as little-endian binary blob (256 bytes).
+- `embedding`: Little-endian `float32` binary blob (`256` bytes for 64-dim offline subword vectors, or dense neural vectors from `LOCAL_EMBEDDING_URL`).
 - `status`: Lifecycle state (`active`, `superseded`, `tombstoned`).
 
 ---
 
-## 4. Pure-Go Vector Synthesis & Hybrid Ranking Engine
+## 4. Pure-Go Subword Feature Hashing & Hybrid Ranking Engine
 
-### 4.1 Deterministic Local Vector Synthesis
-To eliminate external inference dependencies and CGO libraries, Nomos implements **Deterministic Local Content Hashing**:
-1. Tokenizes content into lowercase alphanumeric words.
-2. Computes SHA-256 digests per token and projects byte values into a 64-dimensional float space.
-3. Normalizes the resulting vector to unit Euclidean magnitude ($|v| = 1$).
+### 4.1 Subword Feature Hashing & Optional Local Embeddings
+To eliminate external inference dependencies and CGO libraries, Nomos implements **Subword Feature Hashing** with optional local neural fallback:
+1. Splits `camelCase`, `PascalCase`, `snake_case`, and path tokens into lowercase words, strips high-frequency English stop-words, and extracts character 4-grams (`0.35` weight) alongside normalized tokens (`1.0` weight).
+2. Projects each weighted feature across 64 independent zero-mean coordinates via domain-separated SHA-256 digests (`0:` for `[0..31]`, `1:` for `[32..63]`), normalizing to unit magnitude ($|v| = 1$).
+3. Queries `LOCAL_EMBEDDING_URL` (`127.0.0.1:8081/v1/embeddings`, `500ms` timeout) when active, and synthesizes 64-dimensional subword vectors in `CombinedScore` whenever stored and query dimensions differ.
 
 ### 4.2 Hybrid Ranking Formula
 When searching memories via `nomos mem recall <query>`:
 $$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{LexicalOverlap}) \times \text{TemporalDecay} \times \text{Reinforcement} \times \text{LocalityBoost}$$
 
-- **Cosine Similarity**: $\frac{A \cdot B}{\|A\| \|B\|}$ evaluating semantic alignment.
-- **Lexical Overlap**: Word token Jaccard-style intersection over query length.
+- **Cosine Similarity**: $\frac{A \cdot B}{\|A\| \|B\|}$ evaluating subword feature-hash or local neural alignment.
+- **Lexical Overlap**: Identifier-split, stop-word-filtered token intersection over query length.
 - **Ebbinghaus Temporal Decay**: $\exp(-\lambda \times \text{age}_{\text{days}})$, with kind-specific $\lambda$ (`axiom`: $0.005$, `pattern`: $0.006$, `pitfall`: $0.008$, `reflection`: $0.02$, `release`/`task`/`commit`: $0.05$).
 - **Repository Locality Boost & Global Axiom Slot Cap**: Scoped searches (`opts.RepoID != ""` and `!opts.IncludeCrossRepo`) apply a $1.25\times$ multiplier to exact `repo_id` matches. Untyped repository queries (`opts.Kind == ""`) cap unscoped `global` `axiom` slots at $\max(1, \lfloor \text{limit} / 3 \rfloor)$ and backfill from overflow only when repository matches are sparse.
 - **Access Reinforcement & Per-Task Deduplication**: Applies $1.0 + 0.05 \times \min(\text{access\_count}, 10)$ during active worktree tasks at most once per `(task_id, memory_id)`. Passive `IDLE` orientation (`nomos handshake`, `nomos status`, `nomos task status`) and `nomos mem recall` run read-only (`SearchOptions.ReadOnly = true`) without inflating `access_count`.
@@ -216,7 +218,7 @@ $$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{Lexica
   - `--kind <kind>`: Advisory kind of memory (`reflection`, `axiom`, `decision`; default: `reflection`).
 
 ### 5.2 `nomos mem recall <query>`
-- Hybrid semantic and lexical search.
+- Hybrid lexical, subword feature-hash, and optional local embedding search.
 - Scoped to active repository by default to prevent cross-project pollution.
 - Flags:
   - `-A, --cross-repo`: Cross-repository search across all indexed memories.
@@ -258,6 +260,7 @@ $$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{Lexica
 | `TC-MEM-12` | Unscoped one-off pitfall cooling | Single-occurrence pitfall (`recurrence == 1`) older than 14 days during unscoped handshake | Excluded from unscoped `LearnedPitfalls`; retained on scope match or `recurrence >= 2`. |
 | `TC-MEM-13` | Active-default `nomos mem list` | `nomos mem dismiss <id>` followed by `nomos mem list` vs `nomos mem list --status tombstoned` | Excluded from default `nomos mem list` output and visible under `--status tombstoned` or `--status all`. |
 | `TC-MEM-14` | Repo locality boost & axiom cap | Untyped `SearchWithOptions` (`RepoID: "nomos"`, `Limit: 5`) | Boosts `nomos` matches $1.25\times$ and caps `global` axioms to 1. |
+| `TC-MEM-15` | Subword hashing & dimension fallback | `GenerateDeterministicLocalVector` + `CombinedScore` across `camelCase`, stop-words, and mixed dims | Produces independent halves (`v[:32] != v[32:]`), rejects stop-word noise, and scores mixed dims. |
 | `TC-LRN-01` | Gate trap buffering | Failing DoD gate evaluated during active task (`GateTrapEntry`) | Buffers gate name, scope, and failure message for `LEARN` phase distillation. |
 | `TC-LRN-02` | Trap-to-fix distillation | Buffered `GateTrapEntry` resolved before 2PC `nomos task sync` | Mints statutory `kind="pitfall"` pairing trap and verified fix. |
 | `TC-LRN-03` | Dead-scope pitfall hygiene | `PitfallHygieneReport` audit when target directory no longer exists | Tombstones dead-scope pitfalls automatically. |
@@ -269,7 +272,7 @@ $$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{Lexica
 
 ## 7. Cross-Plane Traceability & DoD Verification
 
-- **Intent Lineage**: `INT-735`, `INT-855`, `INT-899`, `INT-926`, `INT-927`.
-- **Substrate SSoT**: `SUB-1213`, `SUB-1524`, `SUB-1680` (`substrate/src/nomos/modules/mem/memory.go`, `substrate/src/nomos/modules/mem/vector.go`, `substrate/src/nomos/modules/mem/search.go`, `substrate/src/nomos/modules/mem/learn.go`, `substrate/src/nomos/modules/mem/learn_reinforce.go`, `substrate/src/nomos/modules/mem/learn_scope.go`, `substrate/src/nomos/modules/mem/patterns.go`, `substrate/src/nomos/modules/mem/maintain.go`).
+- **Intent Lineage**: `INT-735`, `INT-855`, `INT-899`, `INT-926`, `INT-927`, `INT-1944`, `INT-1956`.
+- **Substrate SSoT**: `SUB-1213`, `SUB-1524`, `SUB-1680`, `SUB-2157`, `SUB-2203` (`substrate/src/nomos/modules/mem/memory.go`, `substrate/src/nomos/modules/mem/vector.go`, `substrate/src/nomos/modules/mem/search.go`, `substrate/src/nomos/modules/mem/learn.go`, `substrate/src/nomos/modules/mem/learn_reinforce.go`, `substrate/src/nomos/modules/mem/learn_scope.go`, `substrate/src/nomos/modules/mem/patterns.go`, `substrate/src/nomos/modules/mem/maintain.go`).
 - **Canonical 7x3 Matrix Coordinates**: `Cell 1.1 (boundary)`, `Cell 4.1 (intent_traceability)`, `Cell 6.2 (zero_alias)`.
 - **Deterministic Verification**: `nomos verify` executes unit tests across `substrate/src/nomos/modules/mem/` and validates Database Encapsulation and CLI zero-alias invariants with exit code `0`.
