@@ -1,3 +1,5 @@
+// Package session discovers, parses, and evaluates Tier 1 coding agent session transcripts
+// across supported IDE and CLI providers (@intent nomos_hermetic_worktree_spec.md).
 package session
 
 import (
@@ -61,6 +63,7 @@ func GetSessionDetail(rootOverride, repoRoot, sessionID string) (*SessionDetail,
 	return nil, fmt.Errorf("session %q not found across supported Tier 1 agent providers", sessionID)
 }
 
+// detectPersona classifies the active session persona from workspace boundaries and prompt keywords.
 func detectPersona(sess *AgentSession, repoRoot string) string {
 	lower := strings.ToLower(repoRoot + " " + sess.WorktreePath + " " + sess.RecentSummary)
 	if isDownstreamConsumerContext(repoRoot, sess.WorktreePath) {
@@ -72,15 +75,15 @@ func detectPersona(sess *AgentSession, repoRoot string) string {
 	return "SUBSTRATE_ARCHITECT"
 }
 
+// isDownstreamConsumerContext reports whether repoRoot and worktreePath belong to an external
+// downstream consumer workspace rather than an authorized Nomos Substrate or plugin workspace
+// (@intent nomos_hermetic_worktree_spec.md).
 func isDownstreamConsumerContext(repoRoot, worktreePath string) bool {
-	if repoRoot != "" {
-		cmdDir := filepath.Join(repoRoot, "substrate", "cmd", "nomos")
-		if _, err := os.Stat(cmdDir); err == nil {
-			return false
-		}
-		if filepath.Base(repoRoot) != "nomos" {
-			return true
-		}
+	if hasAuthorizedNomosEntrypoint(repoRoot, worktreePath) {
+		return false
+	}
+	if repoRoot != "" && filepath.Base(repoRoot) != "nomos" {
+		return true
 	}
 	if worktreePath != "" && !strings.Contains(filepath.ToSlash(worktreePath), "/nomos-") {
 		return true
@@ -88,6 +91,47 @@ func isDownstreamConsumerContext(repoRoot, worktreePath string) bool {
 	return false
 }
 
+// hasAuthorizedNomosEntrypoint inspects candidate workspace roots for canonical Nomos
+// CLI or plugin command directories (substrate/cmd/nomos or substrate/cmd/nomos-plugin-*).
+func hasAuthorizedNomosEntrypoint(repoRoot, worktreePath string) bool {
+	for _, root := range candidateWorkspaceRoots(repoRoot, worktreePath) {
+		if isAuthorizedNomosCommandRoot(root) {
+			return true
+		}
+	}
+	return false
+}
+
+// candidateWorkspaceRoots returns ordered candidate filesystem roots for worktreePath and repoRoot.
+func candidateWorkspaceRoots(repoRoot, worktreePath string) []string {
+	var roots []string
+	if worktreePath != "" {
+		if !filepath.IsAbs(worktreePath) && repoRoot != "" {
+			roots = append(roots, filepath.Join(repoRoot, worktreePath))
+		}
+		roots = append(roots, worktreePath)
+	}
+	if repoRoot != "" {
+		roots = append(roots, repoRoot)
+	}
+	return roots
+}
+
+// isAuthorizedNomosCommandRoot reports whether root contains substrate/cmd/nomos
+// or at least one substrate/cmd/nomos-plugin-* command directory.
+func isAuthorizedNomosCommandRoot(root string) bool {
+	if root == "" {
+		return false
+	}
+	cmdDir := filepath.Join(root, "substrate", "cmd", "nomos")
+	if _, err := os.Stat(cmdDir); err == nil {
+		return true
+	}
+	matches, err := filepath.Glob(filepath.Join(root, "substrate", "cmd", "nomos-plugin-*"))
+	return err == nil && len(matches) > 0
+}
+
+// populateDetailFromLines unmarshals JSONL transcript lines into structured session events and deliberation telemetry.
 func populateDetailFromLines(detail *SessionDetail, lines []string) {
 	for _, raw := range lines {
 		var item transcriptLine
@@ -100,6 +144,7 @@ func populateDetailFromLines(detail *SessionDetail, lines []string) {
 	trimDetailHistory(detail)
 }
 
+// processDetailItem routes a single parsed transcript line into user, thinking, or tool-call events.
 func processDetailItem(detail *SessionDetail, item *transcriptLine) {
 	if item.Type == "USER_INPUT" {
 		recordUserEvent(detail, item)
@@ -118,6 +163,7 @@ func processDetailItem(detail *SessionDetail, item *transcriptLine) {
 	}
 }
 
+// recordUserEvent appends a normalized user prompt summary and full request event.
 func recordUserEvent(detail *SessionDetail, item *transcriptLine) {
 	title := cleanSummary(item.Content)
 	fullPrompt := cleanFullPrompt(item.Content)
@@ -132,6 +178,7 @@ func recordUserEvent(detail *SessionDetail, item *transcriptLine) {
 	}
 }
 
+// cleanFullPrompt extracts bounded user prompt text and strips wrapper tags.
 func cleanFullPrompt(content string) string {
 	clean := strings.TrimSpace(content)
 	if strings.Contains(clean, "<USER_REQUEST>") {
@@ -148,6 +195,7 @@ func cleanFullPrompt(content string) string {
 	return clean
 }
 
+// cleanSummary produces a single-line headline from raw prompt content.
 func cleanSummary(content string) string {
 	clean := cleanFullPrompt(content)
 	lines := strings.Split(clean, "\n")
@@ -166,6 +214,7 @@ func cleanSummary(content string) string {
 	return clean
 }
 
+// recordToolCall increments tool usage counters and records significant tool events.
 func recordToolCall(detail *SessionDetail, item *transcriptLine, tc *rawToolCallItem) {
 	toolName := tc.Name
 	if toolName == "" {
@@ -187,6 +236,7 @@ func recordToolCall(detail *SessionDetail, item *transcriptLine, tc *rawToolCall
 	}
 }
 
+// significantToolNames enumerates canonical tool names surfaced in causal event timelines.
 var significantToolNames = map[string]bool{
 	"run_command": true, "write_to_file": true, "replace_file_content": true, "multi_replace_file_content": true,
 	"edit_file": true, "write_file": true, "read_file": true, "find_by_name": true, "list_dir": true,
@@ -196,6 +246,7 @@ var significantToolNames = map[string]bool{
 	"bash": true, "read": true, "write": true, "edit": true, "grep": true, "glob": true,
 }
 
+// extractToolDetail extracts the primary command, path, or query parameter from tool arguments.
 func extractToolDetail(tc *rawToolCallItem) string {
 	if tc.Args == nil {
 		return ""
@@ -216,6 +267,7 @@ func extractToolDetail(tc *rawToolCallItem) string {
 	return ""
 }
 
+// extractToolTitle extracts a human-readable summary label for a tool call.
 func extractToolTitle(tc *rawToolCallItem) string {
 	if tc.Args != nil {
 		valToString := func(v any) string {
@@ -234,10 +286,12 @@ func extractToolTitle(tc *rawToolCallItem) string {
 	return tc.Name
 }
 
+// isSignificantTool reports whether name belongs to the causal timeline allowlist.
 func isSignificantTool(name string) bool {
 	return significantToolNames[name]
 }
 
+// trimDetailHistory bounds stored events and recent prompts for compact JSON payloads.
 func trimDetailHistory(detail *SessionDetail) {
 	if len(detail.Events) > 100 {
 		detail.Events = detail.Events[len(detail.Events)-100:]
