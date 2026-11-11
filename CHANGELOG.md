@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [v4.16.0] - 2026-11-11
+
+> `PreToolUse` Host-Credential Read Airlock, 2PC Walkthrough Path & Credential Sanitization, Cross-Platform `nomos update` Provenance & Windows Swap Hardening, Strict `nomos.yaml` Schema Decoding, Plus Neutral External Plugin Discovery & CI Git Notes Verification (Apache 2.0)
+
+### Ambient Hooks & Pacing (`nomos hook`)
+- **Host-Credential Read Airlock & MCP `ArgsDigest` Scoping (`INT-1973`, `SUB-2239`, `SUB-2240`)**: Enforces `governance.boundary.credential_read_mode` (`host_deny` default, `strict`, `taint_only`) and `blocked_read_paths` globs in `nomos hook pre-tool` to fail closed on agent reads of host credential stores (`~/.aws`, `~/.ssh`, `~/.kube`, `~/.gnupg`, `~/.config/gcloud`, `.netrc`, `.npmrc`, `.pypirc`, SSH private keys, and cloud key JSONs) while tainting or blocking non-template `.env` reads (`TC-HK-025`), and scopes `ArgsDigest` credential path extraction to MCP file/resource tools so task titles or search strings mentioning credential filenames never false-positive.
+
+### Task Lifecycle & 2PC Sync (`nomos task sync`)
+- **2PC Walkthrough Path Scrubbing & Credential Airlock (`INT-1976`, `SUB-2241`)**: Enforces `SanitizeAndValidateWalkthrough` in `nomos task sync` prior to fast-forward merge (`TC-SYNC-021`), stripping `file://` schemes and repository/worktree root prefixes to repo-relative paths, scrubbing residual host home paths (`$HOME`, `/Users/<user>`, `/home/<user>`, `C:\Users\<user>`) to `~`, and failing closed on raw credentials (`ERR_SECRET_DETECTED`) or configured `prohibited_packages` tokens (`ERR_BOUNDARY_VIOLATION`) before persisting `refs/notes/nomos/releases` receipts.
+
+### CLI & Distribution (`nomos update`, `plugin.go`, `install.sh`, `uninstall.sh`)
+- **Cross-Platform `nomos update` Provenance & Rate-Limit Resilience (`INT-1976`, `SUB-2241`)**: Adds `AtomicReplaceBinaryWithBackup` so Windows self-updates move the active `.exe` to `.old` prior to atomic rename (`TC-UPD-006`), distinguishes Arch Linux `aur` (`/etc/arch-release`) from generic Linux `system` package-manager provenance on `/usr/bin/nomos`, resolves `/releases/latest` HTTP redirects before falling back to `api.github.com` (with `GITHUB_TOKEN` / `GH_TOKEN` Bearer authentication) to avoid anonymous GitHub API rate limits, and hardens `uninstall.sh` path handling for directories containing spaces.
+- **Neutral `External Plugins` CLI Discovery (`SUB-2241`)**: Generalizes external `nomos-plugin-*` binary discovery under a neutral `External Plugins:` Cobra command group across the sibling executable directory, `GOBIN`, `GOPATH/bin` (`filepath.SplitList`), `~/.local/bin`, and `PATH`.
+
+### Configuration & Workspace (`nomos.yaml`, `nomos.schema.json`)
+- **Strict `KnownFields(true)` Config Decoding & Schema Disambiguation (`SUB-2241`)**: Enforces `yaml.NewDecoder` with `KnownFields(true)` in `config.LoadConfig` so unknown or misspelled `nomos.yaml` keys fail closed with `ERR_CONFIG_PARSE` (`TC-SSOT-05`), and disambiguates outer `GovernanceConfig.contracts` vs inner `QualityGatesConfig.contracts` descriptions in `nomos.schema.json`.
+
+### Release, CI & Community Health (`.github/`, `CODE_OF_CONDUCT.md`)
+- **CI Git Notes Verification & Open-Core Community Health (`SUB-2241`)**: Fetches `+refs/notes/nomos/releases:refs/notes/nomos/releases` in `.github/workflows/ci.yaml` and `release.yaml` so `nomos verify --all --strict` validates live `spec_digests` receipts in CI, adds `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1), aligns `.github/PULL_REQUEST_TEMPLATE.md` with DCO sign-off and 2-plane (`INT-*` / `SUB-*`) governance, and removes non-public ADR citations across embedded agent directives and CLI help surfaces.
+
+---
+
 ## [v4.15.0] - 2026-11-11
 
 > Verified `nomos update` Self-Updater & 24h Zero-Egress Notice, Canonical Root `nomos.yaml` Singularity & Scoped `spec_roots` Steel-Man Gates, Pre-Verify Rebase & SHA-256 Receipt Caching, Plus JIT Mneme Pitfall Recall & Area-Grouped Release Ledgers (Apache 2.0)

@@ -9,7 +9,7 @@ set -eu
 #
 # Environment Overrides:
 #   NOMOS_INSTALL_DIR     : Custom destination directory (defaults to GOBIN / GOPATH/bin)
-#   NOMOS_VERSION         : Explicit release tag (e.g. v4.15.0)
+#   NOMOS_VERSION         : Explicit release tag (e.g. v4.16.0)
 #   NOMOS_LOCAL_TAR       : Local tar.gz archive for offline/testing validation
 #   NOMOS_LOCAL_CHECKSUMS : Local checksums.txt file for offline SHA-256 verification
 #   NOMOS_LOCAL_BIN       : Local binary path for zero-download testing validation
@@ -168,7 +168,7 @@ else
 
         if [ -z "$LATEST_RELEASE" ]; then
             echo "❌ Error: Could not determine release version (GitHub API rate limit or no network)."
-            echo "   Provide an explicit release version via NOMOS_VERSION=v4.15.0 or local tarball via NOMOS_LOCAL_TAR."
+            echo "   Provide an explicit release version via NOMOS_VERSION=v4.16.0 or local tarball via NOMOS_LOCAL_TAR."
             exit 1
         fi
 
