@@ -4,7 +4,7 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-01"
-last_updated: "2026-11-10"
+last_updated: "2026-11-11"
 lineage:
   - INT-1941
   - SUB-2134
@@ -14,6 +14,8 @@ lineage:
   - SUB-2157
   - INT-1951
   - INT-1952
+  - INT-1966
+  - SUB-2219
 plane: intent
 ssot_repository: nomos
 status: active
@@ -80,7 +82,7 @@ Instead of scattered task notes, `intent/architecture/specs/` maintains **8 Cano
 | :---: | :--- | :--- | :--- |
 | **1** | `go_ssot_and_json_schema_spec.md` | `core/config`, `core/types` | `EcosystemConfig`, `QualityGatesConfig`, `ThresholdsConfig`, `JSONSchemaNode`, `NomosError`, `ActionAffordance`, `PhaseState`, `PolyglotWorkspaceManifest` |
 | **2** | `nomos_hermetic_worktree_spec.md` | `core/workspace`, `core/capbac`, `modules/verify` | `Manager`, `WorktreeSession`, `EmbeddedAsset`, `ParityAuditReport`, `CapBACLease`, `CapabilityFlowGraph`, `MCPInvocation`, `CommitSchemaGate` |
-| **3** | `task_lifecycle_cli_spec.md` | `modules/task`, `core/storage`, `cli` | `TaskRecord`, `TaskCardInput`, `WavefrontCandidate`, `ReleaseNotePayload`, `ReleaseHookTrace`, `RuntimeMaintainReport`, `IssueReport` |
+| **3** | `task_lifecycle_cli_spec.md` | `modules/task`, `core/storage`, `cli` | `TaskRecord`, `TaskCardInput`, `WavefrontCandidate`, `ReleaseNotePayload`, `ReleaseHookTrace`, `RuntimeMaintainReport`, `IssueReport`, `UpdateReport`, `UpdateCheckCache` |
 | **4** | `nomos_intent_traceability_spec.md` | `modules/verify`, `core/config` | `ContractsConfig`, `ArchitectureBoundaryRule`, `StaleSpecObligation`, `CanonicalMatrixModel`, `InvariantCellSpec`, `GateSpec`, `PipelineReport`, `ProofReport`, `AntiShimDTO` |
 | **5** | `tree_sitter_ast_gate_spec.md` | `modules/verify/treesitter` | `FunctionMetric`, `FileMetric`, `GateEvaluationReport`, `EngineThresholds`, `SCMQuerySpec`, `WazeroTreeSitterEngine` |
 | **6** | `mneme_memory_spec.md` | `modules/mem` | `Memory`, `MemoryKind`, `MemoryStatus`, `MemoryFilter`, `SearchOptions`, `SearchResult`, `GateTrapEntry`, `PitfallHygieneReport`, `MaintainReport` |

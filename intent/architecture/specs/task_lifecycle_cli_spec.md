@@ -24,12 +24,14 @@ lineage:
   - SUB-2157
   - INT-1961
   - SUB-2210
+  - INT-1966
+  - SUB-2219
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Task Lifecycle CLI and Workspace State Transition Specification"
 type: spec
-version: "4.5.0"
+version: "4.6.0"
 ---
 
 # Task Lifecycle CLI and Workspace State Transition Specification
@@ -253,6 +255,28 @@ type IssueReport struct {
 	DatabaseStatus  string                  `json:"database_status"`
 	RecentAnomalies []SubstrateAnomalyEvent `json:"recent_anomalies,omitempty"`
 }
+
+// UpdateReport summarizes binary update evaluation, provenance guard, and workspace contract sync (#UpdateReport).
+type UpdateReport struct {
+	CurrentVersion        string   `json:"current_version"`
+	TargetVersion         string   `json:"target_version"`
+	UpdateAvailable       bool     `json:"update_available"`
+	Updated               bool     `json:"updated"`
+	CheckOnly             bool     `json:"check_only,omitempty"`
+	InstallMethod         string   `json:"install_method"`
+	BinaryPath            string   `json:"binary_path"`
+	UpgradeCommand        string   `json:"upgrade_command,omitempty"`
+	ChecksumSHA256        string   `json:"checksum_sha256,omitempty"`
+	WorkspaceDrift        bool     `json:"workspace_drift"`
+	WorkspaceDriftFiles   []string `json:"workspace_drift_files,omitempty"`
+	WorkspaceSynchronized bool     `json:"workspace_synchronized,omitempty"`
+}
+
+// UpdateCheckCache persists bounded 24-hour release version discovery state (#UpdateCheckCache).
+type UpdateCheckCache struct {
+	CheckedAt     string `json:"checked_at"`
+	LatestVersion string `json:"latest_version,omitempty"`
+}
 ```
 
 ---
@@ -307,6 +331,10 @@ type IssueReport struct {
 * **`nomos task show <KEY> [--json]`**: Displays the detailed Living Ledger task inspection card, twin linkage, HATEOAS `Next Actions`, or structured JSON.
 * **`nomos task status [--json]`**: Displays active workspace phase state, CapBAC step budget consumption, and HATEOAS `Next Actions` (or structured `#PhaseState` JSON).
 
+### 4.12 `nomos update`
+* **Syntax**: `nomos update [--check] [--version <TAG>] [--sync-workspace] [--dir <PATH>] [--json]`
+* **Semantics**: Evaluates binary install provenance (`standalone`, `homebrew`, `aur`, or `system`), queries GitHub Releases, verifies `checksums.txt` SHA-256 digests, and atomically replaces standalone binaries. Rejects in-place overwrites of Homebrew or AUR binaries with package-manager upgrade remedies. Refreshes managed `AGENTS.md`, `CLAUDE.md`, ambient lifecycle hooks, and `nomos.yaml` schema tags under `--sync-workspace`. Caches release checks for 24 hours under `NOMOS_HOME` for `handshake` and `version` notices (`NOMOS_NO_UPDATE_CHECK=1` opts out).
+
 ---
 
 ## 5. Table-Driven Verification Vectors
@@ -349,6 +377,11 @@ type IssueReport struct {
 | `TC-ISS-04` | Law 7 (Non-Interactive Web Guard) | `nomos issue "Report" --web` in non-interactive session | Rejects browser launch or degrades safely with URL output |
 | `TC-ISS-05` | Law 7 (Browser URL Scheme Guard) | `openBrowser` invoked with non-HTTPS scheme | Rejects unsafe URL scheme before subprocess execution |
 | `TC-ISS-06` | Law 1 (Offline Diagnostic Bundle) | `nomos issue "Report"` without network connectivity | Writes local scrubbed Markdown report without external egress |
+| `TC-UPD-001` | Law 6 (Canonical Update Verb) | `nomos update --check --json` | Emits `UpdateReport` JSON without duplicate `upgrade` aliases |
+| `TC-UPD-002` | Law 7 (Package-Manager Guard) | `nomos update` on Homebrew or AUR binary path | Rejects binary overwrite (`ERR_BOUNDARY_VIOLATION`) with package-manager remedy |
+| `TC-UPD-003` | Law 2 (SHA-256 Archive Proof) | `nomos update` with mismatched `checksums.txt` digest | Rejects tampered archive (`ERR_VALIDATION_FAILED`) before binary swap |
+| `TC-UPD-004` | Law 1 (24h Cached Update Notice) | `nomos handshake` / `nomos version` cached check | Emits 24h cached update notice; honors `NOMOS_NO_UPDATE_CHECK=1` |
+| `TC-UPD-005` | Law 4 (Workspace Contract Refresh) | `nomos update --sync-workspace` on drifted workspace | Detects managed template drift and refreshes contracts idempotently |
 
 ---
 

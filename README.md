@@ -60,9 +60,14 @@ yay -S nomos-bin
 GOTOOLCHAIN=auto CGO_ENABLED=0 go install github.com/mgantlett/nomos/substrate/cmd/nomos@main
 ```
 
-To cleanly uninstall at any time:
+To update an existing standalone install (verifies SHA-256 checksums, guards Homebrew/AUR installs, and optionally refreshes downstream workspace contracts), or to cleanly uninstall at any time:
 
 ```bash
+# Update standalone nomos binary (and optionally refresh workspace AGENTS.md & ambient hooks):
+nomos update
+nomos update --sync-workspace
+
+# Uninstall cleanly:
 curl -fsSL https://sophialabs.ca/uninstall | bash
 ```
 
