@@ -89,14 +89,16 @@ You are done with the CLI. Open **Claude Code**, **Cursor**, **Antigravity**, **
 > "Add TTL cache eviction to Store with unit tests"
 ```
 
-Because `nomos init` injected `AGENTS.md` / `CLAUDE.md` and Git defense hooks, **your coding agent autonomously executes the Nomos lifecycle under the hood**:
+Because `nomos init` injected `AGENTS.md` / `CLAUDE.md` and Git defense hooks, **your coding agent autonomously executes the Nomos lifecycle under the hood** (in as few as 2 CLI calls on small chores):
 
 ```bash
 # Executed autonomously by your coding agent (not typed by you):
-nomos task chore "Add TTL cache eviction"          # 1. Agent provisions isolated worktree (worktrees/<repo>-SUB-1)
-nomos verify -w worktrees/your-project-SUB-1       # 2. Agent runs 42 AST & DoD gates (self-correcting any failures)
-nomos task sync SUB-1 -F .tmp/walkthrough.md       # 3. Agent atomically merges to main with a Git Notes audit receipt
+nomos task chore "Add TTL cache eviction"                              # 1. Provisions isolated worktree (worktrees/<repo>-SUB-1)
+nomos task sync SUB-1 -m "Add TTL cache eviction and unit coverage"    # 2. Auto-commits, runs 42 DoD gates, merges & seals Git Note
 ```
+
+> **💡 OpenCode + OpenRouter Cheap Workhorse Stack (`0` Middleman Tax):**
+> `nomos init` scaffolds `.opencode/plugins/nomos.ts` with full lifecycle parity (`session-start` Turn-0 orientation, `pre-tool` secret/SSRF firewall, `post-tool` `~24ms` AST radar, and `session.idle` anti-phantom `stop` checks). Point OpenCode directly at any low-cost OpenRouter workhorse model and let local compiled Go AST gates enforce frontier merge quality with zero LLM judge token overhead.
 
 ---
 

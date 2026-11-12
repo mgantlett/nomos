@@ -4,7 +4,7 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-23"
-last_updated: "2026-11-11"
+last_updated: "2026-11-12"
 lineage:
   - INT-733
   - INT-854
@@ -32,12 +32,14 @@ lineage:
   - SUB-2283
   - INT-1989
   - SUB-2292
+  - INT-1997
+  - SUB-2339
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Task Lifecycle CLI and Workspace State Transition Specification"
 type: spec
-version: "4.8.0"
+version: "4.9.0"
 ---
 
 # Task Lifecycle CLI and Workspace State Transition Specification
@@ -71,9 +73,9 @@ Calling `nomos task start <KEY>` must provision an isolated git worktree at `wor
 Transitioning into `PLAN` or `EDIT` requires acquiring a cryptographically unique `capbac.Lease` (`core/capbac/lease.go`) with an assigned `step_budget` ($\le 500$). Actions that exhaust tokens reject execution until lease renewal.
 
 ### `INV-TSK-004`: Two-Phase Commit Release Verification (Law 2: Non-Verbal Proof)
-`nomos task sync <KEY> -F <walkthrough>` executes an atomic 2PC release:
+`nomos task sync <KEY> (-F <walkthrough> | -m <summary>)` executes an atomic 2PC release:
 1. Executes `nomos verify` DoD quality gates (all 42 DoD quality gates must pass exit 0).
-2. Verifies the existence of a non-empty walkthrough summary file.
+2. Verifies a non-empty walkthrough summary via `-F <walkthrough>` or inline `-m <summary>` (mutually exclusive).
 3. Performs a fast-forward merge of `feature/<KEY>` into protected trunk `main`.
 4. Attests the release receipt in Git Notes (`refs/notes/nomos/releases`).
 5. Revokes the CapBAC lease and removes the transient worktree.
@@ -310,8 +312,8 @@ type UpdateCheckCache struct {
 * **Semantics**: Transitions task status to `REVIEW`; runs Definition of Done gates via `verify.Pipeline`.
 
 ### 4.6 `nomos task sync`
-* **Syntax**: `nomos task sync <KEY> -F <walkthrough_path>`
-* **Semantics**: Rebases diverged `feature/<KEY>` branches onto trunk before gate evaluation and aborts cleanly on conflict. Normalizes workspace `file://` links, scrubs workstation paths and credentials, and rejects prohibited boundary literals inside `<walkthrough_path>` before merge. Validates walkthrough **Receipt-Trace Parity** (`arXiv:2611.06116`) against `touchedFiles` and any `nomos hook` trace, degrading gracefully without traces. Rejects false no-mutation, single-file, or runner claims. Evaluates DoD gates once on the post-rebase tree and reuses fresh (`TTL <= 5m`) clean `HEAD^{tree}` + trunk SHA receipts. Invalidates cached receipts fail-closed on `--no-verify` commits, dirty files, or trunk SHA drift. Merges `feature/<KEY>` via `--ff-only`, writes the scrubbed receipt to `refs/notes/nomos/releases`, prunes the worktree and branch, and enters `IDLE`.
+* **Syntax**: `nomos task sync <KEY> (-F <walkthrough_path> | -m <walkthrough_summary>)`
+* **Semantics**: Accepts either `-F <walkthrough_path>` or inline `-m <walkthrough_summary>` and rejects empty or simultaneous flags (`ERR_VALIDATION_FAILED`). Auto-commits dirty worktree changes using the inline `-m` rationale or `-F` file before rebasing diverged `feature/<KEY>` branches onto trunk. Normalizes workspace `file://` links, scrubs workstation paths and credentials, and rejects prohibited boundary literals inside the walkthrough text before merge. Validates walkthrough **Receipt-Trace Parity** (`arXiv:2611.06116`) against `touchedFiles` and any `nomos hook` trace, degrading gracefully without traces. Rejects false no-mutation, single-file, or runner claims. Evaluates DoD gates once on the post-rebase tree and reuses fresh (`TTL <= 5m`) clean `HEAD^{tree}` + trunk SHA receipts. Invalidates cached receipts fail-closed on `--no-verify` commits, dirty files, or trunk SHA drift. Merges `feature/<KEY>` via `--ff-only`, writes the scrubbed receipt to `refs/notes/nomos/releases`, prunes the worktree and branch, and enters `IDLE`.
 
 ### 4.7 `nomos task abort`
 * **Syntax**: `nomos task abort <KEY>`
@@ -380,6 +382,7 @@ type UpdateCheckCache struct {
 | `TC-SYNC-022` | Law 4 & Law 7 (GoReleaser & Semver Parity) | `nomos verify` on malformed `.goreleaser.yaml` template or drifted `PKGBUILD` `pkgver` | `ReleaseReceiptGate` rejects template syntax error or semver pin drift |
 | `TC-SYNC-023` | Law 5 & Law 7 (Changelog Airlock) | `nomos verify` on `CHANGELOG.md` containing home path or prohibited package | `ReleaseReceiptGate` rejects unsanitized `CHANGELOG.md` literal before release tag |
 | `TC-SYNC-024` | Law 2 (Working-Tree Verify Receipt Cache) | Unstaged `nomos verify` -> `nomos task commit` -> `nomos task sync` | Computes temp-index tree SHA once; reuses fresh receipt across `pre-commit` and `sync` |
+| `TC-SYNC-025` | Law 1 & Law 2 (Inline 1-Turn Sync) | `nomos task sync SUB-99 -m "<summary>"` vs `-m` + `-F` | Merges and seals receipt in 1 call; rejects `-m` with `-F` |
 | `TC-SCH-01` | Law 4 (Intent Schema Type) | `TaskRecord{Key: "INT-101", Plane: "intent", SchemaType: "intent"}` | Validates intent plane schema binding cleanly |
 | `TC-SCH-02` | Law 4 (Substrate Schema Type) | `TaskRecord{Key: "SUB-101", Plane: "substrate", SchemaType: "substrate"}` | Validates substrate plane schema binding cleanly |
 | `TC-SCH-03` | Law 7 (Plane-Key Mismatch) | `TaskRecord{Key: "INT-101", Plane: "substrate"}` | Rejects cross-plane key/plane mismatch (`ERR_VALIDATION_FAILED`) |

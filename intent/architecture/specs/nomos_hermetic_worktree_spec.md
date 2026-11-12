@@ -4,7 +4,7 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-06"
-last_updated: "2026-11-11"
+last_updated: "2026-11-12"
 lineage:
   - INT-327
   - SUB-327
@@ -19,12 +19,14 @@ lineage:
   - INT-1960
   - INT-1973
   - SUB-2239
+  - INT-1997
+  - SUB-2339
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Hermetic Worktree and Git Hygiene Specification"
 type: spec
-version: "4.5.0"
+version: "4.6.0"
 ---
 
 # Hermetic Worktree and Git Hygiene Specification
@@ -268,7 +270,7 @@ During `nomos verify`, four dedicated Definition of Done probes enforce hermetic
 
 `nomos init` and `EnsureHooksInstalled` append `*.tmp`, `*.bak`, `*.orig`, and `*.swp` to Git exclude manifests. `nomos hook pre-tool` blocks shell redirects (`>` / `>>`) targeting protected trunk paths outside `/worktrees/` and `.tmp/`. Under `--antigravity` and `--advisory-profile carbon`, `nomos hook post-tool` returns `{}` on `PostToolUse` and flushes buffered advisories on `PostInvocation`.
 
-`nomos init` and default `nomos hook install` scaffold all five Tier 1 provider manifests (Claude Code, Gemini CLI, OpenCode, Cursor, Antigravity). `nomos hook install --cursor` merges `.cursor/hooks.json` (`"version": 1`) at project scope or `~/.cursor/hooks.json` under `--user`. `.cursor/hooks.json` wires `sessionStart`, `preToolUse`, `beforeShellExecution`, `postToolUse`, `afterFileEdit`, and `stop` with POSIX `$PATH` discovery and `{}` fallback. `nomos hook` normalizes Cursor `conversation_id`, `workspace_roots`, `command`, `file_path`, and `edits` payloads across pre-tool, post-tool, and stop lifecycles.
+`nomos init` and default `nomos hook install` scaffold all five Tier 1 provider manifests (Claude Code, Gemini CLI, OpenCode, Cursor, Antigravity). `nomos hook install --cursor` merges `.cursor/hooks.json` (`"version": 1`) at project scope or `~/.cursor/hooks.json` under `--user`. `.cursor/hooks.json` wires `sessionStart`, `preToolUse`, `beforeShellExecution`, `postToolUse`, `afterFileEdit`, and `stop` with POSIX `$PATH` discovery and `{}` fallback. `nomos hook` normalizes Cursor `conversation_id`, `workspace_roots`, `command`, `file_path`, and `edits` payloads across pre-tool, post-tool, and stop lifecycles. `.opencode/plugins/nomos.ts` injects `nomos hook session-start` orientation once per session on first tool execution and enforces `nomos hook stop` on `session.idle` events.
 
 Session Sentinel (`CHARTER-4-BOUNDARY`) evaluates candidate workspace roots structurally. Workspaces containing `substrate/cmd/nomos` or `substrate/cmd/nomos-plugin-*` pass at `100/100 CLEAN`. External consumer workspaces reject tool calls that read external `nomos` source or sovereign packages.
 
@@ -316,6 +318,7 @@ Session Sentinel (`CHARTER-4-BOUNDARY`) evaluates candidate workspace roots stru
 | `TC-HOOK-001` | Antigravity 2.0 `PostInvocation` flush | `nomos hook post-tool --antigravity --advisory-profile carbon` | `"Returns {} on PostToolUse and flushes buffered advisories on PostInvocation."` | PASS |
 | `TC-HOOK-002` | 5-provider `init` & `hook install` parity | `nomos init` and `nomos hook install` (`--cursor`, `--user`, default) | `"Scaffolds and merges Claude, Gemini, OpenCode, Cursor (.cursor/hooks.json v1), and Antigravity hooks."` | PASS |
 | `TC-HOOK-003` | Cursor lifecycle payload normalization | `nomos hook pre-tool` (`beforeShellExecution`) and `post-tool` (`afterFileEdit`) | `"Denies unsafe Cursor shell execution via permission=deny and runs AST radar on file_path edits."` | PASS |
+| `TC-HOOK-004` | OpenCode full-lifecycle parity | `.opencode/plugins/nomos.ts` (`tool.execute.after` Turn-0 + `event` `session.idle`) | `"Injects session-start orientation once per session and enforces stop verification on session.idle."` | PASS |
 | `TC-SEN-010` | Sentinel plugin workspace authorization (`CHARTER-4-BOUNDARY`) | `EvaluateSentinel` across `substrate/cmd/nomos-plugin-*` vs consumer repo | `"Authorizes Substrate and plugin workspaces at 100/100 CLEAN and flags external consumer peeking."` | PASS |
 
 ---
