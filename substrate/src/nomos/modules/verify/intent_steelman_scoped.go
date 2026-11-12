@@ -12,16 +12,27 @@ import (
 )
 
 // evaluateConfiguredIntentSteelman dispatches either scoped spec_roots validation or full intent/ validation.
+// @intent nomos_intent_traceability_spec.md #ContractsConfig
 func evaluateConfiguredIntentSteelman(root string, cfg *config.EcosystemConfig) (int, []string, bool) {
 	contracts := config.ContractsConfig{}
 	strictMode := false
+	project := ""
 	if cfg != nil {
 		contracts = cfg.Governance.QualityGates.GetContractsBoundary().Contracts
 		strictMode = cfg.Governance.QualityGates.StrictMode
+		project = strings.TrimSpace(cfg.Project)
 	}
 	if contracts.Enabled && isScopedSpecRoots(contracts.SpecRoots) {
 		docCount, issues := validateScopedSpecRootDocuments(root, contracts.SpecRoots, intentSteelmanOptions{
 			RequireFrontmatter: true,
+			EnforceNCTE:        strictMode,
+		})
+		return docCount, issues, false
+	}
+	if contracts.Enabled && isDownstreamCanonicalSpecRoots(project, contracts.SpecRoots) {
+		docCount, issues := validateScopedSpecRootDocuments(root, contracts.SpecRoots, intentSteelmanOptions{
+			RequireFrontmatter: true,
+			StrictStandard:     strictMode,
 			EnforceNCTE:        strictMode,
 		})
 		return docCount, issues, false
@@ -46,6 +57,21 @@ func isScopedSpecRoots(specRoots []string) bool {
 		norm := strings.Trim(filepath.ToSlash(filepath.Clean(strings.TrimSpace(raw))), "/")
 		switch norm {
 		case "", ".", "intent", "intent/architecture", "intent/architecture/specs":
+			return false
+		}
+	}
+	return true
+}
+
+// isDownstreamCanonicalSpecRoots reports whether a non-nomos project scopes canonical spec_roots without whole-intent walk.
+func isDownstreamCanonicalSpecRoots(project string, specRoots []string) bool {
+	if project == "" || strings.EqualFold(project, "nomos") || len(specRoots) == 0 {
+		return false
+	}
+	for _, raw := range specRoots {
+		norm := strings.Trim(filepath.ToSlash(filepath.Clean(strings.TrimSpace(raw))), "/")
+		switch norm {
+		case "", ".", "intent", "intent/architecture":
 			return false
 		}
 	}
@@ -87,12 +113,18 @@ func auditScopedMarkdownCandidate(root, path string, opts intentSteelmanOptions,
 	}
 	seen[path] = true
 	*docCount++
-	rel, err := filepath.Rel(root, path)
+	displayRel, err := filepath.Rel(root, path)
 	if err != nil {
-		rel = filepath.Base(path)
+		displayRel = filepath.Base(path)
 	}
-	rel = filepath.ToSlash(rel)
-	if docErr := auditSingleIntentMarkdownWithOptions(rel, path, opts); docErr != "" {
-		*issues = append(*issues, fmt.Sprintf("%s: %s", rel, docErr))
+	displayRel = filepath.ToSlash(displayRel)
+	auditRel := displayRel
+	if opts.StrictStandard {
+		if intentRel, rErr := filepath.Rel(filepath.Join(root, "intent"), path); rErr == nil {
+			auditRel = filepath.ToSlash(intentRel)
+		}
+	}
+	if docErr := auditSingleIntentMarkdownWithOptions(auditRel, path, opts); docErr != "" {
+		*issues = append(*issues, fmt.Sprintf("%s: %s", displayRel, docErr))
 	}
 }

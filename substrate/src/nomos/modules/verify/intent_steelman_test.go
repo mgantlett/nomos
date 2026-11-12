@@ -229,66 +229,100 @@ func TestIntentSteelmanGateScopedSpecRoots(t *testing.T) {
 	validScopedSpec := "---\nauthors:\n  - Test Author\nclassification: internal\ndate: \"2026-11-11\"\nlast_updated: \"2026-11-11\"\nplane: intent\nstatus: active\ntitle: \"Scoped Domain Spec\"\ntype: spec\nversion: 1.0.0\n---\n\n# Scoped Domain Spec\n\n## 1. Overview\n\n`ServiceEngine` enforces request validation.\n\n```go\ntype ServiceEngine struct {\n\tReady bool\n}\n```\n"
 	cases := []struct {
 		name      string
+		project   string
 		specRoots string
+		specRel   string
 		specBody  string
 		wantPass  bool
 		wantSub   string
 	}{
 		{
 			name:      "scoped_nested_file_ignores_sibling_adrs",
+			project:   "scoped-test",
 			specRoots: `["intent/architecture/specs/subpkg/service_spec.md"]`,
+			specRel:   "intent/architecture/specs/subpkg/service_spec.md",
 			specBody:  validScopedSpec,
 			wantPass:  true,
 		},
 		{
 			name:      "scoped_subdir_rejects_ncte_modal",
+			project:   "scoped-test",
 			specRoots: `["intent/architecture/specs/subpkg"]`,
+			specRel:   "intent/architecture/specs/subpkg/service_spec.md",
 			specBody:  validScopedSpec + "\nOperators should skip checks.\n",
 			wantPass:  false,
 			wantSub:   "ERR_NCTE_AMBIGUOUS_MODAL",
 		},
 		{
-			name:      "full_specs_root_still_rejects_sibling_adr_topology",
+			name:      "open_core_full_specs_root_rejects_sibling_adr_topology",
+			project:   "nomos",
 			specRoots: `["intent/architecture/specs"]`,
+			specRel:   "intent/architecture/specs/service_spec.md",
 			specBody:  canonicalStrictSpecFixture,
 			wantPass:  false,
-			wantSub:   "unexpected Intent document path",
+			wantSub:   "handbook directories are prohibited in open-core intent/",
+		},
+		{
+			name:      "downstream_canonical_spec_roots_ignores_sibling_adrs_and_handbooks",
+			project:   "downstream-app",
+			specRoots: `["intent/architecture/specs"]`,
+			specRel:   "intent/architecture/specs/service_spec.md",
+			specBody:  canonicalStrictSpecFixture,
+			wantPass:  true,
+		},
+		{
+			name:      "downstream_canonical_spec_roots_rejects_nested_specs_subdir",
+			project:   "downstream-app",
+			specRoots: `["intent/architecture/specs"]`,
+			specRel:   "intent/architecture/specs/subpkg/service_spec.md",
+			specBody:  canonicalStrictSpecFixture,
+			wantPass:  false,
+			wantSub:   "nested subdirectory under architecture/specs/ is prohibited",
 		},
 	}
 
 	g := &IntentSteelmanGate{}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			root := t.TempDir()
-			cfgYAML := "project: scoped-test\ndefault_branch: main\ngovernance:\n  quality_gates:\n    strict_mode: true\n    contracts:\n      contracts:\n        enabled: true\n        spec_roots: " + tc.specRoots + "\n"
-			if err := os.WriteFile(filepath.Join(root, "nomos.yaml"), []byte(cfgYAML), 0644); err != nil {
-				t.Fatalf("write nomos.yaml: %v", err)
-			}
-			adrFile := filepath.Join(root, "intent", "architecture", "adrs", "0001-decision.md")
-			if err := os.MkdirAll(filepath.Dir(adrFile), 0755); err != nil {
-				t.Fatalf("mkdir adrs: %v", err)
-			}
-			if err := os.WriteFile(adrFile, []byte("---\ntitle: \"ADR 0001\"\nplane: intent\nstatus: active\n---\n\n# ADR 0001\n\nHistorical architecture record.\n"), 0644); err != nil {
-				t.Fatalf("write adr: %v", err)
-			}
-			specFile := filepath.Join(root, "intent", "architecture", "specs", "subpkg", "service_spec.md")
-			if err := os.MkdirAll(filepath.Dir(specFile), 0755); err != nil {
-				t.Fatalf("mkdir subpkg: %v", err)
-			}
-			if err := os.WriteFile(specFile, []byte(tc.specBody), 0644); err != nil {
-				t.Fatalf("write spec: %v", err)
-			}
-
-			res, err := g.Evaluate(&vscope.VerifyContext{RepoRoot: root, WorktreePath: root})
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if res.Passed != tc.wantPass {
-				t.Fatalf("expected Passed=%v, got res=%+v", tc.wantPass, res)
-			}
-			if tc.wantSub != "" && !strings.Contains(res.Message, tc.wantSub) {
-				t.Fatalf("expected message containing %q, got %q", tc.wantSub, res.Message)
-			}
+			assertScopedSpecRootsCase(t, g, tc.project, tc.specRoots, tc.specRel, tc.specBody, tc.wantPass, tc.wantSub)
 		})
+	}
+}
+
+func assertScopedSpecRootsCase(t *testing.T, g *IntentSteelmanGate, project, specRoots, specRel, specBody string, wantPass bool, wantSub string) {
+	t.Helper()
+	root := t.TempDir()
+	cfgYAML := "project: " + project + "\ndefault_branch: main\ngovernance:\n  quality_gates:\n    strict_mode: true\n    contracts:\n      contracts:\n        enabled: true\n        spec_roots: " + specRoots + "\n"
+	if err := os.WriteFile(filepath.Join(root, "nomos.yaml"), []byte(cfgYAML), 0644); err != nil {
+		t.Fatalf("write nomos.yaml: %v", err)
+	}
+	for _, siblingRel := range []string{
+		"intent/architecture/adrs/0001-decision.md",
+		"intent/architecture/handbook/01-guide.md",
+	} {
+		siblingPath := filepath.Join(root, filepath.FromSlash(siblingRel))
+		if err := os.MkdirAll(filepath.Dir(siblingPath), 0755); err != nil {
+			t.Fatalf("mkdir sibling: %v", err)
+		}
+		if err := os.WriteFile(siblingPath, []byte("# Reference Note\n\nNon-spec reference prose.\n"), 0644); err != nil {
+			t.Fatalf("write sibling: %v", err)
+		}
+	}
+	specFile := filepath.Join(root, filepath.FromSlash(specRel))
+	if err := os.MkdirAll(filepath.Dir(specFile), 0755); err != nil {
+		t.Fatalf("mkdir spec: %v", err)
+	}
+	if err := os.WriteFile(specFile, []byte(specBody), 0644); err != nil {
+		t.Fatalf("write spec: %v", err)
+	}
+	res, err := g.Evaluate(&vscope.VerifyContext{RepoRoot: root, WorktreePath: root})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.Passed != wantPass {
+		t.Fatalf("expected Passed=%v, got res=%+v", wantPass, res)
+	}
+	if wantSub != "" && !strings.Contains(res.Message, wantSub) {
+		t.Fatalf("expected message containing %q, got %q", wantSub, res.Message)
 	}
 }
