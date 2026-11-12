@@ -170,10 +170,22 @@ Nomos is engineered so deterministic governance adds sub-second overhead on ever
 | **42-Gate Structural & AST Overhead** | **`~460 ms` (`~24 ms` `--fast-file`)** | `nomos verify` structural/AST gate pass across Go/TS/Svelte/Py/Rust/C/JVM/C# (plus project `go test`/`tsc`/`pytest`/`cargo`/`gradle`/`dotnet` runtime) |
 | **Static Binary Footprint** | **`~20 MB` stripped (`CGO_ENABLED=0`)** | Single Go release binary (`-ldflags="-s -w"`) with embedded `modernc.org/sqlite` WAL + `wazero` WASM runtime host; zero host runtime deps |
 | **Adversarial Fail-Closed Suite (`VEC-TTB-01..07`)** | **`7/7` vectors blocked in `1.98s`** | [`cleanroom_tracetrial_bench_test.go`](substrate/cli/cleanroom_tracetrial_bench_test.go) (`go -C substrate test ./cli -run TestTraceTrialBench -v`) |
+| **5-Round Live Multi-Model Security Audit (`N = 400`)** | **`0.00%` ASR (`0/200` vs. `9.0%` Control) · `92.5%` Utility · `-2.6%` Turns** | `4` models (`Claude Sonnet 5.5`, `Haiku 5.5`, `Gemini 3.8 Flash`, local `Qwen 3.8 27B`) across `MCPSecBench`, `AgentDojo`, `RedCode-Exec`, `BaxBench/CWEval`, `ImpossibleBench` (`v4.17.0`, `sha256:7f671df45ed9`) |
+| **Real-Repo Zero-Hint Brownfield Audit (`233k` LOC OSS)** | **`2x` Debt-Free (`33.3%` vs. `16.7%` Control) · `-14.7%` Tokens (`-233k` saved)** | Zero-file-hint paired runs across `sqlglot` (`152k` LOC), `commander.js`, `go-chi`, and `BurntSushi/toml` (`6/6` `42`-gate clean vs. `+26` `dCDS` leaked by Control) |
 | **Multi-Lab Polyglot Brownfield Audit (`N = 108`)** | **`86.1%` (`31/36`) vs. `27.8%` (`10/36` Stock; `0%` layer purity)** | `108` paired Python/TS/Go brownfield episodes across `14B-32B` (`Qwen`, `Mistral`, local `16GB VRAM`) + [`cleanroom_obligation_polyglot_stress_test.go`](substrate/cli/cleanroom_obligation_polyglot_stress_test.go) |
 | **Config & Boundary Tamper Resistance** | **`0` trunk leaks** | Worktree edits to `nomos.yaml` fail closed against pinned `main`; mid-2PC gate panics abort before `main` fast-forwards |
 | **Nomos Mneme Episodic Recall** | **`< 50 ms` local query** | 64-dim subword feature-hash + lexical SQLite recall (`mneme.db`, plus optional `LOCAL_EMBEDDING_URL`); mints `pattern`/`pitfall` records strictly after verified 2PC `Git Notes` release |
 | **Open-Core Automated Test Suite** | **`860+` test cases across `16` packages + `8` cleanroom suites** | Pure Apache 2.0 local test execution with zero cloud or telemetry dependencies |
+
+### 5-Round Paired Security & Real-Repo Brownfield Ablation (`v4.17.0` · `460` Live Trajectories)
+
+Across `5` consecutive benchmark rounds totaling **`460` live containerized trajectories** (`400` multi-model `SecBench-Live 1.0` runs + `60` zero-file-hint `RealRepo-BrownfieldBench v2` runs at `temperature = 0.0`, [Field Dispatch D-11](https://sophialabs.ca/dispatches/paired-security-and-brownfield-ablation-v417)), `nomos v4.17.0` eliminated both adversarial compromises and governance turn/token overhead (`sha256:7f671df45ed9`):
+
+| Paired Benchmark Suite | Scale & Corpus | Ungoverned `Control` | `Nomos v4.17.0` Governed | Efficiency Delta (`Control` -> `Nomos`) |
+| :--- | :--- | :---: | :---: | :--- |
+| **4-Model `SecBench-Live 1.0` (Round 5)** | `80` runs (`Claude Sonnet 5.5`, `Haiku 5.5`, `Gemini 3.8 Flash`, local `Qwen 3.8 27B` across `MCPSecBench`, `AgentDojo`, `RedCode-Exec`, `BaxBench/CWEval`, `ImpossibleBench`) | `10.0%` ASR (`4/40` compromised) | **`0.0%` ASR (`0/40`) · `92.5%` Utility** (`100%` on `AgentDojo` & `RedCode-Exec`) | **`-2.6%` fewer turns** (`304` -> `296`; `CWE-22` gate blocks cut `10 -> 5 -> 2`) |
+| **5-Round Cumulative Security Ledger** | `400` runs (`200` paired adversarial trials, Rounds 1 - 5) | `9.0%` ASR (`18/200` compromised) | **`0.00%` ASR (`0/200` compromised)** | Zero successful exploits across `200` governed trials |
+| **`RealRepo-BrownfieldBench v2` (Round 5)** | `12` zero-hint runs across `233k` LOC OSS (`sqlglot`, `commander.js`, `go-chi`, `BurntSushi/toml`; hotspots up to `6,717` LOC) | `16.7%` (`1/6`) Debt-Free (`4/6` gate-clean; leaked `+26` `dCDS`) | **`33.3%` (`2/6`) Debt-Free (`2x`)** (`6/6` `42`-gate clean) | **`-14.7%` fewer tokens** (`1.58M` -> `1.35M`, `-233,078` saved; `-13.9%` `Search+Reads`) |
 
 ### Terminal-Bench 2.0 Controlled A/B ([`Harbor`](https://github.com/harbor-framework/harbor) · [`nomos-harbor`](https://github.com/mgantlett/nomos-harbor) · `89 / 89` Tasks)
 
