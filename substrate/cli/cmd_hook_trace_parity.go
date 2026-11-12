@@ -46,7 +46,11 @@ func rollbackTrunkMergeOnDBError(repoRoot, preMergeSHA string) {
 // validateReceiptTraceParity cross-checks walkthrough claims against git diff touchedFiles and
 // any recorded worktree hook trace, degrading gracefully when no hook session log exists.
 func validateReceiptTraceParity(wtPath, walkthroughPath string, touchedFiles []string) error {
-	content := strings.TrimSpace(readWalkthroughContent(walkthroughPath))
+	return validateReceiptTraceParityContent(wtPath, readWalkthroughContent(walkthroughPath), touchedFiles)
+}
+
+func validateReceiptTraceParityContent(wtPath, rawContent string, touchedFiles []string) error {
+	content := strings.TrimSpace(rawContent)
 	if content == "" {
 		return nil
 	}

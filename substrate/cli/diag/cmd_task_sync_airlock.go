@@ -3,12 +3,29 @@
 package diag
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 )
+
+// ValidateSyncWalkthroughFlags enforces mutually exclusive -F/--file vs -m/--message walkthrough inputs.
+// @intent task_lifecycle_cli_spec.md
+func ValidateSyncWalkthroughFlags(key, walkthroughPath, inlineSummary string) error {
+	hasFile := strings.TrimSpace(walkthroughPath) != ""
+	hasMsg := strings.TrimSpace(inlineSummary) != ""
+	if hasFile && hasMsg {
+		return types.NewNomosError(types.ErrCodeValidationFailed, "-F / --file and -m / --message are mutually exclusive").
+			WithRemedy(fmt.Sprintf("pass either 'nomos task sync %s -m \"<summary>\"' or 'nomos task sync %s -F .tmp/walkthrough-%s.md'", key, key, key))
+	}
+	if !hasFile && !hasMsg {
+		return types.NewNomosError(types.ErrCodeValidationFailed, "walkthrough summary is mandatory (-m \"<summary>\" or -F <file>)").
+			WithRemedy(fmt.Sprintf("run 'nomos task sync %s -m \"<summary>\"' (1-turn fast sync) or 'nomos task sync %s -F .tmp/walkthrough-%s.md'", key, key, key))
+	}
+	return nil
+}
 
 // SanitizeAndValidateWalkthrough normalizes workspace and file:// URI paths to repository-relative
 // coordinates, scrubs host home directories, and rejects live credentials or prohibited boundary

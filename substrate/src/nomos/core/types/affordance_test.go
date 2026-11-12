@@ -43,13 +43,13 @@ func TestBuildPhaseNextActions_AllPhases(t *testing.T) {
 			phase:          types.PhaseEdit,
 			taskKey:        "SUB-7",
 			wt:             wtPath,
-			wantSubstrings: []string{"cd " + wtPath, "nomos task commit SUB-7", "nomos verify", "nomos task sync SUB-7 -F worktrees/acme-SUB-7/.tmp/walkthrough-SUB-7.md"},
+			wantSubstrings: []string{"cd " + wtPath, `nomos task sync SUB-7 -m "<summary>"`, "nomos task commit SUB-7", "nomos verify", "nomos task sync SUB-7 -F worktrees/acme-SUB-7/.tmp/walkthrough-SUB-7.md"},
 		},
 		{
 			name:           "REVIEW without worktree",
 			phase:          types.PhaseReview,
 			taskKey:        "SUB-7",
-			wantSubstrings: []string{"nomos task sync SUB-7 -F .tmp/walkthrough-SUB-7.md", "nomos task edit SUB-7"},
+			wantSubstrings: []string{`nomos task sync SUB-7 -m "<summary>"`, "nomos task sync SUB-7 -F .tmp/walkthrough-SUB-7.md", "nomos task edit SUB-7"},
 		},
 		{
 			name:           "SYNC transition",

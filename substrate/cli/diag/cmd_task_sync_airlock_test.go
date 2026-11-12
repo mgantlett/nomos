@@ -41,4 +41,14 @@ func TestSanitizeAndValidateWalkthrough_AirlockAndNormalization(t *testing.T) {
 	if _, sErr := SanitizeAndValidateWalkthrough(repoRoot, wtPath, "token "+fakePAT, nil); sErr == nil {
 		t.Fatalf("expected raw GitHub PAT in walkthrough to fail closed")
 	}
+
+	if err := ValidateSyncWalkthroughFlags("SUB-42", "", ""); err == nil {
+		t.Fatalf("expected missing -m and -F to fail closed")
+	}
+	if err := ValidateSyncWalkthroughFlags("SUB-42", ".tmp/walkthrough.md", "inline summary"); err == nil {
+		t.Fatalf("expected simultaneous -m and -F to fail closed")
+	}
+	if err := ValidateSyncWalkthroughFlags("SUB-42", "", "inline summary"); err != nil {
+		t.Fatalf("expected inline -m summary alone to validate cleanly, got: %v", err)
+	}
 }

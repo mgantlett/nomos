@@ -127,6 +127,7 @@ func TestOpenCodeHookPayloadParsingAndSub5msEvaluation(t *testing.T) {
 	}
 }
 
+// @verifies TC-HOOK-004
 func TestOpenCodePluginNodeRuntimeEndToEnd(t *testing.T) {
 	nodeBin, err := exec.LookPath("node")
 	if err != nil {
@@ -168,9 +169,22 @@ await plugin["tool.execute.after"](
   { tool: "bash", sessionID: sid, callID: "c2" },
   afterOut
 );
-if (!afterOut.output.includes("[Nomos Verified Host State]")) {
+if (!afterOut.output.includes("Nomos JIT Session Handshake") || !afterOut.output.includes("[Nomos Verified Host State]")) {
   process.exit(3);
 }
+const secondOut = { output: "ok" };
+await plugin["tool.execute.before"](
+  { tool: "bash", sessionID: sid, callID: "c3" },
+  { args: { command: "true" } }
+);
+await plugin["tool.execute.after"](
+  { tool: "bash", sessionID: sid, callID: "c3" },
+  secondOut
+);
+if (secondOut.output.includes("Nomos JIT Session Handshake")) {
+  process.exit(4);
+}
+await plugin["event"]({ event: { type: "session.idle", properties: { sessionID: sid } } });
 `
 	driverDir := filepath.Join(repoDir, ".tmp")
 	if mErr := os.MkdirAll(driverDir, 0755); mErr != nil {

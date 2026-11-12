@@ -23,7 +23,7 @@ import (
 )
 
 func newTaskSyncCmd() *cobra.Command {
-	var walkthroughPath string
+	var walkthroughPath, inlineSummary string
 
 	cmd := &cobra.Command{
 		Use:     "sync <key>",
@@ -33,23 +33,34 @@ func newTaskSyncCmd() *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := strings.ToUpper(strings.TrimSpace(args[0]))
-			if walkthroughPath == "" {
-				return types.NewNomosError(types.ErrCodeValidationFailed, "-F / --file walkthrough summary is mandatory").
-					WithRemedy(fmt.Sprintf("write a summary to .tmp/walkthrough-%s.md and run: nomos task sync %s -F .tmp/walkthrough-%s.md", key, key, key))
+			rawWalkthrough, err := resolveSyncWalkthroughInput(key, walkthroughPath, inlineSummary)
+			if err != nil {
+				return err
 			}
-			fi, err := os.Stat(walkthroughPath)
-			if err != nil || fi.Size() == 0 {
-				return types.NewNomosError(types.ErrCodeValidationFailed, "walkthrough file %s missing or empty", walkthroughPath).
-					WithRemedy(fmt.Sprintf("write non-empty release notes to %s and re-run: nomos task sync %s -F %s", walkthroughPath, key, walkthroughPath))
-			}
-			return finalizeSync(key, walkthroughPath)
+			return finalizeSyncWithWalkthrough(key, walkthroughPath, rawWalkthrough)
 		},
 	}
 	cmd.Flags().StringVarP(&walkthroughPath, "file", "F", "", "Path to walkthrough markdown file")
+	cmd.Flags().StringVarP(&inlineSummary, "message", "m", "", "Inline walkthrough summary for 1-turn atomic sync (mutually exclusive with -F)")
 	return cmd
 }
 
-func finalizeSync(key, walkthroughPath string) error {
+func resolveSyncWalkthroughInput(key, walkthroughPath, inlineSummary string) (string, error) {
+	if err := diag.ValidateSyncWalkthroughFlags(key, walkthroughPath, inlineSummary); err != nil {
+		return "", err
+	}
+	if trimmed := strings.TrimSpace(inlineSummary); trimmed != "" {
+		return trimmed, nil
+	}
+	fi, err := os.Stat(walkthroughPath)
+	if err != nil || fi.Size() == 0 {
+		return "", types.NewNomosError(types.ErrCodeValidationFailed, "walkthrough file %s missing or empty", walkthroughPath).
+			WithRemedy(fmt.Sprintf("write non-empty release notes to %s and re-run: nomos task sync %s -F %s", walkthroughPath, key, walkthroughPath))
+	}
+	return readWalkthroughContent(walkthroughPath), nil
+}
+
+func finalizeSyncWithWalkthrough(key, walkthroughPath, rawWalkthrough string) error {
 	mgr, err := workspace.NewManager("")
 	if err != nil {
 		return err
@@ -68,7 +79,7 @@ func finalizeSync(key, walkthroughPath string) error {
 		return err
 	}
 	wtPath := mgr.WorktreePath(key)
-	if cErr := autoCommitDirtyWorktree(wtPath, key, t, walkthroughPath); cErr != nil {
+	if cErr := autoCommitDirtyWorktree(wtPath, key, t, walkthroughPath, rawWalkthrough); cErr != nil {
 		return cErr
 	}
 	branch := mgr.BranchName(key)
@@ -80,20 +91,20 @@ func finalizeSync(key, walkthroughPath string) error {
 		return gErr
 	}
 	touchedFiles := impact.ListModifiedWorktreeFiles(wtPath, key)
-	if _, aErr := diag.SanitizeAndValidateWalkthrough(mgr.RepoRoot, wtPath, readWalkthroughContent(walkthroughPath), touchedFiles); aErr != nil {
+	if _, aErr := diag.SanitizeAndValidateWalkthrough(mgr.RepoRoot, wtPath, rawWalkthrough, touchedFiles); aErr != nil {
 		return aErr
 	}
-	if pErr := validateReceiptTraceParity(wtPath, walkthroughPath, touchedFiles); pErr != nil {
+	if pErr := validateReceiptTraceParityContent(wtPath, rawWalkthrough, touchedFiles); pErr != nil {
 		return pErr
 	}
 	preMergeSHA := readGitHeadSHA(mgr.RepoRoot)
 	if mErr := fastForwardTrunkMerge(mgr.RepoRoot, branch); mErr != nil {
 		return mErr
 	}
-	return completeSyncedTaskMetadata(mgr, store, t, walkthroughPath, preMergeSHA, touchedFiles, report)
+	return completeSyncedTaskMetadata(mgr, store, t, rawWalkthrough, preMergeSHA, touchedFiles, report)
 }
 
-func completeSyncedTaskMetadata(mgr *workspace.Manager, store task.TaskStore, t *task.TaskRecord, walkthroughPath, preMergeSHA string, touchedFiles []string, report *verify.PipelineReport) error {
+func completeSyncedTaskMetadata(mgr *workspace.Manager, store task.TaskStore, t *task.TaskRecord, rawWalkthrough, preMergeSHA string, touchedFiles []string, report *verify.PipelineReport) error {
 	wtPath := mgr.WorktreePath(t.Key)
 	now := time.Now().UTC().Format(time.RFC3339)
 	t.Status = task.StatusDone
@@ -103,9 +114,9 @@ func completeSyncedTaskMetadata(mgr *workspace.Manager, store task.TaskStore, t 
 		return err
 	}
 	specDigests := collectSyncSpecDigests(mgr.RepoRoot, t.Key, touchedFiles, t.TwinKey)
-	recordReleaseReceipt(mgr.RepoRoot, wtPath, t.Key, walkthroughPath, now, report, specDigests)
+	recordReleaseReceipt(mgr.RepoRoot, wtPath, t.Key, rawWalkthrough, now, report, specDigests)
 	taskui.RevokeActiveLease(t.Key)
-	distillAndMaintainOnSync(mgr.RepoRoot, wtPath, t.Key, walkthroughPath, touchedFiles)
+	distillAndMaintainOnSyncContent(mgr.RepoRoot, wtPath, t.Key, rawWalkthrough, touchedFiles)
 	clearHookSessionTrace(wtPath)
 	cleanupAndAnnounceSyncedTask(mgr, t.Key)
 	return nil
@@ -226,7 +237,7 @@ func healAccidentalBareConfig(repoRoot string) {
 	}
 }
 
-func recordReleaseReceipt(repoRoot, wtPath, key, walkthroughPath, now string, report *verify.PipelineReport, specDigests map[string]string) {
+func recordReleaseReceipt(repoRoot, wtPath, key, rawWalkthrough, now string, report *verify.PipelineReport, specDigests map[string]string) {
 	revCmd := workspace.SafeGitCommand(repoRoot, "rev-parse", "HEAD")
 	revOut, err := revCmd.Output()
 	if err != nil {
@@ -237,7 +248,7 @@ func recordReleaseReceipt(repoRoot, wtPath, key, walkthroughPath, now string, re
 		return
 	}
 
-	walkthroughContent := diag.NormalizeAndScrubWalkthrough(repoRoot, wtPath, readWalkthroughContent(walkthroughPath))
+	walkthroughContent := diag.NormalizeAndScrubWalkthrough(repoRoot, wtPath, rawWalkthrough)
 	gatesPassed := 42
 	if report != nil && report.GatesPassed >= 42 {
 		gatesPassed = report.GatesPassed
@@ -303,7 +314,7 @@ func lockTrunk(root string) {
 	}
 }
 
-func autoCommitDirtyWorktree(wtPath, key string, rec *task.TaskRecord, walkthroughPath string) error {
+func autoCommitDirtyWorktree(wtPath, key string, rec *task.TaskRecord, walkthroughPath, rawWalkthrough string) error {
 	fi, err := os.Stat(wtPath)
 	if err != nil || !fi.IsDir() {
 		return nil
@@ -323,6 +334,7 @@ func autoCommitDirtyWorktree(wtPath, key string, rec *task.TaskRecord, walkthrou
 	opts := &commitmsg.CommitCmdOptions{
 		Dir:             wtPath,
 		Summary:         title,
+		Rationale:       strings.TrimSpace(rawWalkthrough),
 		WalkthroughFile: walkthroughPath,
 		TaskRecord:      rec,
 		AutoStage:       true,

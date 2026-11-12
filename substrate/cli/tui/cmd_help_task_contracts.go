@@ -73,7 +73,8 @@ Definition of Done quality gates across the 7x3 Canonical Invariant Suite.`
 	HelpTaskSyncLong = `Execute an atomic Two-Phase Commit (2PC) release: verify all 42 DoD quality gates,
 validate the walkthrough summary, fast-forward merge onto trunk, seal a cryptographic
 SHA-256 Git Note receipt, distill verified patterns into Mneme, and prune the worktree.`
-	HelpTaskSyncExample = `  nomos task sync SUB-101 -F .tmp/walkthrough-SUB-101.md`
+	HelpTaskSyncExample = `  nomos task sync SUB-101 -m "Tighten boundary validation and add unit tests"
+  nomos task sync SUB-101 -F .tmp/walkthrough-SUB-101.md`
 
 	HelpTaskAbortLong = `Abort an in-flight task, revoke its CapBAC capability lease, remove its transient
 worktree and unmerged feature branch, and reset workspace phase to IDLE.`

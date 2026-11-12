@@ -43,7 +43,10 @@ func runAutomaticSubstrateMaintenance(repoRoot string, force bool) {
 }
 
 func distillAndMaintainOnSync(repoRoot, wtPath, key, walkthroughPath string, touchedFiles []string) {
-	wtContent := readWalkthroughContent(walkthroughPath)
+	distillAndMaintainOnSyncContent(repoRoot, wtPath, key, readWalkthroughContent(walkthroughPath), touchedFiles)
+}
+
+func distillAndMaintainOnSyncContent(repoRoot, wtPath, key, wtContent string, touchedFiles []string) {
 	if distilled, dErr := mem.DistillTaskLearnings(repoRoot, key, wtContent, touchedFiles); dErr == nil && distilled > 0 {
 		printlnDistilledCount(distilled)
 	}

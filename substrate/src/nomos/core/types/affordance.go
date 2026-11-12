@@ -105,6 +105,11 @@ func buildEditAffordances(key, wt string) []ActionAffordance {
 	wtWalkthrough := walkthroughHintPath(key, wt)
 	actions = append(actions,
 		ActionAffordance{
+			Command: fmt.Sprintf(`nomos task sync %s -m "<summary>"`, key),
+			Summary: "1-turn fast release: auto-commit, run 42 DoD gates, merge to trunk, and seal Git Note",
+			Phase:   PhaseSync,
+		},
+		ActionAffordance{
 			Command: fmt.Sprintf(`nomos task commit %s -m "<type(scope): summary>"`, key),
 			Summary: "Stage and commit worktree changes (hydrates Golden Commit rationale and Task/Twin trailers)",
 			Phase:   PhaseEdit,
@@ -116,7 +121,7 @@ func buildEditAffordances(key, wt string) []ActionAffordance {
 		},
 		ActionAffordance{
 			Command: fmt.Sprintf("nomos task sync %s -F %s", key, wtWalkthrough),
-			Summary: "Complete atomic 2PC merge to trunk and record release receipt",
+			Summary: "Complete atomic 2PC merge to trunk with markdown walkthrough file",
 			Phase:   PhaseSync,
 		},
 	)
@@ -126,6 +131,11 @@ func buildEditAffordances(key, wt string) []ActionAffordance {
 func buildReviewAffordances(key, wt string) []ActionAffordance {
 	wtWalkthrough := walkthroughHintPath(key, wt)
 	return []ActionAffordance{
+		{
+			Command: fmt.Sprintf(`nomos task sync %s -m "<summary>"`, key),
+			Summary: "1-turn atomic 2PC merge to trunk with inline summary receipt",
+			Phase:   PhaseSync,
+		},
 		{
 			Command: fmt.Sprintf("nomos task sync %s -F %s", key, wtWalkthrough),
 			Summary: "Complete atomic 2PC merge to trunk with walkthrough receipt",

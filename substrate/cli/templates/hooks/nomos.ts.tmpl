@@ -25,6 +25,13 @@ interface OpenCodePluginContext {
   worktree?: string;
 }
 
+interface OpenCodeEventEnvelope {
+  event?: {
+    type?: string;
+    properties?: Record<string, unknown>;
+  };
+}
+
 let cachedNomosBin = "";
 
 /**
@@ -71,7 +78,7 @@ function runNomosHook(subcmd: string, payload: Record<string, unknown>): Record<
 }
 
 /**
- * Extracts additionalContext or ephemeralMessage from a PostToolUse JSON payload.
+ * Extracts systemMessage, additionalContext, or ephemeralMessage from a Nomos hook JSON payload.
  */
 function extractAdvisoryText(parsed: Record<string, unknown> | null): string {
   if (!parsed) {
@@ -82,10 +89,34 @@ function extractAdvisoryText(parsed: Record<string, unknown> | null): string {
     return spec.additionalContext.trim();
   }
   const steps = parsed.injectSteps as Array<Record<string, unknown>> | undefined;
-  if (Array.isArray(steps) && steps.length > 0 && typeof steps[0].ephemeralMessage === "string") {
+  if (!Array.isArray(steps) || steps.length === 0) {
+    return "";
+  }
+  const sys = steps[0].systemMessage as Record<string, unknown> | undefined;
+  if (sys && typeof sys.systemMessage === "string") {
+    return sys.systemMessage.trim();
+  }
+  if (typeof steps[0].ephemeralMessage === "string") {
     return steps[0].ephemeralMessage.trim();
   }
   return "";
+}
+
+/**
+ * Collects Turn-0 session-start orientation once per sessionID without burning an extra tool turn.
+ */
+function collectSessionStartOnce(cwd: string, oriented: Set<string>, sessionID: string): string {
+  const key = sessionID || "__default__";
+  if (oriented.has(key)) {
+    return "";
+  }
+  oriented.add(key);
+  const parsed = runNomosHook("session-start", {
+    hook_event_name: "SessionStart",
+    session_id: sessionID,
+    cwd,
+  });
+  return extractAdvisoryText(parsed);
 }
 
 /**
@@ -126,46 +157,81 @@ function evaluateOpenCodeBefore(
   }
 }
 
+interface OpenCodeRuntimeState {
+  cwd: string;
+  pendingArgs: Map<string, Record<string, unknown>>;
+  orientedSessions: Set<string>;
+}
+
 /**
- * Evaluates post-tool AST and host advisories and appends non-empty guidance.
+ * Evaluates post-tool AST and host advisories plus Turn-0 orientation and appends non-empty guidance.
  */
 function evaluateOpenCodeAfter(
-  cwd: string,
-  pendingArgs: Map<string, Record<string, unknown>>,
+  state: OpenCodeRuntimeState,
   input: OpenCodeHookInput,
   output?: OpenCodeAfterOutput,
 ): void {
-  const cached = input.callID ? pendingArgs.get(input.callID) : undefined;
+  const cached = input.callID ? state.pendingArgs.get(input.callID) : undefined;
   if (input.callID) {
-    pendingArgs.delete(input.callID);
+    state.pendingArgs.delete(input.callID);
   }
+  const sid = input.sessionID || "";
+  const orientation = collectSessionStartOnce(state.cwd, state.orientedSessions, sid);
   const parsed = runNomosHook("post-tool", {
     hook_event_name: "tool.execute.after",
-    session_id: input.sessionID || "",
-    cwd,
+    session_id: sid,
+    cwd: state.cwd,
     tool_name: input.tool,
     tool_input: resolveToolArgs(cached),
     tool_response: output?.output || "",
   });
-  const advisory = extractAdvisoryText(parsed);
+  const advisory = [orientation, extractAdvisoryText(parsed)].filter(Boolean).join("\n\n");
   if (advisory && output && typeof output.output === "string") {
     output.output = `${output.output}\n\n${advisory}`;
   }
 }
 
 /**
- * Ambient Nomos indirect-control plugin for OpenCode (Law 1 & Law 3).
+ * Evaluates anti-phantom stop verification when an OpenCode session transitions to session.idle.
+ */
+function evaluateOpenCodeEvent(cwd: string, payload?: OpenCodeEventEnvelope): void {
+  if (payload?.event?.type !== "session.idle") {
+    return;
+  }
+  const props = payload.event.properties;
+  const sid = props && typeof props.sessionID === "string" ? props.sessionID : "";
+  const parsed = runNomosHook("stop", {
+    hook_event_name: "Stop",
+    session_id: sid,
+    cwd,
+  });
+  if (parsed && (parsed.decision === "block" || parsed.decision === "deny")) {
+    const reason = typeof parsed.reason === "string" && parsed.reason !== ""
+      ? parsed.reason
+      : "Blocked by Nomos stop verification.";
+    throw new Error(reason);
+  }
+}
+
+/**
+ * Ambient Nomos indirect-control plugin for OpenCode (Law 1, Law 2 & Law 3).
  */
 export const NomosGovernancePlugin = async (ctx?: OpenCodePluginContext) => {
-  const cwd = ctx?.worktree || ctx?.directory || process.cwd();
-  const pendingArgs = new Map<string, Record<string, unknown>>();
+  const state: OpenCodeRuntimeState = {
+    cwd: ctx?.worktree || ctx?.directory || process.cwd(),
+    pendingArgs: new Map<string, Record<string, unknown>>(),
+    orientedSessions: new Set<string>(),
+  };
 
   return {
     "tool.execute.before": async (input: OpenCodeHookInput, output: OpenCodeBeforeOutput) => {
-      evaluateOpenCodeBefore(cwd, pendingArgs, input, output);
+      evaluateOpenCodeBefore(state.cwd, state.pendingArgs, input, output);
     },
     "tool.execute.after": async (input: OpenCodeHookInput, output: OpenCodeAfterOutput) => {
-      evaluateOpenCodeAfter(cwd, pendingArgs, input, output);
+      evaluateOpenCodeAfter(state, input, output);
+    },
+    "event": async (payload?: OpenCodeEventEnvelope) => {
+      evaluateOpenCodeEvent(state.cwd, payload);
     },
   };
 };

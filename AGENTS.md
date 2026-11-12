@@ -26,7 +26,7 @@
 
 1. **Session Boot & Invisible Harness:** Run `nomos handshake` on session boot (auto-injected when `SessionStart` hooks are active) to initialize state, verify CapBAC tokens, auto-install Git defense hooks, and receive phase-specific `Next Actions:`.
 2. **1-Turn Task Inception & Phase Machine:** Workspace mutability is procedurally locked across lifecycle phases:
-   `IDLE` (`nomos task chore "<title>"` or `nomos task start <KEY> --edit`) → `PLAN` → `EDIT` (strictly in `worktrees/<repo>-<KEY>`) → `REVIEW` (`nomos verify` DoD gates) → `SYNC` (`nomos task sync <KEY> -F <walkthrough-file>` 2PC atomic release) → `LEARN` (distillation).
+   `IDLE` (`nomos task chore "<title>"` or `nomos task start <KEY> --edit`) → `PLAN` → `EDIT` (strictly in `worktrees/<repo>-<KEY>`) → `REVIEW` (`nomos verify` DoD gates) → `SYNC` (`nomos task sync <KEY> -m "<summary>"` or `-F <walkthrough-file>` 2PC atomic release) → `LEARN` (distillation).
 3. **Self-Contained Embedded Discovery (Zero Nomos Source Required):**
    - `nomos directive` / `nomos directive <name>` — List and read embedded Just-In-Time (JIT) phase playbooks.
    - `nomos capabilities` / `nomos capabilities <id>` — Inspect active quality gates, ambient hooks, directives, and CLI engines.
