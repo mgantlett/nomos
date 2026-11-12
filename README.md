@@ -48,7 +48,7 @@ Just as **PostgreSQL placed ACID transactions** between concurrent applications 
 curl -fsSL https://sophialabs.ca/install | bash
 ```
 
-Installs the SHA-256-verified release binary directly to standard Go binary paths (`$GOBIN` / `$(go env GOPATH)/bin` / `~/go/bin`; pass `NOMOS_VERSION=v4.16.2` to pin a specific release tag). Or install on **macOS / Linux** via Homebrew, on **Arch Linux / Omarchy** via `makepkg`, or directly from `main` via the Go toolchain (`substrate/` subdirectory module):
+Installs the SHA-256-verified release binary directly to standard Go binary paths (`$GOBIN` / `$(go env GOPATH)/bin` / `~/go/bin`; pass `NOMOS_VERSION=v4.17.0` to pin a specific release tag). Or install on **macOS / Linux** via Homebrew, on **Arch Linux / Omarchy** via `makepkg`, or directly from `main` via the Go toolchain (`substrate/` subdirectory module):
 
 ```bash
 # macOS & Linux (Homebrew):
