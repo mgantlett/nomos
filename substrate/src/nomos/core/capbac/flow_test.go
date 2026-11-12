@@ -98,3 +98,34 @@ func TestCapabilityFlowGraph_ComplianceVectors(t *testing.T) {
 	}
 }
 
+func TestCapabilityFlowGraph_ChainedVerifyDoesNotSanitize(t *testing.T) {
+	t.Setenv("NOMOS_HOME", t.TempDir())
+	wsDir := t.TempDir()
+
+	_ = capbac.EvaluateWorkspaceToolFlow(wsDir, capbac.ToolFlowInvocation{ToolName: "WebFetch"})
+
+	for _, chained := range []string{
+		"nomos verify && echo done",
+		"cd /tmp && nomos verify && echo done",
+		"nomos verify; echo done",
+		"nomos verify | cat",
+		"nomos verify\necho done",
+	} {
+		dec := capbac.EvaluateWorkspaceToolFlow(wsDir, capbac.ToolFlowInvocation{
+			ToolName:    "Bash",
+			CommandLine: chained,
+		})
+		if dec.Role == capbac.FlowRoleSanitizer {
+			t.Fatalf("expected chained command %q not to act as FlowRoleSanitizer", chained)
+		}
+	}
+
+	pushBlocked := capbac.EvaluateWorkspaceToolFlow(wsDir, capbac.ToolFlowInvocation{
+		ToolName:    "Bash",
+		CommandLine: "git push origin main",
+	})
+	if pushBlocked.Allowed || pushBlocked.ViolatedLabel != capbac.TaintUntrustedExternal {
+		t.Fatalf("expected untrusted_external taint to remain active after chained verify, got %+v", pushBlocked)
+	}
+}
+

@@ -125,3 +125,18 @@ func TestInitSchema_UserVersionFastPath(t *testing.T) {
 	}
 }
 
+func TestMigrateLegacyColumns_SurfacesRealSQLiteError(t *testing.T) {
+	db, err := OpenDB(filepath.Join(t.TempDir(), "broken_migration.db"))
+	if err != nil {
+		t.Fatalf("OpenDB failed: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	if _, err := db.Exec("DROP TABLE tasks;"); err != nil {
+		t.Fatalf("drop tasks: %v", err)
+	}
+	if err := migrateLegacyColumns(db); err == nil {
+		t.Fatalf("expected migrateLegacyColumns to return error when tasks table is missing")
+	}
+}
+

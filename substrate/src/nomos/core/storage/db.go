@@ -169,7 +169,7 @@ func migrateLegacyColumns(db *sql.DB) error {
 	for _, m := range migrations {
 		if _, err := db.Exec(m); err != nil {
 			if !strings.Contains(err.Error(), "duplicate column") {
-				// safe to continue
+				return types.NewNomosError(types.ErrCodeInvariant, "legacy migration failed (%s): %v", m, err)
 			}
 		}
 	}

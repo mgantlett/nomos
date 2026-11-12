@@ -22,6 +22,9 @@ func TestCredentialReadAirlock_HostDenyDefault(t *testing.T) {
 		{ToolName: "Read", TargetFile: "/root/.netrc"},
 		{ToolName: "Bash", CommandLine: "cat ~/.aws/credentials"},
 		{ToolName: "Bash", CommandLine: `python3 -c "print(open('/root/.ssh/id_rsa').read())"`},
+		{ToolName: "Bash", CommandLine: "git status && cat ~/.aws/credentials"},
+		{ToolName: "Bash", CommandLine: "nomos handshake; cat ~/.ssh/id_rsa"},
+		{ToolName: "Bash", CommandLine: `nomos task commit SUB-2239 -m "$(cat ~/.aws/credentials)"`},
 	}
 	for _, inv := range blockedCases {
 		dec := capbac.EvaluateCredentialReadAirlock(ws, inv, nil, policy)
