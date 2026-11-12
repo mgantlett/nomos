@@ -26,7 +26,6 @@ func (g *UncheckedErrorsGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateR
 		root = ctx.RepoRoot
 	}
 	var violations []string
-	fset := token.NewFileSet()
 
 	err := vscope.WalkTargetFiles(ctx, root, func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil || info == nil || info.IsDir() || !isPolyglotTargetFile(path) {
@@ -36,8 +35,8 @@ func (g *UncheckedErrorsGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateR
 			violations = append(violations, evaluatePolyglotUncheckedFile(ctx, root, path)...)
 			return nil
 		}
-		node, pErr := parser.ParseFile(fset, path, nil, 0)
-		if pErr != nil {
+		fset, node, pErr := vscope.MemoizedParseGoFile(ctx, path, 0)
+		if pErr != nil || node == nil {
 			return nil
 		}
 		rel, rErr := filepath.Rel(root, path)

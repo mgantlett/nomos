@@ -1,11 +1,66 @@
-package verify
+package intentlint
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
+
+const canonicalStrictSpecFixture = `---
+authors:
+  - Mark Gantlett
+  - Nomos Open-Core Substrate
+classification: public
+date: "2026-10-01"
+plane: intent
+ssot_repository: nomos
+status: active
+title: "Sample Steel-Man Specification"
+type: spec
+---
+
+# Sample Steel-Man Specification
+
+---
+
+## 1. Executive Summary & Problem Statement
+
+The substrate enforces deterministic verification across all Intent documents.
+
+---
+
+## 2. Axiomatic Invariants & Governing Laws
+
+Every Intent contract binds to one compiled Go Single Source of Truth.
+
+---
+
+## 3. Compiled Go SSoT Contracts
+
+` + "```go" + `
+package verify
+
+// SampleContract defines a deterministic test structure.
+type SampleContract struct {
+	Enabled bool
+}
+` + "```" + `
+
+---
+
+## 4. Table-Driven Verification Vectors
+
+| Vector ID | Scenario | Expected Verdict |
+| :--- | :--- | :--- |
+| TC-SMP-01 | Valid canonical specification | PASS |
+| TC-SMP-02 | Missing frontmatter delimiter | FAIL |
+| TC-SMP-03 | Unclosed Markdown code fence | FAIL |
+
+---
+
+## 5. Cross-Plane Traceability & DoD Verification
+
+1. ` + "`substrate/src/nomos/modules/verify/intentlint/intent_steelman.go`" + ` enforces ` + "`Cell 4.1 (intent_steelman)`" + `.
+`
 
 func TestIntentSteelmanStrictBlueprintStructureVectors(t *testing.T) {
 	cases := []struct {
@@ -100,21 +155,25 @@ func TestIntentSteelmanStrictBlueprintStructureVectors(t *testing.T) {
 		},
 	}
 
-	opts := intentSteelmanOptions{RequireFrontmatter: true, StrictStandard: true}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			root := t.TempDir()
-			full := filepath.Join(root, "intent", filepath.FromSlash(tc.relPath))
-			if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
-				t.Fatalf("mkdir: %v", err)
+			body := tc.content
+			if idx := strings.Index(body, "\n---\n"); idx >= 0 {
+				body = strings.TrimLeft(body[idx+len("\n---\n"):], "\n")
 			}
-			if err := os.WriteFile(full, []byte(tc.content), 0644); err != nil {
-				t.Fatalf("write: %v", err)
+			var got string
+			switch {
+			case ValidateStrictSpecTopology(tc.relPath) != "":
+				got = ValidateStrictSpecTopology(tc.relPath)
+			case HasUnclosedCodeFence(body):
+				got = "unclosed Markdown fenced code block detected"
+			case ValidateMarkdownMermaidBlocks(body) != "":
+				got = ValidateMarkdownMermaidBlocks(body)
+			default:
+				got = ValidateStrictSpecStructure(body)
 			}
-			_, issues := validateIntentDocumentsWithOptions(filepath.Join(root, "intent"), opts)
-			joined := strings.Join(issues, "; ")
-			if !strings.Contains(joined, tc.wantError) {
-				t.Fatalf("expected error containing %q, got: %v", tc.wantError, issues)
+			if !strings.Contains(got, tc.wantError) {
+				t.Fatalf("expected error containing %q, got: %q", tc.wantError, got)
 			}
 		})
 	}

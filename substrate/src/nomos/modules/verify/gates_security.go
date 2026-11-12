@@ -58,35 +58,49 @@ func resolveSecurityRoot(ctx *vscope.VerifyContext) string {
 	return "."
 }
 
-func scanSecrets(root string) ([]string, error) {
-	leaks := impact.ScanUnignoredEnvFiles(root)
-
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil || d == nil {
-			return nil
-		}
-		if d.IsDir() {
-			if shouldSkipSecurityDir(root, path, d.Name()) {
-				return filepath.SkipDir
+func collectSecurityWalkFiles(ctx *vscope.VerifyContext, root string) ([]string, error) {
+	return vscope.MemoizedWalkFiles(ctx, "secwalk:"+root, func() ([]string, error) {
+		var files []string
+		err := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
+			if walkErr != nil || d == nil {
+				return nil
 			}
-			return nil
-		}
-		if isIgnoredSecretFile(path) || (impact.IsProhibitedEnvFileName(d.Name()) && impact.IsGitIgnoredPath(root, path)) {
-			return nil
-		}
-		data, err := os.ReadFile(path)
-		if err == nil {
-			if label := impact.MatchSecretTokenLabel(string(data)); label != "" {
-				rel, rErr := filepath.Rel(root, path)
-				if rErr != nil {
-					rel = path
+			if d.IsDir() {
+				if shouldSkipSecurityDir(root, path, d.Name()) {
+					return filepath.SkipDir
 				}
-				leaks = append(leaks, fmt.Sprintf("%s (%s)", rel, label))
+				return nil
 			}
-		}
-		return nil
+			files = append(files, path)
+			return nil
+		})
+		return files, err
 	})
-	return leaks, err
+}
+
+func scanSecrets(ctx *vscope.VerifyContext, root string) ([]string, error) {
+	leaks := impact.ScanUnignoredEnvFiles(root)
+	files, err := collectSecurityWalkFiles(ctx, root)
+	if err != nil {
+		return leaks, err
+	}
+	for _, path := range files {
+		if isIgnoredSecretFile(path) || (impact.IsProhibitedEnvFileName(filepath.Base(path)) && impact.IsGitIgnoredPath(root, path)) {
+			continue
+		}
+		data, rErr := vscope.MemoizedReadFile(ctx, path)
+		if rErr != nil {
+			continue
+		}
+		if label := impact.MatchSecretTokenLabel(string(data)); label != "" {
+			rel, rErr := filepath.Rel(root, path)
+			if rErr != nil {
+				rel = path
+			}
+			leaks = append(leaks, fmt.Sprintf("%s (%s)", rel, label))
+		}
+	}
+	return leaks, nil
 }
 
 func shouldSkipSecurityDir(root, path, name string) bool {
@@ -134,7 +148,7 @@ var bannedSovereignPrefixes = []string{
 // Evaluate scans Go source files for banned sovereign imports.
 func (g *IPLeakGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := resolveSecurityRoot(ctx)
-	violations, err := scanIPLeaks(root)
+	violations, err := scanIPLeaks(ctx, root)
 	if err != nil {
 		return nil, err
 	}
@@ -152,21 +166,15 @@ func (g *IPLeakGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, er
 	}, nil
 }
 
-func scanIPLeaks(root string) ([]string, error) {
+func scanIPLeaks(ctx *vscope.VerifyContext, root string) ([]string, error) {
 	var violations []string
-
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil || d == nil {
-			return nil
-		}
-		if d.IsDir() {
-			if shouldSkipSecurityDir(root, path, d.Name()) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if impact.IsVerificationSuiteFile(d.Name()) || !vscope.IsSupportedPolyglotSourceFile(path) {
-			return nil
+	files, err := collectSecurityWalkFiles(ctx, root)
+	if err != nil {
+		return violations, err
+	}
+	for _, path := range files {
+		if impact.IsVerificationSuiteFile(filepath.Base(path)) || !vscope.IsSupportedPolyglotSourceFile(path) {
+			continue
 		}
 		rel, rErr := filepath.Rel(root, path)
 		if rErr != nil {
@@ -177,9 +185,8 @@ func scanIPLeaks(root string) ([]string, error) {
 				violations = append(violations, fmt.Sprintf("%s: imports %s", rel, val))
 			}
 		}
-		return nil
-	})
-	return violations, err
+	}
+	return violations, nil
 }
 
 func isBannedImport(val string) bool {
@@ -218,30 +225,23 @@ func (g *BrokenWireGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult
 	}, nil
 }
 
-func scanBrokenLinks(root string) ([]string, error) {
+func scanBrokenLinks(ctx *vscope.VerifyContext, root string) ([]string, error) {
 	var broken []string
 	linkRegex := regexp.MustCompile(`\[[^\]]+\]\(([^)]+)\)`)
-
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil || d == nil {
-			return nil
-		}
-		if d.IsDir() {
-			if shouldSkipSecurityDir(root, path, d.Name()) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
+	files, err := collectSecurityWalkFiles(ctx, root)
+	if err != nil {
+		return broken, err
+	}
+	for _, path := range files {
 		if !strings.HasSuffix(path, ".md") {
-			return nil
+			continue
 		}
-		data, err := os.ReadFile(path)
-		if err == nil {
+		data, rErr := vscope.MemoizedReadFile(ctx, path)
+		if rErr == nil {
 			broken = append(broken, checkLinksInContent(root, path, string(data), linkRegex)...)
 		}
-		return nil
-	})
-	return broken, err
+	}
+	return broken, nil
 }
 
 func checkLinksInContent(root, path, content string, linkRegex *regexp.Regexp) []string {

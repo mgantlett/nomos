@@ -119,3 +119,13 @@ func TestEvaluateASTGateDirectory_DetectsSubpackageVacuousGate(t *testing.T) {
 		t.Fatalf("expected 1/3 non-vacuous gates across root and subpackages, got %d/%d", nonVac, total)
 	}
 }
+
+func TestEvaluateCompiledGatesInMemory_BehavioralProbe(t *testing.T) {
+	nonVac, total, err := evaluateCompiledGatesInMemory()
+	if err != nil {
+		t.Fatalf("evaluateCompiledGatesInMemory error: %v", err)
+	}
+	if total <= 0 || nonVac != total {
+		t.Fatalf("expected all %d compiled gates to pass behavioral in-memory check, got %d/%d", total, nonVac, total)
+	}
+}

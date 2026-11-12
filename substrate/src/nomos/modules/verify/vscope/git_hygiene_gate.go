@@ -4,7 +4,6 @@ package vscope
 import (
 	"fmt"
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"os"
 	"path/filepath"
@@ -32,7 +31,7 @@ func (g *GitSubprocessHygieneGate) Evaluate(ctx *VerifyContext) (*GateResult, er
 		root = "."
 	}
 
-	violations, err := collectGitSubprocessViolations(root)
+	violations, err := collectGitSubprocessViolations(ctx, root)
 	if err != nil {
 		return nil, err
 	}
@@ -53,30 +52,32 @@ func (g *GitSubprocessHygieneGate) Evaluate(ctx *VerifyContext) (*GateResult, er
 	}, nil
 }
 
-func collectGitSubprocessViolations(root string) ([]string, error) {
+func collectGitSubprocessViolations(ctx *VerifyContext, root string) ([]string, error) {
 	var violations []string
-	fset := token.NewFileSet()
-
-	err := workspace.WalkScope(root, func(path string, info os.FileInfo, walkErr error) error {
-		if walkErr != nil || info.IsDir() || !strings.HasSuffix(path, ".go") {
+	goFiles, err := MemoizedWalkFiles(ctx, "git_hygiene:"+root, func() ([]string, error) {
+		var paths []string
+		walkErr := workspace.WalkScope(root, func(path string, info os.FileInfo, wErr error) error {
+			if wErr != nil || info == nil || info.IsDir() || !strings.HasSuffix(path, ".go") || isGitRunnerExempt(path) {
+				return nil
+			}
+			paths = append(paths, path)
 			return nil
-		}
-		if isGitRunnerExempt(path) {
-			return nil
-		}
+		})
+		return paths, walkErr
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, path := range goFiles {
 		relPath, rErr := filepath.Rel(root, path)
 		if rErr != nil {
 			relPath = path
 		}
-		node, parseErr := parser.ParseFile(fset, path, nil, 0)
-		if parseErr != nil {
-			return nil
+		fset, node, parseErr := MemoizedParseGoFile(ctx, path, 0)
+		if parseErr != nil || node == nil {
+			continue
 		}
 		inspectFileForRawGitExec(node, fset, relPath, &violations)
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
 	return violations, nil
 }

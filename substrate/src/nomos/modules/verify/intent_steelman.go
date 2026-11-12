@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/ncte"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/intentlint"
 	"gopkg.in/yaml.v3"
 )
 
@@ -130,10 +131,10 @@ func auditSingleIntentMarkdownWithOptions(rel, path string, opts intentSteelmanO
 	if parseErr != "" {
 		return parseErr
 	}
-	if hasUnclosedCodeFence(body) {
+	if intentlint.HasUnclosedCodeFence(body) {
 		return "unclosed Markdown fenced code block detected"
 	}
-	if mermaidErr := validateMarkdownMermaidBlocks(body); mermaidErr != "" {
+	if mermaidErr := intentlint.ValidateMarkdownMermaidBlocks(body); mermaidErr != "" {
 		return mermaidErr
 	}
 	if !hasFM || !opts.StrictStandard {
@@ -195,7 +196,7 @@ func validateBaseIntentFrontmatter(fm intentFrontmatter, requireFrontmatter bool
 
 // evaluateStrictIntentStandard enforces topology, dash hygiene, frontmatter allowlist, blueprint spine, and NCTE-100 rules.
 func evaluateStrictIntentStandard(rel string, raw []byte, normalized, fmRaw string, fm intentFrontmatter, body string) string {
-	if topoIssue := validateStrictSpecTopology(rel); topoIssue != "" {
+	if topoIssue := intentlint.ValidateStrictSpecTopology(rel); topoIssue != "" {
 		return topoIssue
 	}
 	if strings.ContainsRune(normalized, '\u2014') || strings.ContainsRune(normalized, '\u2013') {
@@ -207,7 +208,7 @@ func evaluateStrictIntentStandard(rel string, raw []byte, normalized, fmRaw stri
 	if fmIssue := validateStrictIntentFrontmatter(fm); fmIssue != "" {
 		return fmIssue
 	}
-	if structIssue := validateStrictSpecStructure(body); structIssue != "" {
+	if structIssue := intentlint.ValidateStrictSpecStructure(body); structIssue != "" {
 		return structIssue
 	}
 	return auditIntentMarkdownNCTE(rel, raw)
@@ -264,42 +265,4 @@ func auditIntentMarkdownNCTE(rel string, raw []byte) string {
 			first.Line, first.Code, first.Message, rep.ViolationsCount)
 	}
 	return ""
-}
-
-// hasUnclosedCodeFence detects unbalanced triple-or-more backtick or tilde fences in Markdown bodies.
-func hasUnclosedCodeFence(body string) bool {
-	inFence := false
-	fenceChar := byte(0)
-	fenceLen := 0
-	for _, line := range strings.Split(body, "\n") {
-		trimmed := strings.TrimSpace(line)
-		ch, count := countLeadingFenceChars(trimmed)
-		if count < 3 {
-			continue
-		}
-		rest := strings.TrimSpace(trimmed[count:])
-		if !inFence {
-			inFence = true
-			fenceChar = ch
-			fenceLen = count
-		} else if ch == fenceChar && count >= fenceLen && rest == "" {
-			inFence = false
-			fenceChar = 0
-			fenceLen = 0
-		}
-	}
-	return inFence
-}
-
-// countLeadingFenceChars counts consecutive leading backtick or tilde fence characters on a trimmed line.
-func countLeadingFenceChars(s string) (byte, int) {
-	if len(s) == 0 || (s[0] != '`' && s[0] != '~') {
-		return 0, 0
-	}
-	ch := s[0]
-	n := 0
-	for n < len(s) && s[n] == ch {
-		n++
-	}
-	return ch, n
 }

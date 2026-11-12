@@ -47,6 +47,9 @@ type ToolchainSuiteReceipt struct {
 
 // EvaluateSharedGoSuite executes deterministic polyrun verification logic (@intent nomos_intent_traceability_spec.md).
 func EvaluateSharedGoSuite(ctx *vscope.VerifyContext, root, targetDir string) *ToolchainSuiteReceipt {
+	unlock := vscope.LockContextKey(ctx, "shared_go_suite")
+	defer unlock()
+
 	if cachedCtx := loadContextReceipt(ctx); cachedCtx != nil {
 		return cachedCtx
 	}

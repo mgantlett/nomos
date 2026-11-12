@@ -1,5 +1,5 @@
 // Package verify enforces the v4.8 Canonical Specification Structural Blueprint across Intent documents (Law 4 & Law 6).
-package verify
+package intentlint
 
 import (
 	"fmt"
@@ -16,6 +16,7 @@ const (
 	canonicalSection2Title  = "Axiomatic Invariants & Governing Laws"
 	canonicalVectorsTitle   = "Table-Driven Verification Vectors"
 	canonicalClosingTitle   = "Cross-Plane Traceability & DoD Verification"
+	forbiddenHandbookSegment = "/handbook"
 	markdownHorizontalRule  = "---"
 	minCanonicalSpecH2Count = 5
 	minCanonicalVectorRows  = 3
@@ -45,8 +46,8 @@ type h2HeadingEntry struct {
 	rawLine string
 }
 
-// validateStrictSpecTopology enforces flat intent/architecture/specs/*_spec.md placement with zero nested folders.
-func validateStrictSpecTopology(rel string) string {
+// ValidateStrictSpecTopology enforces flat intent/architecture/specs/*_spec.md placement with zero nested folders.
+func ValidateStrictSpecTopology(rel string) string {
 	if rel == rootManifestRelPath {
 		return ""
 	}
@@ -66,8 +67,8 @@ func validateStrictSpecTopology(rel string) string {
 	return ""
 }
 
-// validateStrictSpecStructure enforces the v4.8 Canonical Specification Structural Blueprint on body text.
-func validateStrictSpecStructure(body string) string {
+// ValidateStrictSpecStructure enforces the v4.8 Canonical Specification Structural Blueprint on body text.
+func ValidateStrictSpecStructure(body string) string {
 	scan := scanSpecBodyOutsideFences(body)
 	if scan.proseIssue != "" {
 		return scan.proseIssue
@@ -244,4 +245,42 @@ func validateVerificationVectorsSection(scan specBodyScan) string {
 		return fmt.Sprintf("section '%s' requires at least %d 'TC-<DOMAIN>-<NN>' vector IDs, found %d (Law 2)", canonicalVectorsTitle, minCanonicalVectorRows, len(matches))
 	}
 	return ""
+}
+
+// HasUnclosedCodeFence detects unbalanced triple-or-more backtick or tilde fences in Markdown bodies.
+func HasUnclosedCodeFence(body string) bool {
+	inFence := false
+	fenceChar := byte(0)
+	fenceLen := 0
+	for _, line := range strings.Split(body, "\n") {
+		trimmed := strings.TrimSpace(line)
+		ch, count := countLeadingFenceChars(trimmed)
+		if count < 3 {
+			continue
+		}
+		rest := strings.TrimSpace(trimmed[count:])
+		if !inFence {
+			inFence = true
+			fenceChar = ch
+			fenceLen = count
+		} else if ch == fenceChar && count >= fenceLen && rest == "" {
+			inFence = false
+			fenceChar = 0
+			fenceLen = 0
+		}
+	}
+	return inFence
+}
+
+// countLeadingFenceChars counts consecutive leading backtick or tilde fence characters on a trimmed line.
+func countLeadingFenceChars(s string) (byte, int) {
+	if len(s) == 0 || (s[0] != '`' && s[0] != '~') {
+		return 0, 0
+	}
+	ch := s[0]
+	n := 0
+	for n < len(s) && s[n] == ch {
+		n++
+	}
+	return ch, n
 }

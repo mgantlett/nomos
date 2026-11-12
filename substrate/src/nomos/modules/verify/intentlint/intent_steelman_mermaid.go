@@ -1,5 +1,5 @@
 // Package verify provides deterministic Mermaid diagram syntax validation for Intent documents (Law 2 & Law 4).
-package verify
+package intentlint
 
 import (
 	"fmt"
@@ -13,8 +13,8 @@ var (
 	unquotedFlowEdgeHazardRe   = regexp.MustCompile(`\|[^"|\n]*(?:[()]|/\*)[^"|\n]*\|`)
 )
 
-// validateMarkdownMermaidBlocks inspects all fenced ```mermaid blocks in a Markdown body for parser/orphan hazards.
-func validateMarkdownMermaidBlocks(body string) string {
+// ValidateMarkdownMermaidBlocks inspects all fenced ```mermaid blocks in a Markdown body for parser/orphan hazards.
+func ValidateMarkdownMermaidBlocks(body string) string {
 	blocks := extractMermaidCodeFences(body)
 	for idx, block := range blocks {
 		if issue := auditSingleMermaidBlock(idx+1, block); issue != "" {

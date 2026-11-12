@@ -8,7 +8,6 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"os"
 	"path/filepath"
@@ -179,7 +178,6 @@ func (g *ComplexityGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult
 	}
 	thresh := resolveThresholds(ctx)
 	var funcMetrics []astdebt.FunctionMetric
-	fset := token.NewFileSet()
 
 	err := vscope.WalkTargetFiles(ctx, root, func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil || !isPolyglotTargetFile(path) {
@@ -193,8 +191,8 @@ func (g *ComplexityGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult
 			collectPolyglotComplexity(path, rel, &funcMetrics)
 			return nil
 		}
-		node, pErr := parser.ParseFile(fset, path, nil, 0)
-		if pErr != nil {
+		fset, node, pErr := vscope.MemoizedParseGoFile(ctx, path, 0)
+		if pErr != nil || node == nil {
 			return nil
 		}
 		collectFunctionMetrics(node, fset, rel, &funcMetrics)

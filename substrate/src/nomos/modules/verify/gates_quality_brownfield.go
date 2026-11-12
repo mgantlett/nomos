@@ -286,7 +286,7 @@ func relativeOrFullPath(base, target string) string {
 
 func scanSecretsScoped(ctx *vscope.VerifyContext, root string) ([]string, error) {
 	if !vscope.IsBrownfieldRatchetActive(ctx) || (ctx != nil && ctx.AllFiles) || !vscope.HasGitMetadata(root) {
-		return scanSecrets(root)
+		return scanSecrets(ctx, root)
 	}
 	leaks := impact.ScanUnignoredEnvFiles(root)
 	err := vscope.WalkTargetFiles(ctx, root, func(path string, info os.FileInfo, walkErr error) error {
@@ -296,7 +296,7 @@ func scanSecretsScoped(ctx *vscope.VerifyContext, root string) ([]string, error)
 		if isIgnoredSecretFile(path) || (impact.IsProhibitedEnvFileName(info.Name()) && impact.IsGitIgnoredPath(root, path)) {
 			return nil
 		}
-		if data, rErr := os.ReadFile(path); rErr == nil {
+		if data, rErr := vscope.MemoizedReadFile(ctx, path); rErr == nil {
 			relPath := relativeOrFullPath(root, path)
 			if label := impact.MatchSecretTokenLabel(string(data)); label != "" {
 				leaks = append(leaks, relPath+" ("+label+")")
@@ -312,7 +312,7 @@ func scanSecretsScoped(ctx *vscope.VerifyContext, root string) ([]string, error)
 
 func scanBrokenLinksScoped(ctx *vscope.VerifyContext, root string) ([]string, error) {
 	if !vscope.IsBrownfieldRatchetActive(ctx) || (ctx != nil && ctx.AllFiles) || !vscope.HasGitMetadata(root) {
-		return scanBrokenLinks(root)
+		return scanBrokenLinks(ctx, root)
 	}
 	var broken []string
 	linkRegex := regexp.MustCompile(`\[[^\]]+\]\(([^)]+)\)`)
@@ -320,7 +320,7 @@ func scanBrokenLinksScoped(ctx *vscope.VerifyContext, root string) ([]string, er
 		if walkErr != nil || info == nil || info.IsDir() || !strings.HasSuffix(path, ".md") {
 			return nil
 		}
-		if data, rErr := os.ReadFile(path); rErr == nil {
+		if data, rErr := vscope.MemoizedReadFile(ctx, path); rErr == nil {
 			broken = append(broken, checkLinksInContent(root, path, string(data), linkRegex)...)
 		}
 		return nil

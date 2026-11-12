@@ -3,6 +3,8 @@ package verify
 
 import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
+	"runtime"
+	"sync"
 	"time"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
@@ -61,7 +63,7 @@ func NewPipeline(gates []vscope.Gate) *Pipeline {
 	return &Pipeline{gates: gates}
 }
 
-// Execute runs all configured gates sequentially, aggregates results, and builds matrix reports.
+// Execute runs all configured gates in a bounded worker pool, aggregates results, and builds matrix reports.
 func (p *Pipeline) Execute(ctx *vscope.VerifyContext) (*PipelineReport, error) {
 	if ctx == nil {
 		return nil, types.NewNomosError(types.ErrCodeValidationFailed, "verify context cannot be nil")
@@ -70,22 +72,11 @@ func (p *Pipeline) Execute(ctx *vscope.VerifyContext) (*PipelineReport, error) {
 	defer vscope.EndVerifyContextCache(ctx)
 
 	start := time.Now()
-	results := make([]*vscope.GateResult, 0, len(p.gates))
-	overallPassed := true
-
-	for _, g := range p.gates {
-		res, err := vscope.TimedEvaluate(g, ctx)
-		if err != nil {
-			return nil, types.NewNomosError(types.ErrCodeCore, "gate %s evaluation failed: %v", g.Name(), err)
-		}
-		if res == nil {
-			res = &vscope.GateResult{GateName: g.Name(), Passed: false, Message: "nil gate result returned"}
-		}
-		if !res.Passed && !res.Skipped {
-			overallPassed = false
-		}
-		results = append(results, res)
+	results, gateErr := evaluateGatesBounded(p.gates, ctx)
+	if gateErr != nil {
+		return nil, gateErr
 	}
+	overallPassed := allGatesPassed(results)
 
 	elapsed := time.Since(start).Microseconds()
 	cellReports := buildCellReports(results)
@@ -100,6 +91,69 @@ func (p *Pipeline) Execute(ctx *vscope.VerifyContext) (*PipelineReport, error) {
 		LawReports:     lawReports,
 		CellReports:    cellReports,
 	}, nil
+}
+
+func evaluateGatesBounded(gates []vscope.Gate, ctx *vscope.VerifyContext) ([]*vscope.GateResult, error) {
+	n := len(gates)
+	results := make([]*vscope.GateResult, n)
+	errs := make([]error, n)
+	if n == 0 {
+		return results, nil
+	}
+
+	workers := runtime.GOMAXPROCS(0)
+	if workers > 6 {
+		workers = 6
+	}
+	if workers < 1 {
+		workers = 1
+	}
+	if workers > n {
+		workers = n
+	}
+
+	jobs := make(chan int, n)
+	for i := 0; i < n; i++ {
+		jobs <- i
+	}
+	close(jobs)
+
+	var wg sync.WaitGroup
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for idx := range jobs {
+				g := gates[idx]
+				res, err := vscope.TimedEvaluate(g, ctx)
+				if err != nil {
+					errs[idx] = types.NewNomosError(types.ErrCodeCore, "gate %s evaluation failed: %v", g.Name(), err)
+					continue
+				}
+				if res == nil {
+					res = &vscope.GateResult{GateName: g.Name(), Passed: false, Message: "nil gate result returned"}
+				}
+				results[idx] = res
+			}
+		}()
+	}
+	wg.Wait()
+
+	for _, err := range errs {
+		if err != nil {
+			return nil, err
+		}
+	}
+	return results, nil
+}
+
+func allGatesPassed(results []*vscope.GateResult) bool {
+	for _, res := range results {
+		if !res.Passed && !res.Skipped {
+			return false
+		}
+	}
+	return true
 }
 
 func countPassed(results []*vscope.GateResult) int {

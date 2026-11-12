@@ -362,8 +362,11 @@ func countEvaluateMethodsInFile(fileAST *ast.File) (int, int) {
 
 func evaluateCompiledGatesInMemory() (int, int, error) {
 	gates := DefaultBaselineGates()
-	nonVacuous := 0
 	totalGates := len(gates)
+	if !verifyCompiledGateBehaviorally() {
+		return 0, totalGates, nil
+	}
+	nonVacuous := 0
 	for _, g := range gates {
 		if g == nil || g.Name() == "" {
 			continue

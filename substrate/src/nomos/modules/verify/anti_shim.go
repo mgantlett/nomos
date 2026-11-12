@@ -167,7 +167,6 @@ func (g *AntiShimGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, 
 	forbiddenShims := vscope.ResolveVerifyConfig(ctx).Governance.QualityGates.ForbiddenShims
 
 	var violations []string
-	fset := token.NewFileSet()
 
 	err := vscope.WalkTargetFiles(ctx, root, func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil || info == nil || info.IsDir() || !isPolyglotTargetFile(path) {
@@ -182,7 +181,7 @@ func (g *AntiShimGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, 
 		if !strings.HasSuffix(path, ".go") {
 			fileViolations = append(fileViolations, scanPolyglotAntiShim(path, relPath)...)
 		} else {
-			fileViolations = append(fileViolations, scanGoFileAntiShim(fset, path, relPath)...)
+			fileViolations = append(fileViolations, scanGoFileAntiShimCached(ctx, path, relPath)...)
 		}
 		violations = append(violations, filterNetNewLineViolations(ctx, root, path, fileViolations, func(baseBytes []byte) []string {
 			return scanTempBaselineViolations(path, baseBytes, func(tmpPath string) []string {
@@ -211,11 +210,23 @@ func (g *AntiShimGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, 
 	return &vscope.GateResult{GateName: g.Name(), Passed: true, Message: "zero anti-shim violations detected"}, nil
 }
 
+func scanGoFileAntiShimCached(ctx *vscope.VerifyContext, path, relPath string) []string {
+	_, node, parseErr := vscope.MemoizedParseGoFile(ctx, path, 0)
+	if parseErr != nil || node == nil {
+		return nil
+	}
+	return collectGoFileAntiShimViolations(node, path, relPath)
+}
+
 func scanGoFileAntiShim(fset *token.FileSet, path, relPath string) []string {
 	node, parseErr := parser.ParseFile(fset, path, nil, 0)
 	if parseErr != nil {
 		return nil
 	}
+	return collectGoFileAntiShimViolations(node, path, relPath)
+}
+
+func collectGoFileAntiShimViolations(node *ast.File, path, relPath string) []string {
 	isGoTest := strings.HasSuffix(path, "_test.go")
 	var violations []string
 	for _, decl := range node.Decls {
