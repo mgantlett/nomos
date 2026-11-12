@@ -4,7 +4,7 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-05"
-last_updated: "2026-11-11"
+last_updated: "2026-11-12"
 lineage:
   - INT-541
   - INT-1935
@@ -13,12 +13,14 @@ lineage:
   - INT-1944
   - SUB-2157
   - INT-1969
+  - INT-1996
+  - SUB-2316
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Nomos Intent Traceability & Architectural Obligation Proofs Specification"
 type: spec
-version: "4.14.0"
+version: "4.18.0"
 ---
 
 # Nomos Intent Traceability & Architectural Obligation Proofs Specification
@@ -312,7 +314,8 @@ func EvaluateArchitectureBoundaries(root string, files []string, rules []config.
    - Executes in under `5ms` inside both `EvaluateFastFileRadar` (`PreToolUse` / `PostToolUse` hooks) and `nomos verify`.
 6. **Scoped `spec_roots` Steel-Man & Optional Schema Parity (`TC-TRC-005`):**
    - When `contracts.spec_roots` targets explicit files or nested subdirectories, `IntentSteelmanGate` audits only those paths and ignores sibling `intent/` directories.
-   - When `contracts.spec_roots` includes `intent/architecture/specs` or remains empty, `IntentSteelmanGate` enforces flat `intent/architecture/specs/*_spec.md` placement across `intent/`.
+   - When `project: nomos` or `contracts.spec_roots` remains empty, `IntentSteelmanGate` enforces flat `intent/architecture/specs/*_spec.md` topology across all of `intent/`.
+   - When downstream repositories (`project != "nomos"`) configure canonical `spec_roots`, `IntentSteelmanGate` enforces strict Steel-Man topology across `spec_roots` while ignoring sibling `intent/` folders.
    - When `contracts.schema_files` is empty and root `nomos.schema.json` is absent, `ContractParityGate` skips JSON schema checks while enforcing `backend_roots`.
 
 ---
