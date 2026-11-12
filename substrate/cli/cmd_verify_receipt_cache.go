@@ -1,6 +1,6 @@
 // Package cli implements short-lived cryptographic verification receipt caching
 // across clean worktree pre-commit and 2PC task sync transitions.
-// @intent task_lifecycle_cli_spec.md
+// @intent intent.md task_lifecycle_cli_spec.md
 package cli
 
 import (
@@ -34,6 +34,7 @@ type worktreeVerifyReceipt struct {
 	TaskKey             string                 `json:"task_key,omitempty"`
 	WorktreeTreeSHA     string                 `json:"worktree_tree_sha"`
 	TrunkHeadSHA        string                 `json:"trunk_head_sha"`
+	Strict              bool                   `json:"strict,omitempty"`
 	VerifiedAtUnixMilli int64                  `json:"verified_at_unix_milli"`
 	Report              *verify.PipelineReport `json:"report"`
 }
@@ -77,18 +78,22 @@ func saveWorktreeVerifyReceipt(repoRoot, worktreePath, taskKey string, report *v
 }
 
 // syncVerifyCommandReceipt updates or purges the local worktree verification receipt after 'nomos verify'.
-func syncVerifyCommandReceipt(repoRoot, targetDir, taskKey, commitRange string, baseline bool, report *verify.PipelineReport) {
+func syncVerifyCommandReceipt(repoRoot, targetDir, taskKey, commitRange string, baseline, strict bool, report *verify.PipelineReport) {
 	if report == nil || !report.Passed {
 		invalidateWorktreeVerifyReceipt(repoRoot, targetDir)
 		return
 	}
 	if !baseline && strings.TrimSpace(commitRange) == "" {
-		saveWorktreeVerifyReceipt(repoRoot, targetDir, taskKey, report)
+		saveWorktreeVerifyReceiptWithStrict(repoRoot, targetDir, taskKey, strict, report, time.Now())
 	}
 }
 
 // saveWorktreeVerifyReceiptAt persists a timestamped verification receipt for deterministic TTL testing.
 func saveWorktreeVerifyReceiptAt(repoRoot, worktreePath, taskKey string, report *verify.PipelineReport, now time.Time) {
+	saveWorktreeVerifyReceiptWithStrict(repoRoot, worktreePath, taskKey, false, report, now)
+}
+
+func saveWorktreeVerifyReceiptWithStrict(repoRoot, worktreePath, taskKey string, strict bool, report *verify.PipelineReport, now time.Time) {
 	if os.Getenv(envDisableVerifyReceiptCache) == "1" || !isCacheablePipelineReport(report) {
 		return
 	}
@@ -115,6 +120,7 @@ func saveWorktreeVerifyReceiptAt(repoRoot, worktreePath, taskKey string, report 
 		TaskKey:             strings.ToUpper(strings.TrimSpace(taskKey)),
 		WorktreeTreeSHA:     treeSHA,
 		TrunkHeadSHA:        trunkSHA,
+		Strict:              strict,
 		VerifiedAtUnixMilli: now.UnixMilli(),
 		Report:              report,
 	}
@@ -252,8 +258,8 @@ func isWorktreeStatusCompletelyClean(worktreeDir string) bool {
 	return err == nil && len(out) == 0
 }
 
-// resolveStagedOrCleanWorktreeTreeSHA resolves HEAD^{tree} when clean, or git write-tree
-// when pre-commit holds exclusively staged index changes with zero unstaged or untracked files.
+// resolveStagedOrCleanWorktreeTreeSHA resolves HEAD^{tree} when clean, git write-tree when purely
+// staged, or a temporary GIT_INDEX_FILE write-tree when unstaged working-tree changes exist.
 func resolveStagedOrCleanWorktreeTreeSHA(worktreeDir string) string {
 	out, err := workspace.SafeGitCommand(worktreeDir, "status", "--porcelain", "-z", "-uall").Output()
 	if err != nil {
@@ -263,7 +269,7 @@ func resolveStagedOrCleanWorktreeTreeSHA(worktreeDir string) string {
 		return readGitObjectSHA(worktreeDir, constants.ValHead+"^{tree}")
 	}
 	if !isPurelyStagedCleanIndex(string(out)) {
-		return ""
+		return resolveUnstagedWorkingTreeSHA(worktreeDir)
 	}
 	treeOut, wErr := workspace.SafeGitCommand(worktreeDir, "write-tree").Output()
 	if wErr != nil {

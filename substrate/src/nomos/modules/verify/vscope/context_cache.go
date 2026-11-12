@@ -17,6 +17,7 @@ type verifyContextMemo struct {
 	polyglotFiles    map[string]bool
 	polyglotErr      error
 	slicesByKey      map[string][]string
+	renameMaps       map[string]map[string]string
 }
 
 var activeVerifyContextCache sync.Map
@@ -28,6 +29,7 @@ func BeginVerifyContextCache(ctx *VerifyContext) {
 	}
 	activeVerifyContextCache.Store(ctx, &verifyContextMemo{
 		slicesByKey: make(map[string][]string),
+		renameMaps:  make(map[string]map[string]string),
 	})
 }
 
@@ -110,12 +112,22 @@ func memoizedScopeExcludes(ctx *VerifyContext, key string, loader func() []strin
 }
 
 func memoizedStringSlice(ctx *VerifyContext, fullKey string, loader func() []string) []string {
+	return memoizedKeyedValue(ctx, func(m *verifyContextMemo) map[string][]string { return m.slicesByKey }, fullKey, loader)
+}
+
+// MemoizedRenameMap caches git rename mappings per gitRoot and baseRef for ctx (@intent intent.md tree_sitter_ast_gate_spec.md).
+func MemoizedRenameMap(ctx *VerifyContext, key string, loader func() map[string]string) map[string]string {
+	return memoizedKeyedValue(ctx, func(m *verifyContextMemo) map[string]map[string]string { return m.renameMaps }, key, loader)
+}
+
+func memoizedKeyedValue[V any](ctx *VerifyContext, selectMap func(*verifyContextMemo) map[string]V, key string, loader func() V) V {
 	memo := lookupVerifyContextMemo(ctx)
 	if memo == nil {
 		return loader()
 	}
 	memo.mu.Lock()
-	if cached, ok := memo.slicesByKey[fullKey]; ok {
+	target := selectMap(memo)
+	if cached, ok := target[key]; ok {
 		memo.mu.Unlock()
 		return cached
 	}
@@ -124,7 +136,7 @@ func memoizedStringSlice(ctx *VerifyContext, fullKey string, loader func() []str
 	loaded := loader()
 
 	memo.mu.Lock()
-	memo.slicesByKey[fullKey] = loaded
+	selectMap(memo)[key] = loaded
 	memo.mu.Unlock()
 	return loaded
 }

@@ -83,11 +83,20 @@ func loadBaselineFileBytes(ctx *vscope.VerifyContext, fallbackRoot, targetPath s
 	if baseRef == "" {
 		return nil, false
 	}
-	out, sErr := workspace.RunSafeGit(gitRoot, "show", baseRef+":"+filepath.ToSlash(rel))
-	if sErr != nil {
+	relSlash := filepath.ToSlash(rel)
+	out, sErr := workspace.RunSafeGit(gitRoot, "show", baseRef+":"+relSlash)
+	if sErr == nil {
+		return out, true
+	}
+	oldRel := vscope.ResolveRenamedBaselinePath(ctx, gitRoot, baseRef, relSlash)
+	if oldRel == "" || oldRel == relSlash {
 		return nil, false
 	}
-	return out, true
+	renamedOut, rShowErr := workspace.RunSafeGit(gitRoot, "show", baseRef+":"+oldRel)
+	if rShowErr != nil {
+		return nil, false
+	}
+	return renamedOut, true
 }
 
 func countBytesLines(data []byte) int {
@@ -229,7 +238,7 @@ func evaluateSingleDirFanOut(ctx *vscope.VerifyContext, root, relDir string, max
 	if curCount <= maxFiles {
 		return ""
 	}
-	if vscope.IsBrownfieldRatchetActive(ctx) {
+	if shouldRatchetLegacyDirFanOut(ctx, root) {
 		if baseCount, ok := countBaselineDirSourceFiles(ctx, root, absDir); ok {
 			ceil := maxInt(maxFiles, baseCount)
 			if curCount <= ceil {
@@ -241,6 +250,13 @@ func evaluateSingleDirFanOut(ctx *vscope.VerifyContext, root, relDir string, max
 	}
 	return fmt.Sprintf("%s has %d non-test source files (exceeds max %d) -> [1-TURN RECIPE: extract >=%d cohesive file(s) from %s into focused sub-packages]",
 		relDir, curCount, maxFiles, curCount-maxFiles, relDir)
+}
+
+func shouldRatchetLegacyDirFanOut(ctx *vscope.VerifyContext, root string) bool {
+	if vscope.IsBrownfieldRatchetActive(ctx) {
+		return true
+	}
+	return ctx != nil && !ctx.Strict && !ctx.AllFiles && vscope.IsWorktreeContext(ctx, root)
 }
 
 func countDirNonTestSourceFiles(absDir string) int {

@@ -161,3 +161,43 @@ func collectUncommittedPolyglotFiles(dir string, modified map[string]bool) {
 		}
 	}
 }
+
+// ResolveRenamedBaselinePath maps a moved file path back to its baseline path using git diff -M50% (@intent intent.md tree_sitter_ast_gate_spec.md).
+func ResolveRenamedBaselinePath(ctx *VerifyContext, gitRoot, baseRef, currentRelSlash string) string {
+	if gitRoot == "" || baseRef == "" || currentRelSlash == "" {
+		return ""
+	}
+	key := gitRoot + "|" + baseRef
+	renames := MemoizedRenameMap(ctx, key, func() map[string]string {
+		out, err := workspace.RunSafeGit(gitRoot, "diff", "-z", "--find-renames=50%", "--name-status", baseRef)
+		if err != nil || len(out) == 0 {
+			return map[string]string{}
+		}
+		return parseGitNameStatusRenames(out)
+	})
+	return renames[filepath.ToSlash(currentRelSlash)]
+}
+
+func parseGitNameStatusRenames(rawZ []byte) map[string]string {
+	tokens := strings.Split(string(rawZ), "\x00")
+	renames := make(map[string]string)
+	for i := 0; i < len(tokens); i++ {
+		tok := tokens[i]
+		if tok == "" {
+			continue
+		}
+		code := tok[0]
+		if code == 'R' || code == 'C' {
+			if i+2 >= len(tokens) {
+				break
+			}
+			if code == 'R' && tokens[i+1] != "" && tokens[i+2] != "" {
+				renames[filepath.ToSlash(tokens[i+2])] = filepath.ToSlash(tokens[i+1])
+			}
+			i += 2
+			continue
+		}
+		i++
+	}
+	return renames
+}

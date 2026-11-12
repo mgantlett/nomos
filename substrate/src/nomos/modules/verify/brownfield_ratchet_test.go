@@ -224,3 +224,32 @@ func TestPackageFanOutGate_StrictAndBrownfieldRatchet(t *testing.T) {
 	}
 	assertContainsAllSubstrings(t, resStrict.Message, "pkg/crowded has 43 non-test source files (exceeds max 40)", "1-TURN RECIPE: extract >=3 cohesive file(s)")
 }
+
+// @verifies TC-TS-13
+func TestRenameAwareRatchet_GitMvPreservesLegacyBaselines(t *testing.T) {
+	repo, wt := setupBrownfieldGitWorktreeFixture(t)
+	mustWriteGoFixture(t, filepath.Join(wt, "pkg", "engine", "sub", "keep_test.go"),
+		"package sub\nimport \"testing\"\nfunc TestMoved(t *testing.T) {\n\tif LegacyDispatch(1) != 2 { t.Fatal(\"bad\") }\n}\n")
+	if out, err := workspace.SafeGitCommand(wt, "mv", "pkg/engine/legacy.go", "pkg/engine/sub/legacy.go").CombinedOutput(); err != nil {
+		t.Fatalf("git mv failed: %v (%s)", err, string(out))
+	}
+	movedSrc := strings.Replace(buildLegacyGoSource(22, ""), "package engine", "package sub", 1)
+	mustWriteGoFixture(t, filepath.Join(wt, "pkg", "engine", "sub", "legacy.go"), movedSrc)
+	mustWriteGoFixture(t, filepath.Join(wt, "pkg", "engine", "legacy_test.go"), "package engine\nimport \"testing\"\nfunc TestRoot(t *testing.T) {}\n")
+
+	ctx := &vscope.VerifyContext{RepoRoot: repo, WorktreePath: wt, TaskID: "SUB-1", Phase: "REVIEW"}
+	for _, g := range []vscope.Gate{&MaxFileLOCGate{}, &ComplexityGate{}, &CognitiveDebtGate{}} {
+		res, err := g.Evaluate(ctx)
+		if err != nil || !res.Passed {
+			t.Fatalf("expected %s to preserve brownfield baseline across git mv, got res=%+v err=%v", g.Name(), res, err)
+		}
+	}
+
+	// Bloating moved function beyond its pre-move baseline still fails closed.
+	bloatedMoved := strings.Replace(buildLegacyGoSource(24, ""), "package engine", "package sub", 1)
+	mustWriteGoFixture(t, filepath.Join(wt, "pkg", "engine", "sub", "legacy.go"), bloatedMoved)
+	compRes, err := (&ComplexityGate{}).Evaluate(ctx)
+	if err != nil || compRes.Passed {
+		t.Fatalf("expected ComplexityGate to reject post-move complexity bloat above baseline, got %+v", compRes)
+	}
+}

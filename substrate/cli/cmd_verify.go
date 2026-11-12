@@ -103,11 +103,14 @@ func runVerificationOutput(out io.Writer, targetDir, commitRange string, baselin
 		CommitRange: strings.TrimSpace(commitRange), IsBaseline: baseline,
 		AllFiles: allFiles, Strict: strict, Phase: "REVIEW",
 	}
+	if tryRenderCachedVerifyReceipt(out, ctx, jsonOutput) {
+		return nil
+	}
 
 	pipeline := verify.NewPipeline(verify.DefaultBaselineGates())
 	report, err := pipeline.Execute(ctx)
 	diag.RecordVerificationAnomalies(repoRoot, activeTask, "verify", report, err)
-	syncVerifyCommandReceipt(repoRoot, targetDir, activeTask, commitRange, baseline, report)
+	syncVerifyCommandReceipt(repoRoot, targetDir, activeTask, commitRange, baseline, strict, report)
 	if err != nil {
 		return err
 	}

@@ -25,13 +25,17 @@ var (
 	sqlAllowlistHintRe = regexp.MustCompile(`(?i)(?:allow|valid|whitelist|permitted|\.get\s*\(|\bin\s*[\(\[\{])`)
 	goSprintfSQLRe     = regexp.MustCompile(`(?is)fmt\.Sprintf\s*\(\s*["` + "`" + `]\s*(?:SELECT|INSERT|UPDATE|DELETE)\b[^"` + "`" + `]*?%[svq]`)
 
-	baseDirParamRe    = regexp.MustCompile(`\b(?:base_dir|baseDir|root_dir|rootDir)\b`)
-	fileReadSinkRe    = regexp.MustCompile(`(?:\.read_text\s*\(|\bopen\s*\(|\bos\.ReadFile\s*\(|\bfs\.readFileSync\s*\()`)
-	safePathConfineRe = regexp.MustCompile(`(?:relative_to\s*\(|is_relative_to\s*\(|commonpath\s*\(|filepath\.Rel\s*\(|os\.sep|\+\s*["']/["'])`)
+	baseDirParamRe     = regexp.MustCompile(`\b(?:base_dir|baseDir|root_dir|rootDir)\b`)
+	pyBaseDirSlashRe   = regexp.MustCompile(`(?:Path\s*\(\s*(?:base_dir|baseDir|root_dir|rootDir)\s*\)|(?:base_dir|baseDir|root_dir|rootDir))\s*/\s*([A-Za-z_][A-Za-z0-9_]*)`)
+	baseDirJoinCallRe  = regexp.MustCompile(`(?:filepath\.Join|path\.Join|path\.join|path\.resolve|os\.path\.join)\s*\(\s*(?:base_dir|baseDir|root_dir|rootDir)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)`)
+	fileReadSinkRe     = regexp.MustCompile(`(?:\.read_text\s*\(|\bopen\s*\(|\bos\.ReadFile\s*\(|\bfs\.readFileSync\s*\()`)
+	safePathConfineRe  = regexp.MustCompile(`(?:relative_to\s*\(|is_relative_to\s*\(|commonpath\s*\(|filepath\.Rel\s*\(|filepath\.Separator|os\.sep|\+\s*["']/["'])`)
+	constTokenSuffixes = []string{"Token", "FileName", "DirName", "Const"}
 )
 
 // DetectPolyglotCWESinks scans a non-test source file for CWE-89 dynamic SQL injection
 // and CWE-22 unconfined base-directory path traversal sinks.
+// @intent intent.md tree_sitter_ast_gate_spec.md
 func DetectPolyglotCWESinks(relFile string, data []byte) []string {
 	slashRel := filepath.ToSlash(relFile)
 	if isCWESkippedFile(slashRel) {
@@ -42,7 +46,7 @@ func DetectPolyglotCWESinks(relFile string, data []byte) []string {
 	if msg := detectCWE89SQLSink(src); msg != "" {
 		hits = append(hits, msg)
 	}
-	if msg := detectCWE22PathSink(src); msg != "" {
+	if msg := detectCWE22PathSink(slashRel, src); msg != "" {
 		hits = append(hits, msg)
 	}
 	return hits
@@ -69,14 +73,52 @@ func detectCWE89SQLSink(src string) string {
 	return ""
 }
 
-func detectCWE22PathSink(src string) string {
-	if !baseDirParamRe.MatchString(src) || !fileReadSinkRe.MatchString(src) {
+func detectCWE22PathSink(slashRel, src string) string {
+	if !baseDirParamRe.MatchString(src) || !fileReadSinkRe.MatchString(src) || safePathConfineRe.MatchString(src) {
 		return ""
 	}
-	if safePathConfineRe.MatchString(src) {
+	if !hasDynamicBaseDirSubpathJoin(src) {
 		return ""
 	}
-	return "CWE-22 unconfined path join/read from base_dir without canonical resolve + relative_to/filepath.Rel confinement (SecurityGate) -> [1-TURN RECIPE: root = Path(base_dir).resolve(); target = (root / rel).resolve(); call target.relative_to(root) before reading]"
+	return "CWE-22 unconfined path join/read from base_dir without canonical resolve + relative_to/filepath.Rel confinement (SecurityGate) -> " + cwe22LanguageRecipe(slashRel)
+}
+
+func hasDynamicBaseDirSubpathJoin(src string) bool {
+	for _, m := range pyBaseDirSlashRe.FindAllStringSubmatch(src, -1) {
+		if len(m) > 1 && !isConstantSubpathIdent(src, m[1]) {
+			return true
+		}
+	}
+	for _, m := range baseDirJoinCallRe.FindAllStringSubmatch(src, -1) {
+		if len(m) > 1 && !isConstantSubpathIdent(src, m[1]) {
+			return true
+		}
+	}
+	return false
+}
+
+func isConstantSubpathIdent(src, ident string) bool {
+	if ident == strings.ToUpper(ident) && len(ident) > 1 {
+		return true
+	}
+	for _, suf := range constTokenSuffixes {
+		if strings.HasSuffix(ident, suf) {
+			return true
+		}
+	}
+	declRe := regexp.MustCompile(`(?m)^\s*(?:const\s+` + regexp.QuoteMeta(ident) + `\b|` + regexp.QuoteMeta(ident) + `\s*=\s*["'])`)
+	return declRe.MatchString(src)
+}
+
+func cwe22LanguageRecipe(slashRel string) string {
+	switch strings.ToLower(filepath.Ext(slashRel)) {
+	case ".go":
+		return "[1-TURN RECIPE: absBase, _ := filepath.Abs(baseDir); absTarget, _ := filepath.Abs(filepath.Join(absBase, rel)); verify relOut, err := filepath.Rel(absBase, absTarget) has err == nil && !strings.HasPrefix(relOut, \"..\") before os.ReadFile]"
+	case ".js", ".ts":
+		return "[1-TURN RECIPE: const root = path.resolve(baseDir); const target = path.resolve(root, rel); verify !path.relative(root, target).startsWith('..') before reading]"
+	default:
+		return "[1-TURN RECIPE: root = Path(base_dir).resolve(); target = (root / rel).resolve(); call target.relative_to(root) before reading]"
+	}
 }
 
 func scanRatchetedCWELeaks(ctx *vscope.VerifyContext, wtRoot, absPath, relFile string, data []byte) []string {

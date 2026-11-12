@@ -226,3 +226,41 @@ func TestRebaseOntoTrunkBeforeVerify_DivergedRebaseAndCleanConflictAbort(t *test
 		t.Fatal("expected worktree status to remain clean after rebase --abort rollback")
 	}
 }
+
+// TestWorkingTreeVerifyReceipt_UnstagedToPreCommitToSync verifies that an unstaged
+// 'nomos verify' pass stamps a temp-index working-tree SHA receipt that is reused across
+// staged pre-commit and clean post-commit sync, while rejecting partial staging.
+// @verifies TC-SYNC-024
+func TestWorkingTreeVerifyReceipt_UnstagedToPreCommitToSync(t *testing.T) {
+	repoDir, wtDir := initDedupTestRepoAndWorktree(t, "SUB-105")
+	t.Chdir(wtDir)
+
+	updatedSrc := "package deduptest\n\n// Double multiplies v by two.\nfunc Double(v int) int { return v * 2 }\n\n// Quad multiplies v by four.\nfunc Quad(v int) int { return v * 4 }\n"
+	mustWriteTestFile(t, filepath.Join(wtDir, constants.DirSubstrate, "calc.go"), updatedSrc)
+
+	baseNow := time.Now()
+	saveWorktreeVerifyReceiptWithStrict(repoDir, wtDir, "SUB-105", true, syntheticPassingPipelineReport(), baseNow)
+
+	if loadValidWorkingTreeVerifyReceipt(repoDir, wtDir, "SUB-105", true, baseNow.Add(time.Second)) == nil {
+		t.Fatal("expected unstaged working-tree receipt hit immediately after unstaged verify")
+	}
+
+	mustRunGit(t, wtDir, "add", "-A")
+	if loadValidWorkingTreeVerifyReceipt(repoDir, wtDir, "SUB-105", false, baseNow.Add(2*time.Second)) == nil {
+		t.Fatal("expected staged pre-commit index to reuse identical working-tree SHA receipt")
+	}
+
+	mustWriteTestFile(t, filepath.Join(wtDir, constants.DirSubstrate, "extra.go"), "package deduptest\n")
+	if loadValidWorkingTreeVerifyReceipt(repoDir, wtDir, "SUB-105", false, baseNow.Add(3*time.Second)) != nil {
+		t.Fatal("expected partially staged worktree with untracked file to miss receipt cache")
+	}
+	if err := os.Remove(filepath.Join(wtDir, constants.DirSubstrate, "extra.go")); err != nil {
+		t.Fatal(err)
+	}
+
+	commitMsg := "[SUB-105] feat(calc): add Quad helper\n\nAdds Quad helper for working-tree receipt cache testing.\n\n___\nTask: SUB-105\n"
+	mustRunGit(t, wtDir, "commit", "--no-verify", "-m", commitMsg)
+	if loadValidWorktreeVerifyReceipt(repoDir, wtDir, "SUB-105", baseNow.Add(4*time.Second)) == nil {
+		t.Fatal("expected post-commit clean HEAD^{tree} to reuse unstaged verify receipt during sync")
+	}
+}

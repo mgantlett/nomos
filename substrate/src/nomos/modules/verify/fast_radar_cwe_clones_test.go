@@ -75,3 +75,53 @@ func TestFormatRatchetedBreachWithRecipe_AndCWERecipes(t *testing.T) {
 		t.Fatalf("expected 1-turn CWE-22 recipe, got: %v", cweHits)
 	}
 }
+
+// @verifies TC-TS-14
+func TestDetectCWE22PathSink_PrecisionAndLanguageRecipes(t *testing.T) {
+	cases := []struct {
+		name       string
+		relFile    string
+		src        string
+		wantBreach bool
+		wantSubstr string
+	}{
+		{
+			name:       "go_dynamic_join_breach_emits_go_recipe",
+			relFile:    "pkg/store/reader.go",
+			src:        "package store\nimport (\"os\"; \"path/filepath\")\nfunc ReadItem(baseDir, relPath string) ([]byte, error) {\n\treturn os.ReadFile(filepath.Join(baseDir, relPath))\n}\n",
+			wantBreach: true,
+			wantSubstr: "filepath.Rel(absBase, absTarget)",
+		},
+		{
+			name:       "ts_dynamic_join_breach_emits_js_recipe",
+			relFile:    "src/store/reader.ts",
+			src:        "import fs from 'fs'; import path from 'path';\nexport function readItem(baseDir: string, rel: string) {\n  return fs.readFileSync(path.join(baseDir, rel), 'utf8');\n}\n",
+			wantBreach: true,
+			wantSubstr: "path.relative(root, target)",
+		},
+		{
+			name:       "go_constant_subpath_passes_cleanly",
+			relFile:    "substrate/cli/hooks.go",
+			src:        "package cli\nimport (\"os\"; \"path/filepath\")\nconst claudeDirToken = \".claude\"\nfunc load(baseDir string) ([]byte, error) {\n\tp := filepath.Join(baseDir, claudeDirToken, \"settings.json\")\n\treturn os.ReadFile(p)\n}\n",
+			wantBreach: false,
+		},
+		{
+			name:       "go_filepath_separator_confinement_passes",
+			relFile:    "pkg/store/safe.go",
+			src:        "package store\nimport (\"os\"; \"path/filepath\"; \"strings\")\nfunc ReadSafe(baseDir, rel string) ([]byte, error) {\n\tp := filepath.Join(baseDir, rel)\n\tif !strings.HasPrefix(p, baseDir+string(filepath.Separator)) { return nil, nil }\n\treturn os.ReadFile(p)\n}\n",
+			wantBreach: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			hits := DetectPolyglotCWESinks(tc.relFile, []byte(tc.src))
+			if tc.wantBreach && (len(hits) == 0 || !strings.Contains(hits[0], tc.wantSubstr)) {
+				t.Fatalf("expected CWE-22 hit containing %q, got %v", tc.wantSubstr, hits)
+			}
+			if !tc.wantBreach && len(hits) != 0 {
+				t.Fatalf("expected zero CWE-22 hits, got %v", hits)
+			}
+		})
+	}
+}
