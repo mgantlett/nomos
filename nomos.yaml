@@ -74,3 +74,4 @@ governance:
             min_clone_lines: 18
             max_func_params: 8
             max_magic_string_duplication: 10
+            max_package_files: 40

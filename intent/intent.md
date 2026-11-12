@@ -26,12 +26,14 @@ lineage:
   - SUB-2280
   - INT-1986
   - SUB-2281
+  - INT-1987
+  - SUB-2283
 plane: intent
 ssot_repository: nomos
 status: active
 title: "The Nomos Layer 0 North Star Charter and 4-Layer Progressive Intent Compiler"
 type: spec
-version: "4.16.0"
+version: "4.17.0"
 ---
 
 # The Nomos Layer 0 North Star Charter and 4-Layer Progressive Intent Compiler
@@ -92,8 +94,8 @@ Instead of scattered task notes, `intent/architecture/specs/` maintains **8 Cano
 | :---: | :--- | :--- | :--- |
 | **1** | `go_ssot_and_json_schema_spec.md` | `core/config`, `core/types` | `EcosystemConfig`, `QualityGatesConfig`, `ThresholdsConfig`, `JSONSchemaNode`, `NomosError`, `ActionAffordance`, `PhaseState`, `PolyglotWorkspaceManifest` |
 | **2** | `nomos_hermetic_worktree_spec.md` | `core/workspace`, `core/capbac`, `modules/verify` | `Manager`, `WorktreeSession`, `EmbeddedAsset`, `ParityAuditReport`, `CapBACLease`, `CapabilityFlowGraph`, `CredentialReadPolicy`, `MCPInvocation`, `CommitSchemaGate` |
-| **3** | `task_lifecycle_cli_spec.md` | `modules/task`, `core/storage`, `cli` | `TaskRecord`, `TaskCardInput`, `WavefrontCandidate`, `ReleaseNotePayload`, `ReleaseHookTrace`, `RuntimeMaintainReport`, `IssueReport`, `UpdateReport`, `UpdateCheckCache` |
-| **4** | `nomos_intent_traceability_spec.md` | `modules/verify`, `core/config` | `ContractsConfig`, `ArchitectureBoundaryRule`, `StaleSpecObligation`, `CanonicalMatrixModel`, `InvariantCellSpec`, `GateSpec`, `PipelineReport`, `ProofReport`, `AntiShimDTO` |
+| **3** | `task_lifecycle_cli_spec.md` | `modules/task`, `core/storage`, `cli/*` | `TaskRecord`, `TaskCardInput`, `WavefrontCandidate`, `ReleaseNotePayload`, `ReleaseHookTrace`, `RuntimeMaintainReport`, `IssueReport`, `UpdateReport`, `UpdateCheckCache` |
+| **4** | `nomos_intent_traceability_spec.md` | `modules/verify/*`, `core/config` | `ContractsConfig`, `ArchitectureBoundaryRule`, `StaleSpecObligation`, `CanonicalMatrixModel`, `InvariantCellSpec`, `GateSpec`, `PipelineReport`, `ProofReport`, `AntiShimDTO` |
 | **5** | `tree_sitter_ast_gate_spec.md` | `modules/verify/treesitter` | `FunctionMetric`, `FileMetric`, `GateEvaluationReport`, `EngineThresholds`, `SCMQuerySpec`, `WazeroTreeSitterEngine` |
 | **6** | `mneme_memory_spec.md` | `modules/mem` | `Memory`, `MemoryKind`, `MemoryStatus`, `MemoryFilter`, `SearchOptions`, `SearchResult`, `GateTrapEntry`, `PitfallHygieneReport`, `MaintainReport` |
 | **7** | `nomos_controlled_technical_english_spec.md` | `modules/ncte`, `modules/handshake` | `NCTEBounds`, `NCTEPolicy`, `VocabularyEntry`, `NCTEDiagnostic`, `NCTESpecReport`, `IntentSteelmanGate`, `HandshakeEvent`, `BrownfieldTopologyBrief` |
