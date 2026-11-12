@@ -85,10 +85,27 @@ func (g *ReleaseReceiptGate) Name() string {
 }
 
 // Evaluate verifies that release provenance and git notes infrastructure operate cleanly.
+// @intent intent.md task_lifecycle_cli_spec.md #ReleaseNotePayload
 func (g *ReleaseReceiptGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	repoRoot := "."
-	if ctx != nil && ctx.RepoRoot != "" {
-		repoRoot = ctx.RepoRoot
+	evalRoot := "."
+	if ctx != nil {
+		if ctx.RepoRoot != "" {
+			repoRoot = ctx.RepoRoot
+			evalRoot = ctx.RepoRoot
+		}
+		if ctx.WorktreePath != "" {
+			evalRoot = ctx.WorktreePath
+		}
+	}
+
+	if airlockMsg, airlockRemedy := vscope.EvaluatePreTagReleaseAirlock(ctx, evalRoot); airlockMsg != "" {
+		return &vscope.GateResult{
+			GateName: g.Name(),
+			Passed:   false,
+			Message:  airlockMsg,
+			Remedy:   airlockRemedy,
+		}, nil
 	}
 
 	showCmd := workspace.SafeGitCommand(repoRoot, "notes", "--ref=refs/notes/nomos/releases", "show", "HEAD")

@@ -8,7 +8,7 @@ import (
 
 )
 
-// @verifies TC-SYNC-021
+// @verifies TC-SYNC-021 TC-SYNC-023
 func TestSanitizeAndValidateWalkthrough_AirlockAndNormalization(t *testing.T) {
 	repoRoot := filepath.Join(t.TempDir(), "acme-repo")
 	wtPath := filepath.Join(repoRoot, "worktrees", "acme-repo-SUB-42")
@@ -20,13 +20,13 @@ func TestSanitizeAndValidateWalkthrough_AirlockAndNormalization(t *testing.T) {
 		t.Fatalf("WriteFile nomos.yaml: %v", err)
 	}
 
-	raw := "## Summary\nUpdated [README.md](file://" + filepath.ToSlash(repoRoot) + "/README.md) inside " + filepath.ToSlash(wtPath) + "/substrate/app.go and /home/alice/custom/note.txt.\n"
+	raw := "## Summary\nUpdated [README.md](file://" + filepath.ToSlash(repoRoot) + "/README.md) \u2014 inside " + filepath.ToSlash(wtPath) + "/substrate/app.go and /home/alice/custom/note.txt.\n"
 	clean, err := SanitizeAndValidateWalkthrough(repoRoot, wtPath, raw, []string{"README.md", "substrate/app.go"})
 	if err != nil {
 		t.Fatalf("expected clean normalization, got error: %v", err)
 	}
-	if strings.Contains(clean, "file://") || strings.Contains(clean, repoRoot) || strings.Contains(clean, "/home/alice/") {
-		t.Fatalf("expected file://, repoRoot, and /home/alice/ scrubbed, got: %s", clean)
+	if strings.Contains(clean, "file://") || strings.Contains(clean, repoRoot) || strings.Contains(clean, "/home/alice/") || strings.ContainsRune(clean, '\u2014') {
+		t.Fatalf("expected file://, repoRoot, /home/alice/, and em-dash scrubbed, got: %s", clean)
 	}
 	if !strings.Contains(clean, "[README.md](README.md)") || !strings.Contains(clean, "substrate/app.go") {
 		t.Fatalf("expected repo-relative paths preserved, got: %s", clean)

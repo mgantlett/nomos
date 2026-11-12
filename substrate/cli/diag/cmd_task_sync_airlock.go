@@ -13,7 +13,7 @@ import (
 // SanitizeAndValidateWalkthrough normalizes workspace and file:// URI paths to repository-relative
 // coordinates, scrubs host home directories, and rejects live credentials or prohibited boundary
 // package paths before 2PC merge and Git Notes persistence.
-// @intent task_lifecycle_cli_spec.md #ReleaseNotePayload
+// @intent intent.md task_lifecycle_cli_spec.md #ReleaseNotePayload
 func SanitizeAndValidateWalkthrough(repoRoot, wtPath, raw string, touchedFiles []string) (string, error) {
 	if strings.TrimSpace(raw) == "" {
 		return "", nil
@@ -24,7 +24,7 @@ func SanitizeAndValidateWalkthrough(repoRoot, wtPath, raw string, touchedFiles [
 			WithRemedy("remove all tokens, API keys, and private keys from the walkthrough file before running 'nomos task sync'")
 	}
 
-	normalized := normalizeWorkspacePathsInWalkthrough(raw, repoRoot, wtPath)
+	normalized := normalizeReleaseProseDashes(normalizeWorkspacePathsInWalkthrough(raw, repoRoot, wtPath))
 	scrubbed := SanitizeDiagnosticText(normalized, repoRoot)
 
 	if err := checkWalkthroughProhibitedPackages(repoRoot, scrubbed, touchedFiles); err != nil {
@@ -38,7 +38,12 @@ func NormalizeAndScrubWalkthrough(repoRoot, wtPath, raw string) string {
 	if strings.TrimSpace(raw) == "" {
 		return ""
 	}
-	return SanitizeDiagnosticText(normalizeWorkspacePathsInWalkthrough(raw, repoRoot, wtPath), repoRoot)
+	return SanitizeDiagnosticText(normalizeReleaseProseDashes(normalizeWorkspacePathsInWalkthrough(raw, repoRoot, wtPath)), repoRoot)
+}
+
+func normalizeReleaseProseDashes(text string) string {
+	r := strings.NewReplacer(" \u2014 ", " - ", "\u2014", " - ", " \u2013 ", " - ", "\u2013", "-")
+	return r.Replace(text)
 }
 
 func detectRawCredentialInWalkthrough(raw string) string {
