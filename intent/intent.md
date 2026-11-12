@@ -36,6 +36,8 @@ lineage:
   - SUB-2340
   - INT-2000
   - SUB-2342
+  - INT-2001
+  - SUB-2343
 plane: intent
 ssot_repository: nomos
 status: active

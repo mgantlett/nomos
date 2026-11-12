@@ -12,6 +12,8 @@ lineage:
   - SUB-2340
   - INT-2000
   - SUB-2342
+  - INT-2001
+  - SUB-2343
 plane: intent
 ssot_repository: nomos
 status: active
@@ -248,17 +250,18 @@ The system rejects unregistered synonyms.
 
 ---
 
-## 6. Canonical Specification Structural Blueprint (`IntentSteelmanGate` v4.8)
+## 6. Canonical Specification Structural Blueprint (`IntentSteelmanGate`)
 
-`IntentSteelmanGate` (`Cell 4.1`, `intent_steelman`) in `substrate/src/nomos/modules/verify/intent_steelman.go` enforces the v4.8 Canonical Specification Structural Blueprint across `intent/`:
+`IntentSteelmanGate` (`Cell 4.1`, `intent_steelman`) in `substrate/src/nomos/modules/verify/intent_steelman.go` enforces the Canonical Specification Structural Blueprint across `intent/`:
 
 1. **Flat Intent Topology (Law 6):**
    - Every Intent Markdown file resides at `intent/intent.md` or flat `intent/architecture/specs/*_spec.md`.
    - The blueprint prohibits `handbook/` directories and nested subdirectories inside `intent/architecture/specs/`.
-2. **YAML Frontmatter Allowlist (Law 4):**
-   - Specifications declare 10 required keys (`authors`, `classification`, `date`, `last_updated`, `plane`, `ssot_repository`, `status`, `title`, `type: spec`, `version`).
-   - Specifications accept one optional `lineage` key listing sorted `INT-<N>` and `SUB-<N>` task keys.
-   - The gate rejects `trigger`, `tags`, `execution_frontier`, and all unregistered frontmatter keys.
+2. **YAML Frontmatter & Lineage SSoT (Law 4 & Law 6):**
+   - Specifications declare 9 required metadata keys (`authors`, `classification`, `date`, `last_updated`, `plane`, `ssot_repository`, `status`, `title`, `type: spec`) plus a non-empty `lineage` list.
+   - The `lineage` list records canonical `INT-<N>` and `SUB-<N>` task keys as the document revision Single Source of Truth.
+   - Active `INT-<N>` branches that mutate a canonical specification append `INT-<N>` to `lineage`.
+   - The gate rejects `version`, `trigger`, `tags`, `execution_frontier`, and all unregistered frontmatter keys.
 3. **Clean Post-H1 Opening (Law 6):**
    - Documents open after YAML frontmatter with `# <Title>`, one `---` divider, and `## 1. Executive Summary & Problem Statement`.
    - The blueprint prohibits pre-section preambles, role headers, callouts, and metadata lists before Section 1.
@@ -347,6 +350,8 @@ The table below defines deterministic verification vectors for `ncte.Engine` and
 | `TC-NCTE-06` | `"Please check the root branch sandbox before submitting your changes."` | Procedural | 10 | `ERR_NCTE_NON_SINGULAR_TERM` | **false** |
 | `TC-NCTE-07` | `"Ensure the parser performance is very fast and extremely robust under heavy concurrency."` | Procedural | 12 | `ERR_NCTE_SUBJECTIVE_ASSERTION` | **false** |
 | `TC-NCTE-08` | `"Specification missing Go SSoT block or contiguous H2 spine under strict_mode."` | Structural | 11 | `intent_steelman` rejection | **false** |
+| `TC-NCTE-09` | `"Reject SemVer version key or empty lineage in strict Intent frontmatter."` | Structural | 11 | `intent_steelman` rejection | **false** |
+| `TC-NCTE-10` | `"Reject mutated canonical specification missing active INT-<N> key in lineage."` | Structural | 10 | `intent_steelman` rejection | **false** |
 | `TC-JIT-01` | `"Execute nomos handshake on session boot."` | Procedural | 6 | None (`HandshakeEvent` emitted) | **true** |
 | `TC-JIT-02` | `"Emit BrownfieldTopologyBrief with discovered source roots and test runners."` | Procedural | 9 | None (`BrownfieldTopology` populated) | **true** |
 | `TC-JIT-03` | `"Surface active LearnedPitfalls and VerifiedPatterns in HandshakeEvent."` | Procedural | 7 | None (`LearnedPitfalls` attached) | **true** |
