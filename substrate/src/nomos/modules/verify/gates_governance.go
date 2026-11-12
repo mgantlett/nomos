@@ -4,6 +4,8 @@ package verify
 import (
 	"bufio"
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/polyrun"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -15,9 +17,9 @@ import (
 )
 
 func init() {
-	RegisterGate("forbidden_literals", func() Gate { return &ForbiddenLiteralsGate{} })
-	RegisterGate("dead_code", func() Gate { return &DeadCodeGate{} })
-	RegisterGate("review_receipt", func() Gate { return &ReviewReceiptGate{} })
+	RegisterGate("forbidden_literals", func() vscope.Gate { return &ForbiddenLiteralsGate{} })
+	RegisterGate("dead_code", func() vscope.Gate { return &DeadCodeGate{} })
+	RegisterGate("review_receipt", func() vscope.Gate { return &ReviewReceiptGate{} })
 }
 
 // ForbiddenLiteralsGate verifies that no hardcoded paths exist in source files.
@@ -27,18 +29,18 @@ type ForbiddenLiteralsGate struct{}
 func (g *ForbiddenLiteralsGate) Name() string { return "Forbidden Literals Invariant" }
 
 // Evaluate scans source files against forbidden path and IP literal patterns.
-func (g *ForbiddenLiteralsGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *ForbiddenLiteralsGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := ctx.WorktreePath
 	if root == "" {
 		root = ctx.RepoRoot
 	}
-	cfg := resolveVerifyConfig(ctx)
+	cfg := vscope.ResolveVerifyConfig(ctx)
 	patterns := cfg.Governance.QualityGates.ForbiddenLiterals
 	if len(patterns) == 0 && !cfg.Governance.QualityGates.HasForbiddenLiteralsOverride {
 		patterns = defaultForbiddenLiterals()
 	}
 	if len(patterns) == 0 {
-		return &GateResult{GateName: g.Name(), Passed: true, Message: "forbidden literal scanning disabled via empty configuration"}, nil
+		return &vscope.GateResult{GateName: g.Name(), Passed: true, Message: "forbidden literal scanning disabled via empty configuration"}, nil
 	}
 
 	cleanPatterns := make([]string, 0, len(patterns))
@@ -50,7 +52,7 @@ func (g *ForbiddenLiteralsGate) Evaluate(ctx *VerifyContext) (*GateResult, error
 	}
 
 	var violations []string
-	err := WalkTargetFiles(ctx, root, func(path string, info os.FileInfo, walkErr error) error {
+	err := vscope.WalkTargetFiles(ctx, root, func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil || info.IsDir() || !isScannableSourceFile(path) {
 			return nil
 		}
@@ -64,14 +66,14 @@ func (g *ForbiddenLiteralsGate) Evaluate(ctx *VerifyContext) (*GateResult, error
 	}
 
 	if len(violations) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(),
 			Passed:   false,
 			Message:  fmt.Sprintf("detected %d forbidden literal violation(s):\n    - %s", len(violations), strings.Join(violations, "\n    - ")),
 			Remedy:   "remove hardcoded filesystem paths; resolve dynamically via config.LoadConfig() (Law 5)",
 		}, nil
 	}
-	return &GateResult{GateName: g.Name(), Passed: true, Message: "zero forbidden literals detected"}, nil
+	return &vscope.GateResult{GateName: g.Name(), Passed: true, Message: "zero forbidden literals detected"}, nil
 }
 
 func defaultForbiddenLiterals() []string {
@@ -158,9 +160,9 @@ type DeadCodeGate struct{}
 func (g *DeadCodeGate) Name() string { return "Dead-Code Reachability Gate (Law 2)" }
 
 // Evaluate inspects CLI command registrations, gate registry parity, and internal package imports.
-func (g *DeadCodeGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *DeadCodeGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	if unexecuted := findUnexecutedRegisteredGates(); len(unexecuted) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: probeIDDeadCode, Law: 2, Ring: RingSyntactic,
 			Passed:  false,
 			Message: fmt.Sprintf("detected %d registered gate(s) excluded from CanonicalGateOrder: %s", len(unexecuted), strings.Join(unexecuted, ", ")),
@@ -170,7 +172,7 @@ func (g *DeadCodeGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 
 	root := resolveQualityRoot(ctx)
 	if orphanPkgs := findUnimportedInternalPackages(root); len(orphanPkgs) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: probeIDDeadCode, Law: 2, Ring: RingSyntactic,
 			Passed:  false,
 			Message: fmt.Sprintf("detected %d unimported internal Go package(s): %s", len(orphanPkgs), strings.Join(orphanPkgs, ", ")),
@@ -178,7 +180,7 @@ func (g *DeadCodeGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		}, nil
 	}
 	if orphanMods := findUnimportedPolyglotModules(ctx, root); len(orphanMods) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: probeIDDeadCode, Law: 2, Ring: RingSyntactic,
 			Passed:  false,
 			Message: fmt.Sprintf("detected %d unimported internal polyglot module(s): %s", len(orphanMods), strings.Join(orphanMods, ", ")),
@@ -186,9 +188,9 @@ func (g *DeadCodeGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		}, nil
 	}
 
-	cliDir := resolveNomosInternalCLIDir(ctx, root)
+	cliDir := polyrun.ResolveNomosInternalCLIDir(ctx, root)
 	if cliDir == "" {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: probeIDDeadCode, Law: 2, Ring: RingSyntactic,
 			Passed: true, Message: "no CLI directory detected; skipping reachability check",
 		}, nil
@@ -196,7 +198,7 @@ func (g *DeadCodeGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 
 	unreachable := findUnreachableCommands(cliDir)
 	if len(unreachable) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: probeIDDeadCode, Law: 2, Ring: RingSyntactic,
 			Passed:  false,
 			Message: fmt.Sprintf("detected %d unreachable command constructors: %s", len(unreachable), strings.Join(unreachable, ", ")),
@@ -204,7 +206,7 @@ func (g *DeadCodeGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		}, nil
 	}
 
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(), ProbeID: probeIDDeadCode, Law: 2, Ring: RingSyntactic,
 		Passed: true, Message: "all CLI command constructors, registered gates, and internal packages are reachable",
 	}, nil
@@ -344,10 +346,10 @@ type ReviewReceiptGate struct{}
 func (g *ReviewReceiptGate) Name() string { return "Review Receipt Gate" }
 
 // Evaluate asserts review readiness across lifecycle phases.
-func (g *ReviewReceiptGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *ReviewReceiptGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	phase := types.Phase(ctx.Phase)
 	if phase == types.PhaseEdit || phase == types.PhasePlan || phase == types.PhaseIdle || ctx.Phase == "" {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(),
 			Passed:   true,
 			Message:  fmt.Sprintf("phase %s does not require pre-commit review receipts", ctx.Phase),
@@ -360,7 +362,7 @@ func (g *ReviewReceiptGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		_, errRoot := os.Stat(walkthrough)
 		_, errTask := os.Stat(taskWalkthrough)
 		if os.IsNotExist(errRoot) && os.IsNotExist(errTask) {
-			return &GateResult{
+			return &vscope.GateResult{
 				GateName: g.Name(),
 				Passed:   false,
 				Message:  "missing required walkthrough receipt in .tmp/walkthrough.md for 2PC sync release",
@@ -369,7 +371,7 @@ func (g *ReviewReceiptGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		}
 	}
 
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(),
 		Passed:   true,
 		Message:  fmt.Sprintf("review receipts satisfied for phase %s", ctx.Phase),

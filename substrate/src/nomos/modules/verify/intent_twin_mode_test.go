@@ -1,6 +1,7 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"strings"
@@ -71,7 +72,7 @@ func TestThresholdIntegrityGate_RejectsIntentTwinModeDowngrade(t *testing.T) {
 	}
 
 	gate := &ThresholdIntegrityGate{}
-	res, err := gate.Evaluate(&VerifyContext{RepoRoot: trunkDir, WorktreePath: wtDir})
+	res, err := gate.Evaluate(&vscope.VerifyContext{RepoRoot: trunkDir, WorktreePath: wtDir})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

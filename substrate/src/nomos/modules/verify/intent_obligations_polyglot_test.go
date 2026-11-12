@@ -1,6 +1,8 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"strings"
@@ -53,7 +55,7 @@ func TestPolyglotSpecSignaturesTraceabilityAndEnvGates(t *testing.T) {
 			"order_test.go", "test_order.py", "order_test.py", "order.test.ts", "order.spec.tsx",
 			"order_spec.rb", "OrderTest.java", "OrderTests.kt", "OrderTests.cs", "order_test.cpp",
 		} {
-			if !isVerificationSuiteFile(sample) {
+			if !impact.IsVerificationSuiteFile(sample) {
 				t.Fatalf("expected %s recognized as verification suite file", sample)
 			}
 		}
@@ -63,12 +65,12 @@ func TestPolyglotSpecSignaturesTraceabilityAndEnvGates(t *testing.T) {
 func assertPolyglotDriftAndOrphanEnvRejected(t *testing.T, tmp string) {
 	t.Helper()
 	gate := &IntentTraceabilityGate{}
-	ctx := &VerifyContext{RepoRoot: tmp, WorktreePath: tmp}
+	ctx := &vscope.VerifyContext{RepoRoot: tmp, WorktreePath: tmp}
 	resSig, err := gate.Evaluate(ctx)
 	if err != nil || resSig == nil || resSig.Passed || !strings.Contains(resSig.Message, "currency") || !strings.Contains(resSig.Message, "amount_cents") {
 		t.Fatalf("expected polyglot TS + Python field drift rejected, got: %+v, err=%v", resSig, err)
 	}
-	intRes, iErr := gate.Evaluate(&VerifyContext{RepoRoot: tmp, WorktreePath: tmp, TaskID: "INT-55"})
+	intRes, iErr := gate.Evaluate(&vscope.VerifyContext{RepoRoot: tmp, WorktreePath: tmp, TaskID: "INT-55"})
 	if iErr != nil || intRes == nil || intRes.Passed || !strings.Contains(intRes.Message, "#GhostType") {
 		t.Fatalf("expected INT-55 to skip SUB obligation checks and catch #GhostType, got: %+v, err=%v", intRes, iErr)
 	}
@@ -85,7 +87,7 @@ func assertPolyglotAlignedAndRSpecBound(t *testing.T, tmp, tsDir, pyDir, rbSpecD
 	mustWritePolyglotFile(t, filepath.Join(pyDir, "entry.py"), "# @intent billing_spec.md #LedgerEntry\nclass LedgerEntry:\n    entry_id: str\n    amount_cents: int\n")
 	mustWritePolyglotFile(t, filepath.Join(rbSpecDir, "billing_spec.rb"), "# @verifies TC-BIL-01\nRSpec.describe 'Billing' do\n  it 'validates invoice' do\n    expect(1).to eq(1)\n  end\nend\n")
 
-	ctx := &VerifyContext{RepoRoot: tmp, WorktreePath: tmp}
+	ctx := &vscope.VerifyContext{RepoRoot: tmp, WorktreePath: tmp}
 	gate := &IntentTraceabilityGate{}
 	if resPass, err := gate.Evaluate(ctx); err != nil || resPass == nil || !resPass.Passed {
 		t.Fatalf("expected polyglot IntentTraceabilityGate to pass cleanly, got: %+v, err=%v", resPass, err)

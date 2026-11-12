@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/cli/selfupdate"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -261,14 +262,14 @@ func TestMergeProtocolContent(t *testing.T) {
 	tmpl := []byte("<!-- NOMOS_OPEN_CORE_PROTOCOL_START -->\n# Nomos Protocol v4.0.0\n<!-- NOMOS_OPEN_CORE_PROTOCOL_END -->")
 
 	// Case 1: Empty input
-	merged := mergeProtocolContent([]byte(""), tmpl)
+	merged := selfupdate.MergeProtocolContent([]byte(""), tmpl)
 	if !strings.Contains(string(merged), "# Nomos Protocol v4.0.0") {
 		t.Errorf("expected template in empty merge: %s", string(merged))
 	}
 
 	// Case 2: Brownfield without markers (preserves custom instructions)
 	existingCustom := []byte("# Custom Project Rules\n- Use FastAPI\n- SQLite DB")
-	mergedBrownfield := mergeProtocolContent(existingCustom, tmpl)
+	mergedBrownfield := selfupdate.MergeProtocolContent(existingCustom, tmpl)
 	mStr := string(mergedBrownfield)
 	if !strings.Contains(mStr, "# Nomos Protocol v4.0.0") {
 		t.Errorf("expected Nomos protocol in brownfield merge")
@@ -279,7 +280,7 @@ func TestMergeProtocolContent(t *testing.T) {
 
 	// Case 3: In-place update when markers already exist
 	existingWithMarkers := []byte("# Header\n<!-- NOMOS_OPEN_CORE_PROTOCOL_START -->\n# Outdated v3.9.0\n<!-- NOMOS_OPEN_CORE_PROTOCOL_END -->\n# Footer")
-	updated := mergeProtocolContent(existingWithMarkers, tmpl)
+	updated := selfupdate.MergeProtocolContent(existingWithMarkers, tmpl)
 	uStr := string(updated)
 	if !strings.Contains(uStr, "# Header") || !strings.Contains(uStr, "# Footer") {
 		t.Errorf("expected header and footer preserved: %s", uStr)
@@ -338,7 +339,7 @@ func TestExecuteInit_BrownfieldMerge(t *testing.T) {
 	if !strings.Contains(cStr, "Claude Rules") || !strings.Contains(cStr, "concise markdown") {
 		t.Errorf("custom rules were lost in brownfield CLAUDE.md merge:\n%s", cStr)
 	}
-	if !hasClaudeAgentsImportLine(cStr) {
+	if !selfupdate.HasClaudeAgentsImportLine(cStr) {
 		t.Errorf("@AGENTS.md import pointer was not added to brownfield CLAUDE.md:\n%s", cStr)
 	}
 	if strings.Contains(cStr, "THE ONE-PAGE INVARIANT CARD") {
@@ -383,4 +384,3 @@ func initGitBrownfieldRepo(t *testing.T, dir string) {
 	_ = workspace.SafeGitCommand(dir, "add", ".").Run()
 	_ = workspace.SafeGitCommand(dir, "commit", "-m", "chore: initial brownfield commit").Run()
 }
-

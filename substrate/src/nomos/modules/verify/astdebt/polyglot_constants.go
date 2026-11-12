@@ -1,0 +1,35 @@
+// Package astdebt defines canonical polyglot extension and directory constants (Law 4 & Law 5).
+package astdebt
+
+const (
+	ExtGo     = ".go"
+	ExtPy     = ".py"
+	ExtTS     = ".ts"
+	ExtTSX    = ".tsx"
+	ExtJS     = ".js"
+	ExtJSX    = ".jsx"
+	ExtMJS    = ".mjs"
+	ExtCJS    = ".cjs"
+	ExtSvelte = ".svelte"
+	ExtRB     = ".rb"
+	ExtRake   = ".rake"
+	ExtRS     = ".rs"
+	ExtC      = ".c"
+	ExtH      = ".h"
+	ExtCPP    = ".cpp"
+	ExtCC     = ".cc"
+	ExtCXX    = ".cxx"
+	ExtHPP    = ".hpp"
+	ExtJava   = ".java"
+	ExtKT     = ".kt"
+	ExtKTS    = ".kts"
+	ExtCS     = ".cs"
+
+	DirTest      = "test"
+	DirTests     = "tests"
+	DirSpec      = "spec"
+	DirCoverage  = "coverage"
+	PrefixPyTest = "test_"
+	SuffixGoTest = "_test.go"
+	SuffixPyTest = "_test.py"
+)

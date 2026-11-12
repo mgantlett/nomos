@@ -95,6 +95,7 @@ var configFieldDescriptions = map[string]string{
 	"min_clone_lines":              "Minimum AST line span flagged as a structural Type-2 clone.",
 	"max_func_params":              "Maximum parameter count per function signature (statutory: 8).",
 	"max_magic_string_duplication": "Maximum repeated string literal occurrences per package.",
+	"max_package_files":            "Maximum non-test source files per package directory (statutory: 40).",
 }
 
 // GenerateConfigJSONSchema synthesizes the deterministic Draft 2020-12 JSON Schema

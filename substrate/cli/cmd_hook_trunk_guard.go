@@ -4,6 +4,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"path/filepath"
 	"strings"
 
@@ -18,14 +19,14 @@ func evaluateTrunkShellRedirectGuard(cmdLine, baseCwd, hermeticDir string) HookD
 	}
 	cwd := resolveInitialEvalDir(baseCwd)
 	for _, rawSeg := range splitUnquotedCommandSegments(cmdLine) {
-		segs, subs := parseShellCommandSegments(rawSeg)
+		segs, subs := tui.ParseShellCommandSegments(rawSeg)
 		for _, sub := range subs {
 			if dec := evaluateTrunkShellRedirectGuard(sub, cwd, hermeticDir); dec.Decision == hookDecisionDeny {
 				return dec
 			}
 		}
 		if len(segs) > 0 {
-			if nextCwd, ok := matchCdCommand(segs[0], cwd); ok {
+			if nextCwd, ok := tui.MatchCdCommand(segs[0], cwd); ok {
 				cwd = nextCwd
 				continue
 			}

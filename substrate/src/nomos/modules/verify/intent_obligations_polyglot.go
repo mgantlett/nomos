@@ -4,6 +4,8 @@ package verify
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -186,12 +188,12 @@ func collectPolyglotSourceTypeFields(root string) map[string]map[string]bool {
 			return nil
 		}
 		if info.IsDir() {
-			if isSkippedObligationDir(info.Name()) {
+			if impact.IsSkippedObligationDir(info.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		if strings.HasSuffix(p, ".go") || !isSupportedPolyglotSourceFile(p) || isVerificationSuiteFile(info.Name()) {
+		if strings.HasSuffix(p, ".go") || !vscope.IsSupportedPolyglotSourceFile(p) || impact.IsVerificationSuiteFile(info.Name()) {
 			return nil
 		}
 		scanPolyglotFileTypeFields(p, out)
@@ -218,12 +220,12 @@ func collectPolyglotDefinedTypeAnchors(root string, defined map[string]bool) {
 			return nil
 		}
 		if info.IsDir() {
-			if isSkippedObligationDir(info.Name()) {
+			if impact.IsSkippedObligationDir(info.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		if strings.HasSuffix(p, ".go") || !isSupportedPolyglotSourceFile(p) || isVerificationSuiteFile(info.Name()) {
+		if strings.HasSuffix(p, ".go") || !vscope.IsSupportedPolyglotSourceFile(p) || impact.IsVerificationSuiteFile(info.Name()) {
 			return nil
 		}
 		raw, rErr := os.ReadFile(p)

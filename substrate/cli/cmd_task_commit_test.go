@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"github.com/mgantlett/nomos/substrate/cli/commitmsg"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,11 +14,11 @@ import (
 )
 
 func TestFormatCommitMessage_ExplicitFlagsDividerAndGitTrailers(t *testing.T) {
-	opts := &commitCmdOptions{
-		summary:    "feat(verify): activate git trailer gate",
-		rationale:  "Enforce Law 1 and Law 6 with standard RFC 822 Task trailers while preserving [KEY] hemisphere visibility.",
-		mechanics:  "- Parse trailing Task and Twin Git trailers.\n- Reject raw git diff file dumps.",
-		taskRecord: &task.TaskRecord{Key: "SUB-1212", TwinKey: "INT-734"},
+	opts := &commitmsg.CommitCmdOptions{
+		Summary:    "feat(verify): activate git trailer gate",
+		Rationale:  "Enforce Law 1 and Law 6 with standard RFC 822 Task trailers while preserving [KEY] hemisphere visibility.",
+		Mechanics:  "- Parse trailing Task and Twin Git trailers.\n- Reject raw git diff file dumps.",
+		TaskRecord: &task.TaskRecord{Key: "SUB-1212", TwinKey: "INT-734"},
 	}
 
 	msg := formatCommitMessage("SUB-1212", opts)
@@ -132,13 +133,13 @@ func TestNormalizeCommitSubject_DeduplicationCasingAnd80RuneBudget(t *testing.T)
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := normalizeCommitSubject(tc.taskKey, tc.raw, tc.rec, tc.stagedFiles)
+			got := commitmsg.NormalizeCommitSubject(tc.taskKey, tc.raw, tc.rec, tc.stagedFiles)
 			if got != tc.want {
 				t.Errorf("normalizeCommitSubject() = %q, want %q", got, tc.want)
 			}
 			fullLine := "[" + tc.taskKey + "] " + got
-			if n := utf8.RuneCountInString(fullLine); n > targetSubjectLineRunes {
-				t.Errorf("full subject exceeded %d runes (%d): %q", targetSubjectLineRunes, n, fullLine)
+			if n := utf8.RuneCountInString(fullLine); n > commitmsg.TargetSubjectLineRunes {
+				t.Errorf("full subject exceeded %d runes (%d): %q", commitmsg.TargetSubjectLineRunes, n, fullLine)
 			}
 		})
 	}
@@ -148,7 +149,7 @@ func TestHydrateCommitMessage_SkipsVerificationSectionAndFlowsProse(t *testing.T
 	repoDir := workspace.InitHermeticGitRepo(t)
 	targetFile := filepath.Join(repoDir, "substrate", "cli", "widget.go")
 	if err := os.MkdirAll(filepath.Dir(targetFile), 0755); err != nil {
-		t.Fatalf("mkdir: %v", err)
+		t.Fatalf("mkDir: %v", err)
 	}
 	if err := os.WriteFile(targetFile, []byte("package cli\n\nfunc Widget() string { return \"ok\" }\n"), 0644); err != nil {
 		t.Fatalf("write widget.go: %v", err)
@@ -175,10 +176,10 @@ func TestHydrateCommitMessage_SkipsVerificationSectionAndFlowsProse(t *testing.T
 		t.Fatalf("write walkthrough: %v", err)
 	}
 
-	opts := &commitCmdOptions{
-		dir:             repoDir,
-		walkthroughFile: walkPath,
-		taskRecord: &task.TaskRecord{
+	opts := &commitmsg.CommitCmdOptions{
+		Dir:             repoDir,
+		WalkthroughFile: walkPath,
+		TaskRecord: &task.TaskRecord{
 			Key:         "SUB-88",
 			Title:       "Implement CLI widget helper",
 			Description: cardDesc,
@@ -205,7 +206,7 @@ func TestHydrateCommitMessage_SkipsVerificationSectionAndFlowsProse(t *testing.T
 }
 
 func TestResolveTaskKeyForCommit_Explicit(t *testing.T) {
-	opts := &commitCmdOptions{}
+	opts := &commitmsg.CommitCmdOptions{}
 	key, err := resolveTaskKeyForCommit([]string{"sub-1212"}, opts)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

@@ -3,6 +3,8 @@ package verify
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -11,57 +13,11 @@ import (
 	"strings"
 )
 
-// FileMetric records lines of code and cognitive debt score for a file (#FileMetric).
-type FileMetric struct {
-	Name string `json:"name"`
-	LOC  int    `json:"loc"`
-	CDS  int    `json:"cds"`
-}
-
-// FunctionMetric records complexity and LOC for an individual function (#FunctionMetric).
-type FunctionMetric struct {
-	File       string `json:"file"`
-	Line       int    `json:"line"`
-	Name       string `json:"name"`
-	Complexity int    `json:"complexity"`
-	LOC        int    `json:"loc"`
-}
-
-// Thresholds captures the numerical quality bounds for gates (#Thresholds).
-type Thresholds struct {
-	MinCoverage               float64 `json:"min_coverage"`
-	MinDocstringDensity       int     `json:"min_docstring_density"`
-	MinTraceabilityDensity    int     `json:"min_traceability_density"`
-	MaxCDS                    int     `json:"max_cds"`
-	MaxComplexity             int     `json:"max_complexity"`
-	MaxFuncLOC                int     `json:"max_func_loc"`
-	MaxFileLOC                int     `json:"max_file_loc"`
-	MaxFuncParams             int     `json:"max_func_params"`
-	MinCloneLines             int     `json:"min_clone_lines"`
-	MaxMagicStringDuplication int     `json:"max_magic_string_duplication"`
-}
-
-// DefaultThresholds returns canonical statutory quality gate thresholds.
-func DefaultThresholds() Thresholds {
-	return Thresholds{
-		MinCoverage:               55.0,
-		MinDocstringDensity:       10,
-		MinTraceabilityDensity:    50,
-		MaxCDS:                    45,
-		MaxComplexity:             15,
-		MaxFuncLOC:                60,
-		MaxFileLOC:                400,
-		MaxFuncParams:             8,
-		MinCloneLines:             18,
-		MaxMagicStringDuplication: 2,
-	}
-}
-
 // resolveThresholds merges statutory DefaultThresholds with active nomos.yaml overrides.
-func resolveThresholds(ctx *VerifyContext) Thresholds {
-	out := DefaultThresholds()
+func resolveThresholds(ctx *vscope.VerifyContext) astdebt.Thresholds {
+	out := astdebt.DefaultThresholds()
 	out.MaxMagicStringDuplication = 10
-	cfg := resolveVerifyConfig(ctx)
+	cfg := vscope.ResolveVerifyConfig(ctx)
 	if cfg == nil {
 		return out
 	}
@@ -92,6 +48,9 @@ func resolveThresholds(ctx *VerifyContext) Thresholds {
 	}
 	if ct.MaxMagicStringDuplication > 0 {
 		out.MaxMagicStringDuplication = ct.MaxMagicStringDuplication
+	}
+	if ct.MaxPackageFiles > 0 {
+		out.MaxPackageFiles = ct.MaxPackageFiles
 	}
 	return out
 }
@@ -161,7 +120,7 @@ func EvaluateCoverageViolations(coverage, minCoverage float64) []string {
 }
 
 // EvaluateCDSViolations checks if files exceed maximum cognitive debt.
-func EvaluateCDSViolations(files []FileMetric, maxCDS int) []string {
+func EvaluateCDSViolations(files []astdebt.FileMetric, maxCDS int) []string {
 	var violations []string
 	for _, f := range files {
 		if f.CDS > maxCDS {
@@ -183,7 +142,7 @@ func EvaluateDocstringViolations(density, minDensity, documented, total int, mis
 }
 
 // EvaluateComplexityViolations checks cyclomatic complexity and function LOC.
-func EvaluateComplexityViolations(funcs []FunctionMetric, maxComplexity, maxFuncLOC int) []string {
+func EvaluateComplexityViolations(funcs []astdebt.FunctionMetric, maxComplexity, maxFuncLOC int) []string {
 	var violations []string
 	for _, fn := range funcs {
 		if fn.Complexity > maxComplexity {
@@ -197,7 +156,7 @@ func EvaluateComplexityViolations(funcs []FunctionMetric, maxComplexity, maxFunc
 }
 
 // EvaluateFileLOCViolations checks file LOC limits.
-func EvaluateFileLOCViolations(files []FileMetric, maxFileLOC int) []string {
+func EvaluateFileLOCViolations(files []astdebt.FileMetric, maxFileLOC int) []string {
 	var violations []string
 	for _, f := range files {
 		if f.LOC > maxFileLOC {

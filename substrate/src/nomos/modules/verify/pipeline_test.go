@@ -1,6 +1,7 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"testing"
 )
 
@@ -12,8 +13,8 @@ type mockGate struct {
 }
 
 func (m *mockGate) Name() string { return m.name }
-func (m *mockGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
-	return &GateResult{
+func (m *mockGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
+	return &vscope.GateResult{
 		GateName: m.name,
 		ProbeID:  m.probe,
 		Passed:   m.passed,
@@ -22,13 +23,13 @@ func (m *mockGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 }
 
 func TestPipeline_Execute(t *testing.T) {
-	gates := []Gate{
+	gates := []vscope.Gate{
 		&mockGate{name: "Anti-Shim AST Invariant", probe: "anti_shim", passed: true, msg: "clean"},
 		&mockGate{name: "Complexity Invariant", probe: "complexity", passed: true, msg: "clean"},
 	}
 
 	pipe := NewPipeline(gates)
-	ctx := &VerifyContext{TaskID: "SUB-1195", Phase: "REVIEW"}
+	ctx := &vscope.VerifyContext{TaskID: "SUB-1195", Phase: "REVIEW"}
 
 	rep, err := pipe.Execute(ctx)
 	if err != nil {
@@ -53,13 +54,13 @@ func TestPipeline_Execute(t *testing.T) {
 }
 
 func TestPipeline_Execute_Failure(t *testing.T) {
-	gates := []Gate{
+	gates := []vscope.Gate{
 		&mockGate{name: "Anti-Shim AST Invariant", probe: "anti_shim", passed: true, msg: "clean"},
 		&mockGate{name: "Failing Gate", probe: "complexity", passed: false, msg: "exceeded"},
 	}
 
 	pipe := NewPipeline(gates)
-	ctx := &VerifyContext{TaskID: "SUB-1195", Phase: "REVIEW"}
+	ctx := &vscope.VerifyContext{TaskID: "SUB-1195", Phase: "REVIEW"}
 
 	rep, err := pipe.Execute(ctx)
 	if err != nil {

@@ -2,6 +2,8 @@ package verify
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"strings"
@@ -61,7 +63,7 @@ func TestModernSecretTokensAndEnvDetection(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(dir, ".env.example"), []byte("PORT=8080\n"), 0644)
 
 	gate := &SecretGate{}
-	res, err := gate.Evaluate(&VerifyContext{RepoRoot: dir, WorktreePath: dir})
+	res, err := gate.Evaluate(&vscope.VerifyContext{RepoRoot: dir, WorktreePath: dir})
 	if err != nil {
 		t.Fatalf("SecretGate error: %v", err)
 	}
@@ -95,16 +97,16 @@ func TestComputeWorkspaceImpactAndDependencyLock(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(dir, "pkg", "auth", "token.go"), []byte("package auth\n// Verify checks token (@intent: #HandshakeEvent).\nfunc Verify() bool { return false }\n"), 0644)
 	_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"name":"demo","dependencies":{"left-pad":"1.0.0"}}`), 0644)
 
-	impact := ComputeWorkspaceImpact(dir, nil)
-	if len(impact) == 0 {
+	impactLines := impact.ComputeWorkspaceImpact(dir, nil)
+	if len(impactLines) == 0 {
 		t.Fatalf("expected non-empty 1-hop impact summary")
 	}
-	joined := strings.Join(impact, "\n")
+	joined := strings.Join(impactLines, "\n")
 	if !strings.Contains(joined, "token_test.go") || !strings.Contains(joined, "importers(1): api") || !strings.Contains(joined, "#HandshakeEvent") {
 		t.Fatalf("expected paired test, reverse importer api, and #HandshakeEvent in impact map, got: %s", joined)
 	}
 
-	locked := scanLockedDependencyMutations(&VerifyContext{RepoRoot: dir, WorktreePath: dir}, dir, true)
+	locked := impact.ScanLockedDependencyMutations(&vscope.VerifyContext{RepoRoot: dir, WorktreePath: dir}, dir, true)
 	if len(locked) != 1 || !strings.Contains(locked[0], "package.json") {
 		t.Fatalf("expected package.json locked dependency violation, got: %v", locked)
 	}

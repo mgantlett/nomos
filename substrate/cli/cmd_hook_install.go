@@ -5,6 +5,8 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/cli/selfupdate"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,11 +29,11 @@ type HookInstallReceipt struct {
 
 // DefaultGeminiSettingsHooksJSON returns the canonical Gemini CLI settings.json hook structure.
 func DefaultGeminiSettingsHooksJSON() []byte {
-	return buildAgentHookSettingsJSON([]agentHookEventSpec{
-		{event: "SessionStart", subcmd: "session-start", timeout: 10000},
-		{event: "BeforeTool", matcher: ".*", subcmd: "pre-tool", timeout: 10000},
-		{event: "AfterTool", matcher: ".*", subcmd: "post-tool", timeout: 5000},
-		{event: "AfterAgent", subcmd: "stop", timeout: 10000},
+	return tui.BuildAgentHookSettingsJSON([]tui.AgentHookEventSpec{
+		{Event: "SessionStart", Subcmd: "session-start", Timeout: 10000},
+		{Event: "BeforeTool", Matcher: ".*", Subcmd: "pre-tool", Timeout: 10000},
+		{Event: "AfterTool", Matcher: ".*", Subcmd: "post-tool", Timeout: 5000},
+		{Event: "AfterAgent", Subcmd: "stop", Timeout: 10000},
 	})
 }
 
@@ -59,8 +61,8 @@ func newHookInstallCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "install",
 		Short:   "Install or additively merge Nomos lifecycle hooks across Claude Code, Gemini CLI, OpenCode, Cursor, and Antigravity",
-		Long:    helpHookInstallLong,
-		Example: helpHookInstallExample,
+		Long:    tui.HelpHookInstallLong,
+		Example: tui.HelpHookInstallExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			receipt, err := executeHookInstall(f)
 			if err != nil {
@@ -89,7 +91,7 @@ func newHookInstallCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.antigravity, "antigravity", false, "Install or merge Antigravity 2.0 hooks (hooks.json and scripts)")
 	cmd.Flags().BoolVar(&f.userScope, "user", false, "Install into user-global agent configuration directories instead of project scope")
 	cmd.Flags().StringVarP(&f.targetDir, "dir", "d", "", "Project directory when --user is false (defaults to current directory)")
-	cmd.Flags().BoolVar(&f.jsonOutput, flagNameJSON, false, "Emit structured JSON installation receipt")
+	cmd.Flags().BoolVar(&f.jsonOutput, tui.FlagNameJSON, false, "Emit structured JSON installation receipt")
 	return cmd
 }
 
@@ -129,7 +131,7 @@ func installCoreHookProviders(userScope bool, baseDir string, sel selectedHookPr
 	var installed []string
 	if sel.claude {
 		p := resolveClaudeManifestPath(userScope, baseDir)
-		if err := writeMergedJSONManifest(p, DefaultClaudeSettingsHooksJSON()); err != nil {
+		if err := writeMergedJSONManifest(p, tui.DefaultClaudeSettingsHooksJSON()); err != nil {
 			return nil, err
 		}
 		installed = append(installed, p)
@@ -234,7 +236,7 @@ func writeMergedOpenCodePlugin(targetPath string) error {
 	if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
 		return err
 	}
-	tmplBytes, err := DefaultOpenCodePluginTS()
+	tmplBytes, err := selfupdate.DefaultOpenCodePluginTS()
 	if err != nil {
 		return err
 	}
@@ -245,6 +247,6 @@ func writeMergedOpenCodePlugin(targetPath string) error {
 		}
 		return rErr
 	}
-	merged := mergeOpenCodePluginContent(existingBytes, tmplBytes)
+	merged := selfupdate.MergeOpenCodePluginContent(existingBytes, tmplBytes)
 	return os.WriteFile(targetPath, merged, 0644)
 }

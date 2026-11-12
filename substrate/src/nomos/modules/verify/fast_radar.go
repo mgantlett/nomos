@@ -3,6 +3,9 @@ package verify
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"go/parser"
 	"go/token"
 	"os"
@@ -44,12 +47,12 @@ func EvaluateFastFileRadar(repoRoot, filePath string) (*FastFileRadarResult, err
 		return res, nil
 	}
 
-	ctx := &VerifyContext{RepoRoot: repoRoot, WorktreePath: wtRoot}
+	ctx := &vscope.VerifyContext{RepoRoot: repoRoot, WorktreePath: wtRoot}
 	evaluateFastSecretAndEnv(wtRoot, absPath, res.File, string(data), res)
 	evaluateFastForbiddenLiterals(ctx, wtRoot, absPath, res)
 	evaluateFastArchitectureBoundaries(ctx, wtRoot, absPath, res)
 
-	if !isSupportedPolyglotSourceFile(absPath) || isVerificationSuiteFile(filepath.Base(absPath)) {
+	if !vscope.IsSupportedPolyglotSourceFile(absPath) || impact.IsVerificationSuiteFile(filepath.Base(absPath)) {
 		return res, nil
 	}
 	evaluateFastCWESinks(ctx, wtRoot, absPath, res.File, data, res)
@@ -76,7 +79,7 @@ func resolveRelativeRadarFile(repoRoot, wtRoot, absPath string) string {
 	return absPath
 }
 
-func applyHotScopeRadarReflex(ctx *VerifyContext, repoRoot, wtRoot, absPath string, data []byte, res *FastFileRadarResult) int {
+func applyHotScopeRadarReflex(ctx *vscope.VerifyContext, repoRoot, wtRoot, absPath string, data []byte, res *FastFileRadarResult) int {
 	relDir := mem.DeriveDirectoryScope("", []string{res.File})
 	if mem.ResolveHotScopeReflex(resolveRadarPrimaryRoot(repoRoot, wtRoot), relDir) == nil {
 		return defaultRadarWarnPct
@@ -85,12 +88,12 @@ func applyHotScopeRadarReflex(ctx *VerifyContext, repoRoot, wtRoot, absPath stri
 	return hotScopeRadarWarnPct
 }
 
-func evaluateFastArchitectureBoundaries(ctx *VerifyContext, wtRoot, absPath string, res *FastFileRadarResult) {
-	cfg := resolveVerifyConfig(ctx)
+func evaluateFastArchitectureBoundaries(ctx *vscope.VerifyContext, wtRoot, absPath string, res *FastFileRadarResult) {
+	cfg := vscope.ResolveVerifyConfig(ctx)
 	if cfg == nil || len(cfg.Governance.QualityGates.ArchitectureBoundaries) == 0 {
 		return
 	}
-	violations := EvaluateArchitectureBoundaries(wtRoot, []string{absPath}, cfg.Governance.QualityGates.ArchitectureBoundaries)
+	violations := impact.EvaluateArchitectureBoundaries(wtRoot, []string{absPath}, cfg.Governance.QualityGates.ArchitectureBoundaries)
 	res.Breaches = append(res.Breaches, violations...)
 }
 
@@ -106,22 +109,22 @@ func resolveRadarWorktreeRoot(repoRoot, absPath string) string {
 
 func evaluateFastSecretAndEnv(repoRoot, absPath, relFile, content string, res *FastFileRadarResult) {
 	base := filepath.Base(absPath)
-	if isProhibitedEnvFileName(base) && !isGitIgnoredPath(repoRoot, absPath) {
+	if impact.IsProhibitedEnvFileName(base) && !impact.IsGitIgnoredPath(repoRoot, absPath) {
 		res.Breaches = append(res.Breaches, fmt.Sprintf("unignored credential file %s detected (SecretGate)", relFile))
 	}
 	if isIgnoredSecretFile(absPath) {
 		return
 	}
-	if label := matchSecretTokenLabel(content); label != "" {
+	if label := impact.MatchSecretTokenLabel(content); label != "" {
 		res.Breaches = append(res.Breaches, fmt.Sprintf("potential %s detected in %s (SecretGate)", label, relFile))
 	}
 }
 
-func evaluateFastForbiddenLiterals(ctx *VerifyContext, wtRoot, absPath string, res *FastFileRadarResult) {
+func evaluateFastForbiddenLiterals(ctx *vscope.VerifyContext, wtRoot, absPath string, res *FastFileRadarResult) {
 	if !isScannableSourceFile(absPath) {
 		return
 	}
-	cfg := resolveVerifyConfig(ctx)
+	cfg := vscope.ResolveVerifyConfig(ctx)
 	patterns := cfg.Governance.QualityGates.ForbiddenLiterals
 	if len(patterns) == 0 && !cfg.Governance.QualityGates.HasForbiddenLiteralsOverride {
 		patterns = defaultForbiddenLiterals()
@@ -140,18 +143,18 @@ func evaluateFastForbiddenLiterals(ctx *VerifyContext, wtRoot, absPath string, r
 	res.Breaches = append(res.Breaches, hits...)
 }
 
-func evaluateFastASTBudgets(ctx *VerifyContext, wtRoot, absPath string, data []byte, warnPct int, res *FastFileRadarResult) {
+func evaluateFastASTBudgets(ctx *vscope.VerifyContext, wtRoot, absPath string, data []byte, warnPct int, res *FastFileRadarResult) {
 	t := resolveThresholds(ctx)
-	rep, err := AnalyzeFileDebt(absPath, data, t.MaxComplexity, t.MaxFuncLOC)
+	rep, err := astdebt.AnalyzeFileDebt(absPath, data, t.MaxComplexity, t.MaxFuncLOC)
 	if err != nil || rep == nil {
 		return
 	}
 	res.TotalLOC = rep.TotalLOC
 	res.DebtScore = rep.DebtScore
 
-	if isBrownfieldRatchetActive(ctx) {
+	if vscope.IsBrownfieldRatchetActive(ctx) {
 		if baseBytes, ok := loadBaselineFileBytes(ctx, wtRoot, absPath); ok {
-			if baseRep, bErr := AnalyzeFileDebt(absPath, baseBytes, t.MaxComplexity, t.MaxFuncLOC); bErr == nil && baseRep != nil {
+			if baseRep, bErr := astdebt.AnalyzeFileDebt(absPath, baseBytes, t.MaxComplexity, t.MaxFuncLOC); bErr == nil && baseRep != nil {
 				evaluateRatchetedFastBudgets(rep, baseRep, t, warnPct, res)
 				return
 			}
@@ -168,7 +171,7 @@ func evaluateFastASTBudgets(ctx *VerifyContext, wtRoot, absPath string, data []b
 	}
 }
 
-func evaluateRatchetedFastBudgets(rep, baseRep *FileDebtReport, t Thresholds, warnPct int, res *FastFileRadarResult) {
+func evaluateRatchetedFastBudgets(rep, baseRep *astdebt.FileDebtReport, t astdebt.Thresholds, warnPct int, res *FastFileRadarResult) {
 	checkRatchetedMetricWithPct("file LOC", rep.TotalLOC, baseRep.TotalLOC, t.MaxFileLOC, warnPct, res)
 	if rep.DebtScore > 0 {
 		checkRatchetedMetricWithPct("cognitive debt", rep.DebtScore, baseRep.DebtScore, t.MaxCDS, warnPct, res)
@@ -186,8 +189,8 @@ func evaluateRatchetedFastBudgets(rep, baseRep *FileDebtReport, t Thresholds, wa
 	}
 }
 
-func indexBaselineFunctionDebts(funcs []FunctionDebt) map[string]FunctionDebt {
-	byName := make(map[string]FunctionDebt, len(funcs))
+func indexBaselineFunctionDebts(funcs []astdebt.FunctionDebt) map[string]astdebt.FunctionDebt {
+	byName := make(map[string]astdebt.FunctionDebt, len(funcs))
 	for _, bfn := range funcs {
 		prev, exists := byName[bfn.Name]
 		if !exists {
@@ -251,12 +254,12 @@ func resolveRadarPrimaryRoot(repoRoot, wtRoot string) string {
 	return wtRoot
 }
 
-func evaluateFastHotScopeProbes(ctx *VerifyContext, absPath, relFile string, data []byte, res *FastFileRadarResult) {
+func evaluateFastHotScopeProbes(ctx *vscope.VerifyContext, absPath, relFile string, data []byte, res *FastFileRadarResult) {
 	maxParams := resolveThresholds(ctx).MaxFuncParams
 	if maxParams <= 0 {
-		maxParams = MaxFunctionParams
+		maxParams = astdebt.MaxFunctionParams
 	}
-	res.Breaches = append(res.Breaches, EvaluateParameterArityViolations(relFile, data, maxParams)...)
+	res.Breaches = append(res.Breaches, astdebt.EvaluateParameterArityViolations(relFile, data, maxParams)...)
 	ext := strings.ToLower(filepath.Ext(absPath))
 	if ext == ".go" {
 		fset := token.NewFileSet()
@@ -266,6 +269,6 @@ func evaluateFastHotScopeProbes(ctx *VerifyContext, absPath, relFile string, dat
 		res.Breaches = append(res.Breaches, scanGoFileAntiShim(token.NewFileSet(), absPath, relFile)...)
 		return
 	}
-	res.Breaches = append(res.Breaches, checkPolyglotUncheckedErrors(ext, relFile, data)...)
+	res.Breaches = append(res.Breaches, astdebt.CheckPolyglotUncheckedErrors(ext, relFile, data)...)
 	res.Breaches = append(res.Breaches, scanPolyglotAntiShim(absPath, relFile)...)
 }

@@ -4,6 +4,8 @@ package cli
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/cli/taskui"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"time"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
@@ -14,11 +16,11 @@ import (
 const staleTrapSweepWindow = 7 * 24 * time.Hour
 
 func runAutomaticSubstrateMaintenance(repoRoot string, force bool) {
-	if iErr := EnsureIDEBoundarySettings(repoRoot); iErr != nil {
+	if iErr := tui.EnsureIDEBoundarySettings(repoRoot); iErr != nil {
 		// best-effort IDE watcher boundary protection
 	}
 	if repoRoot != "" {
-		if _, pErr := pruneWorkspaceOrphans(repoRoot, false); pErr != nil {
+		if _, pErr := taskui.PruneWorkspaceOrphans(repoRoot, false); pErr != nil {
 			// best-effort orphan worktree sweep
 		}
 	}

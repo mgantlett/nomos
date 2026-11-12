@@ -1,6 +1,8 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,7 +33,7 @@ func monolithicProcess(items []string, cfg map[string]int) int {
 	return total
 }
 `
-	seams := PrescribeFunctionSeams("sample.go", []byte(goSrc), "monolithicProcess", 3)
+	seams := astdebt.PrescribeFunctionSeams("sample.go", []byte(goSrc), "monolithicProcess", 3)
 	if len(seams) == 0 {
 		t.Fatalf("expected AST seams to be prescribed for monolithicProcess, got 0")
 	}
@@ -58,7 +60,7 @@ func TestPrescribePolyglotFunctionSeams(t *testing.T) {
   return { a, b, c, d, e, f };
 }
 `
-	seams := PrescribeFunctionSeams("scene.ts", []byte(tsSrc), "normalizeScene", 1)
+	seams := astdebt.PrescribeFunctionSeams("scene.ts", []byte(tsSrc), "normalizeScene", 1)
 	if len(seams) == 0 {
 		t.Fatalf("expected polyglot seams for fallback-heavy TS function, got 0")
 	}
@@ -72,7 +74,7 @@ func TestEvaluateParameterArityViolations(t *testing.T) {
 	goClean := `package p
 func okFn(a, b, c, d int) int { return a + b + c + d }
 `
-	if v := EvaluateParameterArityViolations("clean.go", []byte(goClean), MaxFunctionParams); len(v) != 0 {
+	if v := astdebt.EvaluateParameterArityViolations("clean.go", []byte(goClean), astdebt.MaxFunctionParams); len(v) != 0 {
 		t.Fatalf("expected 0 arity violations for 4 params, got: %v", v)
 	}
 
@@ -98,7 +100,7 @@ func okFn(a, b, c, d int) int { return a + b + c + d }
 		},
 	}
 	for _, tc := range cases {
-		got := EvaluateParameterArityViolations(tc.file, []byte(tc.src), MaxFunctionParams)
+		got := astdebt.EvaluateParameterArityViolations(tc.file, []byte(tc.src), astdebt.MaxFunctionParams)
 		if len(got) != 1 {
 			t.Fatalf("file %s: expected 1 arity violation, got %v", tc.file, got)
 		}
@@ -108,7 +110,7 @@ func okFn(a, b, c, d int) int { return a + b + c + d }
 
 // @verifies TC-PHY-05 TC-PHY-06 TC-TS-11
 func TestPrescribeRatchetedCDSAndComplexityRecipes_Polyglot(t *testing.T) {
-	thresh := DefaultThresholds()
+	thresh := astdebt.DefaultThresholds()
 	cdsCases := []struct {
 		file string
 		base string
@@ -144,7 +146,7 @@ func TestPrescribeRatchetedCDSAndComplexityRecipes_Polyglot(t *testing.T) {
 	if err := os.WriteFile(goPath, []byte(buildLegacyGoSource(18, "")), 0644); err != nil {
 		t.Fatal(err)
 	}
-	enriched := EnrichComplexityViolations(tempDir, []FunctionMetric{{File: "heavy.go", Line: 3, Name: "LegacyDispatch", Complexity: 19, LOC: 65}}, thresh, false)
+	enriched := astdebt.EnrichComplexityViolations(tempDir, []astdebt.FunctionMetric{{File: "heavy.go", Line: 3, Name: "LegacyDispatch", Complexity: 19, LOC: 65}}, thresh, false)
 	if len(enriched) != 2 {
 		t.Fatalf("expected V(G) and LOC violations, got %v", enriched)
 	}
@@ -221,7 +223,7 @@ func evaluateBetaScores(entries []int, factor int) int {
 		"pkg/beta/beta.go":   []byte(fileB),
 	}
 
-	clones := DetectStructuralClones(files, 18)
+	clones := astdebt.DetectStructuralClones(files, 18)
 	if len(clones) != 1 {
 		t.Fatalf("expected 1 structural clone group across alpha.go and beta.go, got %d", len(clones))
 	}
@@ -229,7 +231,7 @@ func evaluateBetaScores(entries []int, factor int) int {
 		t.Fatalf("expected 2 clone occurrences, got %d", len(clones[0].Occurrences))
 	}
 
-	formatted := FormatCloneViolations(clones)
+	formatted := astdebt.FormatCloneViolations(clones)
 	if len(formatted) != 1 || !strings.Contains(formatted[0], "structural AST clone") {
 		t.Fatalf("expected formatted Law 6 clone violation, got: %v", formatted)
 	}
@@ -263,12 +265,12 @@ func SecondHelper(y int) int {
 		t.Fatalf("failed writing temp file: %v", err)
 	}
 
-	decomp := PrescribeFileDecomposition(tempDir, relPath, []byte(src), 450, 60, 15, 60)
+	decomp := astdebt.PrescribeFileDecomposition(tempDir, relPath, []byte(src), 450, 60, 15, 60)
 	if !strings.Contains(decomp, "EXTRACT 1: FirstHeavy()") {
 		t.Fatalf("expected FirstHeavy() ranked as EXTRACT 1, got: %s", decomp)
 	}
 
-	locViolations := EnrichFileLOCViolations(tempDir, []FileMetric{{Name: relPath, LOC: 450}}, DefaultThresholds())
+	locViolations := astdebt.EnrichFileLOCViolations(tempDir, []astdebt.FileMetric{{Name: relPath, LOC: 450}}, astdebt.DefaultThresholds())
 	if len(locViolations) != 1 || !strings.Contains(locViolations[0], "EXTRACT 1: FirstHeavy()") {
 		t.Fatalf("expected enriched File LOC violation to include extraction candidates, got: %v", locViolations)
 	}
@@ -277,7 +279,7 @@ func SecondHelper(y int) int {
 func TestCognitiveDebtAndComplexityGates_EndToEnd(t *testing.T) {
 	tempDir := t.TempDir()
 	// Simulate worktree context via TaskID
-	ctx := &VerifyContext{
+	ctx := &vscope.VerifyContext{
 		WorktreePath: tempDir,
 		RepoRoot:     tempDir,
 		TaskID:       "SUB-999",
@@ -343,7 +345,7 @@ func TestIntentTraceabilityGate_GoTypeAndSpecAnchorResolution(t *testing.T) {
 	}
 
 	gate := &IntentTraceabilityGate{}
-	ctx := &VerifyContext{RepoRoot: tempDir, WorktreePath: tempDir, IsBaseline: true}
+	ctx := &vscope.VerifyContext{RepoRoot: tempDir, WorktreePath: tempDir, IsBaseline: true}
 	resOk, err := gate.Evaluate(ctx)
 	if err != nil || !resOk.Passed {
 		t.Fatalf("expected valid @intent Go type and spec anchor to pass, got: %+v, err=%v", resOk, err)

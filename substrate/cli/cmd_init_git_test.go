@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -118,7 +119,7 @@ func TestPosixHookShellCommand_GUIFallbackPathAndMissingBinaryGrace(t *testing.T
 	}
 	minSysBin := filepath.Dir(shBin)
 
-	claudePreCmd := extractFirstShellHookCommand(t, DefaultClaudeSettingsHooksJSON(), "PreToolUse")
+	claudePreCmd := extractFirstShellHookCommand(t, tui.DefaultClaudeSettingsHooksJSON(), "PreToolUse")
 	geminiPreCmd := extractFirstShellHookCommand(t, DefaultGeminiSettingsHooksJSON(), "BeforeTool")
 	if claudePreCmd != geminiPreCmd {
 		t.Fatalf("expected identical POSIX pre-tool command across Claude and Gemini manifests")

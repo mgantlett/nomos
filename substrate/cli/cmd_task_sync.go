@@ -2,6 +2,10 @@ package cli
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/cli/commitmsg"
+	"github.com/mgantlett/nomos/substrate/cli/diag"
+	"github.com/mgantlett/nomos/substrate/cli/taskui"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +18,7 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/session"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/task"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
 	"github.com/spf13/cobra"
 )
 
@@ -23,8 +28,8 @@ func newTaskSyncCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "sync <key>",
 		Short:   "2PC release: evaluate DoD gates, merge to trunk, and prune worktree",
-		Long:    helpTaskSyncLong,
-		Example: helpTaskSyncExample,
+		Long:    tui.HelpTaskSyncLong,
+		Example: tui.HelpTaskSyncExample,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := strings.ToUpper(strings.TrimSpace(args[0]))
@@ -74,8 +79,8 @@ func finalizeSync(key, walkthroughPath string) error {
 	if gErr != nil {
 		return gErr
 	}
-	touchedFiles := verify.ListModifiedWorktreeFiles(wtPath, key)
-	if _, aErr := SanitizeAndValidateWalkthrough(mgr.RepoRoot, wtPath, readWalkthroughContent(walkthroughPath), touchedFiles); aErr != nil {
+	touchedFiles := impact.ListModifiedWorktreeFiles(wtPath, key)
+	if _, aErr := diag.SanitizeAndValidateWalkthrough(mgr.RepoRoot, wtPath, readWalkthroughContent(walkthroughPath), touchedFiles); aErr != nil {
 		return aErr
 	}
 	if pErr := validateReceiptTraceParity(wtPath, walkthroughPath, touchedFiles); pErr != nil {
@@ -99,7 +104,7 @@ func completeSyncedTaskMetadata(mgr *workspace.Manager, store task.TaskStore, t 
 	}
 	specDigests := collectSyncSpecDigests(mgr.RepoRoot, t.Key, touchedFiles, t.TwinKey)
 	recordReleaseReceipt(mgr.RepoRoot, wtPath, t.Key, walkthroughPath, now, report, specDigests)
-	revokeActiveLease(t.Key)
+	taskui.RevokeActiveLease(t.Key)
 	distillAndMaintainOnSync(mgr.RepoRoot, wtPath, t.Key, walkthroughPath, touchedFiles)
 	clearHookSessionTrace(wtPath)
 	cleanupAndAnnounceSyncedTask(mgr, t.Key)
@@ -111,16 +116,16 @@ func cleanupAndAnnounceSyncedTask(mgr *workspace.Manager, key string) {
 	if remErr := mgr.RemoveWorktree(key); remErr != nil {
 		// logged or soft failure
 	}
-	if _, pErr := pruneWorkspaceOrphans(mgr.RepoRoot, false); pErr != nil {
+	if _, pErr := taskui.PruneWorkspaceOrphans(mgr.RepoRoot, false); pErr != nil {
 		// best-effort post-sync worktree sweep
 	}
 	fmt.Printf("🎉 %s %s %s\n",
-		uiSuccessStyle.Render("Task"),
-		styleTaskKey(key),
-		uiSuccessStyle.Render("synced and released to trunk"))
-	renderTaskSyncAnomalyAlert(os.Stdout, mgr.RepoRoot, key)
-	recompileSubstrateBinary(mgr.RepoRoot)
-	renderPhaseTransitionNextActions(os.Stdout, types.PhaseSync, key, "", mgr.RepoRoot)
+		tui.UiSuccessStyle.Render("Task"),
+		tui.StyleTaskKey(key),
+		tui.UiSuccessStyle.Render("synced and released to trunk"))
+	diag.RenderTaskSyncAnomalyAlert(os.Stdout, mgr.RepoRoot, key)
+	tui.RecompileSubstrateBinary(mgr.RepoRoot)
+	tui.RenderPhaseTransitionNextActions(os.Stdout, types.PhaseSync, key, "", mgr.RepoRoot)
 }
 
 func collectSyncSpecDigests(repoRoot, key string, touchedFiles []string, twinKey string) map[string]string {
@@ -232,7 +237,7 @@ func recordReleaseReceipt(repoRoot, wtPath, key, walkthroughPath, now string, re
 		return
 	}
 
-	walkthroughContent := NormalizeAndScrubWalkthrough(repoRoot, wtPath, readWalkthroughContent(walkthroughPath))
+	walkthroughContent := diag.NormalizeAndScrubWalkthrough(repoRoot, wtPath, readWalkthroughContent(walkthroughPath))
 	gatesPassed := 42
 	if report != nil && report.GatesPassed >= 42 {
 		gatesPassed = report.GatesPassed
@@ -255,12 +260,12 @@ func recordReleaseReceipt(repoRoot, wtPath, key, walkthroughPath, now string, re
 	}
 
 	if noteErr := task.RecordReleaseNote(repoRoot, "", payload); noteErr != nil {
-		fmt.Printf("⚠️  %s %v\n", uiWarnStyle.Render("Warning: failed recording git note release receipt:"), noteErr)
+		fmt.Printf("⚠️  %s %v\n", tui.UiWarnStyle.Render("Warning: failed recording git note release receipt:"), noteErr)
 		return
 	}
 	fmt.Printf("📜 %s %s\n",
-		uiSuccessStyle.Render("Cryptographic release receipt recorded in Git Notes"),
-		uiMutedStyle.Render("(refs/notes/nomos/releases)"))
+		tui.UiSuccessStyle.Render("Cryptographic release receipt recorded in Git Notes"),
+		tui.UiMutedStyle.Render("(refs/notes/nomos/releases)"))
 }
 
 func readWalkthroughContent(path string) string {
@@ -315,12 +320,12 @@ func autoCommitDirtyWorktree(wtPath, key string, rec *task.TaskRecord, walkthrou
 	if rec != nil {
 		title = rec.Title
 	}
-	opts := &commitCmdOptions{
-		dir:             wtPath,
-		summary:         title,
-		walkthroughFile: walkthroughPath,
-		taskRecord:      rec,
-		autoStage:       true,
+	opts := &commitmsg.CommitCmdOptions{
+		Dir:             wtPath,
+		Summary:         title,
+		WalkthroughFile: walkthroughPath,
+		TaskRecord:      rec,
+		AutoStage:       true,
 	}
 	return runTaskCommitCmd([]string{key}, opts)
 }

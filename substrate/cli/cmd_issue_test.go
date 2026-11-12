@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"github.com/mgantlett/nomos/substrate/cli/diag"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 )
 
 func TestSanitizeDiagnosticTextAndBranchTopology(t *testing.T) {
@@ -57,7 +59,7 @@ func TestSanitizeDiagnosticTextAndBranchTopology(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := sanitizeDiagnosticText(tt.input, tt.repoRoot)
+			got := diag.SanitizeDiagnosticText(tt.input, tt.repoRoot)
 			if tt.wantSub != "" && !strings.Contains(got, tt.wantSub) {
 				t.Fatalf("sanitizeDiagnosticText(%q) = %q, want substring %q", tt.input, got, tt.wantSub)
 			}
@@ -67,7 +69,7 @@ func TestSanitizeDiagnosticTextAndBranchTopology(t *testing.T) {
 		})
 	}
 
-	if got := sanitizeText("https://svc:topsecret@github.com/org/repo.git"); !strings.Contains(got, "https://user:[REDACTED]@github.com") {
+	if got := diag.SanitizeText("https://svc:topsecret@github.com/org/repo.git"); !strings.Contains(got, "https://user:[REDACTED]@github.com") {
 		t.Fatalf("sanitizeText failed basic-auth scrub: %q", got)
 	}
 
@@ -76,15 +78,15 @@ func TestSanitizeDiagnosticTextAndBranchTopology(t *testing.T) {
 		isWorktree bool
 		want       string
 	}{
-		{"main", false, branchTopologyTrunk},
-		{"feature/SUB-1840", false, branchTopologyWorktree},
-		{"feature/acme-bank-wire-fix", false, branchTopologyCustom},
-		{"HEAD", false, branchTopologyDetached},
-		{"", false, branchTopologyUnknown},
-		{"", true, branchTopologyWorktree},
+		{"main", false, diag.BranchTopologyTrunk},
+		{"feature/SUB-1840", false, diag.BranchTopologyWorktree},
+		{"feature/acme-bank-wire-fix", false, diag.BranchTopologyCustom},
+		{"HEAD", false, diag.BranchTopologyDetached},
+		{"", false, diag.BranchTopologyUnknown},
+		{"", true, diag.BranchTopologyWorktree},
 	}
 	for _, bc := range branchCases {
-		if got := classifyBranchTopology(bc.branch, bc.isWorktree); got != bc.want {
+		if got := diag.ClassifyBranchTopology(bc.branch, bc.isWorktree); got != bc.want {
 			t.Fatalf("classifyBranchTopology(%q, %v) = %q, want %q", bc.branch, bc.isWorktree, got, bc.want)
 		}
 	}
@@ -97,7 +99,7 @@ func TestIssueCmdOfflineDefaultAndNonInteractiveWebGuard(t *testing.T) {
 	outDir := t.TempDir()
 	reportPath := filepath.Join(outDir, ".tmp", "nomos-diagnostic.md")
 
-	cmd := NewIssueCmd()
+	cmd := diag.NewIssueCmd()
 	var stdout bytes.Buffer
 	cmd.SetOut(&stdout)
 	cmd.SetArgs([]string{
@@ -121,12 +123,12 @@ func TestIssueCmdOfflineDefaultAndNonInteractiveWebGuard(t *testing.T) {
 	if !strings.Contains(md, "Branch Topology:") || strings.Contains(md, "Active Branch:") {
 		t.Fatalf("expected Branch Topology field instead of raw Active Branch, got:\n%s", md)
 	}
-	if !strings.Contains(md, privateDiagnosticEmail) {
+	if !strings.Contains(md, diag.PrivateDiagnosticEmail) {
 		t.Fatalf("expected private email channel in markdown, got:\n%s", md)
 	}
 
 	// TC-ISS-04 & TC-ISS-05: Non-interactive --web guard and openBrowser URL guard
-	webCmd := NewIssueCmd()
+	webCmd := diag.NewIssueCmd()
 	var webOut bytes.Buffer
 	webCmd.SetOut(&webOut)
 	webCmd.SetArgs([]string{"Non-TTY check", "--output", reportPath, "--web"})
@@ -136,7 +138,7 @@ func TestIssueCmdOfflineDefaultAndNonInteractiveWebGuard(t *testing.T) {
 	if !strings.Contains(webOut.String(), "https://github.com/mgantlett/nomos/issues/new") {
 		t.Fatalf("expected printed GitHub URL on non-TTY --web, got:\n%s", webOut.String())
 	}
-	if err := openBrowser("https://evil.example.com/phish"); err == nil {
+	if err := diag.OpenBrowser("https://evil.example.com/phish"); err == nil {
 		t.Fatal("expected openBrowser to reject non-GitHub URL")
 	}
 }
@@ -145,7 +147,7 @@ func TestIssueCmdDryRunAndClear(t *testing.T) {
 	cacheDir := t.TempDir()
 	t.Setenv("NOMOS_DIAGNOSTICS_CACHE_DIR", cacheDir)
 
-	cmd := NewIssueCmd()
+	cmd := diag.NewIssueCmd()
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 	cmd.SetArgs([]string{"Test CLI dry-run", "--dry-run", "--clear"})
@@ -164,34 +166,34 @@ func TestSubstrateAnomalyLedgerAndSyncAlert(t *testing.T) {
 
 	failedReport := &verify.PipelineReport{
 		Passed: false,
-		GateResults: []*verify.GateResult{
+		GateResults: []*vscope.GateResult{
 			{GateName: "AST Complexity Gate", Passed: false, DurationMicros: 1200},
 		},
 	}
 
 	// 3 failures should NOT trigger gate_thrash yet (threshold is 4)
 	for i := 0; i < 3; i++ {
-		recordVerificationAnomalies(repoRoot, "SUB-42", "verify", failedReport, nil)
+		diag.RecordVerificationAnomalies(repoRoot, "SUB-42", "verify", failedReport, nil)
 	}
-	if got := LoadRecentAnomalies(repoRoot); len(got) != 0 {
+	if got := diag.LoadRecentAnomalies(repoRoot); len(got) != 0 {
 		t.Fatalf("expected 0 anomalies after 3 failures, got %d", len(got))
 	}
 
 	// 4th failure triggers gate_thrash; slow gate >=5s triggers gate_slow
 	slowAndFailed := &verify.PipelineReport{
 		Passed: false,
-		GateResults: []*verify.GateResult{
+		GateResults: []*vscope.GateResult{
 			{GateName: "AST Complexity Gate", Passed: false, DurationMicros: 5_400_000},
 		},
 	}
-	recordVerificationAnomalies(repoRoot, "SUB-42", "verify", slowAndFailed, nil)
+	diag.RecordVerificationAnomalies(repoRoot, "SUB-42", "verify", slowAndFailed, nil)
 
 	recordRootExecutionAnomaly(
 		repoRoot,
 		types.NewNomosError(types.ErrCodeSubstrate, "sqlite busy in %s/state.db", repoRoot),
 	)
 
-	events := LoadRecentAnomalies(repoRoot)
+	events := diag.LoadRecentAnomalies(repoRoot)
 	if len(events) != 3 {
 		t.Fatalf("expected 3 coalesced anomalies (slow, thrash, substrate_error), got %d: %+v", len(events), events)
 	}
@@ -203,7 +205,7 @@ func TestSubstrateAnomalyLedgerAndSyncAlert(t *testing.T) {
 
 	// First sync alert prints deterministic banner and marks Surfaced=true
 	var syncBuf bytes.Buffer
-	renderTaskSyncAnomalyAlert(&syncBuf, repoRoot, "SUB-42")
+	diag.RenderTaskSyncAnomalyAlert(&syncBuf, repoRoot, "SUB-42")
 	alertOut := syncBuf.String()
 	if !strings.Contains(alertOut, "Substrate Diagnostics:") || !strings.Contains(alertOut, "SUB-42") {
 		t.Fatalf("expected deterministic sync anomaly alert, got:\n%s", alertOut)
@@ -211,21 +213,21 @@ func TestSubstrateAnomalyLedgerAndSyncAlert(t *testing.T) {
 
 	// Second sync alert is silent because anomalies were already surfaced
 	var secondBuf bytes.Buffer
-	renderTaskSyncAnomalyAlert(&secondBuf, repoRoot, "SUB-42")
+	diag.RenderTaskSyncAnomalyAlert(&secondBuf, repoRoot, "SUB-42")
 	if secondBuf.Len() != 0 {
 		t.Fatalf("expected zero duplicate sync alert output, got:\n%s", secondBuf.String())
 	}
 
 	// Anomalies remain inspectable for nomos issue until --clear
-	status := &StatusReport{
+	status := &diag.StatusReport{
 		RepoRoot:       repoRoot,
 		Phase:          "IDLE",
 		ActiveBranch:   "feature/client-secret-branch",
 		IsWorktree:     false,
 		DatabaseStatus: "CONNECTED",
 	}
-	rep := buildIssueReportFromStatus(status, "Sync follow-up", "")
-	md := formatIssueMarkdown(rep, generateGitHubIssueURL(rep))
+	rep := diag.BuildIssueReportFromStatus(status, "Sync follow-up", "")
+	md := diag.FormatIssueMarkdown(rep, diag.GenerateGitHubIssueURL(rep))
 	if !strings.Contains(md, "Recent Local Substrate Anomalies") || !strings.Contains(md, "gate_thrash") {
 		t.Fatalf("expected recent anomalies section in issue markdown, got:\n%s", md)
 	}
@@ -233,10 +235,10 @@ func TestSubstrateAnomalyLedgerAndSyncAlert(t *testing.T) {
 		t.Fatalf("markdown leaked raw branch name:\n%s", md)
 	}
 
-	if err := ClearSubstrateAnomalies(repoRoot); err != nil {
+	if err := diag.ClearSubstrateAnomalies(repoRoot); err != nil {
 		t.Fatalf("ClearSubstrateAnomalies failed: %v", err)
 	}
-	if got := LoadRecentAnomalies(repoRoot); len(got) != 0 {
+	if got := diag.LoadRecentAnomalies(repoRoot); len(got) != 0 {
 		t.Fatalf("expected empty anomalies after clear, got %d", len(got))
 	}
 }

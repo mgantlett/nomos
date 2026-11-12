@@ -1,6 +1,8 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"strings"
@@ -52,7 +54,7 @@ func TestEvaluateArchitectureBoundariesPolyglotAndFastRadar(t *testing.T) {
 		},
 	}
 
-	violations := EvaluateArchitectureBoundaries(tmp, nil, rules)
+	violations := impact.EvaluateArchitectureBoundaries(tmp, nil, rules)
 	if len(violations) != 3 {
 		t.Fatalf("expected 3 polyglot boundary violations (Go, TS, Python), got %d: %v", len(violations), violations)
 	}
@@ -72,7 +74,7 @@ func TestEvaluateArchitectureBoundariesPolyglotAndFastRadar(t *testing.T) {
 	}
 
 	gate := &IntentTraceabilityGate{}
-	gateRes, gErr := gate.Evaluate(&VerifyContext{RepoRoot: tmp, WorktreePath: tmp})
+	gateRes, gErr := gate.Evaluate(&vscope.VerifyContext{RepoRoot: tmp, WorktreePath: tmp})
 	if gErr != nil || gateRes == nil || gateRes.Passed {
 		t.Fatalf("expected IntentTraceabilityGate to reject boundary violations, got: %+v, err=%v", gateRes, gErr)
 	}
@@ -84,7 +86,7 @@ func TestEvaluateArchitectureBoundariesPolyglotAndFastRadar(t *testing.T) {
 	if err := os.WriteFile(routeTS, []byte("import { api } from '$lib/api';\nexport const x = api;\n"), 0644); err != nil {
 		t.Fatalf("write clean routeTS: %v", err)
 	}
-	if clean := EvaluateArchitectureBoundaries(tmp, []string{domainGo, routeTS}, rules); len(clean) != 0 {
+	if clean := impact.EvaluateArchitectureBoundaries(tmp, []string{domainGo, routeTS}, rules); len(clean) != 0 {
 		t.Fatalf("expected 0 violations after refactoring imports, got: %v", clean)
 	}
 }
@@ -97,7 +99,7 @@ func TestArchitectureBoundariesDowngradeRejected(t *testing.T) {
 	}
 
 	wtDeleted := config.DefaultNomosConfig()
-	if issue := checkArchitectureBoundariesDowngrade(trunkCfg, wtDeleted); !strings.Contains(issue, "illegally removes") {
+	if issue := impact.CheckArchitectureBoundariesDowngrade(trunkCfg, wtDeleted); !strings.Contains(issue, "illegally removes") {
 		t.Fatalf("expected boundary rule removal to fail closed, got: %q", issue)
 	}
 
@@ -105,11 +107,11 @@ func TestArchitectureBoundariesDowngradeRejected(t *testing.T) {
 	wtWeakened.Governance.QualityGates.ArchitectureBoundaries = []config.ArchitectureBoundaryRule{
 		{Name: "domain-isolation", From: "internal/domain/**", ForbidImports: []string{"other/**"}},
 	}
-	if issue := checkArchitectureBoundariesDowngrade(trunkCfg, wtWeakened); !strings.Contains(issue, "illegally weakens") {
+	if issue := impact.CheckArchitectureBoundariesDowngrade(trunkCfg, wtWeakened); !strings.Contains(issue, "illegally weakens") {
 		t.Fatalf("expected boundary rule weakening to fail closed, got: %q", issue)
 	}
 
-	if okIssue := checkArchitectureBoundariesDowngrade(trunkCfg, trunkCfg); okIssue != "" {
+	if okIssue := impact.CheckArchitectureBoundariesDowngrade(trunkCfg, trunkCfg); okIssue != "" {
 		t.Fatalf("expected identical boundary rules to pass, got: %q", okIssue)
 	}
 }

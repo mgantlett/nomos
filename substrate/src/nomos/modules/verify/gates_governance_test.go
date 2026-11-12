@@ -1,6 +1,7 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"testing"
@@ -15,7 +16,7 @@ func TestForbiddenLiteralsGate(t *testing.T) {
 		t.Errorf("unexpected name: %s", gate.Name())
 	}
 
-	ctx := &VerifyContext{WorktreePath: tempDir}
+	ctx := &vscope.VerifyContext{WorktreePath: tempDir}
 	res, err := gate.Evaluate(ctx)
 	if err != nil || !res.Passed {
 		t.Fatalf("expected clean pass on empty dir, got %v, err: %v", res, err)
@@ -43,14 +44,14 @@ func TestForbiddenLiteralsGate(t *testing.T) {
 
 func TestReviewReceiptGate(t *testing.T) {
 	gate := &ReviewReceiptGate{}
-	ctx := &VerifyContext{Phase: string(types.PhaseEdit)}
+	ctx := &vscope.VerifyContext{Phase: string(types.PhaseEdit)}
 	res, err := gate.Evaluate(ctx)
 	if err != nil || !res.Passed {
 		t.Errorf("expected pass for edit phase: %v", res)
 	}
 
 	tempDir := t.TempDir()
-	syncCtx := &VerifyContext{
+	syncCtx := &vscope.VerifyContext{
 		WorktreePath: tempDir,
 		RepoRoot:     tempDir,
 		TaskID:       "SUB-1234",
@@ -72,7 +73,7 @@ func TestReviewReceiptGate(t *testing.T) {
 
 func TestPolyglotAntiShimAndDocstrings(t *testing.T) {
 	tempDir := t.TempDir()
-	ctx := &VerifyContext{WorktreePath: tempDir, RepoRoot: tempDir, AllFiles: true}
+	ctx := &vscope.VerifyContext{WorktreePath: tempDir, RepoRoot: tempDir, AllFiles: true}
 
 	// Polyglot empty block shim in TypeScript
 	tsFile := filepath.Join(tempDir, "empty.ts")
@@ -103,7 +104,7 @@ func TestZeroAliasTypeAliasAndOrphanChecks(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(cliDir, "root.go"), []byte("package cli\n"), 0644)
 	_ = os.WriteFile(filepath.Join(subSrc, "alias.go"), []byte("package orphan\ntype MyAlias = string\n"), 0644)
 
-	ctx := &VerifyContext{WorktreePath: tempDir, RepoRoot: tempDir, AllFiles: true}
+	ctx := &vscope.VerifyContext{WorktreePath: tempDir, RepoRoot: tempDir, AllFiles: true}
 	aliasGate := &ZeroAliasGate{}
 	resAlias, err := aliasGate.Evaluate(ctx)
 	if err != nil || resAlias.Passed {

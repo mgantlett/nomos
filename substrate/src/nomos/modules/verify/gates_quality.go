@@ -4,6 +4,8 @@ package verify
 import (
 	"context"
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/polyrun"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -16,10 +18,10 @@ import (
 )
 
 func init() {
-	RegisterGate("tdd", func() Gate { return &TDDGate{} })
-	RegisterGate("coverage", func() Gate { return &CoverageGate{} })
-	RegisterGate("docstrings", func() Gate { return &DocstringDensityGate{} })
-	RegisterGate("visual_regression", func() Gate { return &VisualRegressionGate{} })
+	RegisterGate("tdd", func() vscope.Gate { return &TDDGate{} })
+	RegisterGate("coverage", func() vscope.Gate { return &CoverageGate{} })
+	RegisterGate("docstrings", func() vscope.Gate { return &DocstringDensityGate{} })
+	RegisterGate("visual_regression", func() vscope.Gate { return &VisualRegressionGate{} })
 }
 
 // TDDGate ensures every package containing Go code possesses unit tests (Cell 2.1, Law 2).
@@ -29,9 +31,9 @@ type TDDGate struct{}
 func (g *TDDGate) Name() string { return "TDD Test Pair Invariant" }
 
 // Evaluate verifies that all implementation packages possess at least one test suite.
-func (g *TDDGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *TDDGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	if resolveEffectiveTDDMode(ctx) == config.TDDModeOff {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "tdd", Law: 2, Ring: RingSyntactic,
 			Passed: true, Message: "paired unit test enforcement disabled via tdd_mode=off",
 		}, nil
@@ -39,7 +41,7 @@ func (g *TDDGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	root := resolveQualityRoot(ctx)
 	targetDirs, explicitRoots := resolveSubstrateTargetDirs(ctx, root)
 	if len(targetDirs) == 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "tdd", Law: 2, Ring: RingSyntactic,
 			Passed: true, Message: "no substrate source directory detected; skipping",
 		}, nil
@@ -50,14 +52,14 @@ func (g *TDDGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		return nil, err
 	}
 	if len(untested) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "tdd", Law: 2, Ring: RingSyntactic,
 			Passed:  false,
 			Message: fmt.Sprintf("%d package(s) missing unit test suites: %s", len(untested), strings.Join(untested, ", ")),
 			Remedy:  "author table-driven unit tests (*_test.go, test_*.py, *.test.ts, *_test.rb, #[cfg(test)], *Test.java, *Tests.cs) for all modules",
 		}, nil
 	}
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(), ProbeID: "tdd", Law: 2, Ring: RingSyntactic,
 		Passed: true, Message: "100% of implementation packages possess valid unit test suites",
 	}, nil
@@ -92,15 +94,15 @@ type CoverageGate struct{}
 func (g *CoverageGate) Name() string { return "Statement Coverage Invariant (Law 2)" }
 
 // Evaluate calculates statement coverage across packages and validates thresholds.
-func (g *CoverageGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *CoverageGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	if resolveEffectiveCoverageMode(ctx) == config.CoverageModeOff {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: probeIDCoverage, Law: 2, Ring: RingDynamic,
 			Passed: true, Message: "statement coverage enforcement disabled via coverage_mode=off",
 		}, nil
 	}
-	if os.Getenv(envSkipToolchainGate) == "1" || os.Getenv(envInToolchainGate) == "1" {
-		return &GateResult{
+	if os.Getenv(polyrun.EnvSkipToolchainGate) == "1" || os.Getenv(polyrun.EnvInToolchainGate) == "1" {
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: probeIDCoverage, Law: 2, Ring: RingDynamic,
 			Passed: true, Message: "coverage execution bypassed in toolchain gate context",
 		}, nil
@@ -112,35 +114,35 @@ func (g *CoverageGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		return evaluatePolyglotCoverageGate(g.Name(), ctx, root), nil
 	}
 
-	rec := evaluateSharedGoSuite(ctx, root, targetDir)
-	effThreshold := resolveEffectiveCoverageThreshold(ctx, root, targetDir, resolveThresholds(ctx).MinCoverage, rec.AvgCoverage)
+	rec := polyrun.EvaluateSharedGoSuite(ctx, root, targetDir)
+	effThreshold := polyrun.ResolveEffectiveCoverageThreshold(ctx, root, targetDir, resolveThresholds(ctx).MinCoverage, rec.AvgCoverage)
 	return buildCoverageGateResult(g.Name(), rec, effThreshold), nil
 }
 
-func buildCoverageGateResult(gateName string, rec *ToolchainSuiteReceipt, threshold float64) *GateResult {
+func buildCoverageGateResult(gateName string, rec *polyrun.ToolchainSuiteReceipt, threshold float64) *vscope.GateResult {
 	if !rec.GoPassed {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: gateName, ProbeID: "coverage", Law: 2, Ring: RingDynamic,
 			Passed:  false,
-			Message: fmt.Sprintf("Go test coverage execution failed: %s", truncateToolchainOutput(rec.GoOutput)),
+			Message: fmt.Sprintf("Go test coverage execution failed: %s", polyrun.TruncateToolchainOutput(rec.GoOutput)),
 			Remedy:  "resolve failing Go unit tests or compiler errors (go test -cover ./...)",
 		}
 	}
 	if rec.GoSkippedNonGo {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: gateName, ProbeID: "coverage", Law: 2, Ring: RingDynamic,
 			Passed: true, Message: "no Go or contract files modified in diff scope; coverage attested via baseline",
 		}
 	}
 	if rec.AvgCoverage < threshold {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: gateName, ProbeID: "coverage", Law: 2, Ring: RingDynamic,
 			Passed:  false,
 			Message: fmt.Sprintf("statement coverage %.1f%% is below minimum required %.1f%%", rec.AvgCoverage, threshold),
 			Remedy:  fmt.Sprintf("author additional unit tests to raise statement coverage to >= %.1f%%", threshold),
 		}
 	}
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: gateName, ProbeID: "coverage", Law: 2, Ring: RingDynamic,
 		Passed: true, Message: fmt.Sprintf("statement coverage %.1f%% meets required threshold (>= %.1f%%)", rec.AvgCoverage, threshold),
 	}
@@ -153,11 +155,11 @@ type DocstringDensityGate struct{}
 func (g *DocstringDensityGate) Name() string { return "Docstring Density Invariant" }
 
 // Evaluate verifies exported functions possess docstrings and meet the density threshold.
-func (g *DocstringDensityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *DocstringDensityGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := resolveQualityRoot(ctx)
 	targetDirs := resolveSubstrateDirs(ctx, root)
 	if len(targetDirs) == 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "docstrings", Law: 2, Ring: RingSyntactic,
 			Passed: true, Message: "no substrate source directory detected; skipping",
 		}, nil
@@ -172,7 +174,7 @@ func (g *DocstringDensityGate) Evaluate(ctx *VerifyContext) (*GateResult, error)
 		missing = append(missing, mList...)
 	}
 	if total == 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "docstrings", Law: 2, Ring: RingSyntactic,
 			Passed: true, Message: "no exported functions found",
 		}, nil
@@ -182,24 +184,24 @@ func (g *DocstringDensityGate) Evaluate(ctx *VerifyContext) (*GateResult, error)
 	threshold := resolveThresholds(ctx).MinDocstringDensity
 	if density < threshold {
 		violations := EvaluateDocstringViolations(density, threshold, documented, total, missing)
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "docstrings", Law: 2, Ring: RingSyntactic,
 			Passed: false, Message: violations[0], Remedy: "document exported functions with Go doc comments",
 		}, nil
 	}
 
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(), ProbeID: "docstrings", Law: 2, Ring: RingSyntactic,
 		Passed: true, Message: fmt.Sprintf("docstring density %d%% (%d/%d) meets threshold (>= %d%%)", density, documented, total, threshold),
 	}, nil
 }
 
-func countDocstrings(ctx *VerifyContext, srcDir string) (int, int, []string) {
+func countDocstrings(ctx *vscope.VerifyContext, srcDir string) (int, int, []string) {
 	fset := token.NewFileSet()
 	var total, documented int
 	var missing []string
 
-	WalkTargetFiles(ctx, srcDir, func(path string, info os.FileInfo, err error) error {
+	vscope.WalkTargetFiles(ctx, srcDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info == nil || info.IsDir() || !isPolyglotTargetFile(path) {
 			return nil
 		}
@@ -268,16 +270,16 @@ type VisualRegressionGate struct{}
 func (g *VisualRegressionGate) Name() string { return "Visual Regression Invariant (Law 2)" }
 
 // Evaluate checks visual frame pairs or passes if none configured.
-func (g *VisualRegressionGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *VisualRegressionGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := resolveQualityRoot(ctx)
 	if visualDir := findVisualDir(root); visualDir == "" {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "visual_regression", Law: 2, Ring: RingDynamic,
 			Passed: true, Message: "zero visual regression targets configured; perceptual proof gate satisfied",
 		}, nil
 	}
 
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(), ProbeID: "visual_regression", Law: 2, Ring: RingDynamic,
 		Passed: true, Message: "visual regression frames verified against registered baseline targets",
 	}, nil
@@ -296,7 +298,7 @@ func findVisualDir(root string) string {
 	return ""
 }
 
-func resolveQualityRoot(ctx *VerifyContext) string {
+func resolveQualityRoot(ctx *vscope.VerifyContext) string {
 	if ctx != nil && ctx.WorktreePath != "" {
 		return ctx.WorktreePath
 	}

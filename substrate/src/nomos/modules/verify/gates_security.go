@@ -3,6 +3,8 @@ package verify
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -13,10 +15,10 @@ import (
 )
 
 func init() {
-	RegisterGate("secret", func() Gate { return &SecretGate{} })
-	RegisterGate("ip_leak", func() Gate { return &IPLeakGate{} })
-	RegisterGate("broken_wire", func() Gate { return &BrokenWireGate{} })
-	RegisterGate("config_immutability", func() Gate { return &ConfigImmutabilityGate{} })
+	RegisterGate("secret", func() vscope.Gate { return &SecretGate{} })
+	RegisterGate("ip_leak", func() vscope.Gate { return &IPLeakGate{} })
+	RegisterGate("broken_wire", func() vscope.Gate { return &BrokenWireGate{} })
+	RegisterGate("config_immutability", func() vscope.Gate { return &ConfigImmutabilityGate{} })
 }
 
 // SecretGate detects unencrypted private keys, tokens, and credentials (Cell 7.1, Law 7).
@@ -26,27 +28,27 @@ type SecretGate struct{}
 func (g *SecretGate) Name() string { return "Secret & Credential Leak Invariant" }
 
 // Evaluate scans workspace files for unencrypted secrets and private keys.
-func (g *SecretGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *SecretGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := resolveSecurityRoot(ctx)
 	leaks, err := scanSecretsScoped(ctx, root)
 	if err != nil {
 		return nil, err
 	}
 	if len(leaks) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "secret", Law: 7, Ring: RingSyntactic,
 			Passed:  false,
 			Message: fmt.Sprintf("detected %d potential secret leak(s): %s", len(leaks), strings.Join(leaks, "; ")),
 			Remedy:  "immediately revoke leaked keys and remove secrets from source files",
 		}, nil
 	}
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(), ProbeID: "secret", Law: 7, Ring: RingSyntactic,
 		Passed: true, Message: "zero unencrypted API keys or private certificates detected",
 	}, nil
 }
 
-func resolveSecurityRoot(ctx *VerifyContext) string {
+func resolveSecurityRoot(ctx *vscope.VerifyContext) string {
 	if ctx != nil && ctx.WorktreePath != "" {
 		return ctx.WorktreePath
 	}
@@ -57,7 +59,7 @@ func resolveSecurityRoot(ctx *VerifyContext) string {
 }
 
 func scanSecrets(root string) ([]string, error) {
-	leaks := scanUnignoredEnvFiles(root)
+	leaks := impact.ScanUnignoredEnvFiles(root)
 
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil || d == nil {
@@ -69,12 +71,12 @@ func scanSecrets(root string) ([]string, error) {
 			}
 			return nil
 		}
-		if isIgnoredSecretFile(path) || (isProhibitedEnvFileName(d.Name()) && isGitIgnoredPath(root, path)) {
+		if isIgnoredSecretFile(path) || (impact.IsProhibitedEnvFileName(d.Name()) && impact.IsGitIgnoredPath(root, path)) {
 			return nil
 		}
 		data, err := os.ReadFile(path)
 		if err == nil {
-			if label := matchSecretTokenLabel(string(data)); label != "" {
+			if label := impact.MatchSecretTokenLabel(string(data)); label != "" {
 				rel, rErr := filepath.Rel(root, path)
 				if rErr != nil {
 					rel = path
@@ -91,24 +93,14 @@ func shouldSkipSecurityDir(root, path, name string) bool {
 	if path == root {
 		return false
 	}
-	return isSkippableSecurityDir(name) || isGitIgnoredBuildDir(root, path, name)
-}
-
-func isSkippableSecurityDir(name string) bool {
-	skip := map[string]bool{
-		".git": true, "node_modules": true, ".tmp": true, "worktrees": true,
-		"vendor": true, ".venv": true, "dist": true, "__pycache__": true,
-		".svelte-kit": true, ".next": true, ".nuxt": true, ".output": true,
-		".turbo": true, ".parcel-cache": true, ".vitepress": true,
-	}
-	return skip[name]
+	return impact.IsSkippableSecurityDir(name) || isGitIgnoredBuildDir(root, path, name)
 }
 
 func isGitIgnoredBuildDir(root, path, name string) bool {
 	ambiguous := map[string]bool{
 		"build": true, "out": true, "coverage": true, "target": true,
 	}
-	return ambiguous[name] && isGitIgnoredPath(root, path)
+	return ambiguous[name] && impact.IsGitIgnoredPath(root, path)
 }
 
 func isIgnoredSecretFile(path string) bool {
@@ -140,21 +132,21 @@ var bannedSovereignPrefixes = []string{
 }
 
 // Evaluate scans Go source files for banned sovereign imports.
-func (g *IPLeakGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *IPLeakGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := resolveSecurityRoot(ctx)
 	violations, err := scanIPLeaks(root)
 	if err != nil {
 		return nil, err
 	}
 	if len(violations) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "ip_leak", Law: 5, Ring: RingSyntactic,
 			Passed:  false,
 			Message: fmt.Sprintf("detected %d prohibited sovereign import(s):\n    - %s", len(violations), strings.Join(violations, "\n    - ")),
 			Remedy:  "remove sovereign package imports from open-core substrate",
 		}, nil
 	}
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(), ProbeID: "ip_leak", Law: 5, Ring: RingSyntactic,
 		Passed: true, Message: "zero sovereign IP leaks detected in open-core codebase",
 	}, nil
@@ -173,14 +165,14 @@ func scanIPLeaks(root string) ([]string, error) {
 			}
 			return nil
 		}
-		if isVerificationSuiteFile(d.Name()) || !isSupportedPolyglotSourceFile(path) {
+		if impact.IsVerificationSuiteFile(d.Name()) || !vscope.IsSupportedPolyglotSourceFile(path) {
 			return nil
 		}
 		rel, rErr := filepath.Rel(root, path)
 		if rErr != nil {
 			rel = path
 		}
-		for _, val := range extractPolyglotFileImports(path) {
+		for _, val := range impact.ExtractPolyglotFileImports(path) {
 			if isBannedImport(val) {
 				violations = append(violations, fmt.Sprintf("%s: imports %s", rel, val))
 			}
@@ -206,21 +198,21 @@ type BrokenWireGate struct{}
 func (g *BrokenWireGate) Name() string { return "Broken Wire & Link Invariant (Law 4)" }
 
 // Evaluate scans markdown files for broken relative links.
-func (g *BrokenWireGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *BrokenWireGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := resolveSecurityRoot(ctx)
 	broken, err := scanBrokenLinksScoped(ctx, root)
 	if err != nil {
 		return nil, err
 	}
 	if len(broken) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "broken_wire", Law: 4, Ring: RingSyntactic,
 			Passed:  false,
 			Message: fmt.Sprintf("detected %d broken markdown link(s): %s", len(broken), strings.Join(broken, "; ")),
 			Remedy:  "restore missing target files or update broken markdown links",
 		}, nil
 	}
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(), ProbeID: "broken_wire", Law: 4, Ring: RingSyntactic,
 		Passed: true, Message: "zero broken wires detected; all markdown links resolve to valid targets",
 	}, nil
@@ -294,9 +286,9 @@ func (g *ConfigImmutabilityGate) Name() string {
 }
 
 // Evaluate verifies nomos.yaml is not mutated under active SUB-* tasks.
-func (g *ConfigImmutabilityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *ConfigImmutabilityGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	if ctx == nil || !strings.HasPrefix(ctx.TaskID, "SUB-") {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "config_immutability", Law: 7, Ring: RingSyntactic,
 			Passed: true, Message: "task is not a substrate task; config mutation is permitted",
 		}, nil
@@ -309,7 +301,7 @@ func (g *ConfigImmutabilityGate) Evaluate(ctx *VerifyContext) (*GateResult, erro
 		return nil, err
 	}
 
-	cfg := resolveVerifyConfig(ctx)
+	cfg := vscope.ResolveVerifyConfig(ctx)
 	var intentRoots, substrateRoots []string
 	if cfg != nil {
 		intentRoots = cfg.Governance.QualityGates.IntentSourceRoots
@@ -323,7 +315,7 @@ func (g *ConfigImmutabilityGate) Evaluate(ctx *VerifyContext) (*GateResult, erro
 		}
 		p := filepath.ToSlash(strings.TrimSpace(trimmed[2:]))
 		if isIntentConfigPath(p, intentRoots, substrateRoots) {
-			return &GateResult{
+			return &vscope.GateResult{
 				GateName: g.Name(), ProbeID: "config_immutability", Law: 7, Ring: RingSyntactic,
 				Passed:  false,
 				Message: fmt.Sprintf("substrate task %s illegally mutated %s", ctx.TaskID, p),
@@ -332,7 +324,7 @@ func (g *ConfigImmutabilityGate) Evaluate(ctx *VerifyContext) (*GateResult, erro
 		}
 	}
 
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(), ProbeID: "config_immutability", Law: 7, Ring: RingSyntactic,
 		Passed: true, Message: "nomos.yaml remains immutable under active substrate task",
 	}, nil

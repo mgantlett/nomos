@@ -4,6 +4,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"io"
 	"io/fs"
 	"path/filepath"
@@ -36,8 +37,8 @@ func newHookStopCmd(hermeticDir *string, containerSandbox *bool) *cobra.Command 
 	return &cobra.Command{
 		Use:     "stop",
 		Short:   "Evaluate Law 2 anti-phantom deliverable gate on Stop or AfterAgent turn exit",
-		Long:    helpHookStopLong,
-		Example: helpHookStopExample,
+		Long:    tui.HelpHookStopLong,
+		Example: tui.HelpHookStopExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			raw, err := io.ReadAll(cmd.InOrStdin())
 			if err != nil {

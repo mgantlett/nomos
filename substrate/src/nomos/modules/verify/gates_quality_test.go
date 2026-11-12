@@ -1,6 +1,8 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/polyrun"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,7 +20,7 @@ func TestQualityGatesRegistration(t *testing.T) {
 
 func TestTDDGateClean(t *testing.T) {
 	g := &TDDGate{}
-	ctx := &VerifyContext{RepoRoot: "."}
+	ctx := &vscope.VerifyContext{RepoRoot: "."}
 	res, err := g.Evaluate(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -30,7 +32,7 @@ func TestTDDGateClean(t *testing.T) {
 
 func TestDocstringsGateClean(t *testing.T) {
 	g := &DocstringDensityGate{}
-	ctx := &VerifyContext{RepoRoot: "."}
+	ctx := &vscope.VerifyContext{RepoRoot: "."}
 	res, err := g.Evaluate(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -42,7 +44,7 @@ func TestDocstringsGateClean(t *testing.T) {
 
 func TestVisualRegressionGateClean(t *testing.T) {
 	g := &VisualRegressionGate{}
-	ctx := &VerifyContext{RepoRoot: "."}
+	ctx := &vscope.VerifyContext{RepoRoot: "."}
 	res, err := g.Evaluate(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -60,7 +62,7 @@ func TestTDDGate_BrownfieldSubstrateRootsAndTestdataSkip(t *testing.T) {
 	mustWriteGoFixture(t, filepath.Join(root, "nomos.yaml"), "project: demo\ndefault_branch: main\ngovernance:\n  quality_gates:\n    strict_mode: false\n    substrate_source_roots:\n      - cmd/scanner/mcp\n")
 
 	g := &TDDGate{}
-	ctx := &VerifyContext{RepoRoot: root}
+	ctx := &vscope.VerifyContext{RepoRoot: root}
 
 	resFail, err := g.Evaluate(ctx)
 	if err != nil {
@@ -96,21 +98,21 @@ func TestResolveGoTestPackagesAndEnv_BrownfieldIsolation(t *testing.T) {
 	}
 	mustWriteGoFixture(t, filepath.Join(root, "nomos.yaml"), "project: demo\ndefault_branch: main\ngovernance:\n  quality_gates:\n    strict_mode: false\n    substrate_source_roots:\n      - cmd/scanner/mcp\n")
 
-	ctx := &VerifyContext{RepoRoot: root}
-	pkgs := resolveGoTestPackages(ctx, root, root)
+	ctx := &vscope.VerifyContext{RepoRoot: root}
+	pkgs := polyrun.ResolveGoTestPackages(ctx, root, root)
 	if len(pkgs) != 1 || pkgs[0] != "./cmd/scanner/mcp/..." {
 		t.Errorf("expected [./cmd/scanner/mcp/...], got %v", pkgs)
 	}
 
 	mustWriteGoFixture(t, filepath.Join(root, "nomos.yaml"), "project: demo\ndefault_branch: main\ngovernance:\n  quality_gates:\n    strict_mode: true\n    substrate_source_roots:\n      - cmd/scanner/mcp\n")
-	strictPkgs := resolveGoTestPackages(ctx, root, root)
+	strictPkgs := polyrun.ResolveGoTestPackages(ctx, root, root)
 	if len(strictPkgs) != 1 || strictPkgs[0] != "./..." {
 		t.Errorf("expected [./...] in strict mode, got %v", strictPkgs)
 	}
 
 	t.Setenv("GOWORK", "")
 	t.Setenv("GOTOOLCHAIN", "")
-	env := strings.Join(buildGoToolchainEnv(root, root), "\n")
+	env := strings.Join(polyrun.BuildGoToolchainEnv(root, root), "\n")
 	if !strings.Contains(env, "GOWORK=off") || !strings.Contains(env, "GOTOOLCHAIN=auto") {
 		t.Errorf("expected GOWORK=off and GOTOOLCHAIN=auto in toolchain env, got:\n%s", env)
 	}

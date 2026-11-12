@@ -2,23 +2,24 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"sync"
 )
 
 var (
 	registryMu   sync.RWMutex
-	gateRegistry = make(map[string]func() Gate)
+	gateRegistry = make(map[string]func() vscope.Gate)
 )
 
 // RegisterGate registers a gate constructor for a given canonical ID.
-func RegisterGate(id string, ctor func() Gate) {
+func RegisterGate(id string, ctor func() vscope.Gate) {
 	registryMu.Lock()
 	defer registryMu.Unlock()
 	gateRegistry[id] = ctor
 }
 
 // GateByID retrieves a gate instance by its canonical sensor probe ID.
-func GateByID(id string) Gate {
+func GateByID(id string) vscope.Gate {
 	registryMu.RLock()
 	defer registryMu.RUnlock()
 	if ctor, exists := gateRegistry[id]; exists {
@@ -69,11 +70,11 @@ var CanonicalGateOrder = []string{
 }
 
 // DefaultBaselineGates returns the canonical sequence of baseline verification gates.
-func DefaultBaselineGates() []Gate {
+func DefaultBaselineGates() []vscope.Gate {
 	registryMu.RLock()
 	defer registryMu.RUnlock()
 
-	gates := make([]Gate, 0, len(CanonicalGateOrder))
+	gates := make([]vscope.Gate, 0, len(CanonicalGateOrder))
 	for _, id := range CanonicalGateOrder {
 		if ctor, ok := gateRegistry[id]; ok {
 			gates = append(gates, ctor())

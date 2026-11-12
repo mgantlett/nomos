@@ -2,27 +2,26 @@
 package verify
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 )
 
 func init() {
-	RegisterGate("intent_traceability", func() Gate { return &IntentTraceabilityGate{} })
-	RegisterGate("intent_steelman", func() Gate { return &IntentSteelmanGate{} })
-	RegisterGate("intent_parity", func() Gate { return &IntentParityGate{} })
-	RegisterGate("topology_parity", func() Gate { return &TopologyParityGate{} })
-	RegisterGate("threshold_integrity", func() Gate { return &ThresholdIntegrityGate{} })
-	RegisterGate("uasset_dependency", func() Gate { return &UAssetDependencyGate{} })
+	RegisterGate("intent_traceability", func() vscope.Gate { return &IntentTraceabilityGate{} })
+	RegisterGate("intent_steelman", func() vscope.Gate { return &IntentSteelmanGate{} })
+	RegisterGate("intent_parity", func() vscope.Gate { return &IntentParityGate{} })
+	RegisterGate("topology_parity", func() vscope.Gate { return &TopologyParityGate{} })
+	RegisterGate("threshold_integrity", func() vscope.Gate { return &ThresholdIntegrityGate{} })
+	RegisterGate("uasset_dependency", func() vscope.Gate { return &UAssetDependencyGate{} })
 }
 
 // IntentTraceabilityGate verifies Go code links back to Intent specifications (Cell 4.1, Law 4).
@@ -32,7 +31,7 @@ type IntentTraceabilityGate struct{}
 func (g *IntentTraceabilityGate) Name() string { return "Intent Traceability Validation Gate" }
 
 // Evaluate verifies exported functions possess valid @intent traceability tags.
-func (g *IntentTraceabilityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *IntentTraceabilityGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := resolveIntentRoot(ctx)
 	targetDir := findSubstrateSrc(root)
 	if oblFailure := evaluateConfiguredObligations(g.Name(), ctx, root, targetDir); oblFailure != nil {
@@ -43,7 +42,7 @@ func (g *IntentTraceabilityGate) Evaluate(ctx *VerifyContext) (*GateResult, erro
 		scanAnchorDir = root
 	}
 	if unresolved := verifyIntentASTAnchors(ctx, root, scanAnchorDir); len(unresolved) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
 			Passed:  false,
 			Message: fmt.Sprintf("unresolved @intent AST/spec anchor(s): %s", strings.Join(unresolved, "; ")),
@@ -51,7 +50,7 @@ func (g *IntentTraceabilityGate) Evaluate(ctx *VerifyContext) (*GateResult, erro
 		}, nil
 	}
 	if targetDir == "" {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
 			Passed: true, Message: "polyglot @intent anchors verified",
 		}, nil
@@ -59,7 +58,7 @@ func (g *IntentTraceabilityGate) Evaluate(ctx *VerifyContext) (*GateResult, erro
 
 	tagged, total := countTraceabilityTags(targetDir)
 	if total == 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
 			Passed: true, Message: "polyglot @intent anchors verified (zero Go exported symbols)",
 		}, nil
@@ -69,7 +68,7 @@ func (g *IntentTraceabilityGate) Evaluate(ctx *VerifyContext) (*GateResult, erro
 	if total > 0 && tagged > 0 {
 		density = (tagged * 100) / total
 	}
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(), ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
 		Passed: true, Message: fmt.Sprintf("intent traceability density %d%% (%d/%d symbols tagged)", density, tagged, total),
 	}, nil
@@ -112,25 +111,25 @@ func (g *IntentSteelmanGate) Name() string { return "Intent Steel-Man Parity Gat
 // Evaluate audits all Intent Markdown documents for valid YAML frontmatter, balanced fences, and strict NCTE-100 compliance.
 // @intent nomos_controlled_technical_english_spec.md #NCTEPolicy
 // @intent nomos_intent_traceability_spec.md #ContractsConfig
-func (g *IntentSteelmanGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *IntentSteelmanGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := resolveIntentRoot(ctx)
-	cfg := resolveVerifyConfig(ctx)
+	cfg := vscope.ResolveVerifyConfig(ctx)
 	docCount, issues, skipped := evaluateConfiguredIntentSteelman(root, cfg)
 	if skipped {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: probeIntentSteelman, Law: 4, Ring: RingSyntactic,
 			Passed: true, Message: "no Intent directory detected; skipping steel-man audit",
 		}, nil
 	}
 	if len(issues) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: probeIntentSteelman, Law: 4, Ring: RingSyntactic,
 			Passed: false, Message: fmt.Sprintf("Intent specification schema violation(s): %s", strings.Join(issues, "; ")),
 			Remedy: "enforce flat 'intent/architecture/specs/*_spec.md' topology, 10-key + optional 'lineage' YAML frontmatter, contiguous 1..N H2 spine with '```go' SSoT and 'TC-' vectors, and zero NCTE-100 diagnostics ('nomos directive --lint <file>')",
 		}, nil
 	}
 
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(), ProbeID: probeIntentSteelman, Law: 4, Ring: RingSyntactic,
 		Passed: true, Message: fmt.Sprintf("verified %d Intent specification document(s) with valid frontmatter and balanced fences", docCount),
 	}, nil
@@ -143,19 +142,19 @@ type IntentParityGate struct{}
 func (g *IntentParityGate) Name() string { return "Intent Substrate Parity Gate" }
 
 // Evaluate calculates cryptographic checksums across canonical assets and asserts parity against templates.
-func (g *IntentParityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *IntentParityGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := resolveIntentRoot(ctx)
 	agentsPath := filepath.Join(root, "AGENTS.md")
 	if _, err := os.Stat(agentsPath); os.IsNotExist(err) {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "intent_parity", Law: 4, Ring: RingCryptographic,
 			Passed: true, Message: "no AGENTS.md located; skipping parity audit",
 		}, nil
 	}
 
-	drifts := auditTemplateByteParity(root)
+	drifts := impact.AuditTemplateByteParity(root)
 	if len(drifts) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(),
 			ProbeID:  "intent_parity",
 			Law:      4,
@@ -166,29 +165,15 @@ func (g *IntentParityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		}, nil
 	}
 
-	h, _, err := computeMarkerOrFileHash(agentsPath)
+	h, _, err := impact.ComputeMarkerOrFileHash(agentsPath)
 	if err != nil {
 		return nil, err
 	}
 
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(), ProbeID: "intent_parity", Law: 4, Ring: RingCryptographic,
 		Passed: true, Message: fmt.Sprintf("Intent and Substrate canonical assets and templates in byte parity (digest %s)", h[:8]),
 	}, nil
-}
-
-func computeFileHash(path string) (string, int64, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", 0, err
-	}
-	defer f.Close()
-	h := sha256.New()
-	size, err := io.Copy(h, f)
-	if err != nil {
-		return "", 0, err
-	}
-	return hex.EncodeToString(h.Sum(nil)), size, nil
 }
 
 // TopologyParityGate verifies environment port topology has zero collisions (Cell 5.3, Law 5).
@@ -198,12 +183,12 @@ type TopologyParityGate struct{}
 func (g *TopologyParityGate) Name() string { return "Multi-Seat Topology Parity Invariant" }
 
 // Evaluate audits .env.example for port collisions.
-func (g *TopologyParityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *TopologyParityGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := resolveIntentRoot(ctx)
 	envPath := filepath.Join(root, ".env.example")
 	data, err := os.ReadFile(envPath)
 	if err != nil {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "topology_parity", Law: 5, Ring: RingCryptographic,
 			Passed: true, Message: "no .env.example detected; topology parity satisfied",
 		}, nil
@@ -219,7 +204,7 @@ func (g *TopologyParityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		k, v := strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
 		if strings.Contains(k, "PORT") && v != "" {
 			if prev, exists := seen[v]; exists && prev != k {
-				return &GateResult{
+				return &vscope.GateResult{
 					GateName: g.Name(), ProbeID: "topology_parity", Law: 5, Ring: RingCryptographic,
 					Passed: false, Message: fmt.Sprintf("port collision in .env.example: %s and %s both use %s", prev, k, v),
 					Remedy: "assign unique non-overlapping port numbers in .env.example",
@@ -229,7 +214,7 @@ func (g *TopologyParityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		}
 	}
 
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(), ProbeID: "topology_parity", Law: 5, Ring: RingCryptographic,
 		Passed: true, Message: "multi-seat daemon port topology and ingress parity verified (Law 5)",
 	}, nil
@@ -246,44 +231,44 @@ func (g *ThresholdIntegrityGate) Name() string { return "Threshold Integrity Gat
 // Evaluate verifies thresholds in nomos.yaml match statutory baselines when strict_mode is enabled
 // and rejects worktree governance downgrades against trunk RepoRoot.
 // @intent nomos_intent_traceability_spec.md
-func (g *ThresholdIntegrityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
-	cfg := resolveVerifyConfig(ctx)
+func (g *ThresholdIntegrityGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
+	cfg := vscope.ResolveVerifyConfig(ctx)
 	if violation := checkWorktreeGovernanceDowngrade(ctx, cfg); violation != "" {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: probeThresholdIntegrity, Law: 7, Ring: RingCryptographic,
 			Passed: false, Message: violation,
 			Remedy: "restore worktree nomos.yaml governance flags (strict_mode, boundary.enforce, boundary.lock_dependencies) to match trunk baseline",
 		}, nil
 	}
 	if cfg != nil && !cfg.Governance.QualityGates.StrictMode {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: probeThresholdIntegrity, Law: 7, Ring: RingCryptographic,
 			Passed: true, Message: "strict_mode disabled; custom repository thresholds active",
 		}, nil
 	}
 	t := resolveThresholds(ctx)
 	if t.MaxComplexity > 15 || t.MaxFileLOC > 400 || t.MaxFuncLOC > 60 || t.MinCoverage < 55.0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: probeThresholdIntegrity, Law: 7, Ring: RingCryptographic,
 			Passed: false, Message: "statutory quality gate thresholds relaxed below allowable bounds while strict_mode=true",
 			Remedy: "restore canonical thresholds (max_complexity<=15, max_file_loc<=400, max_func_loc<=60, min_coverage>=55%) or set governance.quality_gates.strict_mode: false for brownfield onboarding",
 		}, nil
 	}
 	if cfg != nil && (cfg.Governance.QualityGates.EffectiveTDDMode() == config.TDDModeOff || cfg.Governance.QualityGates.EffectiveCoverageMode() == config.CoverageModeOff) {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: probeThresholdIntegrity, Law: 7, Ring: RingCryptographic,
 			Passed: false, Message: "tdd_mode and coverage_mode cannot be disabled (off) while strict_mode=true",
 			Remedy: "set tdd_mode/coverage_mode to strict/live or set governance.quality_gates.strict_mode: false",
 		}, nil
 	}
 
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(), ProbeID: probeThresholdIntegrity, Law: 7, Ring: RingCryptographic,
 		Passed: true, Message: "threshold integrity verified against canonical statutory baselines",
 	}, nil
 }
 
-func checkWorktreeGovernanceDowngrade(ctx *VerifyContext, wtCfg *config.EcosystemConfig) string {
+func checkWorktreeGovernanceDowngrade(ctx *vscope.VerifyContext, wtCfg *config.EcosystemConfig) string {
 	trunkCfg, parseErr := loadPinnedTrunkConfig(ctx, wtCfg)
 	if parseErr != "" || trunkCfg == nil {
 		return parseErr
@@ -297,7 +282,7 @@ func checkWorktreeGovernanceDowngrade(ctx *VerifyContext, wtCfg *config.Ecosyste
 	if modeIssue := checkTestGateModeDowngrade(trunkCfg, wtCfg); modeIssue != "" {
 		return modeIssue
 	}
-	return checkArchitectureBoundariesDowngrade(trunkCfg, wtCfg)
+	return impact.CheckArchitectureBoundariesDowngrade(trunkCfg, wtCfg)
 }
 
 func checkBooleanGovernanceFlagsDowngrade(trunkCfg, wtCfg *config.EcosystemConfig) string {
@@ -313,19 +298,19 @@ func checkBooleanGovernanceFlagsDowngrade(trunkCfg, wtCfg *config.EcosystemConfi
 	return ""
 }
 
-func loadPinnedTrunkConfig(ctx *VerifyContext, wtCfg *config.EcosystemConfig) (*config.EcosystemConfig, string) {
+func loadPinnedTrunkConfig(ctx *vscope.VerifyContext, wtCfg *config.EcosystemConfig) (*config.EcosystemConfig, string) {
 	if ctx == nil || wtCfg == nil || ctx.WorktreePath == "" || ctx.RepoRoot == "" {
 		return nil, ""
 	}
 	if filepath.Clean(ctx.WorktreePath) == filepath.Clean(ctx.RepoRoot) {
 		return nil, ""
 	}
-	if wtPath := hasLocalConfig(ctx.WorktreePath); wtPath != "" {
+	if wtPath := vscope.HasLocalConfig(ctx.WorktreePath); wtPath != "" {
 		if _, err := config.LoadConfig(wtPath); err != nil {
 			return nil, fmt.Sprintf("worktree nomos.yaml is malformed and cannot be parsed: %v", err)
 		}
 	}
-	trunkPath := hasLocalConfig(ctx.RepoRoot)
+	trunkPath := vscope.HasLocalConfig(ctx.RepoRoot)
 	if trunkPath == "" {
 		return nil, ""
 	}
@@ -343,7 +328,7 @@ type UAssetDependencyGate struct{}
 func (g *UAssetDependencyGate) Name() string { return "UAsset Dependency Invariant (Law 2)" }
 
 // Evaluate confirms binary Unreal packages resolve dependencies or passes if 0 found.
-func (g *UAssetDependencyGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *UAssetDependencyGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := resolveIntentRoot(ctx)
 	var count int
 	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
@@ -358,19 +343,19 @@ func (g *UAssetDependencyGate) Evaluate(ctx *VerifyContext) (*GateResult, error)
 	})
 
 	if count == 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "uasset_dependency", Law: 2, Ring: RingSyntactic,
 			Passed: true, Message: "zero uasset packages detected; binary dependency gate satisfied",
 		}, nil
 	}
 
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(), ProbeID: "uasset_dependency", Law: 2, Ring: RingSyntactic,
 		Passed: true, Message: fmt.Sprintf("verified %d uasset package dependencies", count),
 	}, nil
 }
 
-func resolveIntentRoot(ctx *VerifyContext) string {
+func resolveIntentRoot(ctx *vscope.VerifyContext) string {
 	if ctx != nil && ctx.WorktreePath != "" {
 		return ctx.WorktreePath
 	}

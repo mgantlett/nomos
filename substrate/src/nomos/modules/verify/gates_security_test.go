@@ -1,6 +1,7 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,7 +20,7 @@ func TestSecurityGatesRegistration(t *testing.T) {
 
 func TestSecretGateClean(t *testing.T) {
 	g := &SecretGate{}
-	ctx := &VerifyContext{RepoRoot: "."}
+	ctx := &vscope.VerifyContext{RepoRoot: "."}
 	res, err := g.Evaluate(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -31,7 +32,7 @@ func TestSecretGateClean(t *testing.T) {
 
 func TestBrokenWireGateClean(t *testing.T) {
 	g := &BrokenWireGate{}
-	ctx := &VerifyContext{RepoRoot: "."}
+	ctx := &vscope.VerifyContext{RepoRoot: "."}
 	res, err := g.Evaluate(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -43,7 +44,7 @@ func TestBrokenWireGateClean(t *testing.T) {
 
 func TestConfigImmutabilityGate(t *testing.T) {
 	g := &ConfigImmutabilityGate{}
-	ctx := &VerifyContext{TaskID: "INT-737"}
+	ctx := &vscope.VerifyContext{TaskID: "INT-737"}
 	res, err := g.Evaluate(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -102,7 +103,7 @@ func TestSecretGateGitIgnoredBuildDirsVsUnignoredDirs(t *testing.T) {
 	}
 
 	g := &SecretGate{}
-	res, err := g.Evaluate(&VerifyContext{WorktreePath: dir})
+	res, err := g.Evaluate(&vscope.VerifyContext{WorktreePath: dir})
 	if err != nil {
 		t.Fatalf("unexpected error on gitignored build dirs: %v", err)
 	}
@@ -123,7 +124,7 @@ func TestSecretGateGitIgnoredBuildDirsVsUnignoredDirs(t *testing.T) {
 		t.Fatalf("write unignored leak: %v", err)
 	}
 
-	res2, err := g.Evaluate(&VerifyContext{WorktreePath: unignoredRepo})
+	res2, err := g.Evaluate(&vscope.VerifyContext{WorktreePath: unignoredRepo})
 	if err != nil {
 		t.Fatalf("unexpected error on unignored build dir: %v", err)
 	}

@@ -5,6 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/polyrun"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -83,17 +86,17 @@ if tot > 0:
     print("NOMOS_PY_COV:{:.2f}".format((hit * 100.0) / tot))
 `
 
-func evaluatePolyglotCoverageGate(gateName string, ctx *VerifyContext, root string) *GateResult {
+func evaluatePolyglotCoverageGate(gateName string, ctx *vscope.VerifyContext, root string) *vscope.GateResult {
 	pct, source, failMsg := measureWorkspacePolyglotCoverage(ctx, root)
 	if failMsg != "" {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: gateName, ProbeID: probeIDCoverage, Law: 2, Ring: RingDynamic,
 			Passed: false, Message: failMsg,
 			Remedy: "resolve failing polyglot unit tests before evaluating statement coverage",
 		}
 	}
 	if source == "" {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: gateName, ProbeID: probeIDCoverage, Law: 2, Ring: RingDynamic,
 			Passed: true, Message: "no Go or polyglot coverage suite detected in scope",
 		}
@@ -101,32 +104,32 @@ func evaluatePolyglotCoverageGate(gateName string, ctx *VerifyContext, root stri
 	configured := resolveThresholds(ctx).MinCoverage
 	effThreshold := resolveEffectivePolyglotCoverageThreshold(ctx, root, configured, pct)
 	if pct < effThreshold {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: gateName, ProbeID: probeIDCoverage, Law: 2, Ring: RingDynamic,
 			Passed:  false,
 			Message: fmt.Sprintf("polyglot statement coverage %.1f%% (%s) is below minimum required %.1f%%", pct, source, effThreshold),
 			Remedy:  fmt.Sprintf("author additional unit tests to raise statement coverage to >= %.1f%%", effThreshold),
 		}
 	}
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: gateName, ProbeID: probeIDCoverage, Law: 2, Ring: RingDynamic,
 		Passed:  true,
 		Message: fmt.Sprintf("polyglot statement coverage %.1f%% (%s) meets required threshold (>= %.1f%%)", pct, source, effThreshold),
 	}
 }
 
-func resolveEffectivePolyglotCoverageThreshold(ctx *VerifyContext, root string, configured, curPct float64) float64 {
-	if curPct >= configured || !isBrownfieldGitScope(ctx, root) {
+func resolveEffectivePolyglotCoverageThreshold(ctx *vscope.VerifyContext, root string, configured, curPct float64) float64 {
+	if curPct >= configured || !polyrun.IsBrownfieldGitScope(ctx, root) {
 		return configured
 	}
-	if !isWorktreeContext(ctx, root) {
-		if len(getModifiedFilesInScope(ctx, root)) == 0 {
+	if !vscope.IsWorktreeContext(ctx, root) {
+		if len(vscope.GetModifiedFilesInScope(ctx, root)) == 0 {
 			return curPct
 		}
 		return configured
 	}
 	if ctx != nil && ctx.RepoRoot != "" && ctx.RepoRoot != root {
-		baseCtx := &VerifyContext{RepoRoot: ctx.RepoRoot, IsBaseline: true}
+		baseCtx := &vscope.VerifyContext{RepoRoot: ctx.RepoRoot, IsBaseline: true}
 		if basePct, src, fail := measureWorkspacePolyglotCoverage(baseCtx, ctx.RepoRoot); fail == "" && src != "" && basePct < configured {
 			return basePct
 		}
@@ -134,7 +137,7 @@ func resolveEffectivePolyglotCoverageThreshold(ctx *VerifyContext, root string, 
 	return configured
 }
 
-func measureWorkspacePolyglotCoverage(ctx *VerifyContext, root string) (float64, string, string) {
+func measureWorkspacePolyglotCoverage(ctx *vscope.VerifyContext, root string) (float64, string, string) {
 	if pct, label, ok := discoverCoverageArtifact(root); ok {
 		return pct, label, ""
 	}
@@ -144,8 +147,8 @@ func measureWorkspacePolyglotCoverage(ctx *VerifyContext, root string) (float64,
 	return runLivePolyglotCoverageProbes(ctx, root)
 }
 
-func runLivePolyglotCoverageProbes(ctx *VerifyContext, root string) (float64, string, string) {
-	if hasPythonTests(root) {
+func runLivePolyglotCoverageProbes(ctx *vscope.VerifyContext, root string) (float64, string, string) {
+	if polyrun.HasPythonTests(root) {
 		return runPythonStdlibCoverage(ctx, root)
 	}
 	if pct, src, fail := runNodeLiveV8Coverage(root); src != "" || fail != "" {
@@ -159,13 +162,13 @@ func runLivePolyglotCoverageProbes(ctx *VerifyContext, root string) (float64, st
 
 func discoverCoverageArtifact(root string) (float64, string, bool) {
 	lcovPaths := []string{
-		filepath.Join(root, dirCoverage, "lcov.info"),
+		filepath.Join(root, astdebt.DirCoverage, "lcov.info"),
 		filepath.Join(root, "lcov.info"),
 		filepath.Join(root, "target", "llvm-cov-target", "lcov.info"),
 	}
 	for _, p := range lcovPaths {
 		if data, err := os.ReadFile(p); err == nil {
-			if pct, ok := ParseLCOVCoverage(data); ok {
+			if pct, ok := polyrun.ParseLCOVCoverage(data); ok {
 				return pct, "LCOV", true
 			}
 		}
@@ -173,19 +176,19 @@ func discoverCoverageArtifact(root string) (float64, string, bool) {
 	xmlPaths := []string{
 		filepath.Join(root, "coverage.xml"),
 		filepath.Join(root, "cobertura.xml"),
-		filepath.Join(root, dirCoverage, "cobertura-coverage.xml"),
+		filepath.Join(root, astdebt.DirCoverage, "cobertura-coverage.xml"),
 		filepath.Join(root, "target", "site", "jacoco", "jacoco.xml"),
-		filepath.Join(root, "build", "reports", "jacoco", dirTest, "jacocoTestReport.xml"),
+		filepath.Join(root, "build", "reports", "jacoco", astdebt.DirTest, "jacocoTestReport.xml"),
 	}
 	xmlPaths = append(xmlPaths, findTestResultsCobertura(filepath.Join(root, "TestResults"))...)
 	for _, p := range xmlPaths {
 		if data, err := os.ReadFile(p); err == nil {
-			if pct, ok := ParseCoberturaCoverage(data); ok {
+			if pct, ok := polyrun.ParseCoberturaCoverage(data); ok {
 				return pct, "Cobertura/XML", true
 			}
 		}
 	}
-	if data, err := os.ReadFile(filepath.Join(root, dirCoverage, ".resultset.json")); err == nil {
+	if data, err := os.ReadFile(filepath.Join(root, astdebt.DirCoverage, ".resultset.json")); err == nil {
 		if pct, ok := ParseSimpleCovCoverage(data); ok {
 			return pct, "SimpleCov", true
 		}
@@ -194,7 +197,7 @@ func discoverCoverageArtifact(root string) (float64, string, bool) {
 }
 
 func findTestResultsCobertura(testResultsDir string) []string {
-	if !dirExists(testResultsDir) {
+	if !vscope.DirExists(testResultsDir) {
 		return nil
 	}
 	var out []string
@@ -240,12 +243,12 @@ func ParseSimpleCovCoverage(content []byte) (float64, bool) {
 	return (float64(covered) * 100.0) / float64(relevant), true
 }
 
-func runPythonStdlibCoverage(ctx *VerifyContext, root string) (float64, string, string) {
-	pyBin, err := resolvePythonBinary(root, "python3")
+func runPythonStdlibCoverage(ctx *vscope.VerifyContext, root string) (float64, string, string) {
+	pyBin, err := polyrun.ResolvePythonBinary(root, "python3")
 	if err != nil {
 		return 0, "", ""
 	}
-	targets, shouldRun := resolveScopedPytestTargets(ctx, root)
+	targets, shouldRun := polyrun.ResolveScopedPytestTargets(ctx, root)
 	if !shouldRun {
 		return 100.0, "Python(diff-scoped skip)", ""
 	}
@@ -255,12 +258,12 @@ func runPythonStdlibCoverage(ctx *VerifyContext, root string) (float64, string, 
 	args := append([]string{"-B", "-c", pyStdlibTraceRunner, root}, targets...)
 	cmd := exec.CommandContext(cmdCtx, pyBin, args...)
 	cmd.Dir = root
-	cmd.Env = sanitizedToolchainEnv(envPyNoBytecodeKV, envToolchainGateKV)
+	cmd.Env = polyrun.SanitizedToolchainEnv(polyrun.EnvPyNoBytecodeKV, polyrun.EnvToolchainGateKV)
 	out, runErr := cmd.CombinedOutput()
 	outStr := string(out)
 	if runErr != nil {
 		if exitErr, ok := runErr.(*exec.ExitError); ok && exitErr.ExitCode() == 2 {
-			return 0, "", "Python coverage test execution failed: " + truncateToolchainOutput(outStr)
+			return 0, "", "Python coverage test execution failed: " + polyrun.TruncateToolchainOutput(outStr)
 		}
 		return 0, "", ""
 	}

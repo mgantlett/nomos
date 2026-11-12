@@ -137,7 +137,7 @@ func operationalSurfaceContractCases() []repoContractCase {
 		},
 		{
 			name:    "TC-REL-013 commit_scope contains zero sovereign UI directory special-cases",
-			relPath: filepath.Join("substrate", "cli", "commit_scope.go"),
+			relPath: filepath.Join("substrate", "cli", "commitmsg", "commit_scope.go"),
 			forbid:  []string{"cockpit-ui", "cockpit"},
 		},
 		{

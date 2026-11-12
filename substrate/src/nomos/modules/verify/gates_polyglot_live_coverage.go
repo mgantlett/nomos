@@ -4,6 +4,9 @@ package verify
 import (
 	"context"
 	"encoding/json"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/polyrun"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"net/url"
 	"os"
 	"os/exec"
@@ -62,11 +65,11 @@ type v8RangeCov struct {
 }
 
 func runNodeLiveV8Coverage(root string) (float64, string, string) {
-	testFiles := collectJSTestFiles(root)
+	testFiles := polyrun.CollectJSTestFiles(root)
 	if len(testFiles) == 0 {
 		return 0, "", ""
 	}
-	bin, args, ok := resolveJSTestCommand(root, testFiles)
+	bin, args, ok := polyrun.ResolveJSTestCommand(root, testFiles)
 	if !ok {
 		return 0, "", ""
 	}
@@ -85,10 +88,10 @@ func runNodeLiveV8Coverage(root string) (float64, string, string) {
 
 	cmd := exec.CommandContext(cmdCtx, bin, args...)
 	cmd.Dir = root
-	cmd.Env = sanitizedToolchainEnv("CI=true", "NODE_V8_COVERAGE="+covDir, envToolchainGateKV)
+	cmd.Env = polyrun.SanitizedToolchainEnv("CI=true", "NODE_V8_COVERAGE="+covDir, polyrun.EnvToolchainGateKV)
 	out, runErr := cmd.CombinedOutput()
 	if runErr != nil {
-		return 0, "", "JS/TS coverage test execution failed: " + truncateToolchainOutput(string(out))
+		return 0, "", "JS/TS coverage test execution failed: " + polyrun.TruncateToolchainOutput(string(out))
 	}
 	pct, parsed := parseNodeV8CoverageDir(root, covDir)
 	if !parsed {
@@ -139,7 +142,7 @@ func collectV8ScriptRanges(absRoot string, raw []byte, out map[string][]v8RangeC
 		if scriptPath == "" || !strings.HasPrefix(scriptPath, absRoot+string(filepath.Separator)) {
 			continue
 		}
-		if isExcludedPolyglotDir(filepath.ToSlash(scriptPath)) || !isPolyglotImplFileForTDD(filepath.Base(scriptPath)) {
+		if vscope.IsExcludedPolyglotDir(filepath.ToSlash(scriptPath)) || !isPolyglotImplFileForTDD(filepath.Base(scriptPath)) {
 			continue
 		}
 		for _, fn := range s.Functions {
@@ -189,7 +192,7 @@ func evaluateV8ByteHits(srcLen int, ranges []v8RangeCov) []bool {
 	}
 	for _, r := range ranges {
 		start := maxInt(0, r.StartOffset)
-		end := minInt(srcLen, r.EndOffset)
+		end := astdebt.MinInt(srcLen, r.EndOffset)
 		span := end - start
 		if span <= 0 {
 			continue
@@ -212,7 +215,7 @@ func isCountableJSLine(trimmed string) bool {
 }
 
 func isLineRangeHit(byteCovered []bool, start, end int) bool {
-	limit := minInt(len(byteCovered), end)
+	limit := astdebt.MinInt(len(byteCovered), end)
 	for i := start; i < limit; i++ {
 		if byteCovered[i] {
 			return true
@@ -223,7 +226,7 @@ func isLineRangeHit(byteCovered []bool, start, end int) bool {
 
 func runRubyStdlibCoverage(root string) (float64, string, string) {
 	rubyBin, err := exec.LookPath("ruby")
-	if err != nil || fileExistsInDir(root, "Gemfile.lock") {
+	if err != nil || polyrun.FileExistsInDir(root, "Gemfile.lock") {
 		return 0, "", ""
 	}
 	testFiles := collectRubyUnitTestFiles(root)
@@ -236,7 +239,7 @@ func runRubyStdlibCoverage(root string) (float64, string, string) {
 	args := append([]string{"-e", rubyStdlibCoverageScript, root}, testFiles...)
 	cmd := exec.CommandContext(cmdCtx, rubyBin, args...)
 	cmd.Dir = root
-	cmd.Env = sanitizedToolchainEnv(envToolchainGateKV)
+	cmd.Env = polyrun.SanitizedToolchainEnv(polyrun.EnvToolchainGateKV)
 	out, runErr := cmd.CombinedOutput()
 	outStr := string(out)
 	if runErr != nil {
@@ -255,7 +258,7 @@ func runRubyStdlibCoverage(root string) (float64, string, string) {
 
 func collectRubyUnitTestFiles(root string) []string {
 	var out []string
-	for _, relDir := range []string{dirTest, "."} {
+	for _, relDir := range []string{astdebt.DirTest, "."} {
 		dir := filepath.Join(root, relDir)
 		entries, err := os.ReadDir(dir)
 		if err != nil {
@@ -271,7 +274,7 @@ func collectRubyUnitTestFiles(root string) []string {
 }
 
 func runDotnetLiveCoverage(root string) (float64, string, string) {
-	projects, hasSDK := findCSharpProjects(root)
+	projects, hasSDK := polyrun.FindCSharpProjects(root)
 	if len(projects) == 0 || !hasSDK {
 		return 0, "", ""
 	}
@@ -291,19 +294,18 @@ func runDotnetLiveCoverage(root string) (float64, string, string) {
 	cmdCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(cmdCtx, dotnetBin, dirTest, "--nologo", "-v", "q", "--collect:XPlat Code Coverage", "--results-directory", resDir)
+	cmd := exec.CommandContext(cmdCtx, dotnetBin, astdebt.DirTest, "--nologo", "-v", "q", "--collect:XPlat Code Coverage", "--results-directory", resDir)
 	cmd.Dir = root
-	cmd.Env = sanitizedToolchainEnv(envToolchainGateKV)
+	cmd.Env = polyrun.SanitizedToolchainEnv(polyrun.EnvToolchainGateKV)
 	if _, runErr := cmd.CombinedOutput(); runErr != nil {
 		return 0, "", ""
 	}
 	for _, xmlPath := range findTestResultsCobertura(resDir) {
 		if data, rErr := os.ReadFile(xmlPath); rErr == nil {
-			if pct, ok := ParseCoberturaCoverage(data); ok {
+			if pct, ok := polyrun.ParseCoberturaCoverage(data); ok {
 				return pct, "C#(XPlat)", ""
 			}
 		}
 	}
 	return 0, "", ""
 }
-

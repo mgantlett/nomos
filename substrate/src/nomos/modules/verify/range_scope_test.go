@@ -2,6 +2,7 @@ package verify
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"strings"
@@ -62,10 +63,10 @@ func TestCommitRange_AttestedCommitsSkipBrownfieldFiles(t *testing.T) {
 	headSHA := runTestGit(t, dir, "rev-parse", "HEAD")
 
 	receipt := `{"task_key":"SUB-1","phase":"SYNC","dod_gates_passed":42,"sha256_receipt":"abc123def456"}`
-	runTestGit(t, dir, "notes", "--ref="+releaseNotesRef, "add", "-m", receipt, headSHA)
+	runTestGit(t, dir, "notes", "--ref="+vscope.ReleaseNotesRef, "add", "-m", receipt, headSHA)
 
 	gate := &MaxFileLOCGate{}
-	ctx := &VerifyContext{
+	ctx := &vscope.VerifyContext{
 		RepoRoot:     dir,
 		WorktreePath: dir,
 		CommitRange:  baseSHA + ".." + headSHA,
@@ -97,7 +98,7 @@ func TestCommitRange_UnattestedViolationFailsClosed(t *testing.T) {
 	headSHA := runTestGit(t, dir, "rev-parse", "HEAD")
 
 	gate := &MaxFileLOCGate{}
-	ctx := &VerifyContext{
+	ctx := &vscope.VerifyContext{
 		RepoRoot:     dir,
 		WorktreePath: dir,
 		CommitRange:  baseSHA + ".." + headSHA,

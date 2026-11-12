@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/mgantlett/nomos/substrate/cli/selfupdate"
 	"os"
 	"path/filepath"
 	"strings"
@@ -80,7 +81,7 @@ func TestPlainHandshakeBannerWithRoot_UpdateAndContractDrift(t *testing.T) {
 	t.Setenv(constants.EnvNomosNoUpdateCheck, "")
 	t.Setenv("CI", "")
 
-	if err := SaveUpdateCheckCache(UpdateCheckCache{
+	if err := selfupdate.SaveUpdateCheckCache(selfupdate.UpdateCheckCache{
 		CheckedAt:     time.Now().UTC().Format(time.RFC3339),
 		LatestVersion: "99.10.0",
 	}); err != nil {

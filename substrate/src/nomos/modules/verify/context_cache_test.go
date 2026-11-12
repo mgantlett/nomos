@@ -1,6 +1,9 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/polyrun"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,23 +14,23 @@ import (
 )
 
 func TestPipelineMemoizesConfigAndScopeAcrossGates(t *testing.T) {
-	ctx := &VerifyContext{RepoRoot: t.TempDir(), TaskID: "SUB-99"}
+	ctx := &vscope.VerifyContext{RepoRoot: t.TempDir(), TaskID: "SUB-99"}
 	cfgLoads := 0
 	scopeLoads := 0
 
-	beginVerifyContextCache(ctx)
+	vscope.BeginVerifyContextCache(ctx)
 	for i := 0; i < 5; i++ {
-		cfg := memoizedVerifyConfig(ctx, func() *config.EcosystemConfig {
+		cfg := vscope.MemoizedVerifyConfig(ctx, func() *config.EcosystemConfig {
 			cfgLoads++
 			return config.DefaultNomosConfig()
 		})
 		if cfg == nil {
 			t.Fatalf("expected non-nil memoized config")
 		}
-		files := memoizedScopeFiles(ctx, ctx.RepoRoot, func() []string {
+		files := vscope.MemoizedScopeFiles(ctx, ctx.RepoRoot, func() []string {
 			scopeLoads++
 			// Nested memoized lookup must not deadlock on non-reentrant mutex.
-			nestedCfg := memoizedVerifyConfig(ctx, func() *config.EcosystemConfig {
+			nestedCfg := vscope.MemoizedVerifyConfig(ctx, func() *config.EcosystemConfig {
 				cfgLoads++
 				return config.DefaultNomosConfig()
 			})
@@ -40,14 +43,14 @@ func TestPipelineMemoizesConfigAndScopeAcrossGates(t *testing.T) {
 			t.Fatalf("unexpected memoized scope files: %v", files)
 		}
 	}
-	endVerifyContextCache(ctx)
+	vscope.EndVerifyContextCache(ctx)
 
 	if cfgLoads != 1 || scopeLoads != 1 {
 		t.Fatalf("expected 1 config load and 1 scope load inside pipeline cache, got cfg=%d scope=%d", cfgLoads, scopeLoads)
 	}
 
 	// After eviction, subsequent calls must evaluate fresh state.
-	memoizedScopeFiles(ctx, ctx.RepoRoot, func() []string {
+	vscope.MemoizedScopeFiles(ctx, ctx.RepoRoot, func() []string {
 		scopeLoads++
 		return []string{"pkg/b.go"}
 	})
@@ -80,7 +83,7 @@ func TestImpactMapEmitsDependentPathsAndExactGoModule(t *testing.T) {
 	mustWrite("web/store.ts", "export const state = 1;\n")
 	mustWrite("web/view.ts", "import { state } from './store';\nexport const v = state;\n")
 
-	impacts := ComputeWorkspaceImpact(dir, []string{"pkg/config/cfg.go", "web/store.ts"})
+	impacts := impact.ComputeWorkspaceImpact(dir, []string{"pkg/config/cfg.go", "web/store.ts"})
 	joined := strings.Join(impacts, "\n")
 	if !strings.Contains(joined, "importers(1): app [cmd/app]") {
 		t.Fatalf("expected exact module importer cmd/app without third-party suffix collision, got:\n%s", joined)
@@ -96,7 +99,7 @@ func TestImpactMapEmitsDependentPathsAndExactGoModule(t *testing.T) {
 func TestTruncateToolchainOutput_PreservesCompilerErrorBeforeFailSummary(t *testing.T) {
 	okPrefix := strings.Repeat("ok  \tgithub.com/mgantlett/nomos/substrate/pkg/alpha\t0.014s\tcoverage: 84.2% of statements\n", 25)
 	buildErr := "# github.com/mgantlett/nomos/substrate/pkg/broken\npkg/broken/runner.go:55:6: helperFn redeclared in this block\nFAIL\tgithub.com/mgantlett/nomos/substrate/pkg/broken [build failed]"
-	got := truncateToolchainOutput(okPrefix + buildErr)
+	got := polyrun.TruncateToolchainOutput(okPrefix + buildErr)
 	if !strings.Contains(got, "pkg/broken/runner.go:55:6: helperFn redeclared in this block") {
 		t.Fatalf("expected compiler error line preserved before FAIL summary, got %q", got)
 	}
@@ -119,14 +122,13 @@ func TestCollectTaskCommitPolyglotFiles_ExactTaskBoundary(t *testing.T) {
 	runGit("commit", "-m", "[SUB-20] add Other")
 
 	modified := make(map[string]bool)
-	collectTaskCommitPolyglotFiles(dir, "SUB-2", modified)
+	vscope.CollectTaskCommitPolyglotFiles(dir, "SUB-2", modified)
 	if len(modified) != 0 {
 		t.Fatalf("expected SUB-2 log grep not to match [SUB-20] commit, got: %v", modified)
 	}
 
-	collectTaskCommitPolyglotFiles(dir, "SUB-20", modified)
+	vscope.CollectTaskCommitPolyglotFiles(dir, "SUB-20", modified)
 	if !modified[otherFile] {
 		t.Fatalf("expected SUB-20 log grep to match [SUB-20] commit, got: %v", modified)
 	}
 }
-

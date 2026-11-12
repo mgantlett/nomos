@@ -1,12 +1,13 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
 	"strings"
 	"testing"
 )
 
 func TestDefaultThresholds(t *testing.T) {
-	th := DefaultThresholds()
+	th := astdebt.DefaultThresholds()
 	if th.MinCoverage != 55.0 {
 		t.Errorf("expected 55.0 min coverage, got %f", th.MinCoverage)
 	}
@@ -36,7 +37,7 @@ func TestEvaluations(t *testing.T) {
 	}
 
 	// CDS
-	files := []FileMetric{
+	files := []astdebt.FileMetric{
 		{Name: "clean.go", CDS: 20},
 		{Name: "debt.go", CDS: 60},
 	}
@@ -52,7 +53,7 @@ func TestEvaluations(t *testing.T) {
 	}
 
 	// Complexity
-	funcs := []FunctionMetric{
+	funcs := []astdebt.FunctionMetric{
 		{File: "a.go", Line: 10, Name: "BigFn", Complexity: 20, LOC: 80},
 	}
 	vComp := EvaluateComplexityViolations(funcs, 15, 60)
@@ -61,7 +62,7 @@ func TestEvaluations(t *testing.T) {
 	}
 
 	// File LOC
-	fileMetrics := []FileMetric{{Name: "giant.go", LOC: 500}}
+	fileMetrics := []astdebt.FileMetric{{Name: "giant.go", LOC: 500}}
 	vFile := EvaluateFileLOCViolations(fileMetrics, 400)
 	if len(vFile) != 1 {
 		t.Fatalf("expected 1 file loc violation, got %d", len(vFile))

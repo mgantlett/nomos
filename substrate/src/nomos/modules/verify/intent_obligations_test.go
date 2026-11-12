@@ -1,6 +1,7 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"strings"
@@ -76,7 +77,7 @@ func TestVerifySpecTypeSignaturesAndGate(t *testing.T) {
 		t.Fatalf("write nomos.yaml: %v", err)
 	}
 	gate := &IntentTraceabilityGate{}
-	ctx := &VerifyContext{RepoRoot: tmp, WorktreePath: tmp}
+	ctx := &vscope.VerifyContext{RepoRoot: tmp, WorktreePath: tmp}
 	res, err := gate.Evaluate(ctx)
 	if err != nil || res == nil || res.Passed || !strings.Contains(res.Message, "Strict") {
 		t.Fatalf("expected IntentTraceabilityGate to reject struct field drift, got: %+v, err=%v", res, err)

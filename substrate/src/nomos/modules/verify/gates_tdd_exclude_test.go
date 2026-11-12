@@ -1,6 +1,7 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,7 +23,7 @@ func TestMatchTDDExcludeGlobAndConfigHygiene(t *testing.T) {
 		{"", "src/index.ts", false},
 	}
 	for _, tc := range cases {
-		if got := MatchTDDExcludeGlob(tc.pattern, tc.relPath); got != tc.want {
+		if got := vscope.MatchTDDExcludeGlob(tc.pattern, tc.relPath); got != tc.want {
 			t.Errorf("MatchTDDExcludeGlob(%q, %q) = %v, want %v", tc.pattern, tc.relPath, got, tc.want)
 		}
 	}
@@ -76,7 +77,7 @@ func TestWorktreeDiffScopeVsRepoScopeAndTDDExclude(t *testing.T) {
 	}
 
 	gate := &TDDGate{}
-	wtCtx := &VerifyContext{RepoRoot: repo, WorktreePath: repo, TaskID: "SUB-1928"}
+	wtCtx := &vscope.VerifyContext{RepoRoot: repo, WorktreePath: repo, TaskID: "SUB-1928"}
 
 	// 1. Untested new logic module in worktree diff MUST fail closed.
 	if res, _ := gate.Evaluate(wtCtx); res.Passed {
@@ -92,7 +93,7 @@ func TestWorktreeDiffScopeVsRepoScopeAndTDDExclude(t *testing.T) {
 	}
 
 	// 3. Full-repo scan (--all or verify_scope=repo) catches untouched src/legacy_untested while ignoring vite.config.ts and excluded +page.ts.
-	allRes, _ := gate.Evaluate(&VerifyContext{RepoRoot: repo, WorktreePath: repo, TaskID: "SUB-1928", AllFiles: true})
+	allRes, _ := gate.Evaluate(&vscope.VerifyContext{RepoRoot: repo, WorktreePath: repo, TaskID: "SUB-1928", AllFiles: true})
 	if allRes.Passed || !strings.Contains(allRes.Message, "src/legacy_untested") || strings.Contains(allRes.Message, "routes/about") {
 		t.Fatalf("expected --all scan to flag only src/legacy_untested and honor tdd_exclude, got %+v", allRes)
 	}
@@ -120,7 +121,7 @@ func TestThresholdIntegrityGuardsVerifyScopeAndTDDExclude(t *testing.T) {
 		t.Fatal(err)
 	}
 	ti := &ThresholdIntegrityGate{}
-	if res, _ := ti.Evaluate(&VerifyContext{RepoRoot: trunk, WorktreePath: wt}); res.Passed {
+	if res, _ := ti.Evaluate(&vscope.VerifyContext{RepoRoot: trunk, WorktreePath: wt}); res.Passed {
 		t.Fatalf("expected worktree downgrade of verify_scope (repo -> diff) to fail closed")
 	}
 
@@ -128,8 +129,7 @@ func TestThresholdIntegrityGuardsVerifyScopeAndTDDExclude(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(wt, "nomos.yaml"), []byte(expandExclude), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if res, _ := ti.Evaluate(&VerifyContext{RepoRoot: trunk, WorktreePath: wt}); res.Passed {
+	if res, _ := ti.Evaluate(&vscope.VerifyContext{RepoRoot: trunk, WorktreePath: wt}); res.Passed {
 		t.Fatalf("expected worktree expansion of tdd_exclude to fail closed")
 	}
 }
-

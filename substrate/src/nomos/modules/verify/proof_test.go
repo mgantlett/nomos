@@ -1,6 +1,7 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"testing"
 )
 
@@ -59,7 +60,7 @@ func TestGateIntegrityProofGate(t *testing.T) {
 		t.Errorf("unexpected gate name: %s", gate.Name())
 	}
 
-	ctx := &VerifyContext{RepoRoot: ""}
+	ctx := &vscope.VerifyContext{RepoRoot: ""}
 	res, err := gate.Evaluate(ctx)
 	if err != nil {
 		t.Fatalf("unexpected gate evaluation error: %v", err)

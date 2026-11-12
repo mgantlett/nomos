@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/mgantlett/nomos/substrate/cli"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 )
 
 func main() {
@@ -15,7 +16,7 @@ func main() {
 
 func run(execFn func() error, stderr io.Writer) int {
 	if err := execFn(); err != nil {
-		fmt.Fprint(stderr, cli.FormatCLIError(err))
+		fmt.Fprint(stderr, tui.FormatCLIError(err))
 		return 1
 	}
 	return 0

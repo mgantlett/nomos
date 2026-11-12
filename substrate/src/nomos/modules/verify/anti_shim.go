@@ -4,6 +4,7 @@ package verify
 import (
 	"context"
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -152,17 +153,17 @@ func (g *AntiShimGate) Name() string {
 }
 
 // Evaluate walks workspace Go and polyglot source files and validates functions against anti-shim bounds.
-func (g *AntiShimGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *AntiShimGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := ctx.WorktreePath
 	if root == "" {
 		root = ctx.RepoRoot
 	}
-	forbiddenShims := resolveVerifyConfig(ctx).Governance.QualityGates.ForbiddenShims
+	forbiddenShims := vscope.ResolveVerifyConfig(ctx).Governance.QualityGates.ForbiddenShims
 
 	var violations []string
 	fset := token.NewFileSet()
 
-	err := WalkTargetFiles(ctx, root, func(path string, info os.FileInfo, walkErr error) error {
+	err := vscope.WalkTargetFiles(ctx, root, func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil || info == nil || info.IsDir() || !isPolyglotTargetFile(path) {
 			return nil
 		}
@@ -193,7 +194,7 @@ func (g *AntiShimGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	}
 
 	if len(violations) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(),
 			Passed:   false,
 			Message:  fmt.Sprintf("detected %d anti-shim violation(s): %s", len(violations), strings.Join(violations, "; ")),
@@ -201,7 +202,7 @@ func (g *AntiShimGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		}, nil
 	}
 
-	return &GateResult{GateName: g.Name(), Passed: true, Message: "zero anti-shim violations detected"}, nil
+	return &vscope.GateResult{GateName: g.Name(), Passed: true, Message: "zero anti-shim violations detected"}, nil
 }
 
 func scanGoFileAntiShim(fset *token.FileSet, path, relPath string) []string {

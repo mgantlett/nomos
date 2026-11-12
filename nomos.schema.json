@@ -376,6 +376,12 @@
                   "default": 10,
                   "minimum": 1
                 },
+                "max_package_files": {
+                  "description": "Maximum non-test source files per package directory (statutory: 40).",
+                  "type": "integer",
+                  "default": 40,
+                  "minimum": 1
+                },
                 "min_clone_lines": {
                   "description": "Minimum AST line span flagged as a structural Type-2 clone.",
                   "type": "integer",

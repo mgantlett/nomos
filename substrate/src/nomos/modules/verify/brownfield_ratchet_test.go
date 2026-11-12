@@ -2,6 +2,7 @@ package verify
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -50,10 +51,10 @@ func setupBrownfieldGitWorktreeFixture(t *testing.T) (string, string) {
 // @verifies TC-PHY-05
 func TestBrownfieldMonotonicRatchet_AllowsCleanFixAndBlocksBloat(t *testing.T) {
 	repo, wt := setupBrownfieldGitWorktreeFixture(t)
-	ctx := &VerifyContext{RepoRoot: repo, WorktreePath: wt, TaskID: "SUB-1", Phase: "REVIEW"}
+	ctx := &vscope.VerifyContext{RepoRoot: repo, WorktreePath: wt, TaskID: "SUB-1", Phase: "REVIEW"}
 
 	// 1. Empty worktree touches 0 legacy files -> passes immediately
-	for _, g := range []Gate{&MaxFileLOCGate{}, &ComplexityGate{}, &CognitiveDebtGate{}, &DocstringDensityGate{}} {
+	for _, g := range []vscope.Gate{&MaxFileLOCGate{}, &ComplexityGate{}, &CognitiveDebtGate{}, &DocstringDensityGate{}} {
 		res, err := g.Evaluate(ctx)
 		if err != nil || !res.Passed {
 			t.Fatalf("expected %s to pass on empty brownfield worktree, got res=%+v err=%v", g.Name(), res, err)
@@ -66,7 +67,7 @@ func TestBrownfieldMonotonicRatchet_AllowsCleanFixAndBlocksBloat(t *testing.T) {
 	mustWriteGoFixture(t, filepath.Join(wt, "pkg", "engine", "legacy_test.go"),
 		"package engine\nimport \"testing\"\nfunc TestLegacy(t *testing.T) {\n\tif LegacyDispatch(1) != 2 || NormalizeInput(-3) != 0 { t.Fatal(\"bad\") }\n}\n")
 
-	for _, g := range []Gate{&MaxFileLOCGate{}, &ComplexityGate{}, &CognitiveDebtGate{}, &DocstringDensityGate{}, &AntiShimGate{}, &CoverageGate{}} {
+	for _, g := range []vscope.Gate{&MaxFileLOCGate{}, &ComplexityGate{}, &CognitiveDebtGate{}, &DocstringDensityGate{}, &AntiShimGate{}, &CoverageGate{}} {
 		ctx.CoverageRep = nil
 		res, err := g.Evaluate(ctx)
 		if err != nil || !res.Passed {
@@ -126,7 +127,7 @@ func TestBrownfieldPolyglotPythonTDDScoping(t *testing.T) {
 	}
 	mustWriteGoFixture(t, filepath.Join(wt, "src", "billing.py"), "def total(x: int) -> int:\n    return max(0, x)\n")
 
-	ctx := &VerifyContext{RepoRoot: repo, WorktreePath: wt, TaskID: "SUB-2", Phase: "REVIEW"}
+	ctx := &vscope.VerifyContext{RepoRoot: repo, WorktreePath: wt, TaskID: "SUB-2", Phase: "REVIEW"}
 	tdd := &TDDGate{}
 	failRes, err := tdd.Evaluate(ctx)
 	if err != nil || failRes.Passed {
@@ -158,7 +159,7 @@ func TestBrownfieldMagicStringAndForbiddenLiteralRatchet(t *testing.T) {
 	}
 	mustWriteGoFixture(t, filepath.Join(wt, "sqlglot", "parser.py"), basePy+"\ndef allow_in() -> bool:\n    return True\n")
 
-	ctx := &VerifyContext{RepoRoot: repo, WorktreePath: wt, TaskID: "SUB-3", Phase: "REVIEW"}
+	ctx := &vscope.VerifyContext{RepoRoot: repo, WorktreePath: wt, TaskID: "SUB-3", Phase: "REVIEW"}
 	dupRes, err := (&MagicStringDuplicationGate{}).Evaluate(ctx)
 	if err != nil || !dupRes.Passed {
 		t.Fatalf("expected MagicStringDuplicationGate to allow pre-existing literal count, got %+v err=%v", dupRes, err)
@@ -187,4 +188,39 @@ func assertContainsAllSubstrings(t *testing.T, msg string, wants ...string) {
 			t.Fatalf("expected message to contain %q, got:\n%s", want, msg)
 		}
 	}
+}
+
+// @verifies TC-TS-12
+func TestPackageFanOutGate_StrictAndBrownfieldRatchet(t *testing.T) {
+	repo, wt := setupBrownfieldGitWorktreeFixture(t)
+	for i := 0; i < 42; i++ {
+		mustWriteGoFixture(t, filepath.Join(repo, "pkg", "crowded", fmt.Sprintf("f%02d.go", i)), "package crowded\n// Fn doc.\nfunc Fn"+fmt.Sprint(i)+"() int { return 1 }\n")
+	}
+	_ = workspace.SafeGitCommand(repo, "add", ".").Run()
+	_ = workspace.SafeGitCommand(repo, "commit", "-m", "chore: crowded dir").Run()
+	_ = workspace.SafeGitCommand(wt, "merge", "--ff-only", "main").Run()
+
+	// Touching an existing file in a 42-file brownfield directory passes without growing file count.
+	mustWriteGoFixture(t, filepath.Join(wt, "pkg", "crowded", "f00.go"), "package crowded\n// Fn0 updated.\nfunc Fn0() int { return 2 }\n")
+	ctx := &vscope.VerifyContext{RepoRoot: repo, WorktreePath: wt, TaskID: "SUB-1", Phase: "REVIEW"}
+	resPass, err := (&MaxFileLOCGate{}).Evaluate(ctx)
+	if err != nil || !resPass.Passed {
+		t.Fatalf("expected brownfield 42-file dir to pass without net-new files, got %+v err=%v", resPass, err)
+	}
+
+	// Adding a 43rd file in brownfield mode exceeds baseline ceiling 42 and fails closed!
+	mustWriteGoFixture(t, filepath.Join(wt, "pkg", "crowded", "f42.go"), "package crowded\n// Fn42 doc.\nfunc Fn42() int { return 3 }\n")
+	resGrow, err := (&MaxFileLOCGate{}).Evaluate(ctx)
+	if err != nil || resGrow.Passed {
+		t.Fatalf("expected 43rd file in 42-file brownfield dir to fail closed, got %+v", resGrow)
+	}
+	assertContainsAllSubstrings(t, resGrow.Message, "pkg/crowded has 43 non-test source files", "exceeds brownfield ceiling 42", "1-TURN RECIPE: extract >=1 cohesive file(s)")
+
+	// Strict mode enforces statutory ceiling 40 even without net-new growth.
+	ctxStrict := &vscope.VerifyContext{RepoRoot: repo, WorktreePath: wt, TaskID: "SUB-1", Phase: "REVIEW", Strict: true}
+	resStrict, err := (&MaxFileLOCGate{}).Evaluate(ctxStrict)
+	if err != nil || resStrict.Passed {
+		t.Fatalf("expected strict mode to enforce max 40 package files, got %+v", resStrict)
+	}
+	assertContainsAllSubstrings(t, resStrict.Message, "pkg/crowded has 43 non-test source files (exceeds max 40)", "1-TURN RECIPE: extract >=3 cohesive file(s)")
 }

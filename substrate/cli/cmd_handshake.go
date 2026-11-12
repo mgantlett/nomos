@@ -5,6 +5,8 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/cli/selfupdate"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"os"
 	"strings"
 	"time"
@@ -25,7 +27,7 @@ func NewHandshakeCmd() *cobra.Command {
 		Short: "Initialize JIT session orientation telemetry and verify CapBAC tokens",
 		Long: `Run on session boot to initialize state, sync protocols, and receive dynamic
 Just-In-Time (JIT) Phase Invariant Envelopes under indirect control.`,
-		Example: helpHandshakeExample,
+		Example: tui.HelpHandshakeExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repoRoot, err := os.Getwd()
 			if err != nil {
@@ -81,112 +83,112 @@ func renderHandshakeBanner(event *handshake.HandshakeEvent, installed bool, hook
 		hookMsg = "AUTO-INSTALLED (pre-commit, commit-msg, pre-push)"
 	}
 
-	fmt.Println(renderBrandTitle("🤝 Nomos JIT Session Handshake"))
-	fmt.Println(uiRule(ruleNarrow))
-	fmt.Println(kvLine("Active Repository", 17, uiBoldValueStyle.Render(event.Repository)))
-	fmt.Println(kvLine("Workstation Seat", 17, uiValueStyle.Render(event.Seat)))
+	fmt.Println(tui.RenderBrandTitle("🤝 Nomos JIT Session Handshake"))
+	fmt.Println(tui.UiRule(tui.RuleNarrow))
+	fmt.Println(tui.KvLine("Active Repository", 17, tui.UiBoldValueStyle.Render(event.Repository)))
+	fmt.Println(tui.KvLine("Workstation Seat", 17, tui.UiValueStyle.Render(event.Seat)))
 	renderHandshakePhaseAndLease(event)
 
 	if installed {
-		fmt.Println(kvLine("Defense Hooks", 17, uiSuccessStyle.Render(hookMsg)))
+		fmt.Println(tui.KvLine("Defense Hooks", 17, tui.UiSuccessStyle.Render(hookMsg)))
 	} else {
-		fmt.Println(kvLine("Defense Hooks", 17, styleSemanticBadge(hookMsg)))
+		fmt.Println(tui.KvLine("Defense Hooks", 17, tui.StyleSemanticBadge(hookMsg)))
 	}
 	if event.DatabasesHealthy {
-		fmt.Println(kvLine("Database Health", 17, styleSemanticBadge("HEALTHY")))
+		fmt.Println(tui.KvLine("Database Health", 17, tui.StyleSemanticBadge("HEALTHY")))
 	} else {
-		fmt.Println(kvLine("Database Health", 17, styleSemanticBadge("UNHEALTHY")))
+		fmt.Println(tui.KvLine("Database Health", 17, tui.StyleSemanticBadge("UNHEALTHY")))
 	}
-	fmt.Println(kvLine("DoD Quality Gates", 17, fmt.Sprintf("%s deterministic gates active",
-		uiBoldValueStyle.Render(fmt.Sprintf("%d", event.GateCount)))))
-	fmt.Println(kvLine("Ready Wavefront", 17, formatHandshakeWavefront(event.ReadyWavefront)))
+	fmt.Println(tui.KvLine("DoD Quality Gates", 17, fmt.Sprintf("%s deterministic gates active",
+		tui.UiBoldValueStyle.Render(fmt.Sprintf("%d", event.GateCount)))))
+	fmt.Println(tui.KvLine("Ready Wavefront", 17, formatHandshakeWavefront(event.ReadyWavefront)))
 	if len(event.Directives) > 0 {
 		dirVal := fmt.Sprintf("%s active %s",
-			uiBoldValueStyle.Render(fmt.Sprintf("%d", len(event.Directives))),
-			uiMutedStyle.Render("("+strings.Join(event.Directives, ", ")+")"))
-		fmt.Println(kvLine("JIT Directives", 17, dirVal))
+			tui.UiBoldValueStyle.Render(fmt.Sprintf("%d", len(event.Directives))),
+			tui.UiMutedStyle.Render("("+strings.Join(event.Directives, ", ")+")"))
+		fmt.Println(tui.KvLine("JIT Directives", 17, dirVal))
 	}
 	renderHandshakeUpdateAndDriftAdvisories(hookRoot)
 	renderHandshakeMnemeTelemetry(event)
-	renderNextActions(os.Stdout, event.NextActions)
-	fmt.Println(uiRule(ruleNarrow))
+	tui.RenderNextActions(os.Stdout, event.NextActions)
+	fmt.Println(tui.UiRule(tui.RuleNarrow))
 }
 
 func renderHandshakePhaseAndLease(event *handshake.HandshakeEvent) {
 	if event.ActiveTask == "" {
 		phaseVal := fmt.Sprintf("%s %s",
-			styleSemanticBadge(string(event.Phase)),
-			uiMutedStyle.Render("(Trunk baseline)"))
-		fmt.Println(kvLine("Workspace Phase", 17, phaseVal))
+			tui.StyleSemanticBadge(string(event.Phase)),
+			tui.UiMutedStyle.Render("(Trunk baseline)"))
+		fmt.Println(tui.KvLine("Workspace Phase", 17, phaseVal))
 		return
 	}
 	phaseVal := fmt.Sprintf("%s %s",
-		styleSemanticBadge(string(event.Phase)),
-		uiMutedStyle.Render("(Task: "+styleTaskKey(event.ActiveTask)+")"))
-	fmt.Println(kvLine("Workspace Phase", 17, phaseVal))
+		tui.StyleSemanticBadge(string(event.Phase)),
+		tui.UiMutedStyle.Render("(Task: "+tui.StyleTaskKey(event.ActiveTask)+")"))
+	fmt.Println(tui.KvLine("Workspace Phase", 17, phaseVal))
 	if event.TokenID != "" {
 		leaseVal := fmt.Sprintf("%s %s",
-			uiCommandStyle.Render(event.TokenID),
-			uiMutedStyle.Render(fmt.Sprintf("[Budget: %d, Used: %d]", event.StepBudget, event.TokensUsed)))
-		fmt.Println(kvLine("CapBAC Lease", 17, leaseVal))
+			tui.UiCommandStyle.Render(event.TokenID),
+			tui.UiMutedStyle.Render(fmt.Sprintf("[Budget: %d, Used: %d]", event.StepBudget, event.TokensUsed)))
+		fmt.Println(tui.KvLine("CapBAC Lease", 17, leaseVal))
 	}
 }
 
 func renderHandshakeUpdateAndDriftAdvisories(hookRoot string) {
-	binPath, err := resolveCurrentBinaryPath()
+	binPath, err := selfupdate.ResolveCurrentBinaryPath()
 	if err != nil {
 		binPath = ""
 	}
-	if updNotice := RefreshAndFormatUpdateNotice(RootCmdVersion, binPath, time.Now()); updNotice != "" {
-		fmt.Println(kvLine("Update Available", 17, uiWarnStyle.Render(updNotice)))
+	if updNotice := selfupdate.RefreshAndFormatUpdateNotice(RootCmdVersion, binPath, time.Now()); updNotice != "" {
+		fmt.Println(tui.KvLine("Update Available", 17, tui.UiWarnStyle.Render(updNotice)))
 	}
-	if driftNotice := FormatWorkspaceDriftNotice(hookRoot); driftNotice != "" {
-		fmt.Println(kvLine("Contract Sync", 17, uiWarnStyle.Render(driftNotice)))
+	if driftNotice := selfupdate.FormatWorkspaceDriftNotice(hookRoot); driftNotice != "" {
+		fmt.Println(tui.KvLine("Contract Sync", 17, tui.UiWarnStyle.Render(driftNotice)))
 	}
 }
 
 func formatHandshakeWavefront(keys []string) string {
 	if len(keys) == 0 {
-		return uiMutedStyle.Render("[None]")
+		return tui.UiMutedStyle.Render("[None]")
 	}
 	styled := make([]string, 0, len(keys))
 	for _, k := range keys {
-		styled = append(styled, styleTaskKey(k))
+		styled = append(styled, tui.StyleTaskKey(k))
 	}
 	return fmt.Sprintf("[%s] %s",
 		strings.Join(styled, ", "),
-		uiMutedStyle.Render(fmt.Sprintf("(%d task(s))", len(keys))))
+		tui.UiMutedStyle.Render(fmt.Sprintf("(%d task(s))", len(keys))))
 }
 
 func renderHandshakeMnemeTelemetry(event *handshake.HandshakeEvent) {
 	if len(event.StaleObligations) > 0 {
-		fmt.Println(kvLine("Stale Obligations", 17, uiWarnStyle.Render(fmt.Sprintf("⚠️  %d spec(s) modified since last SUB-* verification receipt", len(event.StaleObligations)))))
+		fmt.Println(tui.KvLine("Stale Obligations", 17, tui.UiWarnStyle.Render(fmt.Sprintf("⚠️  %d spec(s) modified since last SUB-* verification receipt", len(event.StaleObligations)))))
 		for _, s := range event.StaleObligations {
-			fmt.Printf("    ⚠️  %s %s\n", uiValueStyle.Render(s.SpecPath), uiMutedStyle.Render("(last verified by "+s.LastVerifiedBy+")"))
+			fmt.Printf("    ⚠️  %s %s\n", tui.UiValueStyle.Render(s.SpecPath), tui.UiMutedStyle.Render("(last verified by "+s.LastVerifiedBy+")"))
 		}
 	}
 	if len(event.ImpactSummary) > 0 {
-		fmt.Println(kvLine("1-Hop Impact Map", 17, fmt.Sprintf("%d modified source target(s)", len(event.ImpactSummary))))
+		fmt.Println(tui.KvLine("1-Hop Impact Map", 17, fmt.Sprintf("%d modified source target(s)", len(event.ImpactSummary))))
 		for _, item := range event.ImpactSummary {
-			fmt.Printf("    %s %s\n", uiSubstrateStyle.Render("•"), uiValueStyle.Render(item))
+			fmt.Printf("    %s %s\n", tui.UiSubstrateStyle.Render("•"), tui.UiValueStyle.Render(item))
 		}
 	}
 	if len(event.LearnedPitfalls) > 0 {
-		fmt.Println(kvLine("Learned Pitfalls", 17, uiWarnStyle.Render(fmt.Sprintf("%d distilled repo trap(s) active", len(event.LearnedPitfalls)))))
+		fmt.Println(tui.KvLine("Learned Pitfalls", 17, tui.UiWarnStyle.Render(fmt.Sprintf("%d distilled repo trap(s) active", len(event.LearnedPitfalls)))))
 		for _, p := range event.LearnedPitfalls {
-			fmt.Printf("    ⚡ %s\n", uiValueStyle.Render(p))
+			fmt.Printf("    ⚡ %s\n", tui.UiValueStyle.Render(p))
 		}
 	}
 	if len(event.VerifiedPatterns) > 0 {
-		fmt.Println(kvLine("Verified Patterns", 17, fmt.Sprintf("%d structural blueprint(s) active", len(event.VerifiedPatterns))))
+		fmt.Println(tui.KvLine("Verified Patterns", 17, fmt.Sprintf("%d structural blueprint(s) active", len(event.VerifiedPatterns))))
 		for _, pat := range event.VerifiedPatterns {
-			fmt.Printf("    🧩 %s\n", uiMutedStyle.Render(pat))
+			fmt.Printf("    🧩 %s\n", tui.UiMutedStyle.Render(pat))
 		}
 	}
 	if len(event.GraduationCandidates) > 0 {
-		fmt.Println(kvLine("Tier B Candidates", 17, uiIntentStyle.Render(fmt.Sprintf("%d recurring invariant(s) ready for nomos.yaml", len(event.GraduationCandidates)))))
+		fmt.Println(tui.KvLine("Tier B Candidates", 17, tui.UiIntentStyle.Render(fmt.Sprintf("%d recurring invariant(s) ready for nomos.yaml", len(event.GraduationCandidates)))))
 		for _, cand := range event.GraduationCandidates {
-			fmt.Printf("    🎓 %s\n", uiMutedStyle.Render(cand))
+			fmt.Printf("    🎓 %s\n", tui.UiMutedStyle.Render(cand))
 		}
 	}
 }

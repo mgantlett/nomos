@@ -2,6 +2,9 @@ package verify
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,7 +34,7 @@ func TestPG08PolyglotUncheckedErrorsGate(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(dir, tc.file), []byte(tc.code), 0644); err != nil {
 				t.Fatal(err)
 			}
-			res, err := gate.Evaluate(&VerifyContext{RepoRoot: dir, WorktreePath: dir, Strict: true, AllFiles: true})
+			res, err := gate.Evaluate(&vscope.VerifyContext{RepoRoot: dir, WorktreePath: dir, Strict: true, AllFiles: true})
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -66,7 +69,7 @@ func TestPG09PolyglotBoundaryAndDeadCodeGates(t *testing.T) {
 	}
 
 	bGate := &BoundaryGate{}
-	bRes, err := bGate.Evaluate(&VerifyContext{RepoRoot: dir, WorktreePath: dir, Strict: true})
+	bRes, err := bGate.Evaluate(&vscope.VerifyContext{RepoRoot: dir, WorktreePath: dir, Strict: true})
 	if err != nil || bRes.Passed {
 		t.Fatalf("expected BoundaryGate to fail on prohibited polyglot imports, got %+v", bRes)
 	}
@@ -81,7 +84,7 @@ func TestPG09PolyglotBoundaryAndDeadCodeGates(t *testing.T) {
 		t.Fatal(err)
 	}
 	dGate := &DeadCodeGate{}
-	dRes, dErr := dGate.Evaluate(&VerifyContext{RepoRoot: dir, WorktreePath: dir, Strict: true})
+	dRes, dErr := dGate.Evaluate(&vscope.VerifyContext{RepoRoot: dir, WorktreePath: dir, Strict: true})
 	if dErr != nil || dRes.Passed || !strings.Contains(dRes.Message, "orphan_helper.py") {
 		t.Fatalf("expected DeadCodeGate to flag orphan_helper.py, got err=%v res=%+v", dErr, dRes)
 	}
@@ -89,17 +92,17 @@ func TestPG09PolyglotBoundaryAndDeadCodeGates(t *testing.T) {
 
 func TestPG10PolyglotParameterArityAndSeams(t *testing.T) {
 	pyMany := "class Svc:\n    def create(self,\n        a: int, b: int, c: int, d: int, e: int,\n        f: int, g: int, h: int, i: int) -> int:\n        return a\n"
-	if v := EvaluateParameterArityViolations("svc.py", []byte(pyMany), 8); len(v) != 1 {
+	if v := astdebt.EvaluateParameterArityViolations("svc.py", []byte(pyMany), 8); len(v) != 1 {
 		t.Fatalf("expected 1 Python 9-param arity violation (excluding self), got %v", v)
 	}
 
 	rsGenericsOK := "pub fn merge(&mut self, a: HashMap<String, Vec<i32>>, b: Result<(i32, i32), String>, c: i32) -> i32 { c }\n"
-	if v := EvaluateParameterArityViolations("lib.rs", []byte(rsGenericsOK), 8); len(v) != 0 {
+	if v := astdebt.EvaluateParameterArityViolations("lib.rs", []byte(rsGenericsOK), 8); len(v) != 0 {
 		t.Fatalf("expected generic commas in Rust not to false-trigger parameter arity, got %v", v)
 	}
 
 	rbMany := "def process(p1, p2, p3, p4, p5, p6, p7, p8, p9)\n  p1\nend\n"
-	if v := EvaluateParameterArityViolations("job.rb", []byte(rbMany), 8); len(v) != 1 {
+	if v := astdebt.EvaluateParameterArityViolations("job.rb", []byte(rbMany), 8); len(v) != 1 {
 		t.Fatalf("expected Ruby 9-param arity violation, got %v", v)
 	}
 
@@ -110,7 +113,7 @@ func TestPG10PolyglotParameterArityAndSeams(t *testing.T) {
 		longPy.WriteString(fmt.Sprintf("        if item == %d:\n            work(%d)\n", i, i))
 	}
 	longPy.WriteString("    return True\n")
-	seams := PrescribeFunctionSeams("orchestrate.py", []byte(longPy.String()), "orchestrate", 1)
+	seams := astdebt.PrescribeFunctionSeams("orchestrate.py", []byte(longPy.String()), "orchestrate", 1)
 	if len(seams) == 0 {
 		t.Fatalf("expected Python seam prescriptions for long complex indented function, got none")
 	}
@@ -142,7 +145,7 @@ func TestPG11PolyglotImpactMapAllLanguages(t *testing.T) {
 	mustWrite("Api/Checkout.cs", "using Shop.Domain;\npublic class Checkout { OrderPricing p; }\n")
 	mustWrite("Shop.Tests/OrderPricingTests.cs", "public class OrderPricingTests {}\n")
 
-	impacts := ComputeWorkspaceImpact(dir, []string{"src/ledger.rs", "include/codec.hpp", "Domain/OrderPricing.cs"})
+	impacts := impact.ComputeWorkspaceImpact(dir, []string{"src/ledger.rs", "include/codec.hpp", "Domain/OrderPricing.cs"})
 	joined := strings.Join(impacts, "\n")
 	for _, want := range []string{
 		"src/ledger.rs -> paired test: inline #[cfg(test)] | 1-hop dependents: 1 file(s)",
@@ -222,5 +225,3 @@ func TestPG12FastFileRadarOverloadedFunctionBaseline(t *testing.T) {
 		t.Fatalf("expected zero breaches on untouched overloaded baseline function, got %v", res.Breaches)
 	}
 }
-
-

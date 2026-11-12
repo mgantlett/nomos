@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/mgantlett/nomos/substrate/cli"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 )
 
 func executeHookCmd(t *testing.T, args []string, payload map[string]any) string {
@@ -178,11 +179,11 @@ func TestHookChaining_AdditivePreservation(t *testing.T) {
     ]
   }
 }`)
-	mergedOnce, err := cli.MergeHookManifest(existingClaude, cli.DefaultClaudeSettingsHooksJSON())
+	mergedOnce, err := tui.MergeHookManifest(existingClaude, tui.DefaultClaudeSettingsHooksJSON())
 	if err != nil {
 		t.Fatalf("MergeHookManifest failed: %v", err)
 	}
-	mergedTwice, err := cli.MergeHookManifest(mergedOnce, cli.DefaultClaudeSettingsHooksJSON())
+	mergedTwice, err := tui.MergeHookManifest(mergedOnce, tui.DefaultClaudeSettingsHooksJSON())
 	if err != nil {
 		t.Fatalf("second MergeHookManifest failed: %v", err)
 	}

@@ -2,6 +2,7 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -159,7 +160,7 @@ func EvaluateMutationSensitivity(root string, files []string) (int, int, error) 
 		total++
 	}
 
-	sprawlMetrics := []FileMetric{{Name: "mutant_sprawl.go", LOC: 75}}
+	sprawlMetrics := []astdebt.FileMetric{{Name: "mutant_sprawl.go", LOC: 75}}
 	if len(EvaluateFileLOCViolations(sprawlMetrics, 60)) > 0 {
 		killed++
 	}
@@ -179,7 +180,7 @@ func EvaluateMutationSensitivity(root string, files []string) (int, int, error) 
 	cobraStub, cErr := parser.ParseExpr(`&cobra.Command{Use: "stub", Short: "missing long and example"}`)
 	if cErr == nil {
 		if unary, ok := cobraStub.(*ast.UnaryExpr); ok {
-			if comp, ok := unary.X.(*ast.CompositeLit); ok && len(ValidateCobraCommandCompositeLit(comp)) > 0 {
+			if comp, ok := unary.X.(*ast.CompositeLit); ok && len(astdebt.ValidateCobraCommandCompositeLit(comp)) > 0 {
 				killed++
 			}
 		}
@@ -226,7 +227,7 @@ func EvaluateMetamorphicSpecificity(scannedFiles []string) (int, int, error) {
 		total++
 	}
 
-	cleanMetrics := []FileMetric{{Name: "clean.go", LOC: 42}}
+	cleanMetrics := []astdebt.FileMetric{{Name: "clean.go", LOC: 42}}
 	if len(EvaluateFileLOCViolations(cleanMetrics, 60)) == 0 {
 		passed++
 	}
@@ -252,7 +253,7 @@ func EvaluateMetamorphicSpecificity(scannedFiles []string) (int, int, error) {
 	cobraRef, cErr := parser.ParseExpr(`&cobra.Command{Use: "ok", Short: "short", Long: "long", Example: "nomos ok"}`)
 	if cErr == nil {
 		if unary, ok := cobraRef.(*ast.UnaryExpr); ok {
-			if comp, ok := unary.X.(*ast.CompositeLit); ok && len(ValidateCobraCommandCompositeLit(comp)) == 0 {
+			if comp, ok := unary.X.(*ast.CompositeLit); ok && len(astdebt.ValidateCobraCommandCompositeLit(comp)) == 0 {
 				passed++
 			}
 		}

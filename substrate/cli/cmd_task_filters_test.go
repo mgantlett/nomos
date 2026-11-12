@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/mgantlett/nomos/substrate/cli/selfupdate"
 	"strings"
 	"testing"
 
@@ -96,7 +97,7 @@ func TestTaskListAndDAG_FilterFlagsAndJSONParity(t *testing.T) {
 		t.Fatalf("task status --json failed: err=%v out=%s", err, statusBuf.String())
 	}
 
-	verJSON := NewVersionCmd()
+	verJSON := selfupdate.NewVersionCmd()
 	verBuf := new(bytes.Buffer)
 	verJSON.SetOut(verBuf)
 	verJSON.SetArgs([]string{"--json"})

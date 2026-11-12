@@ -4,6 +4,7 @@ package verify
 import (
 	"bytes"
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -116,11 +117,11 @@ func inspectChangedNormativeFile(worktreeDir, baseRef, rel string, cliSet, cfgSe
 	if !strings.HasSuffix(normRel, ".go") || strings.HasSuffix(normRel, "_test.go") {
 		return
 	}
-	baseFP := parseGoSurfaceFingerprint(readGitRevisionBytes(worktreeDir, baseRef, normRel))
-	currFP := parseGoSurfaceFingerprint(readWorktreeDiskBytes(filepath.Join(worktreeDir, filepath.FromSlash(normRel))))
-	mergeSymmetricDiff(cliSet, baseFP.cliTokens, currFP.cliTokens)
-	mergeSymmetricDiff(cfgSet, baseFP.yamlFields, currFP.yamlFields)
-	mergeSymmetricDiff(govSet, baseFP.govTokens, currFP.govTokens)
+	baseFP := astdebt.ParseGoSurfaceFingerprint(readGitRevisionBytes(worktreeDir, baseRef, normRel))
+	currFP := astdebt.ParseGoSurfaceFingerprint(readWorktreeDiskBytes(filepath.Join(worktreeDir, filepath.FromSlash(normRel))))
+	astdebt.MergeSymmetricDiff(cliSet, baseFP.CLITokens, currFP.CLITokens)
+	astdebt.MergeSymmetricDiff(cfgSet, baseFP.YAMLFields, currFP.YAMLFields)
+	astdebt.MergeSymmetricDiff(govSet, baseFP.GovTokens, currFP.GovTokens)
 }
 
 func normalizeEmbeddedTemplateBytes(assetName string, raw []byte) []byte {

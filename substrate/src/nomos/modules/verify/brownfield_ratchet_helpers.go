@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -18,7 +20,7 @@ import (
 
 var lineNumberStripRe = regexp.MustCompile(`:[0-9]+(?:-[0-9]+)?`)
 
-func collectPolyglotComplexityFromBytes(path, rel string, content []byte, out *[]FunctionMetric) {
+func collectPolyglotComplexityFromBytes(path, rel string, content []byte, out *[]astdebt.FunctionMetric) {
 	engine, err := treesitter.GetDefaultEngine()
 	if err != nil {
 		return
@@ -28,7 +30,7 @@ func collectPolyglotComplexityFromBytes(path, rel string, content []byte, out *[
 		return
 	}
 	for _, fn := range rep.Functions {
-		*out = append(*out, FunctionMetric{
+		*out = append(*out, astdebt.FunctionMetric{
 			File:       rel,
 			Line:       fn.Line,
 			Name:       fn.Name,
@@ -38,11 +40,11 @@ func collectPolyglotComplexityFromBytes(path, rel string, content []byte, out *[
 	}
 }
 
-func evaluateRatchetedCDSViolations(ctx *VerifyContext, root string, metrics []FileMetric, sources map[string][]byte, thresh Thresholds) []string {
-	if !isBrownfieldRatchetActive(ctx) {
-		return EnrichCDSViolations(root, metrics, sources, thresh, isWorktreeContext(ctx, root))
+func evaluateRatchetedCDSViolations(ctx *vscope.VerifyContext, root string, metrics []astdebt.FileMetric, sources map[string][]byte, thresh astdebt.Thresholds) []string {
+	if !vscope.IsBrownfieldRatchetActive(ctx) {
+		return astdebt.EnrichCDSViolations(root, metrics, sources, thresh, vscope.IsWorktreeContext(ctx, root))
 	}
-	var newFileMetrics []FileMetric
+	var newFileMetrics []astdebt.FileMetric
 	changedSources := make(map[string][]byte)
 	baseSources := make(map[string][]byte)
 	var violations []string
@@ -64,15 +66,15 @@ func evaluateRatchetedCDSViolations(ctx *VerifyContext, root string, metrics []F
 		}
 	}
 
-	violations = append(violations, EnrichCDSViolations(root, newFileMetrics, sources, thresh, false)...)
-	if isWorktreeContext(ctx, root) && len(changedSources) > 0 {
+	violations = append(violations, astdebt.EnrichCDSViolations(root, newFileMetrics, sources, thresh, false)...)
+	if vscope.IsWorktreeContext(ctx, root) && len(changedSources) > 0 {
 		violations = append(violations, detectNetNewCloneViolations(changedSources, baseSources, thresh)...)
 	}
 	return violations
 }
 
-func evaluateSingleRatchetedCDS(m FileMetric, absPath string, curSrc, baseBytes []byte, thresh Thresholds) string {
-	baseRep, err := AnalyzeFileDebt(absPath, baseBytes, thresh.MaxComplexity, thresh.MaxFuncLOC)
+func evaluateSingleRatchetedCDS(m astdebt.FileMetric, absPath string, curSrc, baseBytes []byte, thresh astdebt.Thresholds) string {
+	baseRep, err := astdebt.AnalyzeFileDebt(absPath, baseBytes, thresh.MaxComplexity, thresh.MaxFuncLOC)
 	if err != nil || baseRep == nil {
 		if m.CDS > thresh.MaxCDS {
 			return fmt.Sprintf("%s has cognitive debt %d (exceeds max %d)", m.Name, m.CDS, thresh.MaxCDS)
@@ -87,9 +89,9 @@ func evaluateSingleRatchetedCDS(m FileMetric, absPath string, curSrc, baseBytes 
 }
 
 // PrescribeRatchetedCDSRecipe pinpoints the top offending function delta causing a brownfield dCDS breach (@intent intent.md software_physics_engine_spec.md tree_sitter_ast_gate_spec.md #FileDebtReport).
-func PrescribeRatchetedCDSRecipe(relPath string, curSrc, baseSrc []byte, thresh Thresholds) string {
-	curRep, cErr := AnalyzeFileDebt(relPath, curSrc, thresh.MaxComplexity, thresh.MaxFuncLOC)
-	baseRep, bErr := AnalyzeFileDebt(relPath, baseSrc, thresh.MaxComplexity, thresh.MaxFuncLOC)
+func PrescribeRatchetedCDSRecipe(relPath string, curSrc, baseSrc []byte, thresh astdebt.Thresholds) string {
+	curRep, cErr := astdebt.AnalyzeFileDebt(relPath, curSrc, thresh.MaxComplexity, thresh.MaxFuncLOC)
+	baseRep, bErr := astdebt.AnalyzeFileDebt(relPath, baseSrc, thresh.MaxComplexity, thresh.MaxFuncLOC)
 	if cErr != nil || curRep == nil || bErr != nil || baseRep == nil {
 		return fmt.Sprintf("%s exceeded brownfield cognitive debt ceiling", relPath)
 	}
@@ -109,13 +111,13 @@ func PrescribeRatchetedCDSRecipe(relPath string, curSrc, baseSrc []byte, thresh 
 		header, topFn.Name, relPath, topFn.StartLine, topFn.EndLine, fnDelta, baseFn.LOC, topFn.LOC, baseFn.Complexity, topFn.Complexity, needLines, needBranches, topFn.Name)
 }
 
-func selectTopOffendingFunctionDelta(curFns, baseFns []FunctionDebt) (FunctionDebt, FunctionDebt, int) {
+func selectTopOffendingFunctionDelta(curFns, baseFns []astdebt.FunctionDebt) (astdebt.FunctionDebt, astdebt.FunctionDebt, int) {
 	baseMap := indexBaselineFunctionDebts(baseFns)
-	var bestCur, bestBase FunctionDebt
+	var bestCur, bestBase astdebt.FunctionDebt
 	bestDelta := 0
 	for _, fn := range curFns {
 		bfn := baseMap[fn.Name]
-		baseScore := CalculateFunctionDebt(bfn.LOC, bfn.Complexity, DefaultThresholds().MaxFuncLOC, DefaultThresholds().MaxComplexity)
+		baseScore := astdebt.CalculateFunctionDebt(bfn.LOC, bfn.Complexity, astdebt.DefaultThresholds().MaxFuncLOC, astdebt.DefaultThresholds().MaxComplexity)
 		if bfn.DebtScore > 0 {
 			baseScore = bfn.DebtScore
 		}
@@ -129,26 +131,26 @@ func selectTopOffendingFunctionDelta(curFns, baseFns []FunctionDebt) (FunctionDe
 	return bestCur, bestBase, bestDelta
 }
 
-func detectNetNewCloneViolations(changedSources, baseSources map[string][]byte, thresh Thresholds) []string {
+func detectNetNewCloneViolations(changedSources, baseSources map[string][]byte, thresh astdebt.Thresholds) []string {
 	minLines := thresh.MinCloneLines
 	if minLines <= 0 {
-		minLines = DefaultMinCloneLines
+		minLines = astdebt.DefaultMinCloneLines
 	}
 	baseHashes := make(map[string]bool)
-	for _, cg := range DetectStructuralClones(baseSources, minLines) {
+	for _, cg := range astdebt.DetectStructuralClones(baseSources, minLines) {
 		baseHashes[cg.Hash] = true
 	}
-	var netNew []CloneGroup
-	for _, cg := range DetectStructuralClones(changedSources, minLines) {
+	var netNew []astdebt.CloneGroup
+	for _, cg := range astdebt.DetectStructuralClones(changedSources, minLines) {
 		if !baseHashes[cg.Hash] {
 			netNew = append(netNew, cg)
 		}
 	}
-	return FormatCloneViolations(netNew)
+	return astdebt.FormatCloneViolations(netNew)
 }
 
-func filterNetNewLineViolations(ctx *VerifyContext, root, absPath string, curViolations []string, scanBase func(baseBytes []byte) []string) []string {
-	if len(curViolations) == 0 || !isBrownfieldRatchetActive(ctx) {
+func filterNetNewLineViolations(ctx *vscope.VerifyContext, root, absPath string, curViolations []string, scanBase func(baseBytes []byte) []string) []string {
+	if len(curViolations) == 0 || !vscope.IsBrownfieldRatchetActive(ctx) {
 		return curViolations
 	}
 	baseBytes, ok := loadBaselineFileBytes(ctx, root, absPath)
@@ -194,8 +196,8 @@ func scanTempBaselineViolations(absPath string, baseBytes []byte, scanPath func(
 	return scanPath(tmpPath)
 }
 
-func countRatchetedDocstringsForFile(ctx *VerifyContext, srcDir, path, rel string) (int, int, []string, bool) {
-	if !isBrownfieldRatchetActive(ctx) {
+func countRatchetedDocstringsForFile(ctx *vscope.VerifyContext, srcDir, path, rel string) (int, int, []string, bool) {
+	if !vscope.IsBrownfieldRatchetActive(ctx) {
 		return 0, 0, nil, false
 	}
 	baseBytes, ok := loadBaselineFileBytes(ctx, srcDir, path)
@@ -254,7 +256,7 @@ func extractExportedDocMap(path string, content []byte) map[string]bool {
 	return res
 }
 
-func collectBaselineStringLiterals(ctx *VerifyContext, targetDir, path string, fset *token.FileSet, baseCounts map[string]map[string]int) {
+func collectBaselineStringLiterals(ctx *vscope.VerifyContext, targetDir, path string, fset *token.FileSet, baseCounts map[string]map[string]int) {
 	baseBytes, ok := loadBaselineFileBytes(ctx, targetDir, path)
 	if !ok {
 		return
@@ -266,7 +268,7 @@ func collectBaselineStringLiterals(ctx *VerifyContext, targetDir, path string, f
 	collectGoStringLiteralsFromSrc(fset, path, baseBytes, baseCounts)
 }
 
-func filterRatchetedForbiddenLiterals(ctx *VerifyContext, root, path string, patterns, cur []string) []string {
+func filterRatchetedForbiddenLiterals(ctx *vscope.VerifyContext, root, path string, patterns, cur []string) []string {
 	rel, rErr := filepath.Rel(root, path)
 	if rErr != nil {
 		rel = path

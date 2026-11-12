@@ -2,6 +2,7 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"time"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
@@ -41,44 +42,44 @@ type PipelineDeclaration struct {
 
 // PipelineReport encapsulates the complete verification results across all gates, cells, and laws.
 type PipelineReport struct {
-	Passed         bool          `json:"passed"`
-	DurationMicros int64         `json:"duration_micros"`
-	GatesTotal     int           `json:"gates_total"`
-	GatesPassed    int           `json:"gates_passed"`
-	GateResults    []*GateResult `json:"gate_results"`
-	LawReports     []*LawReport  `json:"law_reports"`
-	CellReports    []*CellReport `json:"cell_reports"`
+	Passed         bool                 `json:"passed"`
+	DurationMicros int64                `json:"duration_micros"`
+	GatesTotal     int                  `json:"gates_total"`
+	GatesPassed    int                  `json:"gates_passed"`
+	GateResults    []*vscope.GateResult `json:"gate_results"`
+	LawReports     []*LawReport         `json:"law_reports"`
+	CellReports    []*CellReport        `json:"cell_reports"`
 }
 
 // Pipeline executes an ordered suite of Definition of Done quality gates.
 type Pipeline struct {
-	gates []Gate
+	gates []vscope.Gate
 }
 
 // NewPipeline creates a new verification pipeline instance with the provided gates.
-func NewPipeline(gates []Gate) *Pipeline {
+func NewPipeline(gates []vscope.Gate) *Pipeline {
 	return &Pipeline{gates: gates}
 }
 
 // Execute runs all configured gates sequentially, aggregates results, and builds matrix reports.
-func (p *Pipeline) Execute(ctx *VerifyContext) (*PipelineReport, error) {
+func (p *Pipeline) Execute(ctx *vscope.VerifyContext) (*PipelineReport, error) {
 	if ctx == nil {
 		return nil, types.NewNomosError(types.ErrCodeValidationFailed, "verify context cannot be nil")
 	}
-	beginVerifyContextCache(ctx)
-	defer endVerifyContextCache(ctx)
+	vscope.BeginVerifyContextCache(ctx)
+	defer vscope.EndVerifyContextCache(ctx)
 
 	start := time.Now()
-	results := make([]*GateResult, 0, len(p.gates))
+	results := make([]*vscope.GateResult, 0, len(p.gates))
 	overallPassed := true
 
 	for _, g := range p.gates {
-		res, err := TimedEvaluate(g, ctx)
+		res, err := vscope.TimedEvaluate(g, ctx)
 		if err != nil {
 			return nil, types.NewNomosError(types.ErrCodeCore, "gate %s evaluation failed: %v", g.Name(), err)
 		}
 		if res == nil {
-			res = &GateResult{GateName: g.Name(), Passed: false, Message: "nil gate result returned"}
+			res = &vscope.GateResult{GateName: g.Name(), Passed: false, Message: "nil gate result returned"}
 		}
 		if !res.Passed && !res.Skipped {
 			overallPassed = false
@@ -101,7 +102,7 @@ func (p *Pipeline) Execute(ctx *VerifyContext) (*PipelineReport, error) {
 	}, nil
 }
 
-func countPassed(results []*GateResult) int {
+func countPassed(results []*vscope.GateResult) int {
 	passed := 0
 	for _, r := range results {
 		if r.Passed || r.Skipped {
@@ -112,8 +113,8 @@ func countPassed(results []*GateResult) int {
 }
 
 // buildCellReports maps gate results into the 21 canonical invariant cells.
-func buildCellReports(results []*GateResult) []*CellReport {
-	resMap := make(map[string]*GateResult, len(results))
+func buildCellReports(results []*vscope.GateResult) []*CellReport {
+	resMap := make(map[string]*vscope.GateResult, len(results))
 	for _, r := range results {
 		if r.ProbeID != "" {
 			resMap[r.ProbeID] = r
@@ -131,7 +132,7 @@ func buildCellReports(results []*GateResult) []*CellReport {
 	return reports
 }
 
-func aggregateCell(cell InvariantCellSpec, resMap map[string]*GateResult) *CellReport {
+func aggregateCell(cell InvariantCellSpec, resMap map[string]*vscope.GateResult) *CellReport {
 	cr := &CellReport{
 		ID:         cell.ID,
 		Name:       cell.Name,
@@ -141,7 +142,7 @@ func aggregateCell(cell InvariantCellSpec, resMap map[string]*GateResult) *CellR
 		Passed:     true,
 		Remedy:     cell.Remedy,
 		ProbeCount: len(cell.ProbeIDs),
-		Probes:     make([]*GateResult, 0, len(cell.ProbeIDs)),
+		Probes:     make([]*vscope.GateResult, 0, len(cell.ProbeIDs)),
 	}
 
 	for _, pid := range cell.ProbeIDs {

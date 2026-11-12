@@ -3,6 +3,7 @@ package verify
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -42,17 +43,17 @@ func (g *CommitSchemaGate) Name() string {
 }
 
 // Evaluate parses all active branch commits (or HEAD fallback) to ensure format and anti-shim compliance.
-func (g *CommitSchemaGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *CommitSchemaGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	if ctx != nil && ctx.IsBaseline {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(),
 			Passed:   true,
 			Message:  "baseline trunk verification mode; historical commit schema check bypassed",
 		}, nil
 	}
-	root := resolveBoundariesRoot(ctx)
+	root := vscope.ResolveBoundariesRoot(ctx)
 	if isPreCommitExempt(root) {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(),
 			Passed:   true,
 			Message:  "worktree branch has zero commits relative to trunk; exempt from HEAD commit schema gate",
@@ -75,26 +76,26 @@ func (g *CommitSchemaGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		}
 	}
 
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(),
 		Passed:   true,
 		Message:  fmt.Sprintf("verified %d branch commit(s) against Golden Commit + Task trailer schema", len(commits)),
 	}, nil
 }
 
-func evaluateSingleHeadCommit(gateName, root string) (*GateResult, error) {
+func evaluateSingleHeadCommit(gateName, root string) (*vscope.GateResult, error) {
 	return evaluateSingleHeadCommitWithMode(gateName, root, "")
 }
 
-func evaluateSingleHeadCommitWithMode(gateName, root, mode string) (*GateResult, error) {
+func evaluateSingleHeadCommitWithMode(gateName, root, mode string) (*vscope.GateResult, error) {
 	cmd := workspace.SafeGitCommand(root, "log", "-1", "--format=%B")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return &GateResult{GateName: gateName, Passed: true, Message: "no commit history to evaluate"}, nil
+		return &vscope.GateResult{GateName: gateName, Passed: true, Message: "no commit history to evaluate"}, nil
 	}
 	commitMsg := strings.TrimSpace(string(out))
 	if commitMsg == "" {
-		return &GateResult{GateName: gateName, Passed: false, Message: "HEAD commit message is empty", Remedy: remedyAmendCommit}, nil
+		return &vscope.GateResult{GateName: gateName, Passed: false, Message: "HEAD commit message is empty", Remedy: remedyAmendCommit}, nil
 	}
 	return checkCommitComplianceInWorktree(gateName, root, commitMsg, mode)
 }
@@ -184,40 +185,40 @@ func isPreCommitExempt(worktreePath string) bool {
 	return false
 }
 
-func checkCommitCompliance(gateName, commitMsg string) (*GateResult, error) {
+func checkCommitCompliance(gateName, commitMsg string) (*vscope.GateResult, error) {
 	return checkCommitComplianceInWorktree(gateName, "", commitMsg, "")
 }
 
-func checkCommitComplianceWithMode(gateName, commitMsg, mode string) (*GateResult, error) {
+func checkCommitComplianceWithMode(gateName, commitMsg, mode string) (*vscope.GateResult, error) {
 	return checkCommitComplianceInWorktree(gateName, "", commitMsg, mode)
 }
 
-func checkCommitComplianceInWorktree(gateName, worktreeDir, commitMsg, mode string) (*GateResult, error) {
+func checkCommitComplianceInWorktree(gateName, worktreeDir, commitMsg, mode string) (*vscope.GateResult, error) {
 	trimmedMsg := strings.TrimSpace(commitMsg)
 	if trimmedMsg == "" {
-		return &GateResult{GateName: gateName, Passed: false, Message: "commit message is empty", Remedy: remedyAmendCommit}, nil
+		return &vscope.GateResult{GateName: gateName, Passed: false, Message: "commit message is empty", Remedy: remedyAmendCommit}, nil
 	}
 	lines := strings.Split(strings.ReplaceAll(trimmedMsg, "\r\n", "\n"), "\n")
 	firstLine := strings.TrimSpace(lines[0])
 
 	if isMergeCommit(firstLine) {
-		return &GateResult{GateName: gateName, Passed: true, Message: "merge commit is exempt from Golden Commit trailer invariant"}, nil
+		return &vscope.GateResult{GateName: gateName, Passed: true, Message: "merge commit is exempt from Golden Commit trailer invariant"}, nil
 	}
 	subjectKey, violation := validateSubjectLine(firstLine)
 	if violation != "" {
-		return &GateResult{GateName: gateName, Passed: false, Message: violation, Remedy: remedyAmendCommit}, nil
+		return &vscope.GateResult{GateName: gateName, Passed: false, Message: violation, Remedy: remedyAmendCommit}, nil
 	}
 	if violation := validateAntiShimAndAntiDump(trimmedMsg); violation != "" {
-		return &GateResult{GateName: gateName, Passed: false, Message: violation, Remedy: remedyAmendCommit}, nil
+		return &vscope.GateResult{GateName: gateName, Passed: false, Message: violation, Remedy: remedyAmendCommit}, nil
 	}
 	if violation := validateBodyAndTrailers(lines[1:], subjectKey); violation != "" {
-		return &GateResult{GateName: gateName, Passed: false, Message: violation, Remedy: remedyAmendCommit}, nil
+		return &vscope.GateResult{GateName: gateName, Passed: false, Message: violation, Remedy: remedyAmendCommit}, nil
 	}
 	if violation := ValidateWorktreeIntentTwin(worktreeDir, trimmedMsg, mode); violation != "" {
-		return &GateResult{GateName: gateName, Passed: false, Message: violation, Remedy: IntentTwinModeRemedy(subjectKey)}, nil
+		return &vscope.GateResult{GateName: gateName, Passed: false, Message: violation, Remedy: IntentTwinModeRemedy(subjectKey)}, nil
 	}
 
-	return &GateResult{GateName: gateName, Passed: true, Message: "HEAD commit schema satisfies Golden Commit + Task trailer invariant"}, nil
+	return &vscope.GateResult{GateName: gateName, Passed: true, Message: "HEAD commit schema satisfies Golden Commit + Task trailer invariant"}, nil
 }
 
 func validateSubjectLine(firstLine string) (string, string) {

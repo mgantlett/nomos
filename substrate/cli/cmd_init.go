@@ -5,10 +5,12 @@ package cli
 import (
 	"embed"
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/cli/selfupdate"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/constants"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/storage"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
@@ -26,8 +28,8 @@ func NewInitCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "init",
 		Short:   "Initialize a new Nomos workspace with operational boundaries, tracking DB, and git defense hooks",
-		Long:    helpInitLong,
-		Example: helpInitExample,
+		Long:    tui.HelpInitLong,
+		Example: tui.HelpInitExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dir := targetDir
 			if dir == "" {
@@ -71,10 +73,10 @@ func scaffoldAllGovernanceFiles(absDir string) error {
 		label string
 		fn    func(string) error
 	}{
-		{"workspace boundaries", scaffoldNomosBoundaries},
+		{"workspace boundaries", selfupdate.ScaffoldNomosBoundaries},
 		{"nomos.yaml", scaffoldNomosConfig},
-		{"AGENTS.md", scaffoldAgentsConfig},
-		{"CLAUDE.md", scaffoldClaudeConfig},
+		{"AGENTS.md", selfupdate.ScaffoldAgentsConfig},
+		{"CLAUDE.md", selfupdate.ScaffoldClaudeConfig},
 	}
 	for _, s := range steps {
 		if err := s.fn(absDir); err != nil {
@@ -144,32 +146,32 @@ func detectDefaultBranch(dir string) string {
 }
 
 func printInitializationSummary(absDir string, isGitRepo, createdBaselineCommit bool, defaultBranch string) {
-	fmt.Printf("%s %s\n", renderBrandTitle("🚀 Initialized Nomos workspace in"), uiBoldValueStyle.Render(absDir))
-	fmt.Println(uiRule(ruleNarrow))
-	check := uiSuccessStyle.Render("✅")
-	fmt.Printf("  %s Scaffolded operational boundaries %s\n", check, uiMutedStyle.Render("(worktrees/, .tmp/)"))
-	fmt.Printf("  %s Scaffolded downstream configuration %s\n", check, uiCommandStyle.Render("(nomos.yaml)"))
-	fmt.Printf("  %s Scaffolded universal agent protocol %s\n", check, uiCommandStyle.Render("(AGENTS.md)"))
-	fmt.Printf("  %s Scaffolded Tier 1 agent import pointer %s\n", check, uiCommandStyle.Render("(CLAUDE.md -> @AGENTS.md)"))
-	fmt.Printf("  %s Scaffolded ambient session & defense hooks %s\n", check, uiMutedStyle.Render("(Claude Code, Gemini CLI, OpenCode, Cursor, Antigravity)"))
+	fmt.Printf("%s %s\n", tui.RenderBrandTitle("🚀 Initialized Nomos workspace in"), tui.UiBoldValueStyle.Render(absDir))
+	fmt.Println(tui.UiRule(tui.RuleNarrow))
+	check := tui.UiSuccessStyle.Render("✅")
+	fmt.Printf("  %s Scaffolded operational boundaries %s\n", check, tui.UiMutedStyle.Render("(worktrees/, .tmp/)"))
+	fmt.Printf("  %s Scaffolded downstream configuration %s\n", check, tui.UiCommandStyle.Render("(nomos.yaml)"))
+	fmt.Printf("  %s Scaffolded universal agent protocol %s\n", check, tui.UiCommandStyle.Render("(AGENTS.md)"))
+	fmt.Printf("  %s Scaffolded Tier 1 agent import pointer %s\n", check, tui.UiCommandStyle.Render("(CLAUDE.md -> @AGENTS.md)"))
+	fmt.Printf("  %s Scaffolded ambient session & defense hooks %s\n", check, tui.UiMutedStyle.Render("(Claude Code, Gemini CLI, OpenCode, Cursor, Antigravity)"))
 	if createdBaselineCommit {
-		fmt.Printf("  %s Created initial baseline commit on %s\n", check, uiBoldValueStyle.Render(defaultBranch))
+		fmt.Printf("  %s Created initial baseline commit on %s\n", check, tui.UiBoldValueStyle.Render(defaultBranch))
 	}
 	if isGitRepo {
-		fmt.Printf("  %s Installed git defense hooks %s\n", check, uiMutedStyle.Render("(pre-commit, commit-msg, pre-push)"))
+		fmt.Printf("  %s Installed git defense hooks %s\n", check, tui.UiMutedStyle.Render("(pre-commit, commit-msg, pre-push)"))
 	} else {
-		fmt.Printf("  %s\n", uiWarnStyle.Render("⚠️ Git defense hooks not installed (run 'git init' to enable)"))
+		fmt.Printf("  %s\n", tui.UiWarnStyle.Render("⚠️ Git defense hooks not installed (run 'git init' to enable)"))
 	}
 	fmt.Printf("  %s Living Ledger storage connected\n", check)
-	fmt.Println(uiRule(ruleNarrow))
+	fmt.Println(tui.UiRule(tui.RuleNarrow))
 	if createdBaselineCommit {
-		fmt.Println(uiSuccessStyle.Render("✨ Workspace ready for Tier 1 agent indirect control."))
+		fmt.Println(tui.UiSuccessStyle.Render("✨ Workspace ready for Tier 1 agent indirect control."))
 	} else if isGitRepo {
-		fmt.Println(uiSuccessStyle.Render("✨ Workspace ready. Run 'git add . && git commit -m \"chore: initialize Nomos governance\"' to establish your baseline."))
+		fmt.Println(tui.UiSuccessStyle.Render("✨ Workspace ready. Run 'git add . && git commit -m \"chore: initialize Nomos governance\"' to establish your baseline."))
 	} else {
-		fmt.Println(uiWarnStyle.Render("✨ Workspace ready. Run 'git init' followed by initial commit to enable full governance."))
+		fmt.Println(tui.UiWarnStyle.Render("✨ Workspace ready. Run 'git init' followed by initial commit to enable full governance."))
 	}
-	fmt.Printf("  %s\n", uiMutedStyle.Render(fmt.Sprintf("💡 Live agent edits run inside isolated worktrees/%s-<task> sandboxes and merge into %s on completion.", filepath.Base(absDir), defaultBranch)))
+	fmt.Printf("  %s\n", tui.UiMutedStyle.Render(fmt.Sprintf("💡 Live agent edits run inside isolated worktrees/%s-<task> sandboxes and merge into %s on completion.", filepath.Base(absDir), defaultBranch)))
 }
 
 func scaffoldNomosConfig(dir string) error {
@@ -183,7 +185,7 @@ func scaffoldNomosConfig(dir string) error {
 	}
 	projectName := filepath.Base(dir)
 	branch := detectDefaultBranch(dir)
-	content := renderScaffoldedNomosYAML(dir, string(tmplBytes), projectName, branch)
+	content := selfupdate.RenderScaffoldedNomosYAML(dir, string(tmplBytes), projectName, branch)
 	return os.WriteFile(configPath, []byte(content), 0644)
 }
 
@@ -208,7 +210,7 @@ func scaffoldAmbientHooks(dir string) error {
 		return err
 	}
 	claudeSettingsPath := filepath.Join(dir, claudeDirToken, settingsFileName)
-	if cErr := writeMergedJSONManifest(claudeSettingsPath, DefaultClaudeSettingsHooksJSON()); cErr != nil {
+	if cErr := writeMergedJSONManifest(claudeSettingsPath, tui.DefaultClaudeSettingsHooksJSON()); cErr != nil {
 		return cErr
 	}
 	geminiSettingsPath := filepath.Join(dir, geminiDirToken, settingsFileName)
@@ -219,7 +221,7 @@ func scaffoldAmbientHooks(dir string) error {
 	if curErr := writeMergedJSONManifest(cursorHooksPath, DefaultCursorHooksJSON()); curErr != nil {
 		return curErr
 	}
-	return scaffoldOpenCodePlugin(dir)
+	return selfupdate.ScaffoldOpenCodePlugin(dir)
 }
 
 func writeAmbientHookBundle(rootDir string) error {
@@ -231,7 +233,11 @@ func writeAmbientHookBundle(rootDir string) error {
 	if rErr != nil {
 		return rErr
 	}
-	if mErr := scaffoldOrMergeHookManifestFile(filepath.Join(rootDir, "hooks.json"), manifestBytes); mErr != nil {
+	manifestPath := filepath.Join(rootDir, "hooks.json")
+	if rel, relErr := filepath.Rel(rootDir, manifestPath); relErr != nil || strings.HasPrefix(rel, "..") {
+		return fmt.Errorf("unconfined hook manifest path: %s", manifestPath)
+	}
+	if mErr := scaffoldOrMergeHookManifestFile(manifestPath, manifestBytes); mErr != nil {
 		return mErr
 	}
 	scripts := []string{"session-start.sh", "worktree-guard.sh", "nomos-build-guard.sh", "post-edit-radar.sh", "stop-guard.sh"}
@@ -259,11 +265,9 @@ func scaffoldOrMergeHookManifestFile(targetPath string, templateBytes []byte) er
 		}
 		return err
 	}
-	mergedBytes, mErr := MergeHookManifest(existingBytes, templateBytes)
+	mergedBytes, mErr := tui.MergeHookManifest(existingBytes, templateBytes)
 	if mErr != nil {
 		return mErr
 	}
 	return os.WriteFile(targetPath, mergedBytes, 0644)
 }
-
-

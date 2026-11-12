@@ -3,12 +3,13 @@ package verify
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 )
 
 func init() {
-	RegisterGate("gate_integrity_proof", func() Gate { return &GateIntegrityProofGate{} })
+	RegisterGate("gate_integrity_proof", func() vscope.Gate { return &GateIntegrityProofGate{} })
 }
 
 // GateIntegrityProofGate enforces the Three Invariant Attestation Vectors of Gate Integrity (Cell 2.3, Law 2).
@@ -20,7 +21,7 @@ func (g *GateIntegrityProofGate) Name() string {
 }
 
 // Evaluate executes the Three Invariant Attestation Vectors against the target repository.
-func (g *GateIntegrityProofGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *GateIntegrityProofGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := ctx.RepoRoot
 	if root == "" {
 		root = ctx.WorktreePath
@@ -30,7 +31,7 @@ func (g *GateIntegrityProofGate) Evaluate(ctx *VerifyContext) (*GateResult, erro
 		return nil, types.NewNomosError(types.ErrCodeInvariant, "gate integrity attestation execution failed: %v", err)
 	}
 	if !report.Passed {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(),
 			ProbeID:  "gate_integrity_proof",
 			Law:      2,
@@ -43,7 +44,7 @@ func (g *GateIntegrityProofGate) Evaluate(ctx *VerifyContext) (*GateResult, erro
 		}, nil
 	}
 
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(),
 		ProbeID:  "gate_integrity_proof",
 		Law:      2,

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/mgantlett/nomos/substrate/cli/inspectcmd"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -127,7 +128,7 @@ func verifyHandshakeRecallsDistilledPitfallAndImpact(t *testing.T, repoDir strin
 
 	// TV-LRN-08: Statutory write provenance guard rejects manual CLI '--kind pattern' and '--kind pitfall'
 	for _, forbiddenKind := range []string{"pattern", "pitfall"} {
-		memCmd := NewMemCmd()
+		memCmd := inspectcmd.NewMemCmd()
 		memCmd.SetArgs([]string{"save", "spoofed unverified entry", "--kind", forbiddenKind})
 		if mErr := memCmd.Execute(); mErr == nil || !strings.Contains(mErr.Error(), "statutory") {
 			t.Fatalf("TV-LRN-08: expected manual 'nomos mem save --kind %s' to fail closed, got: %v", forbiddenKind, mErr)
@@ -156,7 +157,7 @@ func verifyHandshakeRecallsDistilledPitfallAndImpact(t *testing.T, repoDir strin
 	gradLine := evGrad.GraduationCandidates[0]
 	hashIdx := strings.Index(gradLine, "#")
 	restID := strings.Fields(gradLine[hashIdx+1:])[0]
-	dismissCmd := NewMemCmd()
+	dismissCmd := inspectcmd.NewMemCmd()
 	dismissCmd.SetArgs([]string{"dismiss", restID})
 	if dErr := dismissCmd.Execute(); dErr != nil {
 		t.Fatalf("TV-LRN-09b: expected 'nomos mem dismiss %s' to succeed, got: %v", restID, dErr)
@@ -168,7 +169,7 @@ func verifyHandshakeRecallsDistilledPitfallAndImpact(t *testing.T, repoDir strin
 
 	// TC-MEM-13: Default 'nomos mem list' hides tombstoned record while '--status tombstoned' surfaces it
 	var activeBuf, tombBuf strings.Builder
-	listActiveCmd := NewMemCmd()
+	listActiveCmd := inspectcmd.NewMemCmd()
 	listActiveCmd.SetOut(&activeBuf)
 	listActiveCmd.SetArgs([]string{"list", "--all"})
 	if lErr := listActiveCmd.Execute(); lErr != nil {
@@ -178,7 +179,7 @@ func verifyHandshakeRecallsDistilledPitfallAndImpact(t *testing.T, repoDir strin
 		t.Fatalf("TC-MEM-13: expected dismissed #%s hidden from default active mem list, got:\n%s", restID, activeBuf.String())
 	}
 
-	listTombCmd := NewMemCmd()
+	listTombCmd := inspectcmd.NewMemCmd()
 	listTombCmd.SetOut(&tombBuf)
 	listTombCmd.SetArgs([]string{"list", "--all", "--status", "tombstoned"})
 	if lErr := listTombCmd.Execute(); lErr != nil {
@@ -188,14 +189,14 @@ func verifyHandshakeRecallsDistilledPitfallAndImpact(t *testing.T, repoDir strin
 		t.Fatalf("TC-MEM-13: expected dismissed #%s visible under '--status tombstoned', got:\n%s", restID, tombBuf.String())
 	}
 	for _, validStatus := range []string{"superseded", "all"} {
-		sc := NewMemCmd()
+		sc := inspectcmd.NewMemCmd()
 		sc.SetOut(&strings.Builder{})
 		sc.SetArgs([]string{"list", "--all", "--status", validStatus})
 		if sErr := sc.Execute(); sErr != nil {
 			t.Fatalf("TC-MEM-13: expected '--status %s' to succeed, got: %v", validStatus, sErr)
 		}
 	}
-	badStatusCmd := NewMemCmd()
+	badStatusCmd := inspectcmd.NewMemCmd()
 	badStatusCmd.SetArgs([]string{"list", "--status", "invalid-state"})
 	if bErr := badStatusCmd.Execute(); bErr == nil {
 		t.Fatalf("TC-MEM-13: expected invalid '--status' flag to fail closed")

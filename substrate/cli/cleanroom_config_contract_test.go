@@ -10,10 +10,12 @@ import (
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"gopkg.in/yaml.v3"
 )
 
 func TestCleanroomDownstreamVectors_ConfigContractAndDogfoodIsolation(t *testing.T) {
+	useCompiledNomosInPath(t)
 	t.Setenv("NOMOS_HOME", t.TempDir())
 	repoDir := filepath.Join(t.TempDir(), "nomos-creative")
 	seedCleanroomDualPlaneRepo(t, repoDir)
@@ -116,7 +118,7 @@ func verifyLiveConfigGateKnobs(t *testing.T) {
 	body.WriteString("\treturn PortalCmd{Use: \"portal\"}\n}\n")
 	_ = os.WriteFile(filepath.Join(dir, "cli", "cmd.go"), []byte(body.String()), 0644)
 
-	ctx := &verify.VerifyContext{RepoRoot: dir, WorktreePath: dir, AllFiles: true}
+	ctx := &vscope.VerifyContext{RepoRoot: dir, WorktreePath: dir, AllFiles: true}
 	tiGate := &verify.ThresholdIntegrityGate{}
 	_ = os.WriteFile(filepath.Join(dir, "nomos.yaml"), []byte("project: demo\ndefault_branch: main\ngovernance:\n  quality_gates:\n    strict_mode: true\n    thresholds:\n      max_file_loc: 600\n"), 0644)
 	if res, _ := tiGate.Evaluate(ctx); res.Passed {

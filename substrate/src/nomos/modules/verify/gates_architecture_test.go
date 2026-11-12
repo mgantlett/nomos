@@ -1,6 +1,8 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"go/token"
 	"os"
 	"path/filepath"
@@ -18,7 +20,7 @@ func TestArchitectureGatesRegistration(t *testing.T) {
 
 func TestBoundaryGateClean(t *testing.T) {
 	g := &BoundaryGate{}
-	ctx := &VerifyContext{RepoRoot: "."}
+	ctx := &vscope.VerifyContext{RepoRoot: "."}
 	res, err := g.Evaluate(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -30,7 +32,7 @@ func TestBoundaryGateClean(t *testing.T) {
 
 func TestZeroAliasGateClean(t *testing.T) {
 	g := &ZeroAliasGate{}
-	ctx := &VerifyContext{RepoRoot: "."}
+	ctx := &vscope.VerifyContext{RepoRoot: "."}
 	res, err := g.Evaluate(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -42,7 +44,7 @@ func TestZeroAliasGateClean(t *testing.T) {
 
 func TestMagicStringsGateClean(t *testing.T) {
 	g := &MagicStringsGate{}
-	ctx := &VerifyContext{RepoRoot: "."}
+	ctx := &vscope.VerifyContext{RepoRoot: "."}
 	res, err := g.Evaluate(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -90,7 +92,7 @@ func bad() *cobra.Command {
 	if err := os.WriteFile(filepath.Join(dir, "cmd_bad.go"), []byte(stubSrc), 0644); err != nil {
 		t.Fatalf("write stub failed: %v", err)
 	}
-	violations, err := ScanCobraSurfaceCompletenessInDir(dir)
+	violations, err := astdebt.ScanCobraSurfaceCompletenessInDir(dir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

@@ -1,6 +1,8 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/polyrun"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,9 +47,9 @@ func initGitTestRepo(t *testing.T) string {
 
 func TestSharedGoSuite_DeduplicatesAndCachesReceiptsAcrossLifecycle(t *testing.T) {
 	t.Setenv("NOMOS_HOME", t.TempDir())
-	t.Setenv(envInToolchainGate, "")
-	t.Setenv(envSkipToolchainGate, "")
-	t.Setenv(envNoVerifyCache, "")
+	t.Setenv(polyrun.EnvInToolchainGate, "")
+	t.Setenv(polyrun.EnvSkipToolchainGate, "")
+	t.Setenv(polyrun.EnvNoVerifyCache, "")
 
 	repoDir := initGitTestRepo(t)
 	if out, err := workspace.SafeGitCommand(repoDir, "checkout", "-b", "feature/SUB-1").CombinedOutput(); err != nil {
@@ -66,7 +68,7 @@ func TestSharedGoSuite_DeduplicatesAndCachesReceiptsAcrossLifecycle(t *testing.T
 	}
 
 	// 1. First pipeline pass (unstaged): CoverageGate runs go test -cover, GoToolchainGate reuses ctx.CoverageRep
-	ctx1 := &VerifyContext{RepoRoot: repoDir, WorktreePath: repoDir, TaskID: "SUB-1"}
+	ctx1 := &vscope.VerifyContext{RepoRoot: repoDir, WorktreePath: repoDir, TaskID: "SUB-1"}
 	covGate := &CoverageGate{}
 	tcGate := &GoToolchainGate{}
 
@@ -87,7 +89,7 @@ func TestSharedGoSuite_DeduplicatesAndCachesReceiptsAcrossLifecycle(t *testing.T
 		t.Fatalf("git commit: %v (%s)", cErr, string(out))
 	}
 
-	ctx2 := &VerifyContext{RepoRoot: repoDir, WorktreePath: repoDir, TaskID: "SUB-1"}
+	ctx2 := &vscope.VerifyContext{RepoRoot: repoDir, WorktreePath: repoDir, TaskID: "SUB-1"}
 	tcRes2, err := tcGate.Evaluate(ctx2)
 	if err != nil || !tcRes2.Passed || !strings.Contains(tcRes2.Message, "Go(receipt cache)") {
 		t.Fatalf("expected committed identical snapshot to hit cryptographic receipt cache, got err=%v res=%+v", err, tcRes2)
@@ -98,7 +100,7 @@ func TestSharedGoSuite_DeduplicatesAndCachesReceiptsAcrossLifecycle(t *testing.T
 	if err := os.WriteFile(mathPath, []byte(brokenGo), 0644); err != nil {
 		t.Fatalf("write broken math.go: %v", err)
 	}
-	ctx3 := &VerifyContext{RepoRoot: repoDir, WorktreePath: repoDir, TaskID: "SUB-1"}
+	ctx3 := &vscope.VerifyContext{RepoRoot: repoDir, WorktreePath: repoDir, TaskID: "SUB-1"}
 	tcRes3, err := tcGate.Evaluate(ctx3)
 	if err != nil || tcRes3.Passed {
 		t.Fatalf("expected 1-line broken mutation to invalidate receipt cache and fail closed, got err=%v res=%+v", err, tcRes3)
@@ -107,8 +109,8 @@ func TestSharedGoSuite_DeduplicatesAndCachesReceiptsAcrossLifecycle(t *testing.T
 
 func TestSharedGoSuite_DiffScopesNonGoEditsInWorktree(t *testing.T) {
 	t.Setenv("NOMOS_HOME", t.TempDir())
-	t.Setenv(envInToolchainGate, "")
-	t.Setenv(envSkipToolchainGate, "")
+	t.Setenv(polyrun.EnvInToolchainGate, "")
+	t.Setenv(polyrun.EnvSkipToolchainGate, "")
 
 	repoDir := initGitTestRepo(t)
 	if out, err := workspace.SafeGitCommand(repoDir, "checkout", "-b", "feature/SUB-2").CombinedOutput(); err != nil {
@@ -124,7 +126,7 @@ func TestSharedGoSuite_DiffScopesNonGoEditsInWorktree(t *testing.T) {
 		t.Fatalf("write Widget.svelte: %v", err)
 	}
 
-	ctx := &VerifyContext{RepoRoot: repoDir, WorktreePath: repoDir, TaskID: "SUB-2"}
+	ctx := &vscope.VerifyContext{RepoRoot: repoDir, WorktreePath: repoDir, TaskID: "SUB-2"}
 	tcGate := &GoToolchainGate{}
 	res, err := tcGate.Evaluate(ctx)
 	if err != nil || !res.Passed || !strings.Contains(res.Message, "Go(diff-scoped skip)") {
@@ -132,7 +134,7 @@ func TestSharedGoSuite_DiffScopesNonGoEditsInWorktree(t *testing.T) {
 	}
 
 	// With AllFiles (-A), full Go suite must still execute
-	ctxAll := &VerifyContext{RepoRoot: repoDir, WorktreePath: repoDir, TaskID: "SUB-2", AllFiles: true}
+	ctxAll := &vscope.VerifyContext{RepoRoot: repoDir, WorktreePath: repoDir, TaskID: "SUB-2", AllFiles: true}
 	resAll, err := tcGate.Evaluate(ctxAll)
 	if err != nil || !resAll.Passed || !strings.Contains(resAll.Message, "Go(go test -cover)") {
 		t.Fatalf("expected --all flag to force full go test -cover execution, got err=%v res=%+v", err, resAll)
@@ -142,7 +144,7 @@ func TestSharedGoSuite_DiffScopesNonGoEditsInWorktree(t *testing.T) {
 func TestTruncateToolchainOutput_AnchorsOnFailDiagnosticAfterLongStdout(t *testing.T) {
 	prefix := strings.Repeat("Initialized Nomos workspace in /tmp/cleanroom-test\n", 40)
 	tail := "--- FAIL: TestCleanroomLearn (0.04s)\n    learn_test.go:142: expected 0 graduation candidates\nFAIL\tgithub.com/mgantlett/nomos/substrate/cli\t0.81s"
-	got := truncateToolchainOutput(prefix + tail)
+	got := polyrun.TruncateToolchainOutput(prefix + tail)
 	if !strings.HasPrefix(got, "--- FAIL: TestCleanroomLearn") {
 		t.Fatalf("expected truncateToolchainOutput to anchor on --- FAIL block, got %q", got)
 	}
@@ -150,9 +152,9 @@ func TestTruncateToolchainOutput_AnchorsOnFailDiagnosticAfterLongStdout(t *testi
 
 func TestSharedGoSuite_CanonicalizesRelativeWorktreeAndFastForwardTrunk(t *testing.T) {
 	t.Setenv("NOMOS_HOME", t.TempDir())
-	t.Setenv(envInToolchainGate, "")
-	t.Setenv(envSkipToolchainGate, "")
-	t.Setenv(envNoVerifyCache, "")
+	t.Setenv(polyrun.EnvInToolchainGate, "")
+	t.Setenv(polyrun.EnvSkipToolchainGate, "")
+	t.Setenv(polyrun.EnvNoVerifyCache, "")
 
 	repoDir := initGitTestRepo(t)
 	wtDir := filepath.Join(repoDir, "worktrees", "test-SUB-3")
@@ -169,14 +171,14 @@ func TestSharedGoSuite_CanonicalizesRelativeWorktreeAndFastForwardTrunk(t *testi
 	// 1. Run from inside worktree using relative "." path (simulating 'nomos verify' inside worktree)
 	t.Chdir(wtDir)
 	tcGate := &GoToolchainGate{}
-	ctxRel := &VerifyContext{RepoRoot: repoDir, WorktreePath: ".", TaskID: "SUB-3"}
+	ctxRel := &vscope.VerifyContext{RepoRoot: repoDir, WorktreePath: ".", TaskID: "SUB-3"}
 	resRel, err := tcGate.Evaluate(ctxRel)
 	if err != nil || !resRel.Passed || !strings.Contains(resRel.Message, "Go(go test -cover)") {
 		t.Fatalf("expected initial relative run to execute go test -cover, got err=%v res=%+v", err, resRel)
 	}
 
 	// 2. Run using absolute worktree path (simulating 'nomos task sync' executeGateCheckForTask) -> MUST hit receipt cache!
-	ctxAbs := &VerifyContext{RepoRoot: repoDir, WorktreePath: wtDir, TaskID: "SUB-3"}
+	ctxAbs := &vscope.VerifyContext{RepoRoot: repoDir, WorktreePath: wtDir, TaskID: "SUB-3"}
 	resAbs, err := tcGate.Evaluate(ctxAbs)
 	if err != nil || !resAbs.Passed || !strings.Contains(resAbs.Message, "Go(receipt cache)") {
 		t.Fatalf("expected absolute worktree path to hit canonicalized receipt cache, got err=%v res=%+v", err, resAbs)
@@ -192,7 +194,7 @@ func TestSharedGoSuite_CanonicalizesRelativeWorktreeAndFastForwardTrunk(t *testi
 	if out, mErr := workspace.SafeGitCommand(repoDir, "merge", "--ff-only", "feature/SUB-3").CombinedOutput(); mErr != nil {
 		t.Fatalf("git merge --ff-only: %v (%s)", mErr, string(out))
 	}
-	ctxTrunk := &VerifyContext{RepoRoot: repoDir, WorktreePath: repoDir, IsBaseline: true}
+	ctxTrunk := &vscope.VerifyContext{RepoRoot: repoDir, WorktreePath: repoDir, IsBaseline: true}
 	resTrunk, err := tcGate.Evaluate(ctxTrunk)
 	if err != nil || !resTrunk.Passed || !strings.Contains(resTrunk.Message, "Go(receipt cache)") {
 		t.Fatalf("expected fast-forwarded trunk to hit tree-hash receipt cache without re-running tests, got err=%v res=%+v", err, resTrunk)
@@ -201,7 +203,7 @@ func TestSharedGoSuite_CanonicalizesRelativeWorktreeAndFastForwardTrunk(t *testi
 
 func TestParseAverageCoverage_CountsNoTestFilesAsZeroPercent(t *testing.T) {
 	onlyUntested := "?   \texample.com/untested\t[no test files]\n"
-	if got := parseAverageCoverage(onlyUntested); got != 0.0 {
+	if got := polyrun.ParseAverageCoverage(onlyUntested); got != 0.0 {
 		t.Fatalf("expected 0.0%% for [no test files] package, got %.1f%%", got)
 	}
 	mixed := strings.Join([]string{
@@ -209,7 +211,7 @@ func TestParseAverageCoverage_CountsNoTestFilesAsZeroPercent(t *testing.T) {
 		"?   \texample.com/untested\t[no test files]",
 		"ok  \texample.com/consts\t0.004s\tcoverage: [no statements]",
 	}, "\n")
-	if got := parseAverageCoverage(mixed); got != 40.0 {
+	if got := polyrun.ParseAverageCoverage(mixed); got != 40.0 {
 		t.Fatalf("expected 40.0%% across 80%% + 0%% (ignoring [no statements]), got %.1f%%", got)
 	}
 }
@@ -233,10 +235,10 @@ func TestSnapshotPackageScopeAndReverseImporterExpansion(t *testing.T) {
 		t.Fatalf("write caller.go: %v", err)
 	}
 
-	ctx := &VerifyContext{RepoRoot: repoDir, WorktreePath: repoDir}
-	fullHash := computeWorkspaceSnapshotDigestWithPackages(ctx, repoDir, subDir, []string{"./..."})
-	baseHash := computeWorkspaceSnapshotDigest(ctx, repoDir, subDir)
-	narrowHash := computeWorkspaceSnapshotDigestWithPackages(ctx, repoDir, subDir, []string{"./pkg/leaf"})
+	ctx := &vscope.VerifyContext{RepoRoot: repoDir, WorktreePath: repoDir}
+	fullHash := polyrun.ComputeWorkspaceSnapshotDigestWithPackages(ctx, repoDir, subDir, []string{"./..."})
+	baseHash := polyrun.ComputeWorkspaceSnapshotDigest(ctx, repoDir, subDir)
+	narrowHash := polyrun.ComputeWorkspaceSnapshotDigestWithPackages(ctx, repoDir, subDir, []string{"./pkg/leaf"})
 	if fullHash == "" || fullHash != baseHash {
 		t.Fatalf("expected default ./... hash parity: full=%q base=%q", fullHash, baseHash)
 	}
@@ -245,9 +247,8 @@ func TestSnapshotPackageScopeAndReverseImporterExpansion(t *testing.T) {
 	}
 
 	pkgSet := map[string]struct{}{"./pkg/leaf": {}}
-	expandModifiedGoCallerPackages(repoDir, subDir, []string{"substrate/pkg/leaf/leaf.go"}, pkgSet)
+	polyrun.ExpandModifiedGoCallerPackages(repoDir, subDir, []string{"substrate/pkg/leaf/leaf.go"}, pkgSet)
 	if _, ok := pkgSet["./pkg/caller"]; !ok {
 		t.Fatalf("expected 1-hop importer ./pkg/caller in pkgSet, got %v", pkgSet)
 	}
 }
-

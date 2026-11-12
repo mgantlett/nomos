@@ -1,0 +1,351 @@
+// Package polyrun implements the deterministic Definition of Done (DoD) quality gate pipeline.
+package polyrun
+
+import (
+	"context"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
+)
+
+const (
+	EnvInToolchainGate    = "NOMOS_IN_TOOLCHAIN_GATE"
+	EnvSkipToolchainGate  = "NOMOS_SKIP_TOOLCHAIN_GATE"
+	EnvNoVerifyCache      = "NOMOS_NO_VERIFY_CACHE"
+	envForceFullGoTest    = "NOMOS_FORCE_FULL_GO_TEST"
+	goToolchainTimeout    = 120 * time.Second
+	maxToolchainErrOutput = 1600
+)
+
+var (
+	goCoverageLineRe    = regexp.MustCompile(`coverage:\s+([0-9.]+)%`)
+	goNoTestFilesLineRe = regexp.MustCompile(`(?m)^\?\s+\S+\s+\[no test files\]`)
+)
+
+// ToolchainSuiteReceipt stores the shared compilation, test, and statement coverage result for a workspace snapshot.
+type ToolchainSuiteReceipt struct {
+	SnapshotSHA256   string   `json:"snapshot_sha256"`
+	GoPassed         bool     `json:"go_passed"`
+	GoSkippedNonGo   bool     `json:"go_skipped_non_go,omitempty"`
+	GoOutput         string   `json:"go_output,omitempty"`
+	AvgCoverage      float64  `json:"avg_coverage"`
+	PolyglotVerified bool     `json:"polyglot_verified,omitempty"`
+	PolyglotStacks   []string `json:"polyglot_stacks,omitempty"`
+	CacheHit         bool     `json:"-"`
+	TimestampUTC     string   `json:"timestamp_utc"`
+}
+
+// EvaluateSharedGoSuite executes deterministic polyrun verification logic (@intent nomos_intent_traceability_spec.md).
+func EvaluateSharedGoSuite(ctx *vscope.VerifyContext, root, targetDir string) *ToolchainSuiteReceipt {
+	if cachedCtx := loadContextReceipt(ctx); cachedCtx != nil {
+		return cachedCtx
+	}
+	if shouldSkipGoSuiteForNonGoDiff(ctx, root) {
+		skipped := &ToolchainSuiteReceipt{
+			GoPassed:       true,
+			GoSkippedNonGo: true,
+			AvgCoverage:    100.0,
+			TimestampUTC:   time.Now().UTC().Format(time.RFC3339),
+		}
+		storeContextReceipt(ctx, skipped)
+		return skipped
+	}
+
+	pkgs := ResolveGoTestPackages(ctx, root, targetDir)
+	snapshotKey := ComputeWorkspaceSnapshotDigestWithPackages(ctx, root, targetDir, pkgs)
+	if diskHit := tryLoadDiskReceipt(ctx, snapshotKey); diskHit != nil {
+		storeContextReceipt(ctx, diskHit)
+		return diskHit
+	}
+
+	rec := executeGoTestWithPackages(ctx, root, targetDir, snapshotKey, pkgs)
+	storeContextReceipt(ctx, rec)
+	TrySaveDiskReceipt(ctx, snapshotKey, rec)
+	return rec
+}
+
+func loadContextReceipt(ctx *vscope.VerifyContext) *ToolchainSuiteReceipt {
+	if ctx == nil {
+		return nil
+	}
+	existing, ok := ctx.CoverageRep.(*ToolchainSuiteReceipt)
+	if !ok {
+		return nil
+	}
+	return existing
+}
+
+func tryLoadDiskReceipt(ctx *vscope.VerifyContext, snapshotKey string) *ToolchainSuiteReceipt {
+	if !CanUseToolchainReceiptCache(ctx) || snapshotKey == "" {
+		return nil
+	}
+	cached := loadToolchainReceipt(snapshotKey)
+	if cached == nil || !cached.GoPassed {
+		return nil
+	}
+	cached.CacheHit = true
+	return cached
+}
+
+// TrySaveDiskReceipt executes deterministic polyrun verification logic (@intent nomos_intent_traceability_spec.md).
+func TrySaveDiskReceipt(ctx *vscope.VerifyContext, snapshotKey string, rec *ToolchainSuiteReceipt) {
+	if rec != nil && rec.GoPassed && CanUseToolchainReceiptCache(ctx) && snapshotKey != "" {
+		saveToolchainReceipt(snapshotKey, rec)
+	}
+}
+
+func storeContextReceipt(ctx *vscope.VerifyContext, rec *ToolchainSuiteReceipt) {
+	if ctx != nil && rec != nil {
+		ctx.CoverageRep = rec
+	}
+}
+
+// CanUseToolchainReceiptCache executes deterministic polyrun verification logic (@intent nomos_intent_traceability_spec.md).
+func CanUseToolchainReceiptCache(ctx *vscope.VerifyContext) bool {
+	if os.Getenv(EnvNoVerifyCache) == "1" {
+		return false
+	}
+	if ctx != nil && ctx.AllFiles {
+		return false
+	}
+	return true
+}
+
+// ExecuteGoTestWithCoverage executes deterministic polyrun verification logic (@intent nomos_intent_traceability_spec.md).
+func ExecuteGoTestWithCoverage(ctx *vscope.VerifyContext, root, targetDir, snapshotKey string) *ToolchainSuiteReceipt {
+	return executeGoTestWithPackages(ctx, root, targetDir, snapshotKey, ResolveGoTestPackages(ctx, root, targetDir))
+}
+
+func executeGoTestWithPackages(ctx *vscope.VerifyContext, root, targetDir, snapshotKey string, pkgs []string) *ToolchainSuiteReceipt {
+	cmdCtx, cancel := context.WithTimeout(context.Background(), goToolchainTimeout)
+	defer cancel()
+
+	runProfile := prepareGoCoverProfileRunPath(root)
+	args := []string{"test", "-cover"}
+	if runProfile != "" {
+		args = append(args, "-coverprofile="+runProfile)
+	}
+	args = append(args, pkgs...)
+	cmd := exec.CommandContext(cmdCtx, "go", args...)
+	cmd.Dir = targetDir
+	cmd.Env = BuildGoToolchainEnv(root, targetDir)
+	out, err := cmd.CombinedOutput()
+	outStr := string(out)
+
+	if err != nil {
+		cleanupRunCoverProfile(runProfile)
+		return &ToolchainSuiteReceipt{
+			SnapshotSHA256: snapshotKey,
+			GoPassed:       false,
+			GoOutput:       outStr,
+			TimestampUTC:   time.Now().UTC().Format(time.RFC3339),
+		}
+	}
+
+	persistGoCoverProfile(ctx, root, runProfile, pkgs)
+	return &ToolchainSuiteReceipt{
+		SnapshotSHA256: snapshotKey,
+		GoPassed:       true,
+		AvgCoverage:    ParseAverageCoverage(outStr),
+		TimestampUTC:   time.Now().UTC().Format(time.RFC3339),
+	}
+}
+
+// SanitizedToolchainEnv executes deterministic polyrun verification logic (@intent nomos_intent_traceability_spec.md).
+func SanitizedToolchainEnv(extra ...string) []string {
+	env := workspace.SanitizedGitEnv()
+	return append(env, extra...)
+}
+
+// BuildGoToolchainEnv executes deterministic polyrun verification logic (@intent nomos_intent_traceability_spec.md).
+func BuildGoToolchainEnv(root, targetDir string) []string {
+	env := workspace.SanitizedGitEnv()
+	if val := os.Getenv("GOWORK"); val != "" {
+		env = append(env, "GOWORK="+val)
+	} else if !astdebt.HasLocalGoWork(root, targetDir) {
+		env = append(env, "GOWORK=off")
+	}
+	if os.Getenv("GOTOOLCHAIN") == "" {
+		env = append(env, "GOTOOLCHAIN=auto")
+	}
+	return append(env, EnvInToolchainGate+"=1")
+}
+
+// ResolveGoTestPackages executes deterministic polyrun verification logic (@intent nomos_intent_traceability_spec.md).
+func ResolveGoTestPackages(ctx *vscope.VerifyContext, root, targetDir string) []string {
+	if modPkgs := resolveModifiedGoPackages(ctx, root, targetDir); len(modPkgs) > 0 {
+		return modPkgs
+	}
+	cfg := vscope.ResolveVerifyConfig(ctx)
+	if cfg == nil || cfg.Governance.QualityGates.StrictMode || len(cfg.Governance.QualityGates.SubstrateSourceRoots) == 0 {
+		return []string{"./..."}
+	}
+	var pkgs []string
+	for _, sr := range cfg.Governance.QualityGates.SubstrateSourceRoots {
+		candidate := sr
+		if !filepath.IsAbs(candidate) {
+			candidate = filepath.Join(root, filepath.Clean(sr))
+		}
+		fi, err := os.Stat(candidate)
+		if err != nil || !fi.IsDir() {
+			continue
+		}
+		rel, rErr := filepath.Rel(targetDir, candidate)
+		if rErr != nil || strings.HasPrefix(rel, "..") {
+			continue
+		}
+		relSlash := filepath.ToSlash(rel)
+		if relSlash == "." || relSlash == "" {
+			return []string{"./..."}
+		}
+		pkgs = append(pkgs, "./"+relSlash+"/...")
+	}
+	if len(pkgs) == 0 {
+		return []string{"./..."}
+	}
+	return pkgs
+}
+
+// ParseAverageCoverage executes deterministic polyrun verification logic (@intent nomos_intent_traceability_spec.md).
+func ParseAverageCoverage(output string) float64 {
+	matches := goCoverageLineRe.FindAllStringSubmatch(output, -1)
+	noTestCount := len(goNoTestFilesLineRe.FindAllString(output, -1))
+	totalPkgs := len(matches) + noTestCount
+	if totalPkgs == 0 {
+		return 100.0
+	}
+	var sum float64
+	for _, m := range matches {
+		if val, err := strconv.ParseFloat(m[1], 64); err == nil {
+			sum += val
+		}
+	}
+	return sum / float64(totalPkgs)
+}
+
+// TruncateToolchainOutput executes deterministic polyrun verification logic (@intent nomos_intent_traceability_spec.md).
+func TruncateToolchainOutput(raw string) string {
+	msg := strings.TrimSpace(raw)
+	if anchor := findToolchainFailureOffset(msg); anchor > 0 {
+		msg = strings.TrimSpace(msg[anchor:])
+	}
+	if len(msg) <= maxToolchainErrOutput {
+		return msg
+	}
+	return msg[:maxToolchainErrOutput] + "..."
+}
+
+func findToolchainFailureOffset(msg string) int {
+	if strings.HasPrefix(msg, "# ") || strings.HasPrefix(msg, "--- FAIL:") || strings.HasPrefix(msg, "panic:") {
+		return 0
+	}
+	markers := []string{
+		"\n# ",
+		"\n--- FAIL:",
+		"\npanic:",
+		": syntax error:",
+		": undefined:",
+		": cannot use ",
+		"\nFAIL\t",
+	}
+	for _, marker := range markers {
+		if idx := strings.Index(msg, marker); idx >= 0 {
+			if !strings.HasPrefix(marker, "\n") {
+				if nl := strings.LastIndex(msg[:idx], "\n"); nl >= 0 {
+					return nl + 1
+				}
+			}
+			return idx
+		}
+	}
+	return -1
+}
+
+func shouldSkipGoSuiteForNonGoDiff(ctx *vscope.VerifyContext, root string) bool {
+	if ctx == nil || ctx.AllFiles || ctx.IsBaseline || os.Getenv(envForceFullGoTest) == "1" {
+		return false
+	}
+	if !vscope.IsWorktreeContext(ctx, root) {
+		return false
+	}
+	files := resolveToolchainScopeFiles(ctx, root)
+	if len(files) == 0 {
+		return false
+	}
+	return !hasGoOrContractImpact(files)
+}
+
+func resolveToolchainScopeFiles(ctx *vscope.VerifyContext, root string) []string {
+	if ctx == nil || ctx.AllFiles || ctx.IsBaseline {
+		return nil
+	}
+	workDir := root
+	if ctx.WorktreePath != "" {
+		workDir = ctx.WorktreePath
+	}
+	if vscope.HasCommitRangeScope(ctx) {
+		return vscope.ResolveUnattestedRangeFiles(ctx, workDir)
+	}
+	fileSet := make(map[string]struct{})
+	for _, f := range vscope.GetModifiedFilesInScope(ctx, workDir) {
+		fileSet[filepath.ToSlash(f)] = struct{}{}
+	}
+	for _, f := range impact.ListModifiedWorktreeFiles(workDir, ctx.TaskID) {
+		fileSet[filepath.ToSlash(f)] = struct{}{}
+	}
+	collectUntrackedAllFiles(workDir, fileSet)
+
+	files := make([]string, 0, len(fileSet))
+	for f := range fileSet {
+		if f != "" {
+			files = append(files, f)
+		}
+	}
+	sort.Strings(files)
+	return files
+}
+
+func collectUntrackedAllFiles(workDir string, fileSet map[string]struct{}) {
+	out, err := workspace.RunSafeGit(workDir, "status", "--porcelain", "-uall")
+	if err != nil {
+		return
+	}
+	for _, rawLine := range strings.Split(string(out), "\n") {
+		if len(rawLine) < 4 {
+			continue
+		}
+		rel := strings.TrimSpace(strings.Trim(rawLine[3:], `"`))
+		if idx := strings.Index(rel, vscope.SepArrow); idx >= 0 {
+			rel = strings.TrimSpace(rel[idx+len(vscope.SepArrow):])
+		}
+		if rel != "" && !strings.HasPrefix(rel, ".tmp/") && !strings.HasPrefix(rel, "worktrees/") {
+			fileSet[filepath.ToSlash(rel)] = struct{}{}
+		}
+	}
+}
+
+func hasGoOrContractImpact(files []string) bool {
+	for _, rel := range files {
+		lower := strings.ToLower(filepath.ToSlash(rel))
+		base := filepath.Base(lower)
+		ext := filepath.Ext(lower)
+		if ext == ".go" {
+			return true
+		}
+		switch base {
+		case "go.mod", "go.sum", "nomos.schema.json", "nomos.yaml":
+			return true
+		}
+	}
+	return false
+}

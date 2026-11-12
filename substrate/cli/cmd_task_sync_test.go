@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/mgantlett/nomos/substrate/cli/diag"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,7 +14,7 @@ func TestReadWalkthroughContentAndScrubPipeline(t *testing.T) {
 	if err := os.WriteFile(wtFile, []byte("Updated file://"+filepath.ToSlash(dir)+"/README.md"), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
-	got := NormalizeAndScrubWalkthrough(dir, dir, readWalkthroughContent(wtFile))
+	got := diag.NormalizeAndScrubWalkthrough(dir, dir, readWalkthroughContent(wtFile))
 	if strings.Contains(got, "file://") || !strings.Contains(got, "README.md") {
 		t.Fatalf("unexpected scrubbed walkthrough: %s", got)
 	}

@@ -1,6 +1,7 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,7 +15,7 @@ func TestZeroFilesystemAliasGate(t *testing.T) {
 	}
 
 	gate := &ZeroFilesystemAliasGate{}
-	ctx := &VerifyContext{WorktreePath: tempDir}
+	ctx := &vscope.VerifyContext{WorktreePath: tempDir}
 
 	res, err := gate.Evaluate(ctx)
 	if err != nil {
@@ -43,12 +44,12 @@ func TestPlaneSeparationGate(t *testing.T) {
 	gate := &PlaneSeparationGate{}
 
 	// Baseline or empty task ID passes
-	res, err := gate.Evaluate(&VerifyContext{IsBaseline: true})
+	res, err := gate.Evaluate(&vscope.VerifyContext{IsBaseline: true})
 	if err != nil || !res.Passed {
 		t.Fatalf("expected baseline context to pass")
 	}
 
-	resEmpty, err := gate.Evaluate(&VerifyContext{TaskID: ""})
+	resEmpty, err := gate.Evaluate(&vscope.VerifyContext{TaskID: ""})
 	if err != nil || !resEmpty.Passed {
 		t.Fatalf("expected empty task ID context to pass")
 	}
@@ -62,7 +63,7 @@ func TestPlaneSeparationGate_CustomRoots(t *testing.T) {
 	}
 
 	gate := &PlaneSeparationGate{}
-	ctxClean := &VerifyContext{
+	ctxClean := &vscope.VerifyContext{
 		WorktreePath: tempDir,
 		RepoRoot:     tempDir,
 		TaskID:       "SUB-50",
@@ -84,7 +85,7 @@ func TestUncheckedErrorsGate(t *testing.T) {
 	}
 
 	gate := &UncheckedErrorsGate{}
-	ctx := &VerifyContext{WorktreePath: tempDir}
+	ctx := &vscope.VerifyContext{WorktreePath: tempDir}
 
 	res, err := gate.Evaluate(ctx)
 	if err != nil || !res.Passed {
@@ -112,7 +113,7 @@ func TestGoToolchainGate(t *testing.T) {
 
 	// Bypassed when env var is set
 	t.Setenv("NOMOS_IN_TOOLCHAIN_GATE", "1")
-	res, err := gate.Evaluate(&VerifyContext{})
+	res, err := gate.Evaluate(&vscope.VerifyContext{})
 	if err != nil || !res.Passed {
 		t.Fatalf("expected toolchain gate to bypass re-entrant call")
 	}
@@ -120,7 +121,7 @@ func TestGoToolchainGate(t *testing.T) {
 	// Clean tempdir without go.mod returns passed with no module detected
 	t.Setenv("NOMOS_IN_TOOLCHAIN_GATE", "")
 	tempDir := t.TempDir()
-	resNoMod, err := gate.Evaluate(&VerifyContext{WorktreePath: tempDir})
+	resNoMod, err := gate.Evaluate(&vscope.VerifyContext{WorktreePath: tempDir})
 	if err != nil || !resNoMod.Passed {
 		t.Fatalf("expected no go.mod directory to pass safely")
 	}
@@ -151,13 +152,13 @@ func TestWalkTargetFiles_BaselineExcludes(t *testing.T) {
 		t.Fatalf("failed to write nomos.yaml: %v", err)
 	}
 
-	ctx := &VerifyContext{
+	ctx := &vscope.VerifyContext{
 		RepoRoot:   tempDir,
 		IsBaseline: true,
 	}
 
 	var visited []string
-	err := WalkTargetFiles(ctx, tempDir, func(path string, info os.FileInfo, err error) error {
+	err := vscope.WalkTargetFiles(ctx, tempDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -188,11 +189,11 @@ func TestWalkTargetFiles_BaselineExcludes(t *testing.T) {
 
 func TestPhaseDisciplineGate_RejectsInvalidPhase(t *testing.T) {
 	g := &PhaseDisciplineGate{}
-	resValid, err := g.Evaluate(&VerifyContext{Phase: "EDIT"})
+	resValid, err := g.Evaluate(&vscope.VerifyContext{Phase: "EDIT"})
 	if err != nil || !resValid.Passed {
 		t.Fatalf("expected canonical EDIT phase to pass, got %+v (%v)", resValid, err)
 	}
-	resInvalid, err := g.Evaluate(&VerifyContext{Phase: "MUTATED_BOGUS"})
+	resInvalid, err := g.Evaluate(&vscope.VerifyContext{Phase: "MUTATED_BOGUS"})
 	if err != nil || resInvalid.Passed {
 		t.Fatalf("expected invalid phase MUTATED_BOGUS to fail closed, got %+v (%v)", resInvalid, err)
 	}

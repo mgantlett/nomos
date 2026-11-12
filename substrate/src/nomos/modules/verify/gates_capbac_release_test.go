@@ -1,6 +1,7 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"testing"
 )
 
@@ -10,7 +11,7 @@ func TestCapBACLeaseGate_Baseline(t *testing.T) {
 		t.Fatalf("unexpected name: %s", gate.Name())
 	}
 
-	ctx := &VerifyContext{
+	ctx := &vscope.VerifyContext{
 		IsBaseline: true,
 		TaskID:     "",
 		Phase:      "IDLE",
@@ -31,7 +32,7 @@ func TestReleaseReceiptGate(t *testing.T) {
 		t.Fatalf("unexpected name: %s", gate.Name())
 	}
 
-	ctx := &VerifyContext{
+	ctx := &vscope.VerifyContext{
 		RepoRoot: ".",
 	}
 

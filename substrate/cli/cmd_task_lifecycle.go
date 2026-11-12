@@ -4,6 +4,9 @@ package cli
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/cli/diag"
+	"github.com/mgantlett/nomos/substrate/cli/taskui"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"io"
 	"os"
 	"strconv"
@@ -17,6 +20,7 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/mem"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/task"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"github.com/spf13/cobra"
 )
 
@@ -26,7 +30,7 @@ type taskCreateOpts struct {
 	customKey string
 	twinOf    string
 	priority  int
-	card      taskCardFlags
+	card      tui.TaskCardFlags
 	stdin     io.Reader
 }
 
@@ -36,40 +40,26 @@ func newTaskCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create <title>",
 		Short:   "Allocate and persist a new Living Ledger task record",
-		Long:    helpTaskCreateLong,
-		Example: helpTaskCreateExample,
+		Long:    tui.HelpTaskCreateLong,
+		Example: tui.HelpTaskCreateExample,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.stdin = cmd.InOrStdin()
 			return executeTaskCreate(args[0], opts)
 		},
 	}
-	cmd.Flags().StringVarP(&opts.plane, flagNamePlane, "p", "substrate", "Target plane (intent|substrate)")
-	cmd.Flags().StringVarP(&opts.tier, flagNameTier, "t", "T1", "Cognitive tier (T1|T2)")
+	cmd.Flags().StringVarP(&opts.plane, tui.FlagNamePlane, "p", "substrate", "Target plane (intent|substrate)")
+	cmd.Flags().StringVarP(&opts.tier, tui.FlagNameTier, "t", "T1", "Cognitive tier (T1|T2)")
 	cmd.Flags().IntVarP(&opts.priority, "priority", "r", 50, "Priority (0-100)")
 	cmd.Flags().StringVarP(&opts.customKey, "key", "k", "", "Explicit task key (e.g. SUB-1212)")
 	cmd.Flags().StringVar(&opts.twinOf, "twin-of", "", "Twin task key in opposite plane to link with")
-	bindTaskCardFlags(cmd, &opts.card, false)
+	tui.BindTaskCardFlags(cmd, &opts.card, false)
 	return cmd
 }
 
-func normalizePlaneInput(plane, customKey string) string {
-	switch strings.ToLower(strings.TrimSpace(plane)) {
-	case "sub", "substrate":
-		if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(customKey)), "INT-") {
-			return "intent"
-		}
-		return "substrate"
-	case "int", "intent":
-		return "intent"
-	default:
-		return strings.ToLower(strings.TrimSpace(plane))
-	}
-}
-
 func executeTaskCreate(title string, opts taskCreateOpts) error {
-	opts.plane = normalizePlaneInput(opts.plane, opts.customKey)
-	body, burden, err := resolveCardBodyAndBurden(opts.stdin, "create", title, opts.plane, opts.card, "")
+	opts.plane = tui.NormalizePlaneInput(opts.plane, opts.customKey)
+	body, burden, err := tui.ResolveCardBodyAndBurden(opts.stdin, "create", title, opts.plane, opts.card, "")
 	if err != nil {
 		return err
 	}
@@ -81,7 +71,7 @@ func executeTaskCreate(title string, opts taskCreateOpts) error {
 	if err != nil {
 		return err
 	}
-	deps, err := resolveValidatedDependencies(store, opts.card.dependsOn, key)
+	deps, err := tui.ResolveValidatedDependencies(store, opts.card.DependsOn, key)
 	if err != nil {
 		return err
 	}
@@ -93,7 +83,7 @@ func executeTaskCreate(title string, opts taskCreateOpts) error {
 	}
 
 	t := task.TaskRecord{
-		Key: key, Plane: opts.plane, Project: resolveActiveTaskProject(opts.card.project),
+		Key: key, Plane: opts.plane, Project: taskui.ResolveActiveTaskProject(opts.card.Project),
 		SchemaType: task.SchemaType(opts.plane), Title: title, Description: body,
 		Status: task.StatusTodo, Tier: task.Tier(opts.tier), Priority: opts.priority,
 		TwinKey: twinOf, Dependencies: deps, Burden: burden,
@@ -106,19 +96,19 @@ func executeTaskCreate(title string, opts taskCreateOpts) error {
 			return fmt.Errorf("failed linking twin %s: %w", twinOf, err)
 		}
 		fmt.Printf("✨ %s %s (%s) - %s (twinned with %s)\n",
-			uiSuccessStyle.Render("Created task:"), styleTaskKey(key), stylePlane(opts.plane),
-			uiBoldValueStyle.Render(title), styleTaskKey(twinOf))
+			tui.UiSuccessStyle.Render("Created task:"), tui.StyleTaskKey(key), tui.StylePlane(opts.plane),
+			tui.UiBoldValueStyle.Render(title), tui.StyleTaskKey(twinOf))
 	} else {
 		fmt.Printf("✨ %s %s (%s) - %s\n",
-			uiSuccessStyle.Render("Created task:"), styleTaskKey(key), stylePlane(opts.plane),
-			uiBoldValueStyle.Render(title))
+			tui.UiSuccessStyle.Render("Created task:"), tui.StyleTaskKey(key), tui.StylePlane(opts.plane),
+			tui.UiBoldValueStyle.Render(title))
 	}
 	if len(deps) > 0 {
-		fmt.Printf("  %s %s %s\n", uiWarnStyle.Render("Blocked By:"),
-			strings.Join(deps, ", "), uiMutedStyle.Render("(auto-promotes to wavefront once DONE)"))
+		fmt.Printf("  %s %s %s\n", tui.UiWarnStyle.Render("Blocked By:"),
+			strings.Join(deps, ", "), tui.UiMutedStyle.Render("(auto-promotes to wavefront once DONE)"))
 	} else {
-		fmt.Printf("  %s %s\n", uiLabelStyle.Render("Next:"),
-			uiCommandStyle.Render(fmt.Sprintf("nomos task start %s --edit", key)))
+		fmt.Printf("  %s %s\n", tui.UiLabelStyle.Render("Next:"),
+			tui.UiCommandStyle.Render(fmt.Sprintf("nomos task start %s --edit", key)))
 	}
 	return nil
 }
@@ -139,8 +129,8 @@ func newTaskStartCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "start <key>",
 		Short:   "Provision transient worktree and CapBAC lease for task",
-		Long:    helpTaskStartLong,
-		Example: helpTaskStartExample,
+		Long:    tui.HelpTaskStartLong,
+		Example: tui.HelpTaskStartExample,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTaskStartWithOpts(args[0], autoEdit, forceProject)
@@ -172,7 +162,7 @@ func runTaskStartWithOpts(rawKey string, autoEdit, forceProject bool) error {
 	if err != nil {
 		return err
 	}
-	activeProj := resolveRepoProjectName(mgr.RepoRoot)
+	activeProj := taskui.ResolveRepoProjectName(mgr.RepoRoot)
 	if !forceProject && !task.MatchesProject(t.Project, activeProj, true) {
 		return types.NewNomosError(types.ErrCodeValidationFailed,
 			"task %s belongs to project %q, cannot start inside repository %q", key, t.Project, activeProj).
@@ -194,9 +184,9 @@ func runTaskStartWithOpts(rawKey string, autoEdit, forceProject bool) error {
 	if err := store.UpdateTask(*t); err != nil {
 		return err
 	}
-	renderTaskStartedBanner(key, wtPath, string(targetPhase))
+	tui.RenderTaskStartedBanner(key, wtPath, string(targetPhase))
 	renderLearnedPitfallsBriefing(mgr.RepoRoot, t.Title)
-	renderPhaseTransitionNextActions(os.Stdout, targetPhase, key, wtPath, mgr.RepoRoot)
+	tui.RenderPhaseTransitionNextActions(os.Stdout, targetPhase, key, wtPath, mgr.RepoRoot)
 	return nil
 }
 
@@ -217,8 +207,8 @@ func newTaskEditCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "edit <key>",
 		Short:   "Transition task to EDIT phase and enable code mutations",
-		Long:    helpTaskEditLong,
-		Example: helpTaskEditExample,
+		Long:    tui.HelpTaskEditLong,
+		Example: tui.HelpTaskEditExample,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := strings.ToUpper(strings.TrimSpace(args[0]))
@@ -235,8 +225,8 @@ func newTaskEditCmd() *cobra.Command {
 				return err
 			}
 			updateActiveLeasePhase(key, "EDIT")
-			fmt.Printf("✏️  Task %s transitioned to %s phase\n", styleTaskKey(key), styleSemanticBadge("EDIT"))
-			renderPhaseTransitionNextActions(os.Stdout, types.PhaseEdit, key, "", "")
+			fmt.Printf("✏️  Task %s transitioned to %s phase\n", tui.StyleTaskKey(key), tui.StyleSemanticBadge("EDIT"))
+			tui.RenderPhaseTransitionNextActions(os.Stdout, types.PhaseEdit, key, "", "")
 			return nil
 		},
 	}
@@ -246,8 +236,8 @@ func newTaskReviewCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "review <key>",
 		Short:   "Transition task to REVIEW phase and evaluate DoD quality gates",
-		Long:    helpTaskReviewLong,
-		Example: helpTaskReviewExample,
+		Long:    tui.HelpTaskReviewLong,
+		Example: tui.HelpTaskReviewExample,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := strings.ToUpper(strings.TrimSpace(args[0]))
@@ -266,7 +256,7 @@ func newTaskReviewCmd() *cobra.Command {
 			updateActiveLeasePhase(key, "REVIEW")
 			_, gateErr := executeGateCheckForTask(key)
 			if gateErr == nil {
-				renderPhaseTransitionNextActions(os.Stdout, types.PhaseReview, key, "", "")
+				tui.RenderPhaseTransitionNextActions(os.Stdout, types.PhaseReview, key, "", "")
 			}
 			return gateErr
 		},
@@ -290,13 +280,13 @@ func executeGateCheckForTask(taskKey string) (*verify.PipelineReport, error) {
 	repoRoot, worktreePath := resolveTaskGateTargets(taskKey)
 	if cached := loadValidWorktreeVerifyReceipt(repoRoot, worktreePath, taskKey, time.Now()); cached != nil {
 		fmt.Printf("🔍 %s %s %s\n",
-			uiSuccessStyle.Render("DoD Verification Succeeded:"),
-			uiBoldValueStyle.Render(fmt.Sprintf("%d/%d gates passed", cached.GatesPassed, cached.GatesTotal)),
-			uiMutedStyle.Render("(clean-tree receipt cache)"))
+			tui.UiSuccessStyle.Render("DoD Verification Succeeded:"),
+			tui.UiBoldValueStyle.Render(fmt.Sprintf("%d/%d gates passed", cached.GatesPassed, cached.GatesTotal)),
+			tui.UiMutedStyle.Render("(clean-tree receipt cache)"))
 		return cached, nil
 	}
 
-	ctx := &verify.VerifyContext{
+	ctx := &vscope.VerifyContext{
 		RepoRoot:     repoRoot,
 		WorktreePath: worktreePath,
 		TaskID:       taskKey,
@@ -304,7 +294,7 @@ func executeGateCheckForTask(taskKey string) (*verify.PipelineReport, error) {
 	}
 	pipeline := verify.NewPipeline(verify.DefaultBaselineGates())
 	report, err := pipeline.Execute(ctx)
-	recordVerificationAnomalies(repoRoot, taskKey, "task-review", report, err)
+	diag.RecordVerificationAnomalies(repoRoot, taskKey, "task-review", report, err)
 	if err != nil {
 		invalidateWorktreeVerifyReceipt(repoRoot, worktreePath)
 		return nil, err
@@ -316,8 +306,8 @@ func executeGateCheckForTask(taskKey string) (*verify.PipelineReport, error) {
 	}
 	saveWorktreeVerifyReceipt(repoRoot, worktreePath, taskKey, report)
 	fmt.Printf("🔍 %s %s\n",
-		uiSuccessStyle.Render("DoD Verification Succeeded:"),
-		uiBoldValueStyle.Render(fmt.Sprintf("%d/%d gates passed", report.GatesPassed, report.GatesTotal)))
+		tui.UiSuccessStyle.Render("DoD Verification Succeeded:"),
+		tui.UiBoldValueStyle.Render(fmt.Sprintf("%d/%d gates passed", report.GatesPassed, report.GatesTotal)))
 	return report, nil
 }
 
@@ -341,8 +331,8 @@ func newTaskAbortCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "abort <key>",
 		Short:   "Abort task execution, revoke capability lease, and remove worktree",
-		Long:    helpTaskAbortLong,
-		Example: helpTaskAbortExample,
+		Long:    tui.HelpTaskAbortLong,
+		Example: tui.HelpTaskAbortExample,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := strings.ToUpper(strings.TrimSpace(args[0]))
@@ -353,7 +343,7 @@ func newTaskAbortCmd() *cobra.Command {
 			if remErr := mgr.RemoveWorktree(key); remErr != nil {
 				// non-fatal if worktree already removed
 			}
-			revokeActiveLease(key)
+			taskui.RevokeActiveLease(key)
 			mem.RemoveTaskTrapBuffer(mgr.RepoRoot, key)
 			store, err := task.NewDefaultSQLiteTaskStore()
 			if err == nil {
@@ -364,13 +354,12 @@ func newTaskAbortCmd() *cobra.Command {
 					}
 				}
 			}
-			fmt.Printf("🛑 Task %s %s\n", styleTaskKey(key), uiWarnStyle.Render("aborted and pruned"))
-			renderPhaseTransitionNextActions(os.Stdout, types.PhaseIdle, "", "", mgr.RepoRoot)
+			fmt.Printf("🛑 Task %s %s\n", tui.StyleTaskKey(key), tui.UiWarnStyle.Render("aborted and pruned"))
+			tui.RenderPhaseTransitionNextActions(os.Stdout, types.PhaseIdle, "", "", mgr.RepoRoot)
 			return nil
 		},
 	}
 }
-
 
 func allocateNextKey(store task.TaskStore, plane string) (string, error) {
 	prefix := "SUB"

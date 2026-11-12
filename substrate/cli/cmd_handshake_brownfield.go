@@ -3,6 +3,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"os"
 	"strings"
 
@@ -10,30 +11,30 @@ import (
 )
 
 func renderBrownfieldHandshakeBanner(event *handshake.HandshakeEvent, bf *handshake.BrownfieldTopologyBrief, hookRoot string) {
-	fmt.Println(renderBrandTitle("🤝 Nomos Brownfield Session Handshake"))
-	fmt.Println(uiRule(ruleNarrow))
-	fmt.Println(kvLine("Active Repository", 17, uiBoldValueStyle.Render(event.Repository)))
+	fmt.Println(tui.RenderBrandTitle("🤝 Nomos Brownfield Session Handshake"))
+	fmt.Println(tui.UiRule(tui.RuleNarrow))
+	fmt.Println(tui.KvLine("Active Repository", 17, tui.UiBoldValueStyle.Render(event.Repository)))
 	if event.ActiveTask != "" {
 		phaseVal := fmt.Sprintf("%s %s",
-			styleSemanticBadge(string(event.Phase)),
-			uiMutedStyle.Render("(Task: "+styleTaskKey(event.ActiveTask)+")"))
-		fmt.Println(kvLine("Workspace Phase", 17, phaseVal))
+			tui.StyleSemanticBadge(string(event.Phase)),
+			tui.UiMutedStyle.Render("(Task: "+tui.StyleTaskKey(event.ActiveTask)+")"))
+		fmt.Println(tui.KvLine("Workspace Phase", 17, phaseVal))
 	} else {
 		phaseVal := fmt.Sprintf("%s %s",
-			styleSemanticBadge(string(event.Phase)),
-			uiMutedStyle.Render("(Trunk baseline)"))
-		fmt.Println(kvLine("Workspace Phase", 17, phaseVal))
+			tui.StyleSemanticBadge(string(event.Phase)),
+			tui.UiMutedStyle.Render("(Trunk baseline)"))
+		fmt.Println(tui.KvLine("Workspace Phase", 17, phaseVal))
 	}
 	govVal := fmt.Sprintf("BROWNFIELD (scope=%s, tdd=%s, cov=%s, %d gates)",
 		effectiveBriefScope(bf), bf.TDDMode, bf.CoverageMode, event.GateCount)
-	fmt.Println(kvLine("Governance Mode", 17, uiBoldValueStyle.Render(govVal)))
+	fmt.Println(tui.KvLine("Governance Mode", 17, tui.UiBoldValueStyle.Render(govVal)))
 	for _, item := range buildBrownfieldTopologyPairs(bf) {
-		fmt.Println(kvLine(item.label, 17, uiValueStyle.Render(item.value)))
+		fmt.Println(tui.KvLine(item.label, 17, tui.UiValueStyle.Render(item.value)))
 	}
 	renderHandshakeUpdateAndDriftAdvisories(hookRoot)
 	renderHandshakeMnemeTelemetry(event)
-	renderNextActions(os.Stdout, event.NextActions)
-	fmt.Println(uiRule(ruleNarrow))
+	tui.RenderNextActions(os.Stdout, event.NextActions)
+	fmt.Println(tui.UiRule(tui.RuleNarrow))
 }
 
 func effectiveBriefScope(bf *handshake.BrownfieldTopologyBrief) string {

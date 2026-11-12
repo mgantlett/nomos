@@ -1,6 +1,7 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,7 +17,7 @@ func TestContractParityGate(t *testing.T) {
 	}
 
 	tempDir := t.TempDir()
-	ctx := &VerifyContext{WorktreePath: tempDir, RepoRoot: tempDir}
+	ctx := &vscope.VerifyContext{WorktreePath: tempDir, RepoRoot: tempDir}
 
 	// Without contracts enabled in config, gate skips gracefully
 	resDisabled, err := gate.Evaluate(ctx)
@@ -91,7 +92,7 @@ func TestInfraPortIngressGate(t *testing.T) {
 	}
 
 	tempDir := t.TempDir()
-	ctx := &VerifyContext{WorktreePath: tempDir, RepoRoot: tempDir}
+	ctx := &vscope.VerifyContext{WorktreePath: tempDir, RepoRoot: tempDir}
 
 	// Without infra enabled in config, gate skips gracefully
 	resDisabled, err := gate.Evaluate(ctx)
@@ -145,7 +146,7 @@ func TestUIAntiMaskSentinelGate(t *testing.T) {
 		t.Errorf("unexpected name: %s", gate.Name())
 	}
 
-	ctx := &VerifyContext{}
+	ctx := &vscope.VerifyContext{}
 	res, err := gate.Evaluate(ctx)
 	if err != nil || !res.Passed {
 		t.Errorf("expected pass when membrane boundary disabled: %v", res)
@@ -165,7 +166,7 @@ func TestContractParityGate_WorktreeInheritance(t *testing.T) {
 		t.Fatalf("failed writing nomos.yaml: %v", err)
 	}
 
-	ctx := &VerifyContext{
+	ctx := &vscope.VerifyContext{
 		RepoRoot:     repoDir,
 		WorktreePath: wtDir,
 	}
@@ -246,7 +247,7 @@ func TestContractParityGate_OptionalDefaultSchema(t *testing.T) {
 					t.Fatalf("write drifted schema: %v", err)
 				}
 			}
-			res, err := gate.Evaluate(&VerifyContext{RepoRoot: root, WorktreePath: root})
+			res, err := gate.Evaluate(&vscope.VerifyContext{RepoRoot: root, WorktreePath: root})
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

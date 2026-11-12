@@ -5,6 +5,10 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/cli/diag"
+	"github.com/mgantlett/nomos/substrate/cli/inspectcmd"
+	"github.com/mgantlett/nomos/substrate/cli/selfupdate"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
@@ -15,6 +19,12 @@ import (
 // RootCmdVersion defines the statutory release version of Nomos v4.
 var RootCmdVersion = "4.16.2"
 
+func init() {
+	tui.ResolveAppVersion = func() string { return RootCmdVersion }
+	tui.TemplatesFS = initTemplates
+	tui.ScaffoldAmbientHooksFn = scaffoldAmbientHooks
+}
+
 // NewRootCmd constructs the authoritative root Cobra command for Nomos.
 func NewRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
@@ -23,7 +33,7 @@ func NewRootCmd() *cobra.Command {
 		Short:   "Deterministic execution substrate between coding agents and Git",
 		Long: `Nomos Open-Core Deterministic Execution Substrate
 The deterministic runtime between any coding agent and Git: causal INT/SUB spec-vs-code DAGs, isolated git worktrees, 42 polyglot anti-reward-hacking AST gates, receipt-gated SQLite memory, and atomic 2PC releases.`,
-		Example:       helpRootExample,
+		Example:       tui.HelpRootExample,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
@@ -32,7 +42,7 @@ The deterministic runtime between any coding agent and Git: causal INT/SUB spec-
 			}
 		},
 	}
-	rootCmd.SetVersionTemplate(FormatVersionOutput())
+	rootCmd.SetVersionTemplate(selfupdate.FormatVersionOutput())
 
 	registerSubcommands(rootCmd)
 	return rootCmd
@@ -62,7 +72,7 @@ func Execute() (execErr error) {
 	}
 	defer func() {
 		if rec := recover(); rec != nil {
-			RecordSubstrateAnomaly(repoRoot, "", "nomos", anomalyKindPanic, "cli.Execute", fmt.Sprint(rec), 0)
+			diag.RecordSubstrateAnomaly(repoRoot, "", "nomos", diag.AnomalyKindPanic, "cli.Execute", fmt.Sprint(rec), 0)
 			execErr = types.NewNomosError(types.ErrCodeCore, "recovered internal substrate panic: %v", rec).
 				WithRemedy("run 'nomos issue' to inspect and export a scrubbed local diagnostic report")
 		}
@@ -80,7 +90,7 @@ func recordRootExecutionAnomaly(repoRoot string, err error) {
 	}
 	var nErr *types.NomosError
 	if errors.As(err, &nErr) && (nErr.Code == types.ErrCodeCore || nErr.Code == types.ErrCodeSubstrate) {
-		RecordSubstrateAnomaly(repoRoot, "", "nomos", anomalyKindSubstrateError, nErr.Code, nErr.Description, 0)
+		diag.RecordSubstrateAnomaly(repoRoot, "", "nomos", diag.AnomalyKindSubstrateError, nErr.Code, nErr.Description, 0)
 	}
 }
 
@@ -93,7 +103,7 @@ func registerSubcommands(root *cobra.Command) {
 	)
 
 	addCommandWithGroup(root, NewInitCmd(), "lifecycle")
-	addCommandWithGroup(root, NewStatusCmd(), "lifecycle")
+	addCommandWithGroup(root, diag.NewStatusCmd(), "lifecycle")
 	addCommandWithGroup(root, NewTaskCmd(), "lifecycle")
 
 	addCommandWithGroup(root, NewVerifyCmd(), "quality")
@@ -101,16 +111,16 @@ func registerSubcommands(root *cobra.Command) {
 
 	addCommandWithGroup(root, NewHandshakeCmd(), "agent")
 	addCommandWithGroup(root, NewHookCmd(), "agent")
-	addCommandWithGroup(root, NewDirectiveCmd(), "agent")
-	addCommandWithGroup(root, NewCapabilitiesCmd(), "agent")
-	addCommandWithGroup(root, NewMemCmd(), "agent")
-	addCommandWithGroup(root, NewSessionCmd(), "agent")
+	addCommandWithGroup(root, inspectcmd.NewDirectiveCmd(), "agent")
+	addCommandWithGroup(root, inspectcmd.NewCapabilitiesCmd(), "agent")
+	addCommandWithGroup(root, inspectcmd.NewMemCmd(), "agent")
+	addCommandWithGroup(root, inspectcmd.NewSessionCmd(), "agent")
 
-	addCommandWithGroup(root, NewIssueCmd(), "diagnostics")
-	addCommandWithGroup(root, NewUpdateCmd(), "diagnostics")
-	addCommandWithGroup(root, NewVersionCmd(), "diagnostics")
+	addCommandWithGroup(root, diag.NewIssueCmd(), "diagnostics")
+	addCommandWithGroup(root, selfupdate.NewUpdateCmd(), "diagnostics")
+	addCommandWithGroup(root, selfupdate.NewVersionCmd(), "diagnostics")
 
-	discoverPlugins(root)
+	tui.DiscoverPlugins(root)
 }
 
 func addCommandWithGroup(root *cobra.Command, cmd *cobra.Command, groupID string) {

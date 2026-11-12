@@ -3,6 +3,7 @@ package verify
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"strings"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
@@ -75,8 +76,8 @@ func IntentTwinModeRemedy(subjectKey string) string {
 	)
 }
 
-func resolveIntentTwinMode(ctx *VerifyContext) string {
-	cfg := resolveVerifyConfig(ctx)
+func resolveIntentTwinMode(ctx *vscope.VerifyContext) string {
+	cfg := vscope.ResolveVerifyConfig(ctx)
 	if cfg == nil {
 		return config.IntentTwinModeOff
 	}
@@ -144,10 +145,10 @@ func checkVerifyScopeAndTDDExcludeDowngrade(trunkCfg, wtCfg *config.EcosystemCon
 	}
 	allowed := make(map[string]struct{}, len(trunkCfg.Governance.QualityGates.TDDExclude))
 	for _, ex := range trunkCfg.Governance.QualityGates.TDDExclude {
-		allowed[normalizeSlashPath(ex)] = struct{}{}
+		allowed[vscope.NormalizeSlashPath(ex)] = struct{}{}
 	}
 	for _, ex := range wtCfg.Governance.QualityGates.TDDExclude {
-		norm := normalizeSlashPath(ex)
+		norm := vscope.NormalizeSlashPath(ex)
 		if norm != "" {
 			if _, exists := allowed[norm]; !exists {
 				return fmt.Sprintf("worktree nomos.yaml illegally expands governance.quality_gates.tdd_exclude beyond trunk baseline (%s)", ex)

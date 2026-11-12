@@ -3,6 +3,8 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/mgantlett/nomos/substrate/cli/diag"
+	"github.com/mgantlett/nomos/substrate/cli/taskui"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,7 +20,7 @@ func TestResolveRepoProjectName(t *testing.T) {
 	if err := os.MkdirAll(brownfieldDir, 0755); err != nil {
 		t.Fatalf("mkdir brownfield: %v", err)
 	}
-	if got := resolveRepoProjectName(brownfieldDir); got != "payments-api" {
+	if got := taskui.ResolveRepoProjectName(brownfieldDir); got != "payments-api" {
 		t.Fatalf("expected brownfield project 'payments-api', got %q", got)
 	}
 
@@ -30,7 +32,7 @@ func TestResolveRepoProjectName(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(acmeDir, "nomos.yaml"), []byte("project: \"acme-core\"\ndefault_branch: \"main\"\n"), 0644); err != nil {
 		t.Fatalf("write nomos.yaml: %v", err)
 	}
-	if got := resolveRepoProjectName(acmeDir); got != "acme-core" {
+	if got := taskui.ResolveRepoProjectName(acmeDir); got != "acme-core" {
 		t.Fatalf("expected configured project 'acme-core', got %q", got)
 	}
 }
@@ -103,7 +105,7 @@ func TestTaskCmd_ProjectAutoStampWorktreeAndReassign(t *testing.T) {
 	}
 
 	// Fail-closed pre-flight if any target key is missing
-	badProjCmd := newTaskProjectCmd()
+	badProjCmd := taskui.NewTaskProjectCmd()
 	badProjCmd.SilenceErrors = true
 	badProjCmd.SilenceUsage = true
 	badProjCmd.SetArgs([]string{"other-proj", "SUB-2", "SUB-999"})
@@ -116,7 +118,7 @@ func TestTaskCmd_ProjectAutoStampWorktreeAndReassign(t *testing.T) {
 	}
 
 	// Reassign project via 'nomos task project'
-	projCmd := newTaskProjectCmd()
+	projCmd := taskui.NewTaskProjectCmd()
 	projBuf := new(bytes.Buffer)
 	projCmd.SetOut(projBuf)
 	projCmd.SetArgs([]string{"acme-core", "SUB-2"})
@@ -134,7 +136,7 @@ func TestTaskCmd_ProjectAutoStampWorktreeAndReassign(t *testing.T) {
 	if err := listCmd.Execute(); err != nil {
 		t.Fatalf("task list --project failed: %v", err)
 	}
-	filtered := filterTasksByProject(store.ListTasks(), "acme-core")
+	filtered := taskui.FilterTasksByProject(store.ListTasks(), "acme-core")
 	rawJSON, _ := json.Marshal(filtered)
 	if len(filtered) != 3 || !strings.Contains(string(rawJSON), `"project":"acme-core"`) {
 		t.Fatalf("expected all 3 tasks under acme-core, got %d (%s)", len(filtered), string(rawJSON))
@@ -198,7 +200,7 @@ func TestMultiRepoLedgerIsolation_ListDAGStatusAndStartGuard(t *testing.T) {
 	}
 
 	// Default 'nomos status' isolates ledger counts to alpha-svc (1 total, 1 wavefront)
-	rep := collectStatusReport()
+	rep := diag.CollectStatusReport()
 	if rep.Project != "alpha-svc" || rep.TotalTasks != 1 || rep.WavefrontCount != 1 || rep.ActiveTasks != 0 {
 		t.Fatalf("expected isolated status report for alpha-svc (total=1, wf=1, active=0), got %+v", rep)
 	}

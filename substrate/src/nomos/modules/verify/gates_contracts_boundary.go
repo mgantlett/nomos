@@ -5,6 +5,9 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -17,9 +20,9 @@ import (
 )
 
 func init() {
-	RegisterGate("contract_parity", func() Gate { return &ContractParityGate{} })
-	RegisterGate("infra_ingress", func() Gate { return &InfraPortIngressGate{} })
-	RegisterGate("ui_anti_mask", func() Gate { return &UIAntiMaskSentinelGate{} })
+	RegisterGate("contract_parity", func() vscope.Gate { return &ContractParityGate{} })
+	RegisterGate("infra_ingress", func() vscope.Gate { return &InfraPortIngressGate{} })
+	RegisterGate("ui_anti_mask", func() vscope.Gate { return &UIAntiMaskSentinelGate{} })
 }
 
 // ArchitecturalEngineDescriptor captures an engine requirement declared in Intent.
@@ -37,50 +40,50 @@ func AuditArchitecturalEngines(root string) []ArchitecturalEngineDescriptor {
 			Name:          "SQLite Persistence & Task Lifecycle Engine",
 			IntentSpec:    "task_lifecycle_cli_spec.md",
 			EnforcedBy:    "substrate/src/nomos/core/storage, substrate/src/nomos/modules/task",
-			IsImplemented: dirExists(filepath.Join(root, "substrate", "src", "nomos", "core", "storage")),
+			IsImplemented: vscope.DirExists(filepath.Join(root, "substrate", "src", "nomos", "core", "storage")),
 		},
 		{
 			Name:          "Nomos Mneme Memory Engine",
 			IntentSpec:    "mneme_memory_spec.md",
 			EnforcedBy:    "substrate/src/nomos/modules/mem",
-			IsImplemented: dirExists(filepath.Join(root, "substrate", "src", "nomos", "modules", "mem")),
+			IsImplemented: vscope.DirExists(filepath.Join(root, "substrate", "src", "nomos", "modules", "mem")),
 		},
 		{
 			Name:          "Compiled Go & JSON Schema Contract Engine",
 			IntentSpec:    "go_ssot_and_json_schema_spec.md",
 			EnforcedBy:    "substrate/src/nomos/core/config/schema.go",
-			IsImplemented: fileExists(filepath.Join(root, "substrate", "src", "nomos", "core", "config", "schema.go")),
+			IsImplemented: vscope.FileExists(filepath.Join(root, "substrate", "src", "nomos", "core", "config", "schema.go")),
 		},
 		{
 			Name:       "Nomos Software Physics & CLI Surface Engine",
 			IntentSpec: "software_physics_engine_spec.md",
 			EnforcedBy: "substrate/cli/physics.go, substrate/cli/cmd_physics.go",
-			IsImplemented: fileExists(filepath.Join(root, "substrate", "cli", "physics.go")) &&
-				fileExists(filepath.Join(root, "substrate", "cli", "cmd_physics.go")),
+			IsImplemented: vscope.FileExists(filepath.Join(root, "substrate", "cli", "physics.go")) &&
+				vscope.FileExists(filepath.Join(root, "substrate", "cli", "cmd_physics.go")),
 		},
 		{
 			Name:          "Hermetic Worktree & CapBAC Security Engine",
 			IntentSpec:    "nomos_hermetic_worktree_spec.md",
 			EnforcedBy:    "substrate/src/nomos/core/workspace, substrate/src/nomos/core/capbac",
-			IsImplemented: dirExists(filepath.Join(root, "substrate", "src", "nomos", "core", "workspace")),
+			IsImplemented: vscope.DirExists(filepath.Join(root, "substrate", "src", "nomos", "core", "workspace")),
 		},
 		{
 			Name:          "Polyglot Tree-sitter WASM AST Gate Engine",
 			IntentSpec:    "tree_sitter_ast_gate_spec.md",
 			EnforcedBy:    "substrate/src/nomos/modules/verify/treesitter",
-			IsImplemented: checkWazeroImplemented(root) && dirExists(filepath.Join(root, "substrate", "src", "nomos", "modules", "verify", "treesitter")),
+			IsImplemented: checkWazeroImplemented(root) && vscope.DirExists(filepath.Join(root, "substrate", "src", "nomos", "modules", "verify", "treesitter")),
 		},
 		{
 			Name:          "DoD 7x3 Gate Matrix & Obligation Compiler Engine",
 			IntentSpec:    "nomos_intent_traceability_spec.md",
 			EnforcedBy:    "substrate/src/nomos/modules/verify",
-			IsImplemented: dirExists(filepath.Join(root, "substrate", "src", "nomos", "modules", "verify")),
+			IsImplemented: vscope.DirExists(filepath.Join(root, "substrate", "src", "nomos", "modules", "verify")),
 		},
 		{
 			Name:          "Nomos Controlled Technical English (NCTE-100) Engine",
 			IntentSpec:    "nomos_controlled_technical_english_spec.md",
 			EnforcedBy:    "substrate/src/nomos/modules/ncte",
-			IsImplemented: dirExists(filepath.Join(root, "substrate", "src", "nomos", "modules", "ncte")),
+			IsImplemented: vscope.DirExists(filepath.Join(root, "substrate", "src", "nomos", "modules", "ncte")),
 		},
 	}
 }
@@ -101,17 +104,7 @@ func checkWazeroImplemented(root string) bool {
 	return engine.Module() != nil && engine.Runtime() != nil
 }
 
-func dirExists(path string) bool {
-	fi, err := os.Stat(path)
-	return err == nil && fi.IsDir()
-}
-
-func fileExists(path string) bool {
-	fi, err := os.Stat(path)
-	return err == nil && !fi.IsDir()
-}
-
-func resolveBoundaryRoot(ctx *VerifyContext) string {
+func resolveBoundaryRoot(ctx *vscope.VerifyContext) string {
 	root := ""
 	if ctx != nil {
 		if ctx.WorktreePath != "" {
@@ -137,17 +130,17 @@ func (g *ContractParityGate) Name() string { return "Contract Schema Integrity I
 
 // Evaluate validates JSON Schema artifacts against compiled Go SSoT structures and backend packages.
 // @intent nomos_intent_traceability_spec.md #ContractsConfig
-func (g *ContractParityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *ContractParityGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := resolveBoundaryRoot(ctx)
-	cfg := resolveVerifyConfig(ctx)
+	cfg := vscope.ResolveVerifyConfig(ctx)
 	contracts := cfg.Governance.QualityGates.GetContractsBoundary().Contracts
 	if !contracts.Enabled {
-		return &GateResult{GateName: g.Name(), Passed: true, Message: "contract boundary verification disabled in configuration (skip)"}, nil
+		return &vscope.GateResult{GateName: g.Name(), Passed: true, Message: "contract boundary verification disabled in configuration (skip)"}, nil
 	}
 
 	schemaFiles := resolveContractSchemaFiles(root, contracts.SchemaFiles)
 	if !hasContractBoundaryScope(root, contracts.SchemaFiles) {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(),
 			Passed:   true,
 			Message:  "no contract schema scope detected; skipping contract schema verification in brownfield repository",
@@ -155,7 +148,7 @@ func (g *ContractParityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	}
 
 	if schemaIssue := verifySchemaArtifacts(root, schemaFiles); schemaIssue != "" {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), Passed: false,
 			Message: fmt.Sprintf("contract schema verification failed: %s", schemaIssue),
 			Remedy:  "regenerate nomos.schema.json from config.GenerateConfigJSONSchema() or fix schema_files in nomos.yaml (Law 4)",
@@ -164,7 +157,7 @@ func (g *ContractParityGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 
 	backendCount, bErr := countPolyglotFiles(root, contracts.BackendRoots)
 	if len(contracts.BackendRoots) > 0 && (bErr != nil || backendCount == 0) {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), Passed: false,
 			Message: fmt.Sprintf("contract schema verification failed: 0 polyglot backend files discovered in roots %v", contracts.BackendRoots),
 			Remedy:  "ensure backend roots contain polyglot source files",
@@ -178,7 +171,7 @@ func resolveContractSchemaFiles(root string, configured []string) []string {
 	if len(configured) > 0 {
 		return configured
 	}
-	if fileExists(filepath.Join(root, "nomos.schema.json")) {
+	if vscope.FileExists(filepath.Join(root, "nomos.schema.json")) {
 		return []string{"nomos.schema.json"}
 	}
 	return nil
@@ -195,7 +188,7 @@ func verifySchemaArtifacts(root string, schemaFiles []string) string {
 			return fmt.Sprintf("invalid JSON syntax in schema artifact %s", relPath)
 		}
 		if filepath.Base(relPath) == "nomos.schema.json" {
-			if issue := verifyNomosSchemaArtifact(root, data); issue != "" {
+			if issue := astdebt.VerifyNomosSchemaArtifact(root, data); issue != "" {
 				return issue
 			}
 		}
@@ -203,7 +196,7 @@ func verifySchemaArtifacts(root string, schemaFiles []string) string {
 	return ""
 }
 
-func evaluateEngineParity(name string, ctx *VerifyContext, root string, schemaCount, backendCount int) (*GateResult, error) {
+func evaluateEngineParity(name string, ctx *vscope.VerifyContext, root string, schemaCount, backendCount int) (*vscope.GateResult, error) {
 	engines := AuditArchitecturalEngines(root)
 	var missingEngines []string
 	implementedCount := 0
@@ -216,7 +209,7 @@ func evaluateEngineParity(name string, ctx *VerifyContext, root string, schemaCo
 	}
 
 	if ctx.Strict && len(missingEngines) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: name, Passed: false,
 			Message: fmt.Sprintf("contract schema verification failed: %d ungrounded architectural engine(s): %s",
 				len(missingEngines), strings.Join(missingEngines, ", ")),
@@ -232,7 +225,7 @@ func evaluateEngineParity(name string, ctx *VerifyContext, root string, schemaCo
 		msg += ")"
 	}
 
-	return &GateResult{GateName: name, Passed: true, Message: msg}, nil
+	return &vscope.GateResult{GateName: name, Passed: true, Message: msg}, nil
 }
 
 // InfraPortIngressGate verifies environment variable usage and infrastructure ingress parity.
@@ -242,12 +235,12 @@ type InfraPortIngressGate struct{}
 func (g *InfraPortIngressGate) Name() string { return "Port Ingress Invariant" }
 
 // Evaluate scans Go source code for environment variable references and asserts declaration parity.
-func (g *InfraPortIngressGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *InfraPortIngressGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := resolveBoundaryRoot(ctx)
-	cfg := resolveVerifyConfig(ctx)
+	cfg := vscope.ResolveVerifyConfig(ctx)
 	infra := cfg.Governance.QualityGates.GetContractsBoundary().Infra
 	if !infra.Enabled {
-		return &GateResult{GateName: g.Name(), Passed: true, Message: "infra port ingress disabled in configuration (skip)"}, nil
+		return &vscope.GateResult{GateName: g.Name(), Passed: true, Message: "infra port ingress disabled in configuration (skip)"}, nil
 	}
 
 	envVars := findCodeEnvVars(root)
@@ -263,7 +256,7 @@ func (g *InfraPortIngressGate) Evaluate(ctx *VerifyContext) (*GateResult, error)
 					}
 				}
 				if len(missing) > 0 {
-					return &GateResult{
+					return &vscope.GateResult{
 						GateName: g.Name(), Passed: false,
 						Message: fmt.Sprintf("infra port ingress detected %d undeclared environment variable(s) not in %s: %s", len(missing), declFile, strings.Join(missing, ", ")),
 						Remedy:  "declare all runtime environment variables in .env.example (Law 5)",
@@ -273,7 +266,7 @@ func (g *InfraPortIngressGate) Evaluate(ctx *VerifyContext) (*GateResult, error)
 		}
 	}
 
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(),
 		Passed:   true,
 		Message:  fmt.Sprintf("infra port ingress verified: %d environment variables inspected", len(envVars)),
@@ -287,14 +280,14 @@ type UIAntiMaskSentinelGate struct{}
 func (g *UIAntiMaskSentinelGate) Name() string { return "UI Anti-Mask Invariant" }
 
 // Evaluate asserts that UI components avoid defensive fallback masks that conceal backend contract drift.
-func (g *UIAntiMaskSentinelGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
-	cfg := resolveVerifyConfig(ctx)
+func (g *UIAntiMaskSentinelGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
+	cfg := vscope.ResolveVerifyConfig(ctx)
 	membrane := cfg.Governance.QualityGates.GetContractsBoundary().Membrane
 	if membrane == nil || !membrane.Enabled {
-		return &GateResult{GateName: g.Name(), Passed: true, Message: "membrane UI disabled in configuration (open-core boundary skip)"}, nil
+		return &vscope.GateResult{GateName: g.Name(), Passed: true, Message: "membrane UI disabled in configuration (open-core boundary skip)"}, nil
 	}
 
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(),
 		Passed:   true,
 		Message:  "UI membrane anti-mask verified",
@@ -308,7 +301,7 @@ func hasContractBoundaryScope(root string, schemaFiles []string) bool {
 			return true
 		}
 	}
-	if fileExists(filepath.Join(root, "nomos.schema.json")) {
+	if vscope.FileExists(filepath.Join(root, "nomos.schema.json")) {
 		return true
 	}
 	intentDir := filepath.Join(root, "intent")
@@ -322,11 +315,11 @@ func findCodeEnvVars(root string) map[string]bool {
 	envVars := make(map[string]bool)
 	fset := token.NewFileSet()
 	err := workspace.WalkScope(root, func(path string, info os.FileInfo, walkErr error) error {
-		if walkErr != nil || info == nil || info.IsDir() || isVerificationSuiteFile(info.Name()) {
+		if walkErr != nil || info == nil || info.IsDir() || impact.IsVerificationSuiteFile(info.Name()) {
 			return nil
 		}
 		if !strings.HasSuffix(path, ".go") {
-			if isSupportedPolyglotSourceFile(path) {
+			if vscope.IsSupportedPolyglotSourceFile(path) {
 				extractPolyglotEnvVarsFromFile(path, envVars)
 			}
 			return nil

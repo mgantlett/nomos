@@ -6,6 +6,7 @@ package cli
 
 import (
 	"encoding/json"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"io"
 	"os"
 	"path/filepath"
@@ -38,27 +39,27 @@ var cursorExclusiveEvents = map[string]bool{
 
 // DefaultCursorHooksJSON returns the canonical Cursor .cursor/hooks.json (version 1) hook manifest.
 func DefaultCursorHooksJSON() []byte {
-	specs := []agentHookEventSpec{
-		{event: cursorEventSessionStart, subcmd: "session-start", timeout: 10},
-		{event: cursorEventPreToolUse, subcmd: "pre-tool", timeout: 10},
-		{event: cursorEventBeforeShell, subcmd: "pre-tool", timeout: 10},
-		{event: cursorEventPostToolUse, subcmd: "post-tool", timeout: 5},
-		{event: cursorEventAfterEdit, subcmd: "post-tool", timeout: 5},
-		{event: cursorEventStop, subcmd: cursorEventStop, timeout: 10},
+	specs := []tui.AgentHookEventSpec{
+		{Event: cursorEventSessionStart, Subcmd: "session-start", Timeout: 10},
+		{Event: cursorEventPreToolUse, Subcmd: "pre-tool", Timeout: 10},
+		{Event: cursorEventBeforeShell, Subcmd: "pre-tool", Timeout: 10},
+		{Event: cursorEventPostToolUse, Subcmd: "post-tool", Timeout: 5},
+		{Event: cursorEventAfterEdit, Subcmd: "post-tool", Timeout: 5},
+		{Event: cursorEventStop, Subcmd: cursorEventStop, Timeout: 10},
 	}
 	hooksMap := make(map[string]any, len(specs))
 	for _, sp := range specs {
 		entry := map[string]any{
-			"type":               hookEntryTypeCommand,
-			hookEntryTypeCommand: posixHookShellCommand(sp.subcmd),
-			"timeout":            sp.timeout,
+			"type":                   tui.HookEntryTypeCommand,
+			tui.HookEntryTypeCommand: tui.PosixHookShellCommand(sp.Subcmd),
+			"timeout":                sp.Timeout,
 		}
-		if sp.matcher != "" {
-			entry["matcher"] = sp.matcher
+		if sp.Matcher != "" {
+			entry["matcher"] = sp.Matcher
 		}
-		hooksMap[sp.event] = []any{entry}
+		hooksMap[sp.Event] = []any{entry}
 	}
-	out, err := marshalManifestNoHTML(map[string]any{
+	out, err := tui.MarshalManifestNoHTML(map[string]any{
 		"version": 1,
 		"hooks":   hooksMap,
 	})

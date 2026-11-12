@@ -1,6 +1,9 @@
 package cli
 
 import (
+	"github.com/mgantlett/nomos/substrate/cli/commitmsg"
+	"github.com/mgantlett/nomos/substrate/cli/inspectcmd"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"os"
 	"path/filepath"
 	"strings"
@@ -62,7 +65,7 @@ func seedBrownfieldMasterRepo(t *testing.T, repoDir string) {
 
 func verifyDirectTrunkCommitBlocked(t *testing.T, repoDir string) {
 	t.Helper()
-	 rogueFile := filepath.Join(repoDir, "substrate", "src", "rogue.py")
+	rogueFile := filepath.Join(repoDir, "substrate", "src", "rogue.py")
 	if err := os.WriteFile(rogueFile, []byte("x = 1\n"), 0644); err != nil {
 		t.Fatalf("failed writing rogue.py: %v", err)
 	}
@@ -89,10 +92,10 @@ func verifyTaskLifecycleAndSubdirResolution(t *testing.T, repoDir string) string
 	}
 
 	// Test shorthand plane normalization (--plane SUB) with 3-section card synthesis
-	card := taskCardFlags{
-		scope:  "Implement refund handler in substrate/src/refund.go.",
-		ac:     []string{"Handle idempotent refund requests"},
-		verify: "go test ./...",
+	card := tui.TaskCardFlags{
+		Scope:  "Implement refund handler in substrate/src/refund.go.",
+		AC:     []string{"Handle idempotent refund requests"},
+		Verify: "go test ./...",
 	}
 	if err := executeTaskCreate("Add refund handler", taskCreateOpts{plane: "SUB", tier: "T1", priority: 50, card: card}); err != nil {
 		t.Fatalf("Vector 3 failed: executeTaskCreate with shorthand plane 'SUB' failed: %v", err)
@@ -146,12 +149,12 @@ func verifyMemoryRepoScopingAcrossWorktreeAndSubdir(t *testing.T, repoDir, wtPat
 	if err := os.Chdir(nestedWorktreeDir); err != nil {
 		t.Fatalf("failed chdir to nestedWorktreeDir: %v", err)
 	}
-	wtRepoID := resolveCurrentRepoID()
+	wtRepoID := inspectcmd.ResolveCurrentRepoID()
 	if wtRepoID != "acme-payments" {
 		t.Fatalf("Vector 4 failed: expected resolveCurrentRepoID() inside worktree subdir to be 'acme-payments', got %q", wtRepoID)
 	}
 
-	saveCmd := newMemSaveCmd()
+	saveCmd := inspectcmd.NewMemSaveCmd()
 	if err := saveCmd.RunE(saveCmd, []string{"Refunds must be idempotent per transaction ID"}); err != nil {
 		t.Fatalf("failed saving memory from worktree subdir: %v", err)
 	}
@@ -159,7 +162,7 @@ func verifyMemoryRepoScopingAcrossWorktreeAndSubdir(t *testing.T, repoDir, wtPat
 	if err := os.Chdir(repoDir); err != nil {
 		t.Fatalf("failed chdir to repoDir: %v", err)
 	}
-	trunkRepoID := resolveCurrentRepoID()
+	trunkRepoID := inspectcmd.ResolveCurrentRepoID()
 	store, err := mem.NewStore(config.ResolveMnemeDBPath())
 	if err != nil {
 		t.Fatalf("failed opening memory store: %v", err)
@@ -205,11 +208,11 @@ func verifyAdversarialShimRejectedAndRootTaskCommit(t *testing.T, repoDir, wtPat
 	}
 
 	// Execute nomos task commit from repoRoot (without -d) to verify automatic worktree resolution
-	opts := &commitCmdOptions{
-		summary:   "Implement refund processor",
-		rationale: "Support idempotent customer refunds without duplicate settlement charges.",
-		mechanics: "- Added process_refund with positive cents guard.",
-		autoStage: true,
+	opts := &commitmsg.CommitCmdOptions{
+		Summary:   "Implement refund processor",
+		Rationale: "Support idempotent customer refunds without duplicate settlement charges.",
+		Mechanics: "- Added process_refund with positive cents guard.",
+		AutoStage: true,
 	}
 	if err := runTaskCommitCmd([]string{"SUB-1"}, opts); err != nil {
 		t.Fatalf("Vector 5 failed: expected runTaskCommitCmd from repoRoot to auto-resolve worktree and succeed, got: %v", err)
@@ -243,4 +246,3 @@ func verifyDirtyWorktreeSyncAutoCommit(t *testing.T, repoDir, wtPath string) {
 		t.Fatalf("Vector 5 failed: expected uncommitted receipt.py to be auto-committed and merged to master on sync: %v", err)
 	}
 }
-

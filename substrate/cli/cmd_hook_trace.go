@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -321,6 +322,6 @@ func saveHookSessionTrace(path string, tr hookSessionTrace) {
 // clearHookSessionTrace removes transient worktree hook trace state after 2PC release or abort.
 func clearHookSessionTrace(wtPath string) {
 	if path := resolveTraceStateFilePath(wtPath); path != "" {
-		removeBestEffort(path)
+		tui.RemoveBestEffort(path)
 	}
 }

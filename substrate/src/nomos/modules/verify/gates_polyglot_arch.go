@@ -3,6 +3,9 @@ package verify
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -44,12 +47,12 @@ func scanPolyglotBoundaryLeaks(root string, prohibited []string) []string {
 			return nil
 		}
 		if d.IsDir() {
-			if isSkippableSecurityDir(d.Name()) && path != root {
+			if impact.IsSkippableSecurityDir(d.Name()) && path != root {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		if strings.HasSuffix(path, extGo) || !isPolyglotTargetFile(path) {
+		if strings.HasSuffix(path, astdebt.ExtGo) || !isPolyglotTargetFile(path) {
 			return nil
 		}
 		raw, rErr := os.ReadFile(path)
@@ -78,10 +81,10 @@ func extractPolyglotImportSpecs(ext, content string) []string {
 }
 
 func extractLineImportSpecs(ext, line string) []string {
-	if ext == extPy {
+	if ext == astdebt.ExtPy {
 		return extractPyLineImports(line)
 	}
-	if isJSFamilyExt(ext) {
+	if astdebt.IsJSFamilyExt(ext) {
 		return extractJSLineImports(line)
 	}
 	re := selectSingleGroupImportRegex(ext)
@@ -123,15 +126,15 @@ func extractJSLineImports(line string) []string {
 
 func selectSingleGroupImportRegex(ext string) *regexp.Regexp {
 	switch ext {
-	case extRB, extRake:
+	case astdebt.ExtRB, astdebt.ExtRake:
 		return rbRequireSpecRe
-	case extRS:
+	case astdebt.ExtRS:
 		return rustUseSpecRe
-	case extJava, extKT, extKTS:
+	case astdebt.ExtJava, astdebt.ExtKT, astdebt.ExtKTS:
 		return jvmImportSpecRe
-	case extCS:
+	case astdebt.ExtCS:
 		return csUsingSpecRe
-	case extC, extH, extCPP, extCC, extCXX, extHPP:
+	case astdebt.ExtC, astdebt.ExtH, astdebt.ExtCPP, astdebt.ExtCC, astdebt.ExtCXX, astdebt.ExtHPP:
 		return cIncludeSpecRe
 	default:
 		return nil
@@ -150,7 +153,7 @@ func matchesProhibitedBoundarySpec(spec string, prohibited []string) bool {
 	return false
 }
 
-func findUnimportedPolyglotModules(ctx *VerifyContext, root string) []string {
+func findUnimportedPolyglotModules(ctx *vscope.VerifyContext, root string) []string {
 	scanRoot := resolvePolyglotDeadCodeRoot(ctx, root)
 	if scanRoot == "" || !hasPolyglotEntrypointRoot(scanRoot) {
 		return nil
@@ -170,12 +173,12 @@ func findUnimportedPolyglotModules(ctx *VerifyContext, root string) []string {
 	return orphans
 }
 
-func resolvePolyglotDeadCodeRoot(ctx *VerifyContext, root string) string {
+func resolvePolyglotDeadCodeRoot(ctx *vscope.VerifyContext, root string) string {
 	subSrc := filepath.Join(root, "substrate", "src")
 	if fi, err := os.Stat(subSrc); err == nil && fi.IsDir() {
 		return subSrc
 	}
-	if !isBrownfieldRatchetActive(ctx) {
+	if !vscope.IsBrownfieldRatchetActive(ctx) {
 		plainSrc := filepath.Join(root, "src")
 		if fi, err := os.Stat(plainSrc); err == nil && fi.IsDir() {
 			return plainSrc
@@ -191,13 +194,13 @@ func hasPolyglotEntrypointRoot(scanRoot string) bool {
 			return nil
 		}
 		if d.IsDir() {
-			if isSkippableSecurityDir(d.Name()) && path != scanRoot {
+			if impact.IsSkippableSecurityDir(d.Name()) && path != scanRoot {
 				return filepath.SkipDir
 			}
 			return nil
 		}
 		ext := strings.ToLower(filepath.Ext(path))
-		if ext == extGo || !isPolyglotTargetFile(path) {
+		if ext == astdebt.ExtGo || !isPolyglotTargetFile(path) {
 			return nil
 		}
 		stem := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
@@ -212,15 +215,15 @@ func hasPolyglotEntrypointRoot(scanRoot string) bool {
 	return found
 }
 
-func collectOrphanPolyglotCandidates(ctx *VerifyContext, root, scanRoot string) map[string]string {
+func collectOrphanPolyglotCandidates(ctx *vscope.VerifyContext, root, scanRoot string) map[string]string {
 	candidates := make(map[string]string)
-	eligibleExts := map[string]bool{extPy: true, extTS: true, extJS: true, extMJS: true, extRB: true, extRS: true}
+	eligibleExts := map[string]bool{astdebt.ExtPy: true, astdebt.ExtTS: true, astdebt.ExtJS: true, astdebt.ExtMJS: true, astdebt.ExtRB: true, astdebt.ExtRS: true}
 	if err := filepath.WalkDir(scanRoot, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil || d == nil {
 			return nil
 		}
 		if d.IsDir() {
-			if isSkippableSecurityDir(d.Name()) && path != scanRoot {
+			if impact.IsSkippableSecurityDir(d.Name()) && path != scanRoot {
 				return filepath.SkipDir
 			}
 			return nil
@@ -229,7 +232,7 @@ func collectOrphanPolyglotCandidates(ctx *VerifyContext, root, scanRoot string) 
 		if !eligibleExts[ext] || !isPolyglotTargetFile(path) || isPolyglotEntrypointOrFrameworkFile(path, ext) {
 			return nil
 		}
-		if isBrownfieldRatchetActive(ctx) {
+		if vscope.IsBrownfieldRatchetActive(ctx) {
 			if _, existed := loadBaselineFileBytes(ctx, root, path); existed {
 				return nil
 			}
@@ -259,7 +262,7 @@ func isPolyglotEntrypointOrFrameworkFile(path, ext string) bool {
 			return true
 		}
 	}
-	if ext == extPy || ext == extRB {
+	if ext == astdebt.ExtPy || ext == astdebt.ExtRB {
 		if raw, err := os.ReadFile(path); err == nil && strings.Contains(string(raw), "__main__") {
 			return true
 		}
@@ -274,12 +277,12 @@ func markReferencedPolyglotCandidates(root string, candidates map[string]string)
 			return nil
 		}
 		if d.IsDir() {
-			if isSkippableSecurityDir(d.Name()) && path != root {
+			if impact.IsSkippableSecurityDir(d.Name()) && path != root {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		if !isSupportedPolyglotSourceFile(path) {
+		if !vscope.IsSupportedPolyglotSourceFile(path) {
 			return nil
 		}
 		relSlash := ""

@@ -4,6 +4,8 @@ package cli
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/cli/commitmsg"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,41 +18,31 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type commitCmdOptions struct {
-	summary         string
-	rationale       string
-	mechanics       string
-	walkthroughFile string
-	dir             string
-	autoStage       bool
-	taskRecord      *task.TaskRecord
-}
-
 func newTaskCommitCmd() *cobra.Command {
-	opts := &commitCmdOptions{}
+	opts := &commitmsg.CommitCmdOptions{}
 
 	cmd := &cobra.Command{
 		Use:     "commit [TASK_KEY]",
 		Short:   "Record a Golden Conventional Commit with hydrated rationale and Task trailer",
-		Long:    helpTaskCommitLong,
-		Example: helpTaskCommitExample,
+		Long:    tui.HelpTaskCommitLong,
+		Example: tui.HelpTaskCommitExample,
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTaskCommitCmd(args, opts)
 		},
 	}
 
-	cmd.Flags().StringVarP(&opts.summary, "message", "m", "", "Commit summary line (normalized to <=72-rune Conventional Commit subject)")
-	cmd.Flags().StringVar(&opts.rationale, "rationale", "", "Problem context and architectural rationale (defaults to Living Ledger Scope & Context)")
-	cmd.Flags().StringVar(&opts.mechanics, "mechanics", "", "Optional key design mechanics (defaults to deduplicated walkthrough or Acceptance Criteria)")
-	cmd.Flags().StringVarP(&opts.walkthroughFile, "file", "F", "", "Optional walkthrough markdown file to hydrate commit prose")
-	cmd.Flags().StringVarP(&opts.dir, "dir", "d", "", "Working directory")
-	cmd.Flags().BoolVarP(&opts.autoStage, "all", "a", true, "Automatically stage all modified files")
+	cmd.Flags().StringVarP(&opts.Summary, "message", "m", "", "Commit summary line (normalized to <=72-rune Conventional Commit subject)")
+	cmd.Flags().StringVar(&opts.Rationale, "rationale", "", "Problem context and architectural rationale (defaults to Living Ledger Scope & Context)")
+	cmd.Flags().StringVar(&opts.Mechanics, "mechanics", "", "Optional key design mechanics (defaults to deduplicated walkthrough or Acceptance Criteria)")
+	cmd.Flags().StringVarP(&opts.WalkthroughFile, "file", "F", "", "Optional walkthrough markdown file to hydrate commit prose")
+	cmd.Flags().StringVarP(&opts.Dir, "dir", "d", "", "Working directory")
+	cmd.Flags().BoolVarP(&opts.AutoStage, "all", "a", true, "Automatically stage all modified files")
 
 	return cmd
 }
 
-func runTaskCommitCmd(args []string, opts *commitCmdOptions) error {
+func runTaskCommitCmd(args []string, opts *commitmsg.CommitCmdOptions) error {
 	taskKey, err := resolveTaskKeyForCommit(args, opts)
 	if err != nil {
 		return err
@@ -61,15 +53,15 @@ func runTaskCommitCmd(args []string, opts *commitCmdOptions) error {
 		return err
 	}
 
-	if opts.autoStage {
+	if opts.AutoStage {
 		stageCmd := workspace.SafeGitCommand(dir, "add", "-A")
 		if out, sErr := stageCmd.CombinedOutput(); sErr != nil {
 			return types.NewNomosError(types.ErrCodeSubstrate, "failed staging files: %s", string(out))
 		}
 	}
 
-	ctx := buildCommitHydrationContext(taskKey, dir, opts)
-	msg := hydrateCommitMessage(ctx, opts)
+	ctx := commitmsg.BuildCommitHydrationContext(taskKey, dir, opts)
+	msg := commitmsg.HydrateCommitMessage(ctx, opts)
 	if twinErr := enforcePreCommitIntentTwinMode(dir, taskKey, msg); twinErr != nil {
 		return twinErr
 	}
@@ -87,10 +79,10 @@ func runTaskCommitCmd(args []string, opts *commitCmdOptions) error {
 	}
 
 	fmt.Printf("✅ %s %s\n",
-		uiSuccessStyle.Render("Golden Commit recorded for"),
-		styleTaskKey(taskKey))
-	fmt.Println(uiMutedStyle.Render(strings.TrimSpace(string(out))))
-	renderPhaseTransitionNextActions(os.Stdout, types.PhaseReview, taskKey, dir, "")
+		tui.UiSuccessStyle.Render("Golden Commit recorded for"),
+		tui.StyleTaskKey(taskKey))
+	fmt.Println(tui.UiMutedStyle.Render(strings.TrimSpace(string(out))))
+	tui.RenderPhaseTransitionNextActions(os.Stdout, types.PhaseReview, taskKey, dir, "")
 	return nil
 }
 
@@ -115,9 +107,9 @@ func enforcePreCommitIntentTwinMode(dir, taskKey, commitMsg string) error {
 	return nil
 }
 
-func resolveCommitWorkingDir(taskKey string, opts *commitCmdOptions) (string, error) {
-	if opts != nil && opts.dir != "" {
-		return opts.dir, nil
+func resolveCommitWorkingDir(taskKey string, opts *commitmsg.CommitCmdOptions) (string, error) {
+	if opts != nil && opts.Dir != "" {
+		return opts.Dir, nil
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -135,7 +127,7 @@ func resolveCommitWorkingDir(taskKey string, opts *commitCmdOptions) (string, er
 	return dir, nil
 }
 
-func resolveTaskKeyForCommit(args []string, opts *commitCmdOptions) (string, error) {
+func resolveTaskKeyForCommit(args []string, opts *commitmsg.CommitCmdOptions) (string, error) {
 	if len(args) > 0 {
 		key := strings.ToUpper(strings.TrimSpace(args[0]))
 		if err := task.ValidateTaskKey(key); err != nil {
@@ -146,7 +138,7 @@ func resolveTaskKeyForCommit(args []string, opts *commitCmdOptions) (string, err
 
 	dir := ""
 	if opts != nil {
-		dir = opts.dir
+		dir = opts.Dir
 	}
 	if dir == "" {
 		cwd, err := os.Getwd()
@@ -190,11 +182,11 @@ func extractTaskKeyFromDirName(base string) string {
 	return ""
 }
 
-func formatCommitMessage(taskKey string, opts *commitCmdOptions) string {
+func formatCommitMessage(taskKey string, opts *commitmsg.CommitCmdOptions) string {
 	var dir string
 	if opts != nil {
-		dir = opts.dir
+		dir = opts.Dir
 	}
-	ctx := buildCommitHydrationContext(taskKey, dir, opts)
-	return hydrateCommitMessage(ctx, opts)
+	ctx := commitmsg.BuildCommitHydrationContext(taskKey, dir, opts)
+	return commitmsg.HydrateCommitMessage(ctx, opts)
 }

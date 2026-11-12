@@ -2,6 +2,8 @@ package verify
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/polyrun"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,7 +16,7 @@ func TestMergeGoCoverProfilesAndLivePersistence(t *testing.T) {
 	base := []byte("mode: set\nexample.com/mod/a.go:3.10,5.2 2 1\nexample.com/mod/b.go:4.12,8.2 3 0\n")
 	overlay := []byte("mode: set\nexample.com/mod/b.go:4.12,8.2 3 1\nexample.com/mod/c.go:2.8,4.2 1 1\n")
 
-	merged := string(mergeGoCoverProfiles(base, overlay))
+	merged := string(polyrun.MergeGoCoverProfiles(base, overlay))
 	if !strings.HasPrefix(merged, "mode: set\n") {
 		t.Fatalf("expected mode header, got %q", merged)
 	}
@@ -29,8 +31,8 @@ func TestMergeGoCoverProfilesAndLivePersistence(t *testing.T) {
 	}
 
 	repoDir := initGitTestRepo(t)
-	ctx := &VerifyContext{RepoRoot: repoDir, WorktreePath: repoDir, AllFiles: true}
-	rec := executeGoTestWithCoverage(ctx, repoDir, filepath.Join(repoDir, "substrate"), "snap-cov")
+	ctx := &vscope.VerifyContext{RepoRoot: repoDir, WorktreePath: repoDir, AllFiles: true}
+	rec := polyrun.ExecuteGoTestWithCoverage(ctx, repoDir, filepath.Join(repoDir, "substrate"), "snap-cov")
 	if !rec.GoPassed {
 		t.Fatalf("expected Go suite pass: %s", rec.GoOutput)
 	}
@@ -66,20 +68,20 @@ func TestComplexityGate_EnforcesAndRatchetsTestComplexity(t *testing.T) {
 
 	gate := &ComplexityGate{}
 	// 1. Brownfield ratchet allows untouched baseline test > 25 on main.
-	resBase, err := gate.Evaluate(&VerifyContext{RepoRoot: repo, AllFiles: true})
+	resBase, err := gate.Evaluate(&vscope.VerifyContext{RepoRoot: repo, AllFiles: true})
 	if err != nil || !resBase.Passed {
 		t.Fatalf("expected untouched brownfield mega-test to ratchet cleanly, got err=%v res=%+v", err, resBase)
 	}
 
 	// 2. Strict mode rejects mega-test > 25 immediately.
-	resStrict, err := gate.Evaluate(&VerifyContext{RepoRoot: repo, AllFiles: true, Strict: true})
+	resStrict, err := gate.Evaluate(&vscope.VerifyContext{RepoRoot: repo, AllFiles: true, Strict: true})
 	if err != nil || resStrict.Passed || !strings.Contains(resStrict.Message, "TestLegacyMega") {
 		t.Fatalf("expected strict mode to reject test CCN > 25, got err=%v res=%+v", err, resStrict)
 	}
 
 	// 3. Net-new bloated test function in brownfield mode fails closed.
 	mustWriteGoFixture(t, filepath.Join(repo, "new_test.go"), buildBloatedGoTestSource("TestNetNewMega", 27))
-	resNew, err := gate.Evaluate(&VerifyContext{RepoRoot: repo, AllFiles: true})
+	resNew, err := gate.Evaluate(&vscope.VerifyContext{RepoRoot: repo, AllFiles: true})
 	if err != nil || resNew.Passed || !strings.Contains(resNew.Message, "TestNetNewMega") {
 		t.Fatalf("expected net-new bloated test to fail closed in brownfield mode, got err=%v res=%+v", err, resNew)
 	}

@@ -4,6 +4,7 @@ package verify
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -19,8 +20,8 @@ import (
 )
 
 func init() {
-	RegisterGate("capbac_lease", func() Gate { return &CapBACLeaseGate{} })
-	RegisterGate("release_receipt", func() Gate { return &ReleaseReceiptGate{} })
+	RegisterGate("capbac_lease", func() vscope.Gate { return &CapBACLeaseGate{} })
+	RegisterGate("release_receipt", func() vscope.Gate { return &ReleaseReceiptGate{} })
 }
 
 // CapBACLeaseGate verifies active capability lease authorization (Cell 1.3, Law 1).
@@ -32,9 +33,9 @@ func (g *CapBACLeaseGate) Name() string {
 }
 
 // Evaluate asserts that mutations in an active task worktree possess an active capability lease.
-func (g *CapBACLeaseGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *CapBACLeaseGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	if ctx == nil || ctx.IsBaseline || ctx.TaskID == "" || ctx.Phase == string(types.PhaseIdle) {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(),
 			Passed:   true,
 			Message:  "no active task lease required in trunk baseline or idle state",
@@ -44,7 +45,7 @@ func (g *CapBACLeaseGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	dbPath := config.ResolveGlobalDBPath()
 	db, err := storage.OpenDB(dbPath)
 	if err != nil {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(),
 			Passed:   false,
 			Message:  fmt.Sprintf("failed opening living ledger db: %v", err),
@@ -59,7 +60,7 @@ func (g *CapBACLeaseGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 
 	leaseID, phase, stepBudget, tokensUsed, lErr := storage.GetActiveLease(db, ctx.TaskID)
 	if lErr != nil {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(),
 			Passed:   false,
 			Message:  fmt.Sprintf("no active CapBAC capability lease found for task %s: %v", ctx.TaskID, lErr),
@@ -68,7 +69,7 @@ func (g *CapBACLeaseGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	}
 
 	remaining := stepBudget - tokensUsed
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(),
 		Passed:   true,
 		Message:  fmt.Sprintf("active CapBAC lease %s verified for %s [phase %s, %d steps remaining]", leaseID, ctx.TaskID, phase, remaining),
@@ -84,7 +85,7 @@ func (g *ReleaseReceiptGate) Name() string {
 }
 
 // Evaluate verifies that release provenance and git notes infrastructure operate cleanly.
-func (g *ReleaseReceiptGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *ReleaseReceiptGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	repoRoot := "."
 	if ctx != nil && ctx.RepoRoot != "" {
 		repoRoot = ctx.RepoRoot
@@ -97,7 +98,7 @@ func (g *ReleaseReceiptGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 			SHA256Receipt string `json:"sha256_receipt"`
 		}
 		if jErr := json.Unmarshal(rawNote, &receipt); jErr != nil || receipt.TaskKey == "" || len(receipt.SHA256Receipt) != 64 {
-			return &GateResult{
+			return &vscope.GateResult{
 				GateName: g.Name(), Passed: false,
 				Message: "corrupted Git Note receipt on HEAD: missing valid task_key or 64-char sha256_receipt",
 				Remedy:  "re-attest HEAD release provenance via 'nomos task sync'",
@@ -105,7 +106,7 @@ func (g *ReleaseReceiptGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		}
 	}
 
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(),
 		Passed:   true,
 		Message:  "release receipt provenance verified via Git Notes (refs/notes/nomos/releases)",

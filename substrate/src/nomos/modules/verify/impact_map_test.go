@@ -1,6 +1,8 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/polyrun"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,7 +36,7 @@ func TestListModifiedWorktreeFiles_AnchorsTaskKeyPrefix(t *testing.T) {
 	runGit("add", "collision.go")
 	runGit("commit", "-m", "[SUB-1950] feat(verify): unrelated prefix collision")
 
-	got := ListModifiedWorktreeFiles(repo, "SUB-195")
+	got := impact.ListModifiedWorktreeFiles(repo, "SUB-195")
 	if len(got) != 1 || got[0] != "target.go" {
 		t.Fatalf("expected only target.go for SUB-195 without SUB-1950 prefix leak, got %v", got)
 	}
@@ -42,7 +44,7 @@ func TestListModifiedWorktreeFiles_AnchorsTaskKeyPrefix(t *testing.T) {
 
 func TestToolchainFailure_AnchorsSalientTAPFailureWindow(t *testing.T) {
 	tapOut := "TAP version 13\n" + strings.Repeat("ok 1 - passing suite\n", 30) + "not ok 31 - spec redirect status expected 301\n  ---\n  duration_ms: 1.2\n"
-	res := toolchainFailure("JavaScript/TypeScript test suite failed", tapOut, "fix test")
+	res := polyrun.ToolchainFailure("JavaScript/TypeScript test suite failed", tapOut, "fix test")
 	if !strings.Contains(res.Message, "not ok 31 - spec redirect status expected 301") {
 		t.Fatalf("expected TAP 'not ok' window preserved past 400-byte header, got: %s", res.Message)
 	}

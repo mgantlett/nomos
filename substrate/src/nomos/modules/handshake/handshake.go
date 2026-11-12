@@ -16,6 +16,7 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/mem"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/task"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
 )
 
 // DirectivePhase represents valid workspace phases for JIT directives (#DirectivePhase).
@@ -163,8 +164,8 @@ func computeActiveTaskImpact(treeRoot, activeTask string) ([]string, []string) {
 	if activeTask == "" {
 		return nil, nil
 	}
-	modified := verify.ListModifiedWorktreeFiles(treeRoot, activeTask)
-	return modified, verify.ComputeWorkspaceImpact(treeRoot, modified)
+	modified := impact.ListModifiedWorktreeFiles(treeRoot, activeTask)
+	return modified, impact.ComputeWorkspaceImpact(treeRoot, modified)
 }
 
 var scopePathHintRe = regexp.MustCompile(`[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)+\.[a-zA-Z0-9]+`)

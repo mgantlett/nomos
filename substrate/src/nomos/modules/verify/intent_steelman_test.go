@@ -1,6 +1,7 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"strings"
@@ -186,7 +187,7 @@ func TestIntentSteelmanGateEndToEndStrictMode(t *testing.T) {
 	}
 
 	g := &IntentSteelmanGate{}
-	ctx := &VerifyContext{WorktreePath: tempDir, RepoRoot: tempDir}
+	ctx := &vscope.VerifyContext{WorktreePath: tempDir, RepoRoot: tempDir}
 	resPass, err := g.Evaluate(ctx)
 	if err != nil || !resPass.Passed {
 		t.Fatalf("expected strict IntentSteelmanGate pass, got res=%+v err=%v", resPass, err)
@@ -278,7 +279,7 @@ func TestIntentSteelmanGateScopedSpecRoots(t *testing.T) {
 				t.Fatalf("write spec: %v", err)
 			}
 
-			res, err := g.Evaluate(&VerifyContext{RepoRoot: root, WorktreePath: root})
+			res, err := g.Evaluate(&vscope.VerifyContext{RepoRoot: root, WorktreePath: root})
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

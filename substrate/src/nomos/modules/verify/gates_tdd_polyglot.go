@@ -2,6 +2,9 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,8 +19,8 @@ var tddImplIgnoredNames = map[string]bool{
 	"app.d.ts": true, "ambient.d.ts": true, "env.d.ts": true,
 }
 
-func resolveEffectiveTDDMode(ctx *VerifyContext) string {
-	cfg := resolveVerifyConfig(ctx)
+func resolveEffectiveTDDMode(ctx *vscope.VerifyContext) string {
+	cfg := vscope.ResolveVerifyConfig(ctx)
 	if cfg != nil && strings.TrimSpace(cfg.Governance.QualityGates.TDDMode) != "" {
 		mode := cfg.Governance.QualityGates.EffectiveTDDMode()
 		if mode == config.TDDModeOff && ctx != nil && ctx.Strict {
@@ -34,8 +37,8 @@ func resolveEffectiveTDDMode(ctx *VerifyContext) string {
 	return config.TDDModeStrict
 }
 
-func resolveEffectiveCoverageMode(ctx *VerifyContext) string {
-	cfg := resolveVerifyConfig(ctx)
+func resolveEffectiveCoverageMode(ctx *vscope.VerifyContext) string {
+	cfg := vscope.ResolveVerifyConfig(ctx)
 	if cfg != nil && strings.TrimSpace(cfg.Governance.QualityGates.CoverageMode) != "" && (ctx == nil || !ctx.Strict) {
 		return cfg.Governance.QualityGates.EffectiveCoverageMode()
 	}
@@ -47,7 +50,7 @@ func resolveEffectiveCoverageMode(ctx *VerifyContext) string {
 
 func hasGoPairedTestsForModified(root, absDir string, modified []string) bool {
 	for _, rel := range modified {
-		if !strings.HasSuffix(rel, extGo) || strings.HasSuffix(rel, suffixGoTest) {
+		if !strings.HasSuffix(rel, astdebt.ExtGo) || strings.HasSuffix(rel, astdebt.SuffixGoTest) {
 			continue
 		}
 		if filepath.Clean(filepath.Dir(filepath.Join(root, rel))) != filepath.Clean(absDir) {
@@ -62,13 +65,13 @@ func hasGoPairedTestsForModified(root, absDir string, modified []string) bool {
 
 func isPolyglotImplFileForTDD(name string) bool {
 	lower := strings.ToLower(name)
-	if isPolyglotTestFilePath(lower) || strings.HasSuffix(lower, ".d.ts") || tddImplIgnoredNames[lower] || isNonLogicToolConfigFile(lower) {
+	if isPolyglotTestFilePath(lower) || strings.HasSuffix(lower, ".d.ts") || tddImplIgnoredNames[lower] || vscope.IsNonLogicToolConfigFile(lower) {
 		return false
 	}
 	return isPolyglotTDDTrackedExt(filepath.Ext(lower))
 }
 
-func inspectPolyglotDirForStrictTDD(ctx *VerifyContext, root, dir string) (bool, bool) {
+func inspectPolyglotDirForStrictTDD(ctx *vscope.VerifyContext, root, dir string) (bool, bool) {
 	if !hasPolyglotTestManifest(root) && !hasRepositoryPolyglotTests(root) {
 		return false, false
 	}
@@ -77,7 +80,7 @@ func inspectPolyglotDirForStrictTDD(ctx *VerifyContext, root, dir string) (bool,
 		return false, false
 	}
 	implFiles, hasLocalTest := classifyPolyglotDirEntries(entries)
-	implFiles = filterNonExcludedImplFiles(ctx, root, dir, implFiles)
+	implFiles = vscope.FilterNonExcludedImplFiles(ctx, root, dir, implFiles)
 	if len(implFiles) == 0 {
 		return false, false
 	}
@@ -93,12 +96,12 @@ func classifyPolyglotDirEntries(entries []os.DirEntry) ([]string, bool) {
 	for _, e := range entries {
 		name := e.Name()
 		if e.IsDir() {
-			if name == "__tests__" || name == dirTests || name == dirTest {
+			if name == "__tests__" || name == astdebt.DirTests || name == astdebt.DirTest {
 				hasLocalTest = true
 			}
 			continue
 		}
-		if strings.HasSuffix(name, extGo) {
+		if strings.HasSuffix(name, astdebt.ExtGo) {
 			continue
 		}
 		if isPolyglotTestFilePath(name) {
@@ -113,7 +116,7 @@ func classifyPolyglotDirEntries(entries []os.DirEntry) ([]string, bool) {
 func hasAnyPairedPolyglotImpl(root, dir string, implFiles []string) bool {
 	for _, name := range implFiles {
 		absFile := filepath.Join(dir, name)
-		if strings.HasSuffix(name, extRS) && hasInlineRustTestModule(absFile) {
+		if strings.HasSuffix(name, astdebt.ExtRS) && impact.HasInlineRustTestModule(absFile) {
 			return true
 		}
 		if rel, rErr := filepath.Rel(root, absFile); rErr == nil && hasPairedPolyglotTest(root, filepath.ToSlash(rel)) {
@@ -124,11 +127,11 @@ func hasAnyPairedPolyglotImpl(root, dir string, implFiles []string) bool {
 }
 
 func hasPairedPolyglotTest(root, rel string) bool {
-	status := resolvePairedTestStatus(root, rel)
-	return strings.HasPrefix(status, pairedTestPrefix)
+	status := impact.ResolvePairedTestStatus(root, rel)
+	return strings.HasPrefix(status, impact.PairedTestPrefix)
 }
 
-func evaluateBrownfieldPolyglotTDD(ctx *VerifyContext, root string, modified, polyFiles []string) []string {
+func evaluateBrownfieldPolyglotTDD(ctx *vscope.VerifyContext, root string, modified, polyFiles []string) []string {
 	if len(polyFiles) == 0 {
 		return nil
 	}
@@ -152,12 +155,12 @@ func evaluateBrownfieldPolyglotTDD(ctx *VerifyContext, root string, modified, po
 	return missing
 }
 
-func isPolyglotFileSatisfyingBrownfieldTDD(ctx *VerifyContext, root, rel, mode string, hasModTest, hasRepoSuite, hasManifest bool) bool {
-	if !isPolyglotImplFileForTDD(filepath.Base(rel)) || isTDDExcludedRel(ctx, root, rel) {
+func isPolyglotFileSatisfyingBrownfieldTDD(ctx *vscope.VerifyContext, root, rel, mode string, hasModTest, hasRepoSuite, hasManifest bool) bool {
+	if !isPolyglotImplFileForTDD(filepath.Base(rel)) || vscope.IsTDDExcludedRel(ctx, root, rel) {
 		return true
 	}
 	absPath := filepath.Join(root, rel)
-	if strings.HasSuffix(rel, extRS) && hasInlineRustTestModule(absPath) {
+	if strings.HasSuffix(rel, astdebt.ExtRS) && impact.HasInlineRustTestModule(absPath) {
 		return true
 	}
 	if hasPairedPolyglotTest(root, rel) || hasModTest {

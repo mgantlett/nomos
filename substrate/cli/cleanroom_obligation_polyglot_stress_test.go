@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/mgantlett/nomos/substrate/cli/diag"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/task"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 )
 
 func seedPolyglotObligationRepo(t *testing.T) string {
@@ -101,7 +103,7 @@ func runStage1To3PolyglotV1Lifecycle(t *testing.T, repo string) {
 	writeCleanroomText(t, pyTest, "# @verifies TC-ORD-01\ndef test_dto():\n    assert True\n")
 
 	gate := &verify.IntentTraceabilityGate{}
-	ctx := &verify.VerifyContext{RepoRoot: repo, WorktreePath: repo, TaskID: "SUB-1"}
+	ctx := &vscope.VerifyContext{RepoRoot: repo, WorktreePath: repo, TaskID: "SUB-1"}
 	if resDrift, err := gate.Evaluate(ctx); err != nil || resDrift == nil || resDrift.Passed || !strings.Contains(resDrift.Message, "currency") {
 		t.Fatalf("Stage 2a failed: expected missing TS field 'currency' rejected, got: %+v (err=%v)", resDrift, err)
 	}
@@ -130,26 +132,26 @@ func runStage4To5PolyglotTaintAndClearance(t *testing.T, repo, specPath, specV1 
 	writeCleanroomText(t, specPath, specV2)
 	commitCleanroomRepo(t, repo, "[INT-2] docs(specs): add tax_cents and TC-ORD-03 to order_spec")
 
-	staleList := resolveStaleObligations(repo)
+	staleList := diag.ResolveStaleObligations(repo)
 	if len(staleList) != 1 || staleList[0].SpecPath != "specs/order_spec.md" || staleList[0].LastVerifiedBy != "SUB-1" {
 		t.Fatalf("Stage 4a failed: expected specs/order_spec.md flagged stale in status, got: %+v", staleList)
 	}
-	if resStale, err := gate.Evaluate(&verify.VerifyContext{RepoRoot: repo, WorktreePath: repo, IsBaseline: true}); err != nil || resStale == nil || resStale.Passed {
+	if resStale, err := gate.Evaluate(&vscope.VerifyContext{RepoRoot: repo, WorktreePath: repo, IsBaseline: true}); err != nil || resStale == nil || resStale.Passed {
 		t.Fatalf("Stage 4b failed: expected baseline verify after INT-2 mutation to fail closed, got: %+v (err=%v)", resStale, err)
 	}
 
 	writeCleanroomText(t, pyOrders, "# @intent order_spec.md #OrderSummary\nclass OrderSummary:\n    order_id: str\n    subtotal_cents: int\n    tax_cents: int\n")
 	writeCleanroomText(t, pyTest, "# @verifies TC-ORD-01\n# @verifies TC-ORD-02\n# @verifies TC-ORD-03\ndef test_all_v2():\n    assert True\n")
-	if resInFlight, err := gate.Evaluate(&verify.VerifyContext{RepoRoot: repo, WorktreePath: repo, TaskID: "SUB-3"}); err != nil || resInFlight == nil || !resInFlight.Passed {
+	if resInFlight, err := gate.Evaluate(&vscope.VerifyContext{RepoRoot: repo, WorktreePath: repo, TaskID: "SUB-3"}); err != nil || resInFlight == nil || !resInFlight.Passed {
 		t.Fatalf("Stage 5a failed: expected in-flight SUB-3 to pass verify cleanly, got: %+v (err=%v)", resInFlight, err)
 	}
 	shaSub3 := commitCleanroomRepo(t, repo, "[SUB-3] feat(orders): satisfy order_spec v2 tax obligation")
 	stampCleanroomReceipt(t, repo, "SUB-3", shaSub3, "INT-2", []string{"app/orders/summary.py"})
 
-	if postClear := resolveStaleObligations(repo); len(postClear) != 0 {
+	if postClear := diag.ResolveStaleObligations(repo); len(postClear) != 0 {
 		t.Fatalf("Stage 5b failed: expected 0 stale obligations after SUB-3 receipt, got: %+v", postClear)
 	}
-	if resClean, err := gate.Evaluate(&verify.VerifyContext{RepoRoot: repo, WorktreePath: repo, IsBaseline: true}); err != nil || resClean == nil || !resClean.Passed {
+	if resClean, err := gate.Evaluate(&vscope.VerifyContext{RepoRoot: repo, WorktreePath: repo, IsBaseline: true}); err != nil || resClean == nil || !resClean.Passed {
 		t.Fatalf("Stage 5c failed: expected baseline verify after SUB-3 receipt to pass, got: %+v (err=%v)", resClean, err)
 	}
 }

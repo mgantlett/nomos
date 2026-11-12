@@ -3,6 +3,8 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/mgantlett/nomos/substrate/cli/commitmsg"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -365,7 +367,7 @@ func verifyTornWorktreeCrashSelfHeal(t *testing.T, repoDir, wt1 string) {
 	cleanLedger := "\"\"\"Ledger module.\"\"\"\n\ndef verify_balance(balance: int) -> bool:\n    \"\"\"Verify non-negative balance.\"\"\"\n    return balance >= 0\n"
 	writeWorktreeFile(t, wt1, filepath.Join("substrate", "src", "ledger.py"), cleanLedger)
 	_ = workspace.SafeGitCommand(wt1, "add", "-A").Run()
-	opts := &commitCmdOptions{dir: wt1, summary: "Add ledger balance verification", autoStage: true}
+	opts := &commitmsg.CommitCmdOptions{Dir: wt1, Summary: "Add ledger balance verification", AutoStage: true}
 	if err := runTaskCommitCmd([]string{"SUB-1"}, opts); err != nil {
 		t.Fatalf("valid task commit failed: %v", err)
 	}
@@ -410,6 +412,7 @@ func verifyCrossPlaneNoVerifyBlocked(t *testing.T, repoDir string) {
 
 func seedCleanroomDualPlaneRepo(t *testing.T, repoDir string) {
 	t.Helper()
+	useCompiledNomosInPath(t)
 	if err := os.MkdirAll(filepath.Join(repoDir, "substrate", "src"), 0755); err != nil {
 		t.Fatalf("mkdir substrate/src: %v", err)
 	}
@@ -428,10 +431,10 @@ func seedCleanroomDualPlaneRepo(t *testing.T, repoDir string) {
 
 func startCleanroomTaskInEdit(t *testing.T, repoDir, plane, title string) string {
 	t.Helper()
-	card := taskCardFlags{
-		scope:  "Cleanroom stress target for " + title + " in " + plane + " plane.",
-		ac:     []string{"Complete cleanroom mutation and pass DoD gates"},
-		verify: "nomos verify",
+	card := tui.TaskCardFlags{
+		Scope:  "Cleanroom stress target for " + title + " in " + plane + " plane.",
+		AC:     []string{"Complete cleanroom mutation and pass DoD gates"},
+		Verify: "nomos verify",
 	}
 	if err := executeTaskCreate(title, taskCreateOpts{plane: plane, tier: "T1", priority: 50, card: card}); err != nil {
 		t.Fatalf("executeTaskCreate(%s) failed: %v", title, err)

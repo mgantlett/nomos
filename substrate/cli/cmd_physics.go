@@ -5,6 +5,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -16,7 +17,8 @@ import (
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
-	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
 	"github.com/spf13/cobra"
 )
 
@@ -36,8 +38,8 @@ func NewPhysicsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "physics",
 		Short:   "Inspect active worktree AST mass and real-time symbol/file collision vectors",
-		Long:    helpPhysicsLong,
-		Example: helpPhysicsExample,
+		Long:    tui.HelpPhysicsLong,
+		Example: tui.HelpPhysicsExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repoRoot, err := workspace.FindRepoRoot("")
 			if err != nil || repoRoot == "" {
@@ -58,7 +60,7 @@ func NewPhysicsCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&jsonOutput, flagNameJSON, false, "Emit software physics report as structured JSON")
+	cmd.Flags().BoolVar(&jsonOutput, tui.FlagNameJSON, false, "Emit software physics report as structured JSON")
 	return cmd
 }
 
@@ -104,7 +106,7 @@ func CollectWorkspacePhysics(repoRoot string) *PhysicsReport {
 
 func buildWorktreeHull(wtPath, dirName string) WorktreeHull {
 	taskKey := extractTaskKeyFromDirName(dirName)
-	touched := verify.ListModifiedWorktreeFiles(wtPath, taskKey)
+	touched := impact.ListModifiedWorktreeFiles(wtPath, taskKey)
 	sort.Strings(touched)
 
 	exportsMap := map[string]bool{}
@@ -121,8 +123,8 @@ func buildWorktreeHull(wtPath, dirName string) WorktreeHull {
 		TaskKey:           taskKey,
 		WorktreePath:      wtPath,
 		Phase:             "EDIT",
-		MutatedExports:    sortedMapKeys(exportsMap),
-		ReferencedImports: sortedMapKeys(importsMap),
+		MutatedExports:    tui.SortedMapKeys(exportsMap),
+		ReferencedImports: tui.SortedMapKeys(importsMap),
 		TouchedFiles:      touched,
 		TotalMass:         totalMass,
 	}
@@ -156,7 +158,7 @@ func ComputeGoFileMass(fullPath, relPath string, exports, imports map[string]boo
 		}
 		if fn, ok := n.(*ast.FuncDecl); ok && fn.Name.IsExported() {
 			exports[node.Name.Name+"."+fn.Name.Name] = true
-			fm.CyclomaticComplexity += verify.CalculateCyclomaticComplexity(fn)
+			fm.CyclomaticComplexity += astdebt.CalculateCyclomaticComplexity(fn)
 		}
 		return true
 	})
@@ -164,23 +166,14 @@ func ComputeGoFileMass(fullPath, relPath string, exports, imports map[string]boo
 	return fm
 }
 
-func sortedMapKeys(m map[string]bool) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
-	}
-	sort.Strings(out)
-	return out
-}
-
 func renderPhysicsReport(out io.Writer, rep *PhysicsReport) {
-	fmt.Fprintln(out, renderBrandTitle("🧭 Nomos Software Physics & Worktree Collision Radar"))
-	fmt.Fprintln(out, uiRule(ruleStandard))
-	fmt.Fprintln(out, kvLine("Active Worktrees", 18, uiBoldValueStyle.Render(fmt.Sprintf("%d", len(rep.Hulls)))))
-	fmt.Fprintln(out, kvLine("Collision Threat", 18, styleSemanticBadge(string(rep.MaxThreat))))
+	fmt.Fprintln(out, tui.RenderBrandTitle("🧭 Nomos Software Physics & Worktree Collision Radar"))
+	fmt.Fprintln(out, tui.UiRule(tui.RuleStandard))
+	fmt.Fprintln(out, tui.KvLine("Active Worktrees", 18, tui.UiBoldValueStyle.Render(fmt.Sprintf("%d", len(rep.Hulls)))))
+	fmt.Fprintln(out, tui.KvLine("Collision Threat", 18, tui.StyleSemanticBadge(string(rep.MaxThreat))))
 	for _, h := range rep.Hulls {
 		fmt.Fprintf(out, "  • [%s] files=%d exports=%d mass=%.1f (%s)\n",
-			styleTaskKey(h.TaskKey), len(h.TouchedFiles), len(h.MutatedExports), h.TotalMass, uiMutedStyle.Render(h.WorktreePath))
+			tui.StyleTaskKey(h.TaskKey), len(h.TouchedFiles), len(h.MutatedExports), h.TotalMass, tui.UiMutedStyle.Render(h.WorktreePath))
 	}
 	for _, c := range rep.Collisions {
 		if c.ThreatLevel != ThreatGreen {
@@ -188,8 +181,8 @@ func renderPhysicsReport(out io.Writer, rep *PhysicsReport) {
 				c.ThreatLevel, filepath.Base(c.WorktreeA), filepath.Base(c.WorktreeB), c.IntersectedFiles, c.IntersectedSymbols)
 		}
 	}
-	fmt.Fprintln(out, uiRule(ruleStandard))
-	renderNextActions(out, []types.ActionAffordance{
+	fmt.Fprintln(out, tui.UiRule(tui.RuleStandard))
+	tui.RenderNextActions(out, []types.ActionAffordance{
 		{Command: "nomos status", Summary: "Inspect workspace lifecycle state and active leases"},
 		{Command: "nomos verify --impact", Summary: "Inspect 1-hop AST blast-radius map for modified files"},
 	})

@@ -3,6 +3,9 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -46,7 +49,7 @@ func DetectPolyglotCWESinks(relFile string, data []byte) []string {
 }
 
 func isCWESkippedFile(slashRel string) bool {
-	if isTestSourceFile(slashRel) || strings.Contains(slashRel, "tests_local/") || strings.Contains(slashRel, "/tests/") || strings.HasPrefix(slashRel, "tests/") {
+	if impact.IsTestSourceFile(slashRel) || strings.Contains(slashRel, "tests_local/") || strings.Contains(slashRel, "/tests/") || strings.HasPrefix(slashRel, "tests/") {
 		return true
 	}
 	ext := strings.ToLower(filepath.Ext(slashRel))
@@ -76,9 +79,9 @@ func detectCWE22PathSink(src string) string {
 	return "CWE-22 unconfined path join/read from base_dir without canonical resolve + relative_to/filepath.Rel confinement (SecurityGate)"
 }
 
-func scanRatchetedCWELeaks(ctx *VerifyContext, wtRoot, absPath, relFile string, data []byte) []string {
+func scanRatchetedCWELeaks(ctx *vscope.VerifyContext, wtRoot, absPath, relFile string, data []byte) []string {
 	curHits := DetectPolyglotCWESinks(relFile, data)
-	if len(curHits) == 0 || !isBrownfieldRatchetActive(ctx) {
+	if len(curHits) == 0 || !vscope.IsBrownfieldRatchetActive(ctx) {
 		return curHits
 	}
 	baseBytes, ok := loadBaselineFileBytes(ctx, wtRoot, absPath)
@@ -98,12 +101,12 @@ func scanRatchetedCWELeaks(ctx *VerifyContext, wtRoot, absPath, relFile string, 
 	return novel
 }
 
-func evaluateFastCWESinks(ctx *VerifyContext, wtRoot, absPath, relFile string, data []byte, res *FastFileRadarResult) {
+func evaluateFastCWESinks(ctx *vscope.VerifyContext, wtRoot, absPath, relFile string, data []byte, res *FastFileRadarResult) {
 	res.Breaches = append(res.Breaches, scanRatchetedCWELeaks(ctx, wtRoot, absPath, relFile, data)...)
 }
 
-func evaluateFastIntraPackageClones(ctx *VerifyContext, wtRoot, absPath string, data []byte, res *FastFileRadarResult) {
-	if isTestSourceFile(res.File) {
+func evaluateFastIntraPackageClones(ctx *vscope.VerifyContext, wtRoot, absPath string, data []byte, res *FastFileRadarResult) {
+	if impact.IsTestSourceFile(res.File) {
 		return
 	}
 	pkgDir := filepath.Dir(absPath)
@@ -111,28 +114,28 @@ func evaluateFastIntraPackageClones(ctx *VerifyContext, wtRoot, absPath string, 
 	if len(curMap) == 0 {
 		return
 	}
-	curGroups := filterCloneGroupsForFile(DetectStructuralClones(curMap, DefaultMinCloneLines), res.File)
+	curGroups := filterCloneGroupsForFile(astdebt.DetectStructuralClones(curMap, astdebt.DefaultMinCloneLines), res.File)
 	if len(curGroups) == 0 {
 		return
 	}
 	if len(baseMap) > 0 {
-		baseGroups := filterCloneGroupsForFile(DetectStructuralClones(baseMap, DefaultMinCloneLines), res.File)
+		baseGroups := filterCloneGroupsForFile(astdebt.DetectStructuralClones(baseMap, astdebt.DefaultMinCloneLines), res.File)
 		if len(curGroups) <= len(baseGroups) {
 			return
 		}
 	}
-	formatted := FormatCloneViolations(curGroups[:1])
+	formatted := astdebt.FormatCloneViolations(curGroups[:1])
 	if len(formatted) > 0 {
 		res.Breaches = append(res.Breaches, formatted[0]+" - extract shared helper before finish (CloneGate)")
 	}
 }
 
-func loadSiblingPackageSources(ctx *VerifyContext, wtRoot, pkgDir, targetAbs, targetRel string, targetData []byte) (map[string][]byte, map[string][]byte) {
+func loadSiblingPackageSources(ctx *vscope.VerifyContext, wtRoot, pkgDir, targetAbs, targetRel string, targetData []byte) (map[string][]byte, map[string][]byte) {
 	entries, err := os.ReadDir(pkgDir)
 	if err != nil || len(entries) > 32 {
 		return nil, nil
 	}
-	ratchet := isBrownfieldRatchetActive(ctx)
+	ratchet := vscope.IsBrownfieldRatchetActive(ctx)
 	curMap := map[string][]byte{targetRel: targetData}
 	var baseMap map[string][]byte
 	if ratchet {
@@ -147,12 +150,12 @@ func loadSiblingPackageSources(ctx *VerifyContext, wtRoot, pkgDir, targetAbs, ta
 	return curMap, baseMap
 }
 
-func appendSiblingFileBytes(ctx *VerifyContext, wtRoot, targetAbs string, ent os.DirEntry, curMap, baseMap map[string][]byte) {
+func appendSiblingFileBytes(ctx *vscope.VerifyContext, wtRoot, targetAbs string, ent os.DirEntry, curMap, baseMap map[string][]byte) {
 	if ent.IsDir() {
 		return
 	}
 	sibAbs := filepath.Join(filepath.Dir(targetAbs), ent.Name())
-	if sibAbs == targetAbs || !isSupportedPolyglotSourceFile(sibAbs) || isTestSourceFile(ent.Name()) {
+	if sibAbs == targetAbs || !vscope.IsSupportedPolyglotSourceFile(sibAbs) || impact.IsTestSourceFile(ent.Name()) {
 		return
 	}
 	info, err := ent.Info()
@@ -170,9 +173,9 @@ func appendSiblingFileBytes(ctx *VerifyContext, wtRoot, targetAbs string, ent os
 	}
 }
 
-func filterCloneGroupsForFile(groups []CloneGroup, relFile string) []CloneGroup {
+func filterCloneGroupsForFile(groups []astdebt.CloneGroup, relFile string) []astdebt.CloneGroup {
 	slashTarget := filepath.ToSlash(relFile)
-	var matched []CloneGroup
+	var matched []astdebt.CloneGroup
 	for _, g := range groups {
 		for _, occ := range g.Occurrences {
 			if filepath.ToSlash(occ.File) == slashTarget {
@@ -188,11 +191,11 @@ func filterCloneGroupsForFile(groups []CloneGroup, relFile string) []CloneGroup 
 // strictly when multi-file coupling exists (remaining 100% silent on isolated standalone files).
 func ComputeFirstEditCoChangeHint(wtRoot, relFile string) string {
 	slashRel := filepath.ToSlash(relFile)
-	if wtRoot == "" || slashRel == "" || isTestSourceFile(slashRel) || !isSupportedPolyglotSourceFile(slashRel) {
+	if wtRoot == "" || slashRel == "" || impact.IsTestSourceFile(slashRel) || !vscope.IsSupportedPolyglotSourceFile(slashRel) {
 		return ""
 	}
 	var parts []string
-	for _, imp := range ComputeWorkspaceImpact(wtRoot, []string{slashRel}) {
+	for _, imp := range impact.ComputeWorkspaceImpact(wtRoot, []string{slashRel}) {
 		if strings.Contains(imp, "dependent") || strings.Contains(imp, "importer") {
 			parts = append(parts, imp)
 		}
@@ -226,7 +229,7 @@ func findGoPackageInterfacePeers(pkgDir, editedBase string) []string {
 		}
 	}
 	sort.Strings(peers)
-	return limitSlice(peers, 4)
+	return impact.LimitSlice(peers, 4)
 }
 
 func hasGoInterfaceOrMethodReceiver(node *ast.File) bool {

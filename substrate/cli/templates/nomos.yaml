@@ -111,6 +111,7 @@ governance:
             min_clone_lines: 18                # Min AST function lines for Type-2 clone detection
             max_func_params: 8                 # Max function parameter arity before struct grouping
             max_magic_string_duplication: 10   # Max repeated string literal occurrences per package
+            max_package_files: 40              # Max non-test source files per package directory
 
         # Law 5 (The Zero-Hardcoded-Path Law):
         # Rejects hardcoded developer machine home paths in source code.

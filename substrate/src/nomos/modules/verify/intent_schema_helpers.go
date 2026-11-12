@@ -3,6 +3,8 @@ package verify
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -13,25 +15,24 @@ import (
 )
 
 var (
-	intentGoTypeAnchorRe = regexp.MustCompile(`@intent[^\n]*?(#[A-Za-z0-9_]+)`)
-	hashTypeTokenRe      = regexp.MustCompile(`#[A-Za-z0-9_]+`)
-	specFileTokenRe      = regexp.MustCompile(`\b([A-Za-z0-9_-]+\.md)\b`)
+	hashTypeTokenRe = regexp.MustCompile(`#[A-Za-z0-9_]+`)
+	specFileTokenRe = regexp.MustCompile(`\b([A-Za-z0-9_-]+\.md)\b`)
 )
 
-func verifyIntentASTAnchors(ctx *VerifyContext, root, targetDir string) []string {
+func verifyIntentASTAnchors(ctx *vscope.VerifyContext, root, targetDir string) []string {
 	definedTypes := collectDefinedGoTypeAnchors(root, targetDir)
 	collectPolyglotDefinedTypeAnchors(root, definedTypes)
 	definedSpecs := collectIntentSpecBasenames(ctx, root)
 
 	fset := token.NewFileSet()
 	var unresolved []string
-	WalkTargetFiles(ctx, targetDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info == nil || info.IsDir() || isVerificationSuiteFile(info.Name()) {
+	vscope.WalkTargetFiles(ctx, targetDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info == nil || info.IsDir() || impact.IsVerificationSuiteFile(info.Name()) {
 			return nil
 		}
 		if strings.HasSuffix(path, ".go") {
 			unresolved = append(unresolved, scanFileIntentASTAnchors(fset, targetDir, path, definedTypes, definedSpecs)...)
-		} else if isSupportedPolyglotSourceFile(path) {
+		} else if vscope.IsSupportedPolyglotSourceFile(path) {
 			unresolved = append(unresolved, scanPolyglotFileIntentAnchors(root, path, definedTypes, definedSpecs)...)
 		}
 		return nil
@@ -133,8 +134,8 @@ func extractTypeNamesFromGoFile(fset *token.FileSet, path string, defined map[st
 	}
 }
 
-func collectIntentSpecBasenames(ctx *VerifyContext, root string) map[string]bool {
-	cfg := resolveVerifyConfig(ctx)
+func collectIntentSpecBasenames(ctx *vscope.VerifyContext, root string) map[string]bool {
+	cfg := vscope.ResolveVerifyConfig(ctx)
 	roots := []string{"intent"}
 	if cfg != nil && len(cfg.Governance.QualityGates.IntentSourceRoots) > 0 {
 		roots = cfg.Governance.QualityGates.IntentSourceRoots

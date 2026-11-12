@@ -4,6 +4,8 @@ package cli
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/cli/taskui"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"os"
 	"strings"
 	"time"
@@ -15,6 +17,7 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/mem"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/task"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
 	"github.com/spf13/cobra"
 )
 
@@ -23,8 +26,8 @@ func newTaskChoreCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "chore [title]",
 		Short:   "Atomically provision a transient task worktree in EDIT phase (1-turn inception)",
-		Long:    helpTaskChoreLong,
-		Example: helpTaskChoreExample,
+		Long:    tui.HelpTaskChoreLong,
+		Example: tui.HelpTaskChoreExample,
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			title := "Maintenance chore"
@@ -34,8 +37,8 @@ func newTaskChoreCmd() *cobra.Command {
 			return runTaskChoreWithOpts(title, plane, project)
 		},
 	}
-	cmd.Flags().StringVarP(&plane, flagNamePlane, "p", "substrate", "Target plane (intent|substrate)")
-	cmd.Flags().StringVar(&project, flagNameProject, "", "Repository project identifier (defaults to active repository)")
+	cmd.Flags().StringVarP(&plane, tui.FlagNamePlane, "p", "substrate", "Target plane (intent|substrate)")
+	cmd.Flags().StringVar(&project, tui.FlagNameProject, "", "Repository project identifier (defaults to active repository)")
 	return cmd
 }
 
@@ -48,7 +51,7 @@ func runTaskChoreWithPlane(title, rawPlane string) error {
 }
 
 func runTaskChoreWithOpts(title, rawPlane, rawProject string) error {
-	plane := normalizePlaneInput(rawPlane, "")
+	plane := tui.NormalizePlaneInput(rawPlane, "")
 	if plane != "intent" && plane != "substrate" {
 		return types.NewNomosError(types.ErrCodeValidationFailed, "invalid plane %q: must be intent or substrate", rawPlane)
 	}
@@ -70,7 +73,7 @@ func runTaskChoreWithOpts(title, rawPlane, rawProject string) error {
 	t := task.TaskRecord{
 		Key:         key,
 		Plane:       plane,
-		Project:     resolveActiveTaskProject(rawProject),
+		Project:     taskui.ResolveActiveTaskProject(rawProject),
 		SchemaType:  task.SchemaType(plane),
 		Title:       title,
 		Description: "Atomic 1-turn chore worktree",
@@ -93,9 +96,9 @@ func runTaskChoreWithOpts(title, rawPlane, rawProject string) error {
 		return uErr
 	}
 
-	renderTaskStartedBanner(key, wtPath, "EDIT")
+	tui.RenderTaskStartedBanner(key, wtPath, "EDIT")
 	renderLearnedPitfallsBriefing(repoRoot, t.Title)
-	renderPhaseTransitionNextActions(os.Stdout, types.PhaseEdit, key, wtPath, repoRoot)
+	tui.RenderPhaseTransitionNextActions(os.Stdout, types.PhaseEdit, key, wtPath, repoRoot)
 	return nil
 }
 
@@ -126,16 +129,16 @@ func renderLearnedPitfallsBriefing(repoRoot, taskTitle string) {
 	pitfalls := mem.RecallRepoPitfallsReadOnly(repoRoot, nil, 3)
 	for i, p := range pitfalls {
 		if i == 0 {
-			fmt.Printf("  %s\n", uiWarnStyle.Render(fmt.Sprintf("Learned Pitfalls (%d active):", len(pitfalls))))
+			fmt.Printf("  %s\n", tui.UiWarnStyle.Render(fmt.Sprintf("Learned Pitfalls (%d active):", len(pitfalls))))
 		}
-		fmt.Printf("    ⚡ %s\n", uiValueStyle.Render(p))
+		fmt.Printf("    ⚡ %s\n", tui.UiValueStyle.Render(p))
 	}
 	patterns := mem.RecallRepoPatternsReadOnly(repoRoot, taskTitle, nil, 2)
 	for i, pat := range patterns {
 		if i == 0 {
-			fmt.Printf("  %s\n", uiHeaderStyle.Render(fmt.Sprintf("Verified Patterns (%d active):", len(patterns))))
+			fmt.Printf("  %s\n", tui.UiHeaderStyle.Render(fmt.Sprintf("Verified Patterns (%d active):", len(patterns))))
 		}
-		fmt.Printf("    🧩 %s\n", uiMutedStyle.Render(pat))
+		fmt.Printf("    🧩 %s\n", tui.UiMutedStyle.Render(pat))
 	}
 }
 
@@ -143,7 +146,7 @@ func recordFailedReportTraps(repoRoot, worktreePath, taskKey string, report *ver
 	if report == nil || report.Passed || strings.TrimSpace(taskKey) == "" {
 		return
 	}
-	modified := verify.ListModifiedWorktreeFiles(worktreePath, taskKey)
+	modified := impact.ListModifiedWorktreeFiles(worktreePath, taskKey)
 	var traps []mem.GateTrapEntry
 	for _, res := range report.GateResults {
 		if !res.Passed {

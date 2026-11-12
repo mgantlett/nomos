@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,25 +26,25 @@ func isForbiddenNomosGoInstallAtDepth(cmdLine, baseCwd, hermeticDir string, dept
 	if depth > maxShellGuardRecursionDepth || !strings.Contains(cmdLine, "go") {
 		return false
 	}
-	segments, subs := parseShellCommandSegments(cmdLine)
+	segments, subs := tui.ParseShellCommandSegments(cmdLine)
 	cwd := resolveInitialEvalDir(baseCwd)
 
 	for _, seg := range segments {
-		if nextCwd, ok := matchCdCommand(seg, cwd); ok {
+		if nextCwd, ok := tui.MatchCdCommand(seg, cwd); ok {
 			cwd = nextCwd
 			continue
 		}
-		if subScript, ok := matchShellDashC(seg); ok {
+		if subScript, ok := tui.MatchShellDashC(seg); ok {
 			if isForbiddenNomosGoInstallAtDepth(subScript, cwd, hermeticDir, depth+1) {
 				return true
 			}
 			continue
 		}
-		inv, ok := matchGoInstallCommand(seg)
+		inv, ok := tui.MatchGoInstallCommand(seg)
 		if !ok {
 			continue
 		}
-		if targetsNomosPackage(inv.pkgArgs, cwd) && !isPermittedCleanMainGoInstall(inv, cwd, hermeticDir) {
+		if targetsNomosPackage(inv.PkgArgs, cwd) && !isPermittedCleanMainGoInstall(inv, cwd, hermeticDir) {
 			return true
 		}
 	}
@@ -159,8 +160,8 @@ func extractModuleDirective(content string) string {
 
 // isPermittedCleanMainGoInstall fails closed unless the install runs outside hermetic containers
 // and worktrees, uses strictly local relative package directories, and sits on a clean IDLE 'main' trunk.
-func isPermittedCleanMainGoInstall(inv goInstallInvocation, cwd, hermeticDir string) bool {
-	if hermeticDir != "" || inv.hasUnsafeFlag || strings.TrimSpace(cwd) == "" {
+func isPermittedCleanMainGoInstall(inv tui.GoInstallInvocation, cwd, hermeticDir string) bool {
+	if hermeticDir != "" || inv.HasUnsafeFlag || strings.TrimSpace(cwd) == "" {
 		return false
 	}
 	canonEvalDir := normalizeCanonicalPath(cwd, "/")
@@ -171,7 +172,7 @@ func isPermittedCleanMainGoInstall(inv goInstallInvocation, cwd, hermeticDir str
 	if err != nil || !info.IsDir() {
 		return false
 	}
-	if !areLocalExistingSubdirs(inv.pkgArgs, canonEvalDir) {
+	if !areLocalExistingSubdirs(inv.PkgArgs, canonEvalDir) {
 		return false
 	}
 	return isCleanIdlePrimaryMainTrunk(canonEvalDir)

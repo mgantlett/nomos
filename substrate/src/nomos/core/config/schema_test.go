@@ -8,6 +8,7 @@ import (
 	"testing"
 )
 
+// @verifies TC-SSOT-01 TC-SSOT-02
 func TestGenerateAndVerifyConfigJSONSchema(t *testing.T) {
 	raw, err := GenerateConfigJSONSchema()
 	if err != nil {
@@ -63,6 +64,26 @@ func TestGenerateAndVerifyConfigJSONSchema(t *testing.T) {
 	drifted := strings.Replace(string(raw), `"max_file_loc"`, `"max_file_lines_drifted"`, 1)
 	if err := VerifyConfigJSONSchemaParity([]byte(drifted)); err == nil {
 		t.Fatalf("expected drifted schema payload to fail closed in VerifyConfigJSONSchemaParity")
+	}
+}
+
+// @verifies TC-SSOT-06
+func TestMaxPackageFilesDefaultAndSchema(t *testing.T) {
+	def := DefaultNomosConfig()
+	if def.Governance.QualityGates.Thresholds.MaxPackageFiles != 40 {
+		t.Fatalf("expected DefaultNomosConfig MaxPackageFiles=40, got %d", def.Governance.QualityGates.Thresholds.MaxPackageFiles)
+	}
+	raw, err := GenerateConfigJSONSchema()
+	if err != nil {
+		t.Fatalf("GenerateConfigJSONSchema failed: %v", err)
+	}
+	var parsed JSONSchemaNode
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		t.Fatalf("unmarshal schema: %v", err)
+	}
+	maxPkg := parsed.Properties["governance"].Properties["quality_gates"].Properties["thresholds"].Properties["max_package_files"]
+	if maxPkg == nil || maxPkg.Type != "integer" || maxPkg.Minimum == nil || *maxPkg.Minimum != 1 || maxPkg.Default != float64(40) {
+		t.Fatalf("expected integer max_package_files schema node with min=1 and default=40, got %+v", maxPkg)
 	}
 }
 

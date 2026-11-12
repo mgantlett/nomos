@@ -11,13 +11,14 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/mem"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/task"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 )
 
 type crashingGateProbe struct{}
 
 func (g *crashingGateProbe) Name() string { return "UAsset Dependency Invariant (Law 2)" }
 
-func (g *crashingGateProbe) Evaluate(_ *verify.VerifyContext) (*verify.GateResult, error) {
+func (g *crashingGateProbe) Evaluate(_ *vscope.VerifyContext) (*vscope.GateResult, error) {
 	panic("simulated gate sensor crash mid-2PC")
 }
 
@@ -159,8 +160,8 @@ func assertPillar4GateCrashAbortsMerge(t *testing.T, repoDir, key string) {
 	// Force in-process 2PC gate execution rather than reusing pre-commit subprocess receipt cache.
 	t.Setenv(envDisableVerifyReceiptCache, "1")
 	headBefore := gitRevParseHead(t, repoDir)
-	verify.RegisterGate("uasset_dependency", func() verify.Gate { return &crashingGateProbe{} })
-	defer verify.RegisterGate("uasset_dependency", func() verify.Gate { return &verify.UAssetDependencyGate{} })
+	verify.RegisterGate("uasset_dependency", func() vscope.Gate { return &crashingGateProbe{} })
+	defer verify.RegisterGate("uasset_dependency", func() vscope.Gate { return &verify.UAssetDependencyGate{} })
 
 	walk := writeWalkthroughTemp(t, repoDir, key, "Attempted sync during simulated gate crash")
 	syncCmd := newTaskSyncCmd()

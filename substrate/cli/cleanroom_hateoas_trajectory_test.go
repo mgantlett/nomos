@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/mgantlett/nomos/substrate/cli/diag"
+	"github.com/mgantlett/nomos/substrate/cli/inspectcmd"
 	"io"
 	"os"
 	"path/filepath"
@@ -14,6 +16,7 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/handshake"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 )
 
 func TestCleanroomDownstreamVectors_ZeroSourceHATEOASTrajectory(t *testing.T) {
@@ -166,7 +169,7 @@ func assertIdleHandshakeAndStatusAffordances(t *testing.T) {
 	if err := root.Execute(); err != nil {
 		t.Fatalf("CDV-HAT-03: status --json failed: %v", err)
 	}
-	var st StatusReport
+	var st diag.StatusReport
 	if err := json.Unmarshal(buf.Bytes(), &st); err != nil || len(st.NextActions) == 0 {
 		t.Fatalf("CDV-HAT-03: expected status --json with non-empty next_actions, err=%v", err)
 	}
@@ -241,7 +244,7 @@ func verifyCapabilitiesDrillDownAndGateRemedies(t *testing.T, repoDir string) {
 		if err := root.Execute(); err != nil {
 			t.Fatalf("CDV-HAT-05: capabilities %s --json failed: %v", target, err)
 		}
-		var detail CapabilityDetail
+		var detail inspectcmd.CapabilityDetail
 		if err := json.Unmarshal(buf.Bytes(), &detail); err != nil || detail.ID != target || detail.Remedy == "" {
 			t.Fatalf("CDV-HAT-05: unexpected capability detail for %s: %+v (err=%v)", target, detail, err)
 		}
@@ -272,7 +275,7 @@ func assertDownstreamSafeRemedies(t *testing.T, repoDir string) {
 	writeRawFile(t, dirtyPath, "x = 1\n")
 	defer func() { _ = os.Remove(dirtyPath) }()
 
-	driftRes, err := (&verify.EcosystemDriftGate{}).Evaluate(&verify.VerifyContext{RepoRoot: repoDir, IsBaseline: true})
+	driftRes, err := (&verify.EcosystemDriftGate{}).Evaluate(&vscope.VerifyContext{RepoRoot: repoDir, IsBaseline: true})
 	if err != nil || driftRes.Passed {
 		t.Fatalf("CDV-HAT-06: expected EcosystemDriftGate to detect untracked trunk drift, err=%v", err)
 	}

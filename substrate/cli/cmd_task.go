@@ -5,6 +5,8 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/cli/taskui"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"io"
 	"os"
 	"strings"
@@ -22,20 +24,20 @@ func NewTaskCmd() *cobra.Command {
 		Short: "Manage Living Ledger tasks and execution lifecycles",
 		Long: `Living Ledger task management. Workspace mutability is procedurally locked
 across lifecycle phases: IDLE -> PLAN -> EDIT -> REVIEW -> SYNC -> LEARN.`,
-		Example: helpTaskExample,
+		Example: tui.HelpTaskExample,
 	}
 
 	cmd.AddCommand(newTaskCreateCmd())
 	cmd.AddCommand(newTaskPairCmd())
 	cmd.AddCommand(newTaskChoreCmd())
-	cmd.AddCommand(newTaskProjectCmd())
+	cmd.AddCommand(taskui.NewTaskProjectCmd())
 	cmd.AddCommand(newTaskStartCmd())
 	cmd.AddCommand(newTaskEditCmd())
 	cmd.AddCommand(newTaskCommitCmd())
 	cmd.AddCommand(newTaskReviewCmd())
 	cmd.AddCommand(newTaskSyncCmd())
 	cmd.AddCommand(newTaskAbortCmd())
-	cmd.AddCommand(newTaskPruneCmd())
+	cmd.AddCommand(taskui.NewTaskPruneCmd())
 	cmd.AddCommand(newTaskListCmd())
 	cmd.AddCommand(newTaskDAGCmd())
 	cmd.AddCommand(newTaskStatusCmd())
@@ -44,25 +46,25 @@ across lifecycle phases: IDLE -> PLAN -> EDIT -> REVIEW -> SYNC -> LEARN.`,
 }
 
 func newTaskListCmd() *cobra.Command {
-	var opts taskListFilterOpts
+	var opts taskui.TaskListFilterOpts
 
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "List and filter registered Living Ledger task records",
-		Long:    helpTaskListLong,
-		Example: helpTaskListExample,
+		Long:    tui.HelpTaskListLong,
+		Example: tui.HelpTaskListExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			store, err := task.NewDefaultSQLiteTaskStore()
 			if err != nil {
 				return err
 			}
 			all := store.ListTasks()
-			tasks, fErr := applyTaskListFilters(all, opts)
+			tasks, fErr := taskui.ApplyTaskListFilters(all, opts)
 			if fErr != nil {
 				return fErr
 			}
 			out := cmd.OutOrStdout()
-			if opts.jsonOut {
+			if opts.JSONOut {
 				data, mErr := json.MarshalIndent(tasks, "", "  ")
 				if mErr != nil {
 					return types.NewNomosError(types.ErrCodeCore, "failed marshaling tasks JSON: %v", mErr)
@@ -71,57 +73,57 @@ func newTaskListCmd() *cobra.Command {
 				return nil
 			}
 			renderTaskList(out, tasks)
-			projFilter, allowUnassigned := resolveEffectiveProjectFilter(opts.project, opts.allProjects)
+			projFilter, allowUnassigned := taskui.ResolveEffectiveProjectFilter(opts.Project, opts.AllProjects)
 			scopedPool := task.FilterTasksByProject(all, projFilter, allowUnassigned)
-			renderTaskListNextActions(out, tasks, len(scopedPool))
+			taskui.RenderTaskListNextActions(out, tasks, len(scopedPool))
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&opts.project, flagNameProject, "", "Filter tasks by repository project identifier (defaults to active repo)")
-	cmd.Flags().BoolVarP(&opts.allProjects, flagNameAllProjects, "A", false, "Include tasks across all repositories on workstation")
-	cmd.Flags().StringVarP(&opts.status, flagNameStatus, "s", "", "Filter by status (TODO, PLAN, EDIT, REVIEW, DONE, ABORTED; comma-separated)")
-	cmd.Flags().BoolVar(&opts.pending, flagNamePending, false, "Show only unfinished tasks (excludes DONE and ABORTED)")
-	cmd.Flags().StringVarP(&opts.plane, flagNamePlane, "p", "", "Filter tasks by plane (intent or substrate)")
-	cmd.Flags().StringVarP(&opts.tier, flagNameTier, "t", "", "Filter tasks by cognitive tier (T1 or T2)")
-	cmd.Flags().IntVarP(&opts.limit, flagNameLimit, "n", 0, "Maximum number of tasks to return (0 = all)")
-	cmd.Flags().BoolVar(&opts.jsonOut, flagNameJSON, false, "Emit task list as structured JSON")
+	cmd.Flags().StringVar(&opts.Project, tui.FlagNameProject, "", "Filter tasks by repository project identifier (defaults to active repo)")
+	cmd.Flags().BoolVarP(&opts.AllProjects, tui.FlagNameAllProjects, "A", false, "Include tasks across all repositories on workstation")
+	cmd.Flags().StringVarP(&opts.Status, tui.FlagNameStatus, "s", "", "Filter by status (TODO, PLAN, EDIT, REVIEW, DONE, ABORTED; comma-separated)")
+	cmd.Flags().BoolVar(&opts.Pending, tui.FlagNamePending, false, "Show only unfinished tasks (excludes DONE and ABORTED)")
+	cmd.Flags().StringVarP(&opts.Plane, tui.FlagNamePlane, "p", "", "Filter tasks by plane (intent or substrate)")
+	cmd.Flags().StringVarP(&opts.Tier, tui.FlagNameTier, "t", "", "Filter tasks by cognitive tier (T1 or T2)")
+	cmd.Flags().IntVarP(&opts.Limit, tui.FlagNameLimit, "n", 0, "Maximum number of tasks to return (0 = all)")
+	cmd.Flags().BoolVar(&opts.JSONOut, tui.FlagNameJSON, false, "Emit task list as structured JSON")
 	return cmd
 }
 
 func renderTaskList(out io.Writer, tasks []task.TaskRecord) {
-	fmt.Fprintln(out, renderBrandTitle("📋 Nomos Living Ledger Tasks"))
-	fmt.Fprintln(out, uiRule(ruleStandard))
+	fmt.Fprintln(out, tui.RenderBrandTitle("📋 Nomos Living Ledger Tasks"))
+	fmt.Fprintln(out, tui.UiRule(tui.RuleStandard))
 	fmt.Fprintf(out, "  %s %s %s %s %s %s\n",
-		padStyled("KEY", 10, uiHeaderStyle),
-		padStyled("PLANE", 10, uiHeaderStyle),
-		padStyled("STATUS", 10, uiHeaderStyle),
-		padStyled("TIER", 5, uiHeaderStyle),
-		padStyled("PRIO", 5, uiHeaderStyle),
-		uiHeaderStyle.Render("TITLE"))
-	fmt.Fprintln(out, uiRule(ruleStandard))
+		tui.PadStyled("KEY", 10, tui.UiHeaderStyle),
+		tui.PadStyled("PLANE", 10, tui.UiHeaderStyle),
+		tui.PadStyled("STATUS", 10, tui.UiHeaderStyle),
+		tui.PadStyled("TIER", 5, tui.UiHeaderStyle),
+		tui.PadStyled("PRIO", 5, tui.UiHeaderStyle),
+		tui.UiHeaderStyle.Render("TITLE"))
+	fmt.Fprintln(out, tui.UiRule(tui.RuleStandard))
 	if len(tasks) == 0 {
-		fmt.Fprintf(out, "  %s\n", uiMutedStyle.Render("(No matching tasks in Living Ledger)"))
+		fmt.Fprintf(out, "  %s\n", tui.UiMutedStyle.Render("(No matching tasks in Living Ledger)"))
 	}
 	for _, t := range tasks {
 		fmt.Fprintf(out, "  %s %s %s %s %s %s\n",
-			styleTaskKeyWidth(t.Key, 10),
-			stylePlaneWidth(t.Plane, 10),
-			styleSemanticBadgeWidth(string(t.Status), 10),
-			padStyled(string(t.Tier), 5, uiMutedStyle),
-			padStyled(fmt.Sprintf("%d", t.Priority), 5, uiLabelStyle),
-			uiValueStyle.Render(t.Title))
+			tui.StyleTaskKeyWidth(t.Key, 10),
+			tui.StylePlaneWidth(t.Plane, 10),
+			tui.StyleSemanticBadgeWidth(string(t.Status), 10),
+			tui.PadStyled(string(t.Tier), 5, tui.UiMutedStyle),
+			tui.PadStyled(fmt.Sprintf("%d", t.Priority), 5, tui.UiLabelStyle),
+			tui.UiValueStyle.Render(t.Title))
 	}
-	fmt.Fprintln(out, uiRule(ruleStandard))
+	fmt.Fprintln(out, tui.UiRule(tui.RuleStandard))
 }
 
 func newTaskDAGCmd() *cobra.Command {
-	var opts taskDAGFilterOpts
+	var opts taskui.TaskDAGFilterOpts
 
 	cmd := &cobra.Command{
 		Use:     "dag",
 		Short:   "Display causal DAG wavefront of unblocked candidate tasks",
-		Long:    helpTaskDAGLong,
-		Example: helpTaskDAGExample,
+		Long:    tui.HelpTaskDAGLong,
+		Example: tui.HelpTaskDAGExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			store, err := task.NewDefaultSQLiteTaskStore()
 			if err != nil {
@@ -131,12 +133,12 @@ func newTaskDAGCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			filtered, fErr := applyWavefrontFilters(wf, store, opts)
+			filtered, fErr := taskui.ApplyWavefrontFilters(wf, store, opts)
 			if fErr != nil {
 				return fErr
 			}
 			out := cmd.OutOrStdout()
-			if opts.jsonOut {
+			if opts.JSONOut {
 				data, mErr := json.MarshalIndent(filtered, "", "  ")
 				if mErr != nil {
 					return types.NewNomosError(types.ErrCodeCore, "failed marshaling wavefront JSON: %v", mErr)
@@ -145,37 +147,37 @@ func newTaskDAGCmd() *cobra.Command {
 				return nil
 			}
 			renderWavefront(out, filtered)
-			renderWavefrontNextActions(out, filtered)
+			taskui.RenderWavefrontNextActions(out, filtered)
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&opts.project, flagNameProject, "", "Filter wavefront candidates by repository project identifier (defaults to active repo)")
-	cmd.Flags().BoolVarP(&opts.allProjects, flagNameAllProjects, "A", false, "Include wavefront candidates across all repositories on workstation")
-	cmd.Flags().StringVarP(&opts.plane, flagNamePlane, "p", "", "Filter wavefront candidates by plane (intent or substrate)")
-	cmd.Flags().StringVarP(&opts.tier, flagNameTier, "t", "", "Filter wavefront candidates by cognitive tier (T1 or T2)")
-	cmd.Flags().IntVarP(&opts.limit, flagNameLimit, "n", 0, "Maximum wavefront candidates to display (0 = all)")
-	cmd.Flags().BoolVar(&opts.jsonOut, flagNameJSON, false, "Emit wavefront as structured JSON")
+	cmd.Flags().StringVar(&opts.Project, tui.FlagNameProject, "", "Filter wavefront candidates by repository project identifier (defaults to active repo)")
+	cmd.Flags().BoolVarP(&opts.AllProjects, tui.FlagNameAllProjects, "A", false, "Include wavefront candidates across all repositories on workstation")
+	cmd.Flags().StringVarP(&opts.Plane, tui.FlagNamePlane, "p", "", "Filter wavefront candidates by plane (intent or substrate)")
+	cmd.Flags().StringVarP(&opts.Tier, tui.FlagNameTier, "t", "", "Filter wavefront candidates by cognitive tier (T1 or T2)")
+	cmd.Flags().IntVarP(&opts.Limit, tui.FlagNameLimit, "n", 0, "Maximum wavefront candidates to display (0 = all)")
+	cmd.Flags().BoolVar(&opts.JSONOut, tui.FlagNameJSON, false, "Emit wavefront as structured JSON")
 	return cmd
 }
 
 func renderWavefront(out io.Writer, wf []task.WavefrontCandidate) {
-	fmt.Fprintln(out, renderBrandTitle("🌊 Nomos Causal DAG Wavefront (Unblocked Ready Tasks)"))
-	fmt.Fprintln(out, uiRule(ruleStandard))
+	fmt.Fprintln(out, tui.RenderBrandTitle("🌊 Nomos Causal DAG Wavefront (Unblocked Ready Tasks)"))
+	fmt.Fprintln(out, tui.UiRule(tui.RuleStandard))
 	if len(wf) == 0 {
-		fmt.Fprintf(out, "  %s\n", uiMutedStyle.Render("(No pending unblocked tasks in current wavefront)"))
+		fmt.Fprintf(out, "  %s\n", tui.UiMutedStyle.Render("(No pending unblocked tasks in current wavefront)"))
 	}
 	for _, cand := range wf {
-		dot := uiElectricCyanStyle.Render("◈")
+		dot := tui.UiElectricCyanStyle.Render("◈")
 		if strings.HasPrefix(strings.ToUpper(cand.Key), "INT-") {
-			dot = uiIntentStyle.Render("◈")
+			dot = tui.UiIntentStyle.Render("◈")
 		}
 		fmt.Fprintf(out, "  %s [%s] %s %s\n",
 			dot,
-			styleTaskKey(cand.Key),
-			uiBoldValueStyle.Render(cand.Title),
-			uiMutedStyle.Render(fmt.Sprintf("(%s, %s)", cand.Plane, cand.Tier)))
+			tui.StyleTaskKey(cand.Key),
+			tui.UiBoldValueStyle.Render(cand.Title),
+			tui.UiMutedStyle.Render(fmt.Sprintf("(%s, %s)", cand.Plane, cand.Tier)))
 	}
-	fmt.Fprintln(out, uiRule(ruleStandard))
+	fmt.Fprintln(out, tui.UiRule(tui.RuleStandard))
 }
 
 func newTaskStatusCmd() *cobra.Command {
@@ -184,8 +186,8 @@ func newTaskStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "status",
 		Short:   "Display active workspace phase and CapBAC token allocation",
-		Long:    helpTaskStatusLong,
-		Example: helpTaskStatusExample,
+		Long:    tui.HelpTaskStatusLong,
+		Example: tui.HelpTaskStatusExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ps := collectPhaseStateSnapshot()
 			if err := ps.Validate(); err != nil {
@@ -200,21 +202,21 @@ func newTaskStatusCmd() *cobra.Command {
 				fmt.Fprintln(out, string(data))
 				return nil
 			}
-			fmt.Fprintln(out, renderBrandTitle("📋 Nomos Workspace Phase State"))
-			fmt.Fprintln(out, uiRule(ruleNarrow))
-			fmt.Fprintln(out, kvLine("Active Phase", 15, styleSemanticBadge(string(ps.Phase))))
+			fmt.Fprintln(out, tui.RenderBrandTitle("📋 Nomos Workspace Phase State"))
+			fmt.Fprintln(out, tui.UiRule(tui.RuleNarrow))
+			fmt.Fprintln(out, tui.KvLine("Active Phase", 15, tui.StyleSemanticBadge(string(ps.Phase))))
 			if ps.TaskID != "" {
-				fmt.Fprintln(out, kvLine("Active Task", 15, styleTaskKey(ps.TaskID)))
+				fmt.Fprintln(out, tui.KvLine("Active Task", 15, tui.StyleTaskKey(ps.TaskID)))
 			}
-			fmt.Fprintln(out, kvLine("Assignee", 15, uiValueStyle.Render(ps.Assignee)))
-			fmt.Fprintln(out, kvLine("Step Budget", 15, uiBoldValueStyle.Render(fmt.Sprintf("%d", ps.StepBudget))))
-			fmt.Fprintln(out, kvLine("Tokens Consumed", 15, uiValueStyle.Render(fmt.Sprintf("%d", ps.TokensUsed))))
-			renderNextActions(out, ps.NextActions)
-			fmt.Fprintln(out, uiRule(ruleNarrow))
+			fmt.Fprintln(out, tui.KvLine("Assignee", 15, tui.UiValueStyle.Render(ps.Assignee)))
+			fmt.Fprintln(out, tui.KvLine("Step Budget", 15, tui.UiBoldValueStyle.Render(fmt.Sprintf("%d", ps.StepBudget))))
+			fmt.Fprintln(out, tui.KvLine("Tokens Consumed", 15, tui.UiValueStyle.Render(fmt.Sprintf("%d", ps.TokensUsed))))
+			tui.RenderNextActions(out, ps.NextActions)
+			fmt.Fprintln(out, tui.UiRule(tui.RuleNarrow))
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&jsonOutput, flagNameJSON, false, "Emit phase state as structured JSON")
+	cmd.Flags().BoolVar(&jsonOutput, tui.FlagNameJSON, false, "Emit phase state as structured JSON")
 	return cmd
 }
 
@@ -245,8 +247,8 @@ func newTaskShowCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "show <key>",
 		Short:   "Inspect Living Ledger task card and twin status",
-		Long:    helpTaskShowLong,
-		Example: helpTaskShowExample,
+		Long:    tui.HelpTaskShowLong,
+		Example: tui.HelpTaskShowExample,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := strings.ToUpper(strings.TrimSpace(args[0]))
@@ -268,18 +270,18 @@ func newTaskShowCmd() *cobra.Command {
 				fmt.Fprintln(out, string(data))
 				return nil
 			}
-			renderTaskShowCard(out, rec)
+			tui.RenderTaskShowCard(out, rec)
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&jsonOutput, flagNameJSON, false, "Emit task inspection card as structured JSON")
+	cmd.Flags().BoolVar(&jsonOutput, tui.FlagNameJSON, false, "Emit task inspection card as structured JSON")
 	return cmd
 }
 
 type taskPairOpts struct {
 	tier     string
 	priority int
-	card     taskCardFlags
+	card     tui.TaskCardFlags
 	stdin    io.Reader
 }
 
@@ -289,8 +291,8 @@ func newTaskPairCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "pair <title>",
 		Short:   "Atomically allocate twinned INT (Intent) and SUB (Substrate) tasks",
-		Long:    helpTaskPairLong,
-		Example: helpTaskPairExample,
+		Long:    tui.HelpTaskPairLong,
+		Example: tui.HelpTaskPairExample,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.stdin = cmd.InOrStdin()
@@ -301,21 +303,21 @@ func newTaskPairCmd() *cobra.Command {
 			return executeTaskPair(store, args[0], opts)
 		},
 	}
-	cmd.Flags().StringVarP(&opts.tier, flagNameTier, "t", "T1", "Cognitive tier (T1|T2)")
+	cmd.Flags().StringVarP(&opts.tier, tui.FlagNameTier, "t", "T1", "Cognitive tier (T1|T2)")
 	cmd.Flags().IntVarP(&opts.priority, "priority", "r", 50, "Priority (0-100)")
-	bindTaskCardFlags(cmd, &opts.card, true)
+	tui.BindTaskCardFlags(cmd, &opts.card, true)
 	return cmd
 }
 
 func executeTaskPair(store task.TaskStore, title string, opts taskPairOpts) error {
-	if err := materializeCardStdin(opts.stdin, &opts.card); err != nil {
-		return attachCardRemedy(err, "pair", title, "substrate")
+	if err := tui.MaterializeCardStdin(opts.stdin, &opts.card); err != nil {
+		return tui.AttachCardRemedy(err, "pair", title, "substrate")
 	}
-	intBody, intBurden, err := resolveCardBodyAndBurden(nil, "pair", title, "intent", opts.card, opts.card.intScope)
+	intBody, intBurden, err := tui.ResolveCardBodyAndBurden(nil, "pair", title, "intent", opts.card, opts.card.IntScope)
 	if err != nil {
 		return err
 	}
-	subBody, subBurden, err := resolveCardBodyAndBurden(nil, "pair", title, "substrate", opts.card, opts.card.subScope)
+	subBody, subBurden, err := tui.ResolveCardBodyAndBurden(nil, "pair", title, "substrate", opts.card, opts.card.SubScope)
 	if err != nil {
 		return err
 	}
@@ -327,12 +329,12 @@ func executeTaskPair(store task.TaskStore, title string, opts taskPairOpts) erro
 	if err != nil {
 		return err
 	}
-	deps, err := resolveValidatedDependencies(store, opts.card.dependsOn, intKey, subKey)
+	deps, err := tui.ResolveValidatedDependencies(store, opts.card.DependsOn, intKey, subKey)
 	if err != nil {
 		return err
 	}
 
-	project := resolveActiveTaskProject(opts.card.project)
+	project := taskui.ResolveActiveTaskProject(opts.card.Project)
 	intTask := task.TaskRecord{
 		Key: intKey, Plane: "intent", Project: project, SchemaType: task.SchemaIntent,
 		Title: title, Description: intBody, Status: task.StatusTodo,
@@ -360,14 +362,14 @@ func executeTaskPair(store task.TaskStore, title string, opts taskPairOpts) erro
 }
 
 func renderTaskPairSuccess(intKey, subKey, title string) {
-	fmt.Println(renderBrandTitle("🔗 Nomos Atomic Twin Provisioning Complete"))
-	fmt.Println(uiRule(ruleNarrow))
-	fmt.Println(kvLine("Intent Task", 14, fmt.Sprintf("%s (%s)", styleTaskKey(intKey), uiValueStyle.Render(title))))
-	fmt.Println(kvLine("Substrate Task", 14, fmt.Sprintf("%s (%s)", styleTaskKey(subKey), uiValueStyle.Render(title))))
-	fmt.Println(kvLine("Bilateral Link", 14, fmt.Sprintf("%s %s %s",
-		styleTaskKey(intKey), uiMutedStyle.Render("<─── twin ───>"), styleTaskKey(subKey))))
-	fmt.Println(uiRule(ruleNarrow))
-	renderNextActions(os.Stdout, []types.ActionAffordance{
+	fmt.Println(tui.RenderBrandTitle("🔗 Nomos Atomic Twin Provisioning Complete"))
+	fmt.Println(tui.UiRule(tui.RuleNarrow))
+	fmt.Println(tui.KvLine("Intent Task", 14, fmt.Sprintf("%s (%s)", tui.StyleTaskKey(intKey), tui.UiValueStyle.Render(title))))
+	fmt.Println(tui.KvLine("Substrate Task", 14, fmt.Sprintf("%s (%s)", tui.StyleTaskKey(subKey), tui.UiValueStyle.Render(title))))
+	fmt.Println(tui.KvLine("Bilateral Link", 14, fmt.Sprintf("%s %s %s",
+		tui.StyleTaskKey(intKey), tui.UiMutedStyle.Render("<─── twin ───>"), tui.StyleTaskKey(subKey))))
+	fmt.Println(tui.UiRule(tui.RuleNarrow))
+	tui.RenderNextActions(os.Stdout, []types.ActionAffordance{
 		{Command: fmt.Sprintf("nomos task start %s --edit", intKey), Summary: "Start Intent twin in isolated EDIT worktree"},
 		{Command: fmt.Sprintf("nomos task start %s --edit", subKey), Summary: "Start Substrate twin in isolated EDIT worktree"},
 	})

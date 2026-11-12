@@ -1,6 +1,7 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"strings"
@@ -237,7 +238,7 @@ func TestCommitSchemaGate_DetectsIntermediateRogueBranchCommit(t *testing.T) {
 	}
 
 	gate := &CommitSchemaGate{}
-	res, err := gate.Evaluate(&VerifyContext{RepoRoot: repoDir, WorktreePath: repoDir, TaskID: "SUB-77"})
+	res, err := gate.Evaluate(&vscope.VerifyContext{RepoRoot: repoDir, WorktreePath: repoDir, TaskID: "SUB-77"})
 	if err != nil {
 		t.Fatalf("Evaluate error: %v", err)
 	}

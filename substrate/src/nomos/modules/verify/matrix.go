@@ -1,6 +1,8 @@
 // Package verify implements the deterministic Definition of Done (DoD) quality gate pipeline.
 package verify
 
+import "github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
+
 // Ring constants represent the three orthogonal defense rings of the Nomos DoD.
 const (
 	RingSyntactic     = "syntactic"
@@ -103,17 +105,17 @@ type LawReport struct {
 
 // CellReport summarizes the evaluation of one of the 21 Invariant Cells.
 type CellReport struct {
-	ID             string        `json:"id"`
-	Name           string        `json:"name"`
-	Law            int           `json:"law"`
-	Ring           string        `json:"ring"`
-	Domain         string        `json:"domain"`
-	Passed         bool          `json:"passed"`
-	Remedy         string        `json:"remedy,omitempty"`
-	ProbeCount     int           `json:"probe_count"`
-	PassedProbes   int           `json:"passed_probes"`
-	Probes         []*GateResult `json:"probes"`
-	DurationMicros int64         `json:"duration_micros"`
+	ID             string               `json:"id"`
+	Name           string               `json:"name"`
+	Law            int                  `json:"law"`
+	Ring           string               `json:"ring"`
+	Domain         string               `json:"domain"`
+	Passed         bool                 `json:"passed"`
+	Remedy         string               `json:"remedy,omitempty"`
+	ProbeCount     int                  `json:"probe_count"`
+	PassedProbes   int                  `json:"passed_probes"`
+	Probes         []*vscope.GateResult `json:"probes"`
+	DurationMicros int64                `json:"duration_micros"`
 }
 
 // DefaultBaselineCells returns the canonical 21 Invariant Cells mapping the subordinate sensor probes.

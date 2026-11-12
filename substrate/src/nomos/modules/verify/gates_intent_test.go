@@ -1,6 +1,7 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,7 +19,7 @@ func TestIntentGatesRegistration(t *testing.T) {
 
 func TestIntentSteelmanGateClean(t *testing.T) {
 	g := &IntentSteelmanGate{}
-	ctx := &VerifyContext{RepoRoot: "."}
+	ctx := &vscope.VerifyContext{RepoRoot: "."}
 	res, err := g.Evaluate(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -37,7 +38,7 @@ func TestIntentSteelmanGateClean(t *testing.T) {
 	if err := os.WriteFile(specPath, []byte(validDoc), 0644); err != nil {
 		t.Fatal(err)
 	}
-	resValid, err := g.Evaluate(&VerifyContext{WorktreePath: tempDir, RepoRoot: tempDir})
+	resValid, err := g.Evaluate(&vscope.VerifyContext{WorktreePath: tempDir, RepoRoot: tempDir})
 	if err != nil || !resValid.Passed {
 		t.Fatalf("expected valid Intent spec to pass steelman audit, got: %+v, err=%v", resValid, err)
 	}
@@ -46,7 +47,7 @@ func TestIntentSteelmanGateClean(t *testing.T) {
 	if err := os.WriteFile(specPath, []byte(brokenFence), 0644); err != nil {
 		t.Fatal(err)
 	}
-	resBroken, err := g.Evaluate(&VerifyContext{WorktreePath: tempDir, RepoRoot: tempDir})
+	resBroken, err := g.Evaluate(&vscope.VerifyContext{WorktreePath: tempDir, RepoRoot: tempDir})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -57,7 +58,7 @@ func TestIntentSteelmanGateClean(t *testing.T) {
 
 func TestTopologyParityGateClean(t *testing.T) {
 	g := &TopologyParityGate{}
-	ctx := &VerifyContext{RepoRoot: "."}
+	ctx := &vscope.VerifyContext{RepoRoot: "."}
 	res, err := g.Evaluate(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -69,7 +70,7 @@ func TestTopologyParityGateClean(t *testing.T) {
 
 func TestThresholdIntegrityGateClean(t *testing.T) {
 	g := &ThresholdIntegrityGate{}
-	ctx := &VerifyContext{RepoRoot: "."}
+	ctx := &vscope.VerifyContext{RepoRoot: "."}
 	res, err := g.Evaluate(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -81,7 +82,7 @@ func TestThresholdIntegrityGateClean(t *testing.T) {
 
 func TestUAssetDependencyGateClean(t *testing.T) {
 	g := &UAssetDependencyGate{}
-	ctx := &VerifyContext{RepoRoot: "."}
+	ctx := &vscope.VerifyContext{RepoRoot: "."}
 	res, err := g.Evaluate(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -105,7 +106,7 @@ func TestIntentParityGate_RejectsLegacyWorkflowsAndHookDrift(t *testing.T) {
 	}
 
 	g := &IntentParityGate{}
-	res, err := g.Evaluate(&VerifyContext{WorktreePath: tempDir})
+	res, err := g.Evaluate(&vscope.VerifyContext{WorktreePath: tempDir})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

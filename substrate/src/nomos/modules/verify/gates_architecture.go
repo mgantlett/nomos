@@ -3,6 +3,10 @@ package verify
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/polyrun"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"go/parser"
 	"go/token"
 	"os"
@@ -14,11 +18,11 @@ import (
 )
 
 func init() {
-	RegisterGate("boundary", func() Gate { return &BoundaryGate{} })
-	RegisterGate("ecosystem_drift", func() Gate { return &EcosystemDriftGate{} })
-	RegisterGate("zero_alias", func() Gate { return &ZeroAliasGate{} })
-	RegisterGate("magic_strings", func() Gate { return &MagicStringsGate{} })
-	RegisterGate("magic_string_duplication", func() Gate { return &MagicStringDuplicationGate{} })
+	RegisterGate("boundary", func() vscope.Gate { return &BoundaryGate{} })
+	RegisterGate("ecosystem_drift", func() vscope.Gate { return &EcosystemDriftGate{} })
+	RegisterGate("zero_alias", func() vscope.Gate { return &ZeroAliasGate{} })
+	RegisterGate("magic_strings", func() vscope.Gate { return &MagicStringsGate{} })
+	RegisterGate("magic_string_duplication", func() vscope.Gate { return &MagicStringDuplicationGate{} })
 }
 
 // BoundaryGate enforces open-core edition boundaries (Cell 1.1, Law 1).
@@ -28,11 +32,11 @@ type BoundaryGate struct{}
 func (g *BoundaryGate) Name() string { return "Open-Core Boundary Invariant (Charter §4)" }
 
 // Evaluate checks whether boundary policies are enforced and audits prohibited capabilities.
-func (g *BoundaryGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *BoundaryGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := resolveArchRoot(ctx)
-	cfg := resolveVerifyConfig(ctx)
+	cfg := vscope.ResolveVerifyConfig(ctx)
 	if !cfg.Governance.Boundary.Enforce {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "boundary", Law: 1, Ring: RingSyntactic,
 			Passed: true, Message: "boundary not enforced for this repository (no policy opt-in)",
 		}, nil
@@ -40,9 +44,9 @@ func (g *BoundaryGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 
 	violations := scanBoundaryLeaks(root, cfg.Governance.Boundary.ProhibitedPackages)
 	violations = append(violations, scanProhibitedCommands(root, cfg.Governance.Boundary.ProhibitedCommands)...)
-	violations = append(violations, scanLockedDependencyMutations(ctx, root, cfg.Governance.Boundary.LockDependencies)...)
+	violations = append(violations, impact.ScanLockedDependencyMutations(ctx, root, cfg.Governance.Boundary.LockDependencies)...)
 	if len(violations) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "boundary", Law: 1, Ring: RingSyntactic,
 			Passed:  false,
 			Message: fmt.Sprintf("detected %d boundary policy violation(s):\n    - %s", len(violations), strings.Join(violations, "\n    - ")),
@@ -50,7 +54,7 @@ func (g *BoundaryGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		}, nil
 	}
 
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(), ProbeID: "boundary", Law: 1, Ring: RingSyntactic,
 		Passed: true, Message: "zero prohibited packages or commands detected",
 	}, nil
@@ -93,10 +97,10 @@ func (g *EcosystemDriftGate) Name() string {
 }
 
 // Evaluate verifies there are no uncommitted changes on trunk.
-func (g *EcosystemDriftGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *EcosystemDriftGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := resolveArchRoot(ctx)
 	if isWorktreePath(root) {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "ecosystem_drift", Law: 3, Ring: RingDynamic,
 			Passed: true, Message: "transient worktree detected; skipping trunk drift check",
 		}, nil
@@ -121,7 +125,7 @@ func (g *EcosystemDriftGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	}
 
 	if len(dirty) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "ecosystem_drift", Law: 3, Ring: RingDynamic,
 			Passed:  false,
 			Message: fmt.Sprintf("uncommitted trunk drift detected (%d files): %s", len(dirty), strings.Join(dirty, ", ")),
@@ -129,7 +133,7 @@ func (g *EcosystemDriftGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		}, nil
 	}
 
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(), ProbeID: "ecosystem_drift", Law: 3, Ring: RingDynamic,
 		Passed: true, Message: "zero uncommitted trunk drift detected",
 	}, nil
@@ -150,22 +154,22 @@ type ZeroAliasGate struct{}
 func (g *ZeroAliasGate) Name() string { return "CLI Zero-Alias & Deprecation Invariant" }
 
 // Evaluate inspects CLI command tree to verify canonical singularity.
-func (g *ZeroAliasGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *ZeroAliasGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := resolveArchRoot(ctx)
-	cliDir := resolveNomosInternalCLIDir(ctx, root)
+	cliDir := polyrun.ResolveNomosInternalCLIDir(ctx, root)
 	if cliDir == "" {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "zero_alias", Law: 6, Ring: RingDynamic,
 			Passed: true, Message: "no CLI directory detected; zero-alias gate satisfied",
 		}, nil
 	}
 
-	aliases, err := scanCobraAliasesInDir(cliDir)
+	aliases, err := astdebt.ScanCobraAliasesInDir(cliDir)
 	if err != nil {
 		return nil, err
 	}
 	if len(aliases) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "zero_alias", Law: 6, Ring: RingDynamic,
 			Passed:  false,
 			Message: fmt.Sprintf("detected %d prohibited command alias(es): %s", len(aliases), strings.Join(aliases, ", ")),
@@ -173,12 +177,12 @@ func (g *ZeroAliasGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		}, nil
 	}
 
-	surfaceViolations, sErr := ScanCobraSurfaceCompletenessInDir(cliDir)
+	surfaceViolations, sErr := astdebt.ScanCobraSurfaceCompletenessInDir(cliDir)
 	if sErr != nil {
 		return nil, sErr
 	}
 	if len(surfaceViolations) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "zero_alias", Law: 6, Ring: RingDynamic,
 			Passed:  false,
 			Message: fmt.Sprintf("detected %d incomplete CLI command surface contract(s): %s", len(surfaceViolations), strings.Join(surfaceViolations, "; ")),
@@ -187,7 +191,7 @@ func (g *ZeroAliasGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	}
 
 	if typeAliases := scanGoTypeAliases(root); len(typeAliases) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "zero_alias", Law: 6, Ring: RingDynamic,
 			Passed:  false,
 			Message: fmt.Sprintf("detected %d prohibited Go type alias(es) (type X = Y): %s", len(typeAliases), strings.Join(typeAliases, ", ")),
@@ -195,7 +199,7 @@ func (g *ZeroAliasGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		}, nil
 	}
 
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(), ProbeID: "zero_alias", Law: 6, Ring: RingDynamic,
 		Passed: true, Message: "zero aliases and 100% Cobra help/example surface completeness verified (Law 6)",
 	}, nil
@@ -210,11 +214,11 @@ func (g *MagicStringsGate) Name() string {
 }
 
 // Evaluate checks source files for hardcoded network literals.
-func (g *MagicStringsGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *MagicStringsGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := resolveArchRoot(ctx)
 	targetDir := findSubstrateSrc(root)
 	if targetDir == "" {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "magic_strings", Law: 5, Ring: RingSyntactic,
 			Passed: true, Message: "no substrate source directory detected; skipping",
 		}, nil
@@ -224,7 +228,7 @@ func (g *MagicStringsGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	localhostRegex := regexp.MustCompile(`https?://(?:localhost|127\.0\.0\.1):[0-9]{4,5}`)
 
 	var findings []string
-	WalkTargetFiles(ctx, targetDir, func(path string, info os.FileInfo, err error) error {
+	vscope.WalkTargetFiles(ctx, targetDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -256,7 +260,7 @@ func (g *MagicStringsGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	})
 
 	if len(findings) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "magic_strings", Law: 5, Ring: RingSyntactic,
 			Passed:  false,
 			Message: fmt.Sprintf("detected hardcoded network literals in %d files: %s", len(findings), strings.Join(findings, ", ")),
@@ -264,7 +268,7 @@ func (g *MagicStringsGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 		}, nil
 	}
 
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(), ProbeID: "magic_strings", Law: 5, Ring: RingSyntactic,
 		Passed: true, Message: "zero magic strings or hardcoded topology mappings detected",
 	}, nil
@@ -277,11 +281,11 @@ type MagicStringDuplicationGate struct{}
 func (g *MagicStringDuplicationGate) Name() string { return "Magic String Duplication Gate" }
 
 // Evaluate scans AST for string literals repeated > 2 times within packages.
-func (g *MagicStringDuplicationGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *MagicStringDuplicationGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := resolveArchRoot(ctx)
 	targetDir := findSubstrateSrc(root)
 	if targetDir == "" {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "magic_string_duplication", Law: 5, Ring: RingSyntactic,
 			Passed: true, Message: "no substrate source directory detected; skipping",
 		}, nil
@@ -290,7 +294,7 @@ func (g *MagicStringDuplicationGate) Evaluate(ctx *VerifyContext) (*GateResult, 
 	counts := make(map[string]map[string]int)
 	baseCounts := make(map[string]map[string]int)
 	fset := token.NewFileSet()
-	WalkTargetFiles(ctx, targetDir, func(path string, info os.FileInfo, err error) error {
+	vscope.WalkTargetFiles(ctx, targetDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info == nil || info.IsDir() || !isPolyglotTargetFile(path) {
 			return nil
 		}
@@ -315,7 +319,7 @@ func (g *MagicStringDuplicationGate) Evaluate(ctx *VerifyContext) (*GateResult, 
 	}
 
 	if len(duplicates) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(), ProbeID: "magic_string_duplication", Law: 5, Ring: RingSyntactic,
 			Passed:  false,
 			Message: fmt.Sprintf("detected %d magic string duplications:\n    - %s", len(duplicates), strings.Join(duplicates, "\n    - ")),
@@ -323,7 +327,7 @@ func (g *MagicStringDuplicationGate) Evaluate(ctx *VerifyContext) (*GateResult, 
 		}, nil
 	}
 
-	return &GateResult{
+	return &vscope.GateResult{
 		GateName: g.Name(), ProbeID: "magic_string_duplication", Law: 5, Ring: RingSyntactic,
 		Passed: true, Message: "zero magic string duplications detected",
 	}, nil
@@ -349,7 +353,7 @@ func isIgnoredLiteral(val string) bool {
 	return common[val]
 }
 
-func resolveArchRoot(ctx *VerifyContext) string {
+func resolveArchRoot(ctx *vscope.VerifyContext) string {
 	if ctx != nil && ctx.WorktreePath != "" {
 		return ctx.WorktreePath
 	}

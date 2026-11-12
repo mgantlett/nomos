@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"github.com/mgantlett/nomos/substrate/cli/taskui"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -277,7 +278,7 @@ func TestTaskCmd_DependsOnBlocksWavefront(t *testing.T) {
 func TestTaskCmd_Prune(t *testing.T) {
 	_ = setupTaskTestDB(t)
 
-	pruneCmd := newTaskPruneCmd()
+	pruneCmd := taskui.NewTaskPruneCmd()
 	buf := new(bytes.Buffer)
 	pruneCmd.SetOut(buf)
 	pruneCmd.SetErr(buf)

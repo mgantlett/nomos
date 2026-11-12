@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/mgantlett/nomos/substrate/cli/selfupdate"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -49,13 +50,13 @@ func TestScaffoldOpenCodePlugin_PreservesUserPluginsAndIdempotentMerge(t *testin
 }
 
 func TestMergeOpenCodePluginContent_MarkersAndCustomCode(t *testing.T) {
-	tmpl, err := DefaultOpenCodePluginTS()
+	tmpl, err := selfupdate.DefaultOpenCodePluginTS()
 	if err != nil {
 		t.Fatalf("DefaultOpenCodePluginTS: %v", err)
 	}
 
-	withCustomBanner := "// Team header\n" + openCodePluginStartMarker + "\n// old\n" + openCodePluginEndMarker + "\nexport const Extra = 1;\n"
-	merged := string(mergeOpenCodePluginContent([]byte(withCustomBanner), tmpl))
+	withCustomBanner := "// Team header\n" + selfupdate.OpenCodePluginStartMarker + "\n// old\n" + selfupdate.OpenCodePluginEndMarker + "\nexport const Extra = 1;\n"
+	merged := string(selfupdate.MergeOpenCodePluginContent([]byte(withCustomBanner), tmpl))
 	if !strings.Contains(merged, "// Team header") || !strings.Contains(merged, "export const Extra = 1;") {
 		t.Fatalf("expected custom header and footer preserved, got:\n%s", merged)
 	}
@@ -64,7 +65,7 @@ func TestMergeOpenCodePluginContent_MarkersAndCustomCode(t *testing.T) {
 	}
 
 	unmarkedUserFile := "export const TeamAudit = async () => ({});\n"
-	appended := string(mergeOpenCodePluginContent([]byte(unmarkedUserFile), tmpl))
+	appended := string(selfupdate.MergeOpenCodePluginContent([]byte(unmarkedUserFile), tmpl))
 	if !strings.Contains(appended, "TeamAudit") || !strings.Contains(appended, "NomosGovernancePlugin") {
 		t.Fatalf("expected unmarked file to retain user export alongside Nomos plugin, got:\n%s", appended)
 	}

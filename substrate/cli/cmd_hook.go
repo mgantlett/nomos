@@ -5,6 +5,8 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/cli/selfupdate"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"io"
 	"strings"
 	"time"
@@ -33,7 +35,7 @@ func NewHookCmd() *cobra.Command {
 		Short: "Execute compiled zero-dependency agent lifecycle hooks (session-start, pre-tool, post-tool, stop, install)",
 		Long: `Native compiled Go hook interceptors for Tier 1 coding agents (Claude Code, Gemini CLI, OpenCode, Cursor, Antigravity).
 Reads JSON hook payloads from stdin with zero external jq/bash/python dependencies.`,
-		Example: helpHookExample,
+		Example: tui.HelpHookExample,
 	}
 
 	cmd.PersistentFlags().StringVar(&hermeticDir, "hermetic-dir", "", "Confine file mutations and shell paths to a container/sandbox root directory")
@@ -59,8 +61,8 @@ func newHookSessionStartCmd(hermeticDir *string, budgetSec *int) *cobra.Command 
 	return &cobra.Command{
 		Use:     "session-start",
 		Short:   "Execute SessionStart orientation handshake from JSON stdin payload",
-		Long:    helpHookSessionStartLong,
-		Example: helpHookSessionStartExample,
+		Long:    tui.HelpHookSessionStartLong,
+		Example: tui.HelpHookSessionStartExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			raw, err := io.ReadAll(cmd.InOrStdin())
 			if err != nil {
@@ -99,8 +101,8 @@ func newHookPreToolCmd(hermeticDir *string, containerSandbox *bool, budgetSec *i
 	return &cobra.Command{
 		Use:     "pre-tool",
 		Short:   "Evaluate Law 3 boundary isolation and Law 7 command safety on PreToolUse payload",
-		Long:    helpHookPreToolLong,
-		Example: helpHookPreToolExample,
+		Long:    tui.HelpHookPreToolLong,
+		Example: tui.HelpHookPreToolExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			raw, err := io.ReadAll(cmd.InOrStdin())
 			if err != nil {
@@ -119,8 +121,8 @@ func newHookPostToolCmd(hermeticDir *string, containerSandbox *bool, budgetSec *
 	return &cobra.Command{
 		Use:     "post-tool",
 		Short:   "Evaluate Law 4 zero-footprint in-memory AST and syntax radar on PostToolUse payload",
-		Long:    helpHookPostToolLong,
-		Example: helpHookPostToolExample,
+		Long:    tui.HelpHookPostToolLong,
+		Example: tui.HelpHookPostToolExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			raw, err := io.ReadAll(cmd.InOrStdin())
 			if err != nil {
@@ -284,16 +286,16 @@ func formatPlainHandshakeBannerWithRoot(ev *handshake.HandshakeEvent, hookRoot s
 
 func appendPlainUpdateAndDriftAdvisories(b *strings.Builder, hookRoot string, allowUpdateCheck bool) {
 	if allowUpdateCheck {
-		binPath, err := resolveCurrentBinaryPath()
+		binPath, err := selfupdate.ResolveCurrentBinaryPath()
 		if err != nil {
 			binPath = ""
 		}
-		if updNotice := RefreshAndFormatUpdateNotice(RootCmdVersion, binPath, time.Now()); updNotice != "" {
+		if updNotice := selfupdate.RefreshAndFormatUpdateNotice(RootCmdVersion, binPath, time.Now()); updNotice != "" {
 			b.WriteString(fmt.Sprintf("  Update Available  : %s\n", updNotice))
 		}
 	}
 	if hookRoot != "" {
-		if driftNotice := FormatWorkspaceDriftNotice(hookRoot); driftNotice != "" {
+		if driftNotice := selfupdate.FormatWorkspaceDriftNotice(hookRoot); driftNotice != "" {
 			b.WriteString(fmt.Sprintf("  Contract Sync     : %s\n", driftNotice))
 		}
 	}

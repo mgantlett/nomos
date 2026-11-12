@@ -4,6 +4,7 @@ package verify
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -172,12 +173,12 @@ func collectVerifiedVectorRefs(root string) map[string]bool {
 			return nil
 		}
 		if info.IsDir() {
-			if isSkippedObligationDir(info.Name()) {
+			if impact.IsSkippedObligationDir(info.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		if isVerificationSuiteFile(info.Name()) {
+		if impact.IsVerificationSuiteFile(info.Name()) {
 			scanFileVectorRefs(path, refs)
 		}
 		return nil
@@ -186,34 +187,6 @@ func collectVerifiedVectorRefs(root string) map[string]bool {
 		return refs
 	}
 	return refs
-}
-
-func isSkippedObligationDir(name string) bool {
-	switch name {
-	case ".git", "node_modules", "worktrees", "vendor", ".svelte-kit", "dist", "build", "intent":
-		return true
-	default:
-		return false
-	}
-}
-
-func isVerificationSuiteFile(name string) bool {
-	lower := strings.ToLower(name)
-	for _, suffix := range []string{
-		"_test.go", "_test.py", "_test.rs", "_spec.rb", "_test.rb",
-		"test.java", "tests.java", "test.kt", "tests.kt", "spec.kt",
-		"test.cs", "tests.cs", "_test.c", "_test.cc", "_test.cpp", "_test.cxx",
-	} {
-		if strings.HasSuffix(lower, suffix) {
-			return true
-		}
-	}
-	for _, prefix := range []string{"test_", "spec_"} {
-		if strings.HasPrefix(lower, prefix) {
-			return true
-		}
-	}
-	return strings.Contains(lower, ".test.") || strings.Contains(lower, ".spec.")
 }
 
 func scanFileVectorRefs(path string, refs map[string]bool) {

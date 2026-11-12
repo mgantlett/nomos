@@ -3,6 +3,8 @@ package verify
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -13,12 +15,12 @@ import (
 
 const maxTestComplexity = 25
 
-func evaluateTestComplexityViolations(ctx *VerifyContext, root string) []string {
-	var testFuncs []FunctionMetric
+func evaluateTestComplexityViolations(ctx *vscope.VerifyContext, root string) []string {
+	var testFuncs []astdebt.FunctionMetric
 	fset := token.NewFileSet()
 
-	walkErr := WalkTargetFiles(ctx, root, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info == nil || info.IsDir() || isExcludedPolyglotDir(filepath.ToSlash(path)) {
+	walkErr := vscope.WalkTargetFiles(ctx, root, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info == nil || info.IsDir() || vscope.IsExcludedPolyglotDir(filepath.ToSlash(path)) {
 			return nil
 		}
 		rel, rErr := filepath.Rel(root, path)
@@ -28,7 +30,7 @@ func evaluateTestComplexityViolations(ctx *VerifyContext, root string) []string 
 		if !isPolyglotTestFilePath(rel) {
 			return nil
 		}
-		if strings.HasSuffix(path, extGo) {
+		if strings.HasSuffix(path, astdebt.ExtGo) {
 			if node, pErr := parser.ParseFile(fset, path, nil, 0); pErr == nil {
 				collectFunctionMetrics(node, fset, rel, &testFuncs)
 			}
@@ -50,10 +52,10 @@ func evaluateTestComplexityViolations(ctx *VerifyContext, root string) []string 
 	return out
 }
 
-func filterRatchetedTestComplexity(ctx *VerifyContext, root string, funcs []FunctionMetric) []FunctionMetric {
-	ratchet := isBrownfieldRatchetActive(ctx)
-	baseCache := make(map[string]map[string]FunctionMetric)
-	var out []FunctionMetric
+func filterRatchetedTestComplexity(ctx *vscope.VerifyContext, root string, funcs []astdebt.FunctionMetric) []astdebt.FunctionMetric {
+	ratchet := vscope.IsBrownfieldRatchetActive(ctx)
+	baseCache := make(map[string]map[string]astdebt.FunctionMetric)
+	var out []astdebt.FunctionMetric
 	for _, fn := range funcs {
 		if fn.Complexity <= maxTestComplexity {
 			continue
@@ -90,7 +92,7 @@ func hasCoupledGoPackageTests(dir string) bool {
 	var testFiles []*ast.File
 
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), extGo) {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), astdebt.ExtGo) {
 			continue
 		}
 		parsed, pErr := parser.ParseFile(fset, filepath.Join(dir, e.Name()), nil, 0)
@@ -98,7 +100,7 @@ func hasCoupledGoPackageTests(dir string) bool {
 			// Defer syntax error reporting to GoToolchainGate rather than double-flagging TDD.
 			return true
 		}
-		if strings.HasSuffix(e.Name(), suffixGoTest) {
+		if strings.HasSuffix(e.Name(), astdebt.SuffixGoTest) {
 			testFiles = append(testFiles, parsed)
 			continue
 		}
@@ -164,4 +166,3 @@ func anyGoTestReferencesDeclared(testFiles []*ast.File, declared map[string]bool
 	}
 	return false
 }
-

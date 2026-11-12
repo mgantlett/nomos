@@ -115,6 +115,7 @@ type ThresholdsConfig struct {
 	MinCloneLines             int `yaml:"min_clone_lines,omitempty" json:"min_clone_lines,omitempty"`
 	MaxFuncParams             int `yaml:"max_func_params,omitempty" json:"max_func_params,omitempty"`
 	MaxMagicStringDuplication int `yaml:"max_magic_string_duplication,omitempty" json:"max_magic_string_duplication,omitempty"`
+	MaxPackageFiles           int `yaml:"max_package_files,omitempty" json:"max_package_files,omitempty"`
 }
 
 // ArchitectureBoundaryRule declares directional import obligations for source globs (#ArchitectureBoundaryRule).
@@ -200,7 +201,7 @@ type EcosystemConfig struct {
 	Governance    GovernanceConfig `yaml:"governance" json:"governance"`
 }
 
-// DefaultNomosConfig returns a clean, downstream-safe baseline configuration.
+// DefaultNomosConfig returns a clean, downstream-safe baseline configuration (@intent intent.md go_ssot_and_json_schema_spec.md #EcosystemConfig).
 func DefaultNomosConfig() *EcosystemConfig {
 	polyglot := true
 	return &EcosystemConfig{
@@ -223,6 +224,7 @@ func DefaultNomosConfig() *EcosystemConfig {
 					MinCloneLines:             18,
 					MaxFuncParams:             8,
 					MaxMagicStringDuplication: 10,
+					MaxPackageFiles:           40,
 				},
 			},
 		},

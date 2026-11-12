@@ -2,6 +2,9 @@ package verify
 
 import (
 	"fmt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/polyrun"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -17,7 +20,7 @@ type UncheckedErrorsGate struct{}
 
 func (g *UncheckedErrorsGate) Name() string { return "Unchecked Error Hygiene Invariant" }
 
-func (g *UncheckedErrorsGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
+func (g *UncheckedErrorsGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
 	root := ctx.WorktreePath
 	if root == "" {
 		root = ctx.RepoRoot
@@ -25,7 +28,7 @@ func (g *UncheckedErrorsGate) Evaluate(ctx *VerifyContext) (*GateResult, error) 
 	var violations []string
 	fset := token.NewFileSet()
 
-	err := WalkTargetFiles(ctx, root, func(path string, info os.FileInfo, walkErr error) error {
+	err := vscope.WalkTargetFiles(ctx, root, func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil || info == nil || info.IsDir() || !isPolyglotTargetFile(path) {
 			return nil
 		}
@@ -60,14 +63,14 @@ func (g *UncheckedErrorsGate) Evaluate(ctx *VerifyContext) (*GateResult, error) 
 	}
 
 	if len(violations) > 0 {
-		return &GateResult{
+		return &vscope.GateResult{
 			GateName: g.Name(),
 			Passed:   false,
 			Message:  fmt.Sprintf("detected %d unchecked error discard(s):\n    - %s", len(violations), strings.Join(violations, "\n    - ")),
 			Remedy:   "handle errors explicitly instead of discarding with blank identifier `_` (Law 7)",
 		}, nil
 	}
-	return &GateResult{GateName: g.Name(), Passed: true, Message: "zero unchecked error suppressions detected"}, nil
+	return &vscope.GateResult{GateName: g.Name(), Passed: true, Message: "zero unchecked error suppressions detected"}, nil
 }
 
 func isIgnoredCallExpr(call *ast.CallExpr) bool {
@@ -120,14 +123,31 @@ func checkUncheckedErrorsInFile(file *ast.File, fset *token.FileSet, relPath str
 	})
 }
 
+func evaluatePolyglotUncheckedFile(ctx *vscope.VerifyContext, root, path string) []string {
+	ext := strings.ToLower(filepath.Ext(path))
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	rel, rErr := filepath.Rel(root, path)
+	if rErr != nil {
+		rel = path
+	}
+	rel = filepath.ToSlash(rel)
+	cur := astdebt.CheckPolyglotUncheckedErrors(ext, rel, raw)
+	return filterNetNewLineViolations(ctx, root, path, cur, func(baseBytes []byte) []string {
+		return astdebt.CheckPolyglotUncheckedErrors(ext, rel, baseBytes)
+	})
+}
+
 // GoToolchainGate asserts clean compilation under the standard Go toolchain.
 type GoToolchainGate struct{}
 
 func (g *GoToolchainGate) Name() string { return "Go Toolchain Gate" }
 
-func (g *GoToolchainGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
-	if os.Getenv(envInToolchainGate) == "1" {
-		return &GateResult{GateName: g.Name(), Passed: true, Message: "re-entrant toolchain execution bypassed"}, nil
+func (g *GoToolchainGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult, error) {
+	if os.Getenv(polyrun.EnvInToolchainGate) == "1" {
+		return &vscope.GateResult{GateName: g.Name(), Passed: true, Message: "re-entrant toolchain execution bypassed"}, nil
 	}
 	root := ctx.WorktreePath
 	if root == "" {
@@ -135,14 +155,14 @@ func (g *GoToolchainGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	}
 	targetDir := resolveGoTargetDir(root)
 	var stacks []string
-	var rec *ToolchainSuiteReceipt
+	var rec *polyrun.ToolchainSuiteReceipt
 	if targetDir != "" {
-		rec = evaluateSharedGoSuite(ctx, root, targetDir)
+		rec = polyrun.EvaluateSharedGoSuite(ctx, root, targetDir)
 		if !rec.GoPassed {
-			return &GateResult{
+			return &vscope.GateResult{
 				GateName: g.Name(),
 				Passed:   false,
-				Message:  fmt.Sprintf("Go compilation/test failed: %s", truncateToolchainOutput(rec.GoOutput)),
+				Message:  fmt.Sprintf("Go compilation/test failed: %s", polyrun.TruncateToolchainOutput(rec.GoOutput)),
 				Remedy:   "resolve Go compiler and test errors (GOWORK=off go test ./...)",
 			}, nil
 		}
@@ -155,28 +175,28 @@ func (g *GoToolchainGate) Evaluate(ctx *VerifyContext) (*GateResult, error) {
 	}
 	stacks = append(stacks, polyStacks...)
 	if len(stacks) == 0 {
-		return &GateResult{GateName: g.Name(), Passed: true, Message: "no Go or polyglot toolchain module detected in scope"}, nil
+		return &vscope.GateResult{GateName: g.Name(), Passed: true, Message: "no Go or polyglot toolchain module detected in scope"}, nil
 	}
-	return &GateResult{GateName: g.Name(), Passed: true, Message: fmt.Sprintf("verified toolchains: %s", strings.Join(stacks, ", "))}, nil
+	return &vscope.GateResult{GateName: g.Name(), Passed: true, Message: fmt.Sprintf("verified toolchains: %s", strings.Join(stacks, ", "))}, nil
 }
 
-func evaluateOrReusePolyglotToolchains(ctx *VerifyContext, root string, rec *ToolchainSuiteReceipt) ([]string, *GateResult) {
-	if rec != nil && rec.CacheHit && rec.PolyglotVerified && canUseToolchainReceiptCache(ctx) {
+func evaluateOrReusePolyglotToolchains(ctx *vscope.VerifyContext, root string, rec *polyrun.ToolchainSuiteReceipt) ([]string, *vscope.GateResult) {
+	if rec != nil && rec.CacheHit && rec.PolyglotVerified && polyrun.CanUseToolchainReceiptCache(ctx) {
 		return rec.PolyglotStacks, nil
 	}
-	polyStacks, polyFail := evaluatePolyglotToolchains(ctx, root)
+	polyStacks, polyFail := polyrun.EvaluatePolyglotToolchains(ctx, root)
 	if polyFail != nil {
 		return nil, polyFail
 	}
 	if rec != nil && rec.GoPassed && !rec.GoSkippedNonGo && rec.SnapshotSHA256 != "" {
 		rec.PolyglotVerified = true
 		rec.PolyglotStacks = polyStacks
-		trySaveDiskReceipt(ctx, rec.SnapshotSHA256, rec)
+		polyrun.TrySaveDiskReceipt(ctx, rec.SnapshotSHA256, rec)
 	}
 	return polyStacks, nil
 }
 
-func formatGoToolchainStackLabel(rec *ToolchainSuiteReceipt) string {
+func formatGoToolchainStackLabel(rec *polyrun.ToolchainSuiteReceipt) string {
 	if rec != nil && rec.GoSkippedNonGo {
 		return "Go(diff-scoped skip)"
 	}

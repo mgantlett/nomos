@@ -1,6 +1,8 @@
 package verify
 
 import (
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/polyrun"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -28,18 +30,18 @@ func TestHasLocalGoWorkAndBuildEnv_AncestorMembership(t *testing.T) {
 		")",
 	}, "\n"))
 
-	if !hasLocalGoWork(enrolledRepo, enrolledSub) {
+	if !astdebt.HasLocalGoWork(enrolledRepo, enrolledSub) {
 		t.Fatalf("expected enrolled module %s to resolve active ancestor go.work", enrolledSub)
 	}
-	enrolledEnv := buildGoToolchainEnv(enrolledRepo, enrolledSub)
+	enrolledEnv := polyrun.BuildGoToolchainEnv(enrolledRepo, enrolledSub)
 	if slices.Contains(enrolledEnv, "GOWORK=off") {
 		t.Errorf("expected GOWORK=off to be omitted for enrolled ancestor go.work member, got:\n%s", strings.Join(enrolledEnv, "\n"))
 	}
 
-	if hasLocalGoWork(brownfieldRepo, brownfieldRepo) {
+	if astdebt.HasLocalGoWork(brownfieldRepo, brownfieldRepo) {
 		t.Fatalf("expected non-enrolled brownfield repo %s to stay isolated from parent go.work", brownfieldRepo)
 	}
-	brownfieldEnv := buildGoToolchainEnv(brownfieldRepo, brownfieldRepo)
+	brownfieldEnv := polyrun.BuildGoToolchainEnv(brownfieldRepo, brownfieldRepo)
 	if !slices.Contains(brownfieldEnv, "GOWORK=off") {
 		t.Errorf("expected GOWORK=off for non-enrolled brownfield repo under parent go.work, got:\n%s", strings.Join(brownfieldEnv, "\n"))
 	}
@@ -51,7 +53,7 @@ func TestHasLocalGoWork_DirectNearestShadowAndSyntaxVariants(t *testing.T) {
 		sub := filepath.Join(repo, "substrate")
 		mustWriteGoFixture(t, filepath.Join(sub, "go.mod"), "module example.com/direct\n\ngo 1.26.0\n")
 		mustWriteGoFixture(t, filepath.Join(repo, "go.work"), "go 1.26.0\nuse ./substrate\n")
-		if !hasLocalGoWork(repo, sub) {
+		if !astdebt.HasLocalGoWork(repo, sub) {
 			t.Fatal("expected direct go.work in root to return true")
 		}
 	})
@@ -64,7 +66,7 @@ func TestHasLocalGoWork_DirectNearestShadowAndSyntaxVariants(t *testing.T) {
 		mustWriteGoFixture(t, filepath.Join(outer, "go.work"), "go 1.26.0\nuse ./sandbox/svc\n")
 		mustWriteGoFixture(t, filepath.Join(inner, "go.work"), "go 1.26.0\nuse ./unrelated\n")
 
-		if hasLocalGoWork(modDir, modDir) {
+		if astdebt.HasLocalGoWork(modDir, modDir) {
 			t.Fatal("expected nearest ancestor go.work without modDir to shadow outer go.work")
 		}
 	})
@@ -82,7 +84,7 @@ func TestHasLocalGoWork_DirectNearestShadowAndSyntaxVariants(t *testing.T) {
 			"user_note // not a use directive",
 		}, "\n"))
 
-		got := parseGoWorkUseDirs(goWork)
+		got := astdebt.ParseGoWorkUseDirs(goWork)
 		want := []string{"./alpha", "./beta//not-comment", "./gamma delta"}
 		if len(got) != len(want) {
 			t.Fatalf("parseGoWorkUseDirs count = %d (%v), want %d (%v)", len(got), got, len(want), want)
@@ -97,7 +99,7 @@ func TestHasLocalGoWork_DirectNearestShadowAndSyntaxVariants(t *testing.T) {
 	t.Run("explicit GOWORK env var preserved", func(t *testing.T) {
 		dir := t.TempDir()
 		t.Setenv("GOWORK", "/custom/go.work")
-		env := strings.Join(buildGoToolchainEnv(dir, dir), "\n")
+		env := strings.Join(polyrun.BuildGoToolchainEnv(dir, dir), "\n")
 		if !strings.Contains(env, "GOWORK=/custom/go.work") {
 			t.Errorf("expected explicit GOWORK override, got:\n%s", env)
 		}
