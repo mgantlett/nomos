@@ -12,12 +12,14 @@ lineage:
   - SUB-2157
   - INT-1976
   - SUB-2241
+  - INT-1986
+  - SUB-2281
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Compiled Go SSoT and Reflected Draft 2020-12 JSON Schema Architecture Specification"
 type: spec
-version: "4.3.0"
+version: "4.4.0"
 ---
 
 # Compiled Go SSoT and Reflected Draft 2020-12 JSON Schema Architecture Specification
@@ -149,6 +151,7 @@ type ThresholdsConfig struct {
 	MinCloneLines             int `yaml:"min_clone_lines,omitempty" json:"min_clone_lines,omitempty"`
 	MaxFuncParams             int `yaml:"max_func_params,omitempty" json:"max_func_params,omitempty"`
 	MaxMagicStringDuplication int `yaml:"max_magic_string_duplication,omitempty" json:"max_magic_string_duplication,omitempty"`
+	MaxPackageFiles           int `yaml:"max_package_files,omitempty" json:"max_package_files,omitempty"`
 }
 
 // JSONSchemaNode models a deterministic JSON Schema Draft 2020-12 node (#JSONSchemaNode).
@@ -249,6 +252,7 @@ type SourceRootResolver interface {
 | `TC-SSOT-03` | `IntentSteelmanGate` | Intent Markdown spec missing `title`/`plane`/`status` or unclosed ```` ``` ```` fence | **FAIL** (Malformed Intent document rejected) |
 | `TC-SSOT-04` | `IntentTraceabilityGate` | `@intent #NonExistentStruct` or `@intent missing_spec.md` in Go docstring | **FAIL** (Unresolved AST type or spec anchor rejected) |
 | `TC-SSOT-05` | `LoadConfig` (`yaml.v3`) | Unknown YAML key in `nomos.yaml` | **FAIL** (`KnownFields(true)` rejects unknown configuration key) |
+| `TC-SSOT-06` | `GenerateConfigJSONSchema` | `ThresholdsConfig.MaxPackageFiles` reflection | **PASS** (Emits `max_package_files` default `40` with minimum `1`) |
 | `TC-ERR-001` | `NewNomosError` | Error constructed with canonical `ERR_*` code and `WithRemedy` | **PASS** (`Validate()` passes and renders remedial CLI hint) |
 | `TC-ERR-002` | `NomosError.Validate` | Error constructed without canonical `ERR_*` code prefix | **FAIL** (`Validate()` rejects unregistered error code) |
 | `TC-ERR-003` | `WithExplainCommand` | Error enriched with `nomos task --help` inspection command | **PASS** (Preserves `ExplainCommand` in structured output) |

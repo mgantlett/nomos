@@ -24,12 +24,14 @@ lineage:
   - SUB-2279
   - INT-1985
   - SUB-2280
+  - INT-1986
+  - SUB-2281
 plane: intent
 ssot_repository: nomos
 status: active
 title: "The Nomos Layer 0 North Star Charter and 4-Layer Progressive Intent Compiler"
 type: spec
-version: "4.15.0"
+version: "4.16.0"
 ---
 
 # The Nomos Layer 0 North Star Charter and 4-Layer Progressive Intent Compiler

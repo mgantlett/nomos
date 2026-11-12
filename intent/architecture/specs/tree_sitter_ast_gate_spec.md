@@ -10,12 +10,14 @@ lineage:
   - SUB-2157
   - INT-1985
   - SUB-2280
+  - INT-1986
+  - SUB-2281
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Tree-sitter AST Gate Engine to Replace Legacy Gen 2 Regex Gates"
 type: spec
-version: "4.1.0"
+version: "4.2.0"
 ---
 
 # Tree-sitter AST Gate Engine
@@ -151,7 +153,8 @@ The engine evaluates extracted AST metrics deterministically against `config.Thr
   "max_file_loc": 400,
   "max_func_loc": 60,
   "min_comment_density_pct": 10,
-  "min_test_coverage_pct": 55
+  "min_test_coverage_pct": 55,
+  "max_package_files": 40
 }
 ```
 
@@ -226,7 +229,7 @@ The Tree-sitter AST Gate Engine directly underpins six automated sensor probes i
 1. **`Cell 2.1 (anti_shim)`**: Detects empty AST blocks, stub bodies, or no-op returns (`return nil`, `{}`) via query `@empty_block`.
 2. **`Cell 2.1 (docstrings)`**: Evaluates docstring adjacency across all exported functions via `@func.doc`.
 3. **`Cell 1.1 (complexity)`**: Computes $M(F)$ for every function using compiled `@branch` queries and emits `file:start-end` 1-turn extraction targets on complexity, LOC, or arity breaches.
-4. **`Cell 1.1 (max_file_loc)`**: Computes exact AST statement counts and line extents excluding trailing blanks.
+4. **`Cell 1.1 (max_file_loc)`**: Enforces file line limits and per-directory source fan-out (`max_package_files`, default `40`; ratcheted on brownfield repos, strict on `nomos`).
 5. **`Cell 1.1 (cognitive_debt)`**: Enforces $CDS \le 45$ on strict files and monotonic `dCDS <= 0` on brownfield files with per-function `dCDS` attribution (`PrescribeRatchetedCDSRecipe`).
 6. **`Cell 5.1 (magic_strings)`**: Scans string literal AST nodes across Go, TypeScript, and Svelte for unconfigured localhost ports or URLs.
 
@@ -253,6 +256,7 @@ The following table-driven verification vectors validate the Tree-sitter AST Gat
 | `TC-POLY-003` | `java` | `/** JavaDoc */\npublic int run(int v) { for (int i=0; i<v; i++) {} return v; }` | `func: run`, `doc: true`, `branches: 1` | $M = 2$, $\text{doc} = 100\%$ | `PASS` | JVM (`java`/`kotlin`) AST metric extraction |
 | `TC-POLY-004` | `csharp` | `public int Check(int x) { if (x == 0) return 1; return x; }` | `func: Check`, `branches: 1` | $M = 2$, $\text{LOC} = 1$ | `PASS` | C# `queries/csharp.scm` AST metric extraction |
 | `TC-TS-11` | `polyglot` | Function exceeds `V(G)`, `LOC`, `MaxFuncParams`, or brownfield `dCDS` | Span `file:start-end` + delta | Exact excess computed | `FAIL` | 1-turn extraction recipe emitted (`go`, `python`, `typescript`) |
+| `TC-TS-12` | `polyglot` | Directory exceeds `MaxPackageFiles` (`40` non-test files) | Directory fan-out counted | Strict or net-new growth | `FAIL` | Sub-package cohesion recipe emitted; legacy brownfield count ratcheted |
 
 ---
 
