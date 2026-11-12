@@ -22,12 +22,14 @@ lineage:
   - SUB-2203
   - INT-1962
   - SUB-2211
+  - INT-1984
+  - SUB-2279
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Nomos Mneme Receipt-Gated Episodic Memory Subsystem Specification"
 type: spec
-version: "4.14.0"
+version: "4.15.0"
 ---
 
 # Nomos Mneme Receipt-Gated Episodic Memory Subsystem Specification
@@ -145,8 +147,19 @@ type MaintainReport struct {
 	WALCheckpointed      bool `json:"wal_checkpointed"`
 }
 
+// HotScopeReflex describes an active directory-scoped post-tool AST reflex (#HotScopeReflex).
+type HotScopeReflex struct {
+	Scope           string   `json:"scope"`
+	RecurrenceDepth int      `json:"recurrence_depth"`
+	CleanStreak     int      `json:"clean_streak"`
+	ActiveGates     []string `json:"active_gates"`
+}
+
 // ValidateAdvisoryWriteKind enforces statutory write provenance for manual CLI saves (@intent: #Memory).
 func ValidateAdvisoryWriteKind(kind MemoryKind) error
+
+// ResolveHotScopeReflex inspects active directory pitfalls for post-tool AST sensitization (@intent: #HotScopeReflex).
+func ResolveHotScopeReflex(repoRoot, relDir string) *HotScopeReflex
 ```
 
 The SQLite persistence schema matches `mem.Memory`:
@@ -203,7 +216,8 @@ $$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{Lexica
 - **Ebbinghaus Temporal Decay**: $\exp(-\lambda \times \text{age}_{\text{days}})$, with kind-specific $\lambda$ (`axiom`: $0.005$, `pattern`: $0.006$, `pitfall`: $0.008$, `reflection`: $0.02$, `release`/`task`/`commit`: $0.05$).
 - **Repository Locality Boost & Global Axiom Slot Cap**: Scoped searches (`opts.RepoID != ""` and `!opts.IncludeCrossRepo`) apply a $1.25\times$ multiplier to exact `repo_id` matches. Untyped repository queries (`opts.Kind == ""`) cap unscoped `global` `axiom` slots at $\max(1, \lfloor \text{limit} / 3 \rfloor)$ and backfill from overflow only when repository matches are sparse.
 - **Access Reinforcement & Per-Task Deduplication**: Applies $1.0 + 0.05 \times \min(\text{access\_count}, 10)$ during active worktree tasks at most once per `(task_id, memory_id)`. Passive `IDLE` orientation (`nomos handshake`, `nomos status`, `nomos task status`) and `nomos mem recall` run read-only (`SearchOptions.ReadOnly = true`) without inflating `access_count`.
-- **Recurrence-Aware Graduation (`RecallGraduationCandidates`)**: Tier-C structural AST gates (`Cognitive Complexity`, `Function Length`, `File Length`, `Docstring Density`, `Statement Coverage`) graduate only when directory-scoped topic recurrence $\ge 2$. Policy-graduatable statutory pitfalls surface as graduation candidates when topic recurrence $\ge 2$ or task-deduplicated `access_count >= 3`.
+- **Recurrence-Aware Graduation & Clean-Streak Cooling (`RecallGraduationCandidates`)**: Built-in structural AST gates (`isBuiltInStructuralASTTopic`) bypass `nomos.yaml` graduation banners in Open-Core handshakes and route into `HotScopeReflex`. Policy-graduatable statutory pitfalls surface when topic recurrence $\ge 2$ or task-deduplicated `access_count >= 3`. Active head pitfalls cool out of `graduation_candidates` once `access_count >= 5` consecutive clean task recalls complete without re-tripping.
+- **Closed-Loop Hot-Scope AST Reflexes (`ResolveHotScopeReflex`)**: When built-in AST pitfalls in `relDir` reach recurrence $\ge 3$ with head `access_count < 5`, `ResolveHotScopeReflex` activates sensitized `EvaluateFastFileRadar` checks. Sensitized scopes tighten `V(G)` and `LOC` warnings from `80%` to `65%` and run inline `arity`, `unchecked_error_hygiene`, and `anti_shim` micro-probes. Reaching head `access_count >= 5` consecutive clean recalls cools the scope back to baseline `80%`.
 - **Symbol-Delta Pitfall Distillation (`DistillTaskLearnings`)**: When a buffered gate failure cites a repository file, 2PC sync parses verified post-fix AST symbols. Distillation prepends `Refactored <file> [<symbols>]` ahead of walkthrough prose.
 - **Unscoped One-Off Pitfall Cooling (`RecallRepoPitfalls`)**: During unscoped handshakes (`targetScope == "workspace"`), single-occurrence pitfalls (`recurrence == 1`) older than 14 days cool out of `LearnedPitfalls`. Pitfalls remain active whenever `modifiedFiles` matches their directory scope or topic recurrence reaches $\ge 2$.
 - **JIT Post-Edit Pitfall Recall & Trunk Pacing (`nomos hook post-tool`)**: First worktree mutation in `relDir` recalls matching directory pitfalls once via `RecallRepoPitfallsForTask` and records `relDir` in session trace. Trunk sessions (`wtRoot == ""`, `SessionID != ""`) track consecutive exploratory reads per session and emit pacing advisories at configured thresholds.
@@ -256,7 +270,7 @@ $$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{Lexica
 | `TC-MEM-05` | Empty content rejection | `nomos mem save ""` | Fails closed: memory content cannot be empty. |
 | `TC-MEM-06` | Statutory provenance guard | `nomos mem save "fake" --kind pattern` or `--kind pitfall` | Fails closed (`ERR_VALIDATION_FAILED`): statutory kinds minted strictly by 2PC `nomos task sync`. |
 | `TC-MEM-07` | Positive-path pattern distillation | Clean 42/42 verified `nomos task sync` | Distills `kind="pattern"` blueprint into `mneme.db` and recalls via `verified_patterns`. |
-| `TC-MEM-08` | Recurrence-aware graduation surfacing | Policy pitfall reaches `access_count >= 3` or built-in AST pitfall recurs across `>= 2` tasks | Surfaced in `graduation_candidates` (`pattern` blueprints and single-occurrence passive AST views excluded). |
+| `TC-MEM-08` | Recurrence-aware graduation surfacing | Policy pitfall recurs `>= 2` or `access_count >= 3` (`< 5`) | Surfaced in `graduation_candidates`; built-in AST gates route to `HotScopeReflex`. |
 | `TC-MEM-09` | Memory dismissal | `nomos mem dismiss <id>` | Transitions record to `tombstoned`; excluded from active recall and `graduation_candidates`. |
 | `TC-MEM-10` | Per-task reinforcement & read-only CLI recall | Repeated `RecallRepoPitfallsForTask` in same task + `SearchOptions{ReadOnly: true}` | Increments `access_count` `+1` per distinct task and `+0` on read-only recall. |
 | `TC-MEM-11` | Symbol-delta pitfall fix distillation | Gate trap cites a repository source file resolved at 2PC sync | `Verified Fix` records concrete refactored file and verified symbols ahead of walkthrough prose. |
@@ -271,12 +285,15 @@ $$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{Lexica
 | `TC-LRN-05` | Duplicate memory superseding | `MaintainReport` deduplication pass on identical topic and content | Marks older duplicate `superseded` and preserves newest record. |
 | `TC-LRN-06` | `mneme.db` WAL checkpoint | Periodic maintenance pass over `mneme.db` (`MaintainReport`) | Checkpoints WAL and reclaims fragmented pages cleanly. |
 | `TC-MNM-030` | JIT pitfall recall & trunk pacing | First `post-tool` edit in `relDir`; consecutive trunk reads | Recalls scoped pitfall once per `relDir`; paces trunk reads (`7/12`, `12/20`). |
+| `TC-MEM-16` | Hot-scope AST reflex sensitization | Built-in AST pitfall reaches `recurrence >= 3` and `access_count < 5` | `ResolveHotScopeReflex` activates `65%` warnings plus `arity`, `unchecked_error_hygiene`, and `anti_shim` probes. |
+| `TC-MEM-17` | Clean-streak homeostatic cooling | Head pitfall reaches `access_count >= 5` consecutive clean recalls | Cools `ResolveHotScopeReflex` to `nil` and suppresses `graduation_candidates` nagging. |
+| `TC-MEM-18` | Built-in AST banner suppression | Built-in AST pitfall recurs `>= 2` times during handshake | Excluded from `nomos.yaml` graduation banners; policy pitfalls remain surfaced. |
 
 ---
 
 ## 7. Cross-Plane Traceability & DoD Verification
 
-- **Intent Lineage**: `INT-735`, `INT-855`, `INT-899`, `INT-926`, `INT-927`, `INT-1944`, `INT-1956`, `INT-1962`.
-- **Substrate SSoT**: `SUB-1213`, `SUB-1524`, `SUB-1680`, `SUB-2157`, `SUB-2203`, `SUB-2211` (`substrate/src/nomos/modules/mem/memory.go`, `substrate/src/nomos/modules/mem/vector.go`, `substrate/src/nomos/modules/mem/search.go`, `substrate/src/nomos/modules/mem/learn.go`, `substrate/src/nomos/modules/mem/learn_reinforce.go`, `substrate/src/nomos/modules/mem/learn_scope.go`, `substrate/src/nomos/modules/mem/patterns.go`, `substrate/src/nomos/modules/mem/maintain.go`, `substrate/cli/cmd_hook_post.go`, `substrate/cli/cmd_hook_pacing.go`, `substrate/cli/cmd_hook_trace.go`).
+- **Intent Lineage**: `INT-735`, `INT-855`, `INT-899`, `INT-926`, `INT-927`, `INT-1944`, `INT-1956`, `INT-1962`, `INT-1984`.
+- **Substrate SSoT**: `SUB-1213`, `SUB-1524`, `SUB-1680`, `SUB-2157`, `SUB-2203`, `SUB-2211`, `SUB-2279` (`substrate/src/nomos/modules/mem/memory.go`, `substrate/src/nomos/modules/mem/vector.go`, `substrate/src/nomos/modules/mem/search.go`, `substrate/src/nomos/modules/mem/learn.go`, `substrate/src/nomos/modules/mem/learn_reinforce.go`, `substrate/src/nomos/modules/mem/learn_scope.go`, `substrate/src/nomos/modules/mem/patterns.go`, `substrate/src/nomos/modules/mem/patterns_recall.go`, `substrate/src/nomos/modules/mem/maintain.go`, `substrate/src/nomos/modules/verify/fast_radar.go`, `substrate/cli/cmd_hook_post.go`, `substrate/cli/cmd_hook_pacing.go`, `substrate/cli/cmd_hook_trace.go`).
 - **Canonical 7x3 Matrix Coordinates**: `Cell 1.1 (boundary)`, `Cell 4.1 (intent_traceability)`, `Cell 6.2 (zero_alias)`.
 - **Deterministic Verification**: `nomos verify` executes unit tests across `substrate/src/nomos/modules/mem/` and validates Database Encapsulation and CLI zero-alias invariants with exit code `0`.
