@@ -1,5 +1,13 @@
 // Package verify implements Intent Steel-Man frontmatter, structural, and NCTE-100 validation (Law 4 & Law 6).
-// @intent intent.md nomos_controlled_technical_english_spec.md
+// @intent intent.md
+// @intent go_ssot_and_json_schema_spec.md
+// @intent mneme_memory_spec.md
+// @intent nomos_controlled_technical_english_spec.md
+// @intent nomos_hermetic_worktree_spec.md
+// @intent nomos_intent_traceability_spec.md
+// @intent software_physics_engine_spec.md
+// @intent task_lifecycle_cli_spec.md
+// @intent tree_sitter_ast_gate_spec.md
 package verify
 
 import (
@@ -25,10 +33,6 @@ const (
 var (
 	// isoDatePattern validates canonical YYYY-MM-DD frontmatter date strings.
 	isoDatePattern = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
-	// semverPattern validates canonical X.Y.Z SemVer strings in YAML frontmatter.
-	semverPattern = regexp.MustCompile(`^\d+\.\d+\.\d+(-[A-Za-z0-9.-]+)?$`)
-	// lineageTaskKeyPattern validates canonical INT-<N> and SUB-<N> lineage entries.
-	lineageTaskKeyPattern = regexp.MustCompile(`^(INT|SUB)-[0-9]+$`)
 
 	validIntentPlanes = map[string]bool{
 		"intent":    true,
@@ -49,30 +53,24 @@ var (
 		"authors":         true,
 		"classification":  true,
 		"date":            true,
-		"last_updated":    true,
-		"lineage":         true,
 		"plane":           true,
 		"ssot_repository": true,
 		"status":          true,
 		"title":           true,
 		"type":            true,
-		"version":         true,
 	}
 )
 
-// intentFrontmatter models the canonical YAML frontmatter schema for Intent documents.
+// intentFrontmatter models the canonical 8-key YAML frontmatter schema for Intent documents.
 type intentFrontmatter struct {
 	Authors        []string `yaml:"authors"`
 	Classification string   `yaml:"classification"`
 	Date           string   `yaml:"date"`
-	LastUpdated    string   `yaml:"last_updated"`
-	Lineage        []string `yaml:"lineage"`
 	Plane          string   `yaml:"plane"`
 	SSoTRepository string   `yaml:"ssot_repository"`
 	Status         string   `yaml:"status"`
 	Title          string   `yaml:"title"`
 	Type           string   `yaml:"type"`
-	Version        string   `yaml:"version"`
 }
 
 // intentSteelmanOptions configures baseline vs strict Steel-Man and NCTE-100 enforcement.
@@ -229,7 +227,7 @@ func validateStrictFrontmatterAllowlist(fmRaw string) string {
 	}
 	if len(disallowed) > 0 {
 		sort.Strings(disallowed)
-		return fmt.Sprintf("disallowed YAML frontmatter key(s) [%s]; only the 10 canonical keys plus optional 'lineage' are permitted (Law 4)", strings.Join(disallowed, ", "))
+		return fmt.Sprintf("disallowed YAML frontmatter key(s) [%s]; only the 8 static identity keys (authors, classification, date, plane, ssot_repository, status, title, type) are permitted (Law 4)", strings.Join(disallowed, ", "))
 	}
 	return ""
 }
@@ -245,22 +243,11 @@ func validateStrictIntentFrontmatter(fm intentFrontmatter) string {
 	if !isoDatePattern.MatchString(strings.TrimSpace(fm.Date)) {
 		return fmt.Sprintf("invalid frontmatter date %q (expected YYYY-MM-DD)", fm.Date)
 	}
-	if strings.TrimSpace(fm.LastUpdated) != "" && !isoDatePattern.MatchString(strings.TrimSpace(fm.LastUpdated)) {
-		return fmt.Sprintf("invalid frontmatter last_updated %q (expected YYYY-MM-DD)", fm.LastUpdated)
-	}
 	if strings.TrimSpace(fm.SSoTRepository) == "" {
 		return "YAML frontmatter missing required non-empty 'ssot_repository'"
 	}
 	if strings.ToLower(strings.TrimSpace(fm.Type)) != docTypeSpec {
 		return fmt.Sprintf("invalid frontmatter type %q (strict Intent corpus requires 'type: spec')", fm.Type)
-	}
-	if strings.TrimSpace(fm.Version) != "" && !semverPattern.MatchString(strings.TrimSpace(fm.Version)) {
-		return fmt.Sprintf("invalid frontmatter version %q (expected SemVer X.Y.Z)", fm.Version)
-	}
-	for _, key := range fm.Lineage {
-		if !lineageTaskKeyPattern.MatchString(strings.TrimSpace(key)) {
-			return fmt.Sprintf("invalid frontmatter lineage task key %q (expected INT-<N> or SUB-<N>)", key)
-		}
 	}
 	return ""
 }

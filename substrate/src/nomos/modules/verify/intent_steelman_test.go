@@ -14,16 +14,11 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-01"
-last_updated: "2026-11-05"
-lineage:
-  - INT-932
-  - SUB-1797
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Sample Steel-Man Specification"
 type: spec
-version: "4.8.0"
 ---
 
 # Sample Steel-Man Specification
@@ -81,21 +76,23 @@ governance:
 `
 
 // TestIntentSteelmanStrictFrontmatterAndNCTE verifies strict Intent frontmatter and NCTE-100 rules.
+// @intent intent.md
+// @intent go_ssot_and_json_schema_spec.md
+// @intent mneme_memory_spec.md
+// @intent nomos_controlled_technical_english_spec.md
+// @intent nomos_hermetic_worktree_spec.md
+// @intent nomos_intent_traceability_spec.md
+// @intent software_physics_engine_spec.md
+// @intent task_lifecycle_cli_spec.md
+// @intent tree_sitter_ast_gate_spec.md
 // @verifies TC-NCTE-09 TC-NCTE-10
 func TestIntentSteelmanStrictFrontmatterAndNCTE(t *testing.T) {
-	eightKeyDoc := strings.Replace(canonicalStrictSpecFixture, "last_updated: \"2026-11-05\"\nlineage:\n  - INT-932\n  - SUB-1797\n", "", 1)
-	eightKeyDoc = strings.Replace(eightKeyDoc, "version: \"4.8.0\"\n", "", 1)
 	cases := []struct {
 		name      string
 		relPath   string
 		content   string
 		wantError string
 	}{
-		{
-			name:    "valid_static_eight_key_spec_passes",
-			relPath: "architecture/specs/static_eight_key_spec.md",
-			content: eightKeyDoc,
-		},
 		{
 			name:    "valid_flat_canonical_spec_passes",
 			relPath: "architecture/specs/sample_spec.md",
@@ -125,10 +122,10 @@ func TestIntentSteelmanStrictFrontmatterAndNCTE(t *testing.T) {
 			wantError: "requires 'type: spec'",
 		},
 		{
-			name:      "rejects_invalid_lineage_task_key",
-			relPath:   "architecture/specs/bad_lineage_spec.md",
-			content:   strings.Replace(canonicalStrictSpecFixture, "  - INT-932", "  - CUST-99", 1),
-			wantError: "invalid frontmatter lineage task key",
+			name:      "rejects_deprecated_lineage_and_last_updated_keys",
+			relPath:   "architecture/specs/deprecated_lineage_spec.md",
+			content:   strings.Replace(canonicalStrictSpecFixture, "plane: intent\n", "last_updated: \"2026-11-12\"\nlineage:\n  - INT-932\nplane: intent\n", 1),
+			wantError: "disallowed YAML frontmatter key(s) [last_updated, lineage]",
 		},
 		{
 			name:      "rejects_unicode_em_dash",
@@ -143,10 +140,10 @@ func TestIntentSteelmanStrictFrontmatterAndNCTE(t *testing.T) {
 			wantError: "ssot_repository",
 		},
 		{
-			name:      "rejects_invalid_version_semver",
-			relPath:   "architecture/specs/bad_ver_spec.md",
-			content:   strings.Replace(canonicalStrictSpecFixture, "version: \"4.8.0\"", "version: \"v4\"", 1),
-			wantError: "invalid frontmatter version",
+			name:      "rejects_deprecated_version_key",
+			relPath:   "architecture/specs/deprecated_ver_spec.md",
+			content:   strings.Replace(canonicalStrictSpecFixture, "type: spec\n", "type: spec\nversion: \"4.8.0\"\n", 1),
+			wantError: "disallowed YAML frontmatter key(s) [version]",
 		},
 		{
 			name:      "rejects_ncte_ambiguous_modal",
