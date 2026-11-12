@@ -7,7 +7,7 @@ import (
 
 func TestEvaluateSentinelCleanSession(t *testing.T) {
 	tempDir := t.TempDir()
-	cargoDir := filepath.Join(tempDir, "sophia-cargo")
+	cargoDir := filepath.Join(tempDir, "demo-cargo")
 	wtDir := filepath.Join(cargoDir, "worktrees", "cargo-SUB-1088")
 
 	detail := &SessionDetail{
@@ -39,7 +39,7 @@ func TestEvaluateSentinelCleanSession(t *testing.T) {
 
 func TestEvaluateSentinelViolations(t *testing.T) {
 	tempDir := t.TempDir()
-	cargoDir := filepath.Join(tempDir, "sophia-cargo")
+	cargoDir := filepath.Join(tempDir, "demo-cargo")
 
 	detail := &SessionDetail{
 		AgentSession: AgentSession{

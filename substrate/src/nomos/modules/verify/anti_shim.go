@@ -73,6 +73,9 @@ func checkTrivialPassShim(fn *ast.FuncDecl) bool {
 }
 
 func isTrivialGateReturn(ret *ast.ReturnStmt) bool {
+	if ret == nil || len(ret.Results) == 0 {
+		return false
+	}
 	comp := extractGateCompositeLit(ret.Results[0])
 	if comp == nil {
 		return false
@@ -98,6 +101,9 @@ func extractGateCompositeLit(expr ast.Expr) *ast.CompositeLit {
 		return nil
 	}
 	if ident, ok := comp.Type.(*ast.Ident); ok && ident.Name == "GateResult" {
+		return comp
+	}
+	if sel, ok := comp.Type.(*ast.SelectorExpr); ok && sel.Sel != nil && sel.Sel.Name == "GateResult" {
 		return comp
 	}
 	return nil

@@ -114,25 +114,52 @@ func findCodebaseGoFiles(root string) []string {
 	return files
 }
 
+// sampleRealFunctions selects up to maxSamples representative functions distributed across distinct files.
 func sampleRealFunctions(files []string, maxSamples int) []*ast.FuncDecl {
+	if maxSamples <= 0 {
+		return nil
+	}
 	fset := token.NewFileSet()
-	var samples []*ast.FuncDecl
+	var samples, overflow []*ast.FuncDecl
 	for _, file := range files {
-		parsed, err := parser.ParseFile(fset, file, nil, 0)
-		if err != nil {
+		first, extra := collectFileSampleFuncs(fset, file, maxSamples-len(samples)-len(overflow))
+		if first == nil {
 			continue
 		}
-		for _, decl := range parsed.Decls {
-			fn, ok := decl.(*ast.FuncDecl)
-			if ok && fn.Body != nil && len(fn.Body.List) > 0 {
-				samples = append(samples, fn)
-				if len(samples) >= maxSamples {
-					return samples
-				}
-			}
+		samples = append(samples, first)
+		if len(samples) >= maxSamples {
+			return samples
+		}
+		overflow = append(overflow, extra...)
+	}
+	need := maxSamples - len(samples)
+	if need > len(overflow) {
+		need = len(overflow)
+	}
+	return append(samples, overflow[:need]...)
+}
+
+func collectFileSampleFuncs(fset *token.FileSet, file string, overflowBudget int) (*ast.FuncDecl, []*ast.FuncDecl) {
+	parsed, err := parser.ParseFile(fset, file, nil, 0)
+	if err != nil {
+		return nil, nil
+	}
+	var first *ast.FuncDecl
+	var extra []*ast.FuncDecl
+	for _, decl := range parsed.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Body == nil || len(fn.Body.List) == 0 {
+			continue
+		}
+		if first == nil {
+			first = fn
+			continue
+		}
+		if len(extra) < overflowBudget {
+			extra = append(extra, fn)
 		}
 	}
-	return samples
+	return first, extra
 }
 
 // EvaluateMutationSensitivity tests the gate suite against real codebase and synthetic mutants.
@@ -286,30 +313,51 @@ func EvaluateNonVacuousGates(repoRoot string) (int, int, error) {
 
 func evaluateASTGateDirectory(verifyDir string) (int, int, error) {
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, verifyDir, func(fi os.FileInfo) bool {
-		return strings.HasSuffix(fi.Name(), ".go") && !strings.HasSuffix(fi.Name(), "_test.go")
-	}, 0)
-	if err != nil {
-		return 0, 0, types.NewNomosError(types.ErrCodeCore, "failed parsing verify module AST: %v", err)
-	}
-
 	nonVacuous := 0
 	totalGates := 0
-	for _, pkg := range pkgs {
-		for _, file := range pkg.Files {
-			for _, decl := range file.Decls {
-				fn, ok := decl.(*ast.FuncDecl)
-				if !ok || fn.Name.Name != "Evaluate" || fn.Recv == nil || len(fn.Recv.List) == 0 {
-					continue
-				}
-				totalGates++
-				if isNonVacuousEvaluate(fn) {
-					nonVacuous++
-				}
-			}
+
+	walkErr := filepath.Walk(verifyDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info == nil {
+			return err
 		}
+		if info.IsDir() {
+			if strings.HasPrefix(info.Name(), ".") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(info.Name(), ".go") || strings.HasSuffix(info.Name(), "_test.go") {
+			return nil
+		}
+		fileAST, pErr := parser.ParseFile(fset, path, nil, 0)
+		if pErr != nil {
+			return types.NewNomosError(types.ErrCodeCore, "failed parsing verify module AST (%s): %v", path, pErr)
+		}
+		nv, tot := countEvaluateMethodsInFile(fileAST)
+		nonVacuous += nv
+		totalGates += tot
+		return nil
+	})
+	if walkErr != nil {
+		return 0, 0, walkErr
 	}
 	return nonVacuous, totalGates, nil
+}
+
+func countEvaluateMethodsInFile(fileAST *ast.File) (int, int) {
+	nonVacuous := 0
+	total := 0
+	for _, decl := range fileAST.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Name.Name != "Evaluate" || fn.Recv == nil || len(fn.Recv.List) == 0 {
+			continue
+		}
+		total++
+		if isNonVacuousEvaluate(fn) {
+			nonVacuous++
+		}
+	}
+	return nonVacuous, total
 }
 
 func evaluateCompiledGatesInMemory() (int, int, error) {
