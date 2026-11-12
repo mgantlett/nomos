@@ -57,7 +57,7 @@ func verifyZeroDogfoodLeakageInInit(t *testing.T, repoDir, rawYAML string) {
 
 func verifyUncommentedTemplateStrictParity(t *testing.T, rawYAML string) {
 	t.Helper()
-	yamlKeyOrItemRe := regexp.MustCompile(`^(\s*)# (\s*(?:[a-z_]+:|-\s+["'][^"']+["']))(.*)$`)
+	yamlKeyOrItemRe := regexp.MustCompile(`^(\s*)# (\s*(?:[a-z_]+:|-\s+(?:[a-z_]+:|["'][^"']+["'])))(.*)$`)
 	var uncommentedLines []string
 	for _, line := range strings.Split(rawYAML, "\n") {
 		if m := yamlKeyOrItemRe.FindStringSubmatch(line); m != nil {

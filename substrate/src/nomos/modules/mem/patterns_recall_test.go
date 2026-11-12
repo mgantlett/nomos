@@ -89,3 +89,16 @@ func TestResolveHotScopeReflexAndCleanStreakCooling(t *testing.T) {
 	}
 }
 
+func TestRecallRepoPatterns_DayZeroArchitectureFallback(t *testing.T) {
+	t.Setenv("NOMOS_HOME", t.TempDir())
+	repo := filepath.Join(t.TempDir(), "cold-brownfield")
+	baseline := "[Architecture Baseline in cold-brownfield (INIT)] stack=[Python] roots=[app] boundaries=[app-domain-purity]"
+	if err := SeedRepositoryArchitectureBaseline(repo, baseline); err != nil {
+		t.Fatalf("seed baseline: %v", err)
+	}
+	got := RecallRepoPatternsReadOnly(repo, "", nil, 3)
+	if len(got) != 1 || !strings.Contains(got[0], "app-domain-purity") {
+		t.Fatalf("expected cold-start fallback to recall Day-0 architecture baseline, got: %v", got)
+	}
+}
+

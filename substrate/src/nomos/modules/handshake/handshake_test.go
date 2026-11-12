@@ -1,11 +1,14 @@
 package handshake_test
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/handshake"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/mem"
 )
 
 func TestBuildAndValidateHandshakeEvent(t *testing.T) {
@@ -149,5 +152,37 @@ func TestListDirectives_Metadata(t *testing.T) {
 	}
 	if !foundTaxonomy {
 		t.Errorf("00_index_and_taxonomy.md not found in ListDirectives")
+	}
+}
+
+// @verifies TC-INIT-02
+func TestSynthesizeDynamicHandshake_ColdStartArchitectureAndLeanChore(t *testing.T) {
+	t.Setenv("NOMOS_HOME", t.TempDir())
+	repoDir := filepath.Join(t.TempDir(), "lean-brownfield")
+	if err := os.MkdirAll(filepath.Join(repoDir, "src"), 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	cfgYAML := "project: lean-brownfield\ndefault_branch: main\ngovernance:\n  boundary:\n    enforce: true\n  quality_gates:\n    strict_mode: false\n    thresholds:\n      max_file_loc: 400\n      max_func_loc: 60\n      max_cyclomatic_complexity: 15\n      max_cognitive_debt_score: 45\n      min_comment_density_pct: 10\n      min_test_coverage_pct: 55\n"
+	if err := os.WriteFile(filepath.Join(repoDir, "nomos.yaml"), []byte(cfgYAML), 0644); err != nil {
+		t.Fatalf("write nomos.yaml: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(repoDir, "src", "app.py"), []byte("def run():\n    return 1\n"), 0644); err != nil {
+		t.Fatalf("write app.py: %v", err)
+	}
+	if err := mem.SeedRepositoryArchitectureBaseline(repoDir, "[Architecture Baseline in lean-brownfield (INIT)] stack=[python] roots=[src]"); err != nil {
+		t.Fatalf("seed baseline: %v", err)
+	}
+
+	ev, err := handshake.SynthesizeDynamicHandshake(repoDir)
+	if err != nil {
+		t.Fatalf("SynthesizeDynamicHandshake: %v", err)
+	}
+	if len(ev.VerifiedPatterns) != 1 || !strings.Contains(ev.VerifiedPatterns[0], "Architecture Baseline") {
+		t.Fatalf("expected cold-start VerifiedPatterns to surface Day-0 architecture baseline, got: %v", ev.VerifiedPatterns)
+	}
+	for _, act := range ev.NextActions {
+		if strings.Contains(act.Command, "nomos task create") {
+			t.Fatalf("expected intent_twin_mode=off IDLE handshake to omit task create ceremony, got: %+v", ev.NextActions)
+		}
 	}
 }

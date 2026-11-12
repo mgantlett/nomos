@@ -11,10 +11,13 @@ import (
 	"strings"
 
 	"github.com/mgantlett/nomos/substrate/cli/tui"
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/constants"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/storage"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/handshake"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/mem"
 	"github.com/spf13/cobra"
 )
 
@@ -62,6 +65,7 @@ func executeInit(dir string) error {
 	if dbErr := verifyDatabaseConnectivity(); dbErr != nil {
 		return dbErr
 	}
+	seedDayZeroBrownfieldMemory(absDir)
 
 	defaultBranch := detectDefaultBranch(absDir)
 	printInitializationSummary(absDir, isGitRepo, createdBaselineCommit, defaultBranch)
@@ -118,6 +122,22 @@ func verifyDatabaseConnectivity() error {
 		// safe to continue
 	}
 	return nil
+}
+
+// seedDayZeroBrownfieldMemory persists a Day-0 Mneme architecture baseline for brownfield repositories (@intent task_lifecycle_cli_spec.md).
+func seedDayZeroBrownfieldMemory(absDir string) {
+	cfg, err := config.LoadConfig(absDir)
+	if err != nil || cfg == nil || cfg.Governance.QualityGates.StrictMode {
+		return
+	}
+	bf := handshake.SynthesizeBrownfieldTopology(absDir, cfg)
+	summary := handshake.FormatBrownfieldMemorySummary(filepath.Base(absDir), bf)
+	if summary == "" {
+		return
+	}
+	if sErr := mem.SeedRepositoryArchitectureBaseline(absDir, summary); sErr != nil {
+		// best-effort cold-start memory warm-up
+	}
 }
 
 func detectDefaultBranch(dir string) string {

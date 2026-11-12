@@ -87,14 +87,14 @@ func SynthesizeDynamicHandshake(repoRoot string) (*HandshakeEvent, error) {
 	directives := loadPhaseDirectives(primaryRoot, phase)
 	modifiedFiles, impactSummary := computeActiveTaskImpact(treeRoot, activeTask)
 	pitfalls, patterns, graduations := recallMnemeHandshakeContext(primaryRoot, activeTask, modifiedFiles)
-	strictMode, bfTopology := resolveHandshakeGovernance(treeRoot, primaryRoot)
+	strictMode, intentTwinOff, bfTopology := resolveHandshakeGovernance(treeRoot, primaryRoot)
 	staleObligations := resolveHandshakeStaleObligations(primaryRoot)
 
 	wtRoot := ""
 	if activeTask != "" && strings.Contains(filepath.ToSlash(treeRoot), "/worktrees/") {
 		wtRoot = treeRoot
 	}
-	nextActions := types.BuildPhaseNextActions(phase, activeTask, wtRoot, directives, wavefront)
+	nextActions := types.BuildHandshakeNextActions(phase, activeTask, wtRoot, directives, wavefront, intentTwinOff)
 
 	event := &HandshakeEvent{
 		Seat:                 seat,

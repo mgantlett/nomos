@@ -3,6 +3,7 @@ package handshake
 
 import (
 	"bytes"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -28,18 +29,20 @@ type BrownfieldHotspot struct {
 	Lines int    `json:"lines"`
 }
 
-// BrownfieldTopologyBrief provides a compact cold-start repository map for brownfield sessions.
+// BrownfieldTopologyBrief provides a compact cold-start repository map for brownfield sessions (@intent nomos_controlled_technical_english_spec.md #BrownfieldTopologyBrief).
 type BrownfieldTopologyBrief struct {
-	GovernanceMode string              `json:"governance_mode"`
-	VerifyScope    string              `json:"verify_scope,omitempty"`
-	TDDMode        string              `json:"tdd_mode"`
-	CoverageMode   string              `json:"coverage_mode"`
-	Languages      []string            `json:"languages"`
-	TestRunners    []string            `json:"test_runners"`
-	SourceRoots    []string            `json:"source_roots"`
-	TestRoots      []string            `json:"test_roots,omitempty"`
-	SharedModules  []string            `json:"shared_modules,omitempty"`
-	Hotspots       []BrownfieldHotspot `json:"hotspots,omitempty"`
+	GovernanceMode   string              `json:"governance_mode"`
+	VerifyScope      string              `json:"verify_scope,omitempty"`
+	IntentTwinMode   string              `json:"intent_twin_mode,omitempty"`
+	TDDMode          string              `json:"tdd_mode"`
+	CoverageMode     string              `json:"coverage_mode"`
+	Languages        []string            `json:"languages"`
+	TestRunners      []string            `json:"test_runners"`
+	SourceRoots      []string            `json:"source_roots"`
+	TestRoots        []string            `json:"test_roots,omitempty"`
+	SharedModules    []string            `json:"shared_modules,omitempty"`
+	ActiveBoundaries []string            `json:"active_boundaries,omitempty"`
+	Hotspots         []BrownfieldHotspot `json:"hotspots,omitempty"`
 }
 
 type topologyAccumulator struct {
@@ -75,30 +78,85 @@ func SynthesizeBrownfieldTopology(treeRoot string, cfg *config.EcosystemConfig) 
 		return nil
 	}
 	return &BrownfieldTopologyBrief{
-		GovernanceMode: modeBrownfieldRatchet,
-		VerifyScope:    cfg.Governance.QualityGates.EffectiveVerifyScope(),
-		TDDMode:        cfg.Governance.QualityGates.EffectiveTDDMode(),
-		CoverageMode:   cfg.Governance.QualityGates.EffectiveCoverageMode(),
-		Languages:      langs,
-		TestRunners:    detectBrownfieldTestRunners(treeRoot, langs),
-		SourceRoots:    selectSourceRoots(acc),
-		TestRoots:      selectTestRoots(acc),
-		SharedModules:  finalizeSharedModules(acc.sharedMods),
-		Hotspots:       finalizeHotspots(acc.hotspots),
+		GovernanceMode:   modeBrownfieldRatchet,
+		VerifyScope:      cfg.Governance.QualityGates.EffectiveVerifyScope(),
+		IntentTwinMode:   cfg.Governance.QualityGates.EffectiveIntentTwinMode(),
+		TDDMode:          cfg.Governance.QualityGates.EffectiveTDDMode(),
+		CoverageMode:     cfg.Governance.QualityGates.EffectiveCoverageMode(),
+		Languages:        langs,
+		TestRunners:      detectBrownfieldTestRunners(treeRoot, langs),
+		SourceRoots:      selectSourceRoots(acc),
+		TestRoots:        selectTestRoots(acc),
+		SharedModules:    finalizeSharedModules(acc.sharedMods),
+		ActiveBoundaries: summarizeArchitectureBoundaries(cfg.Governance.QualityGates.ArchitectureBoundaries),
+		Hotspots:         finalizeHotspots(acc.hotspots),
 	}
 }
 
-func resolveHandshakeGovernance(treeRoot, primaryRoot string) (bool, *BrownfieldTopologyBrief) {
+// FormatBrownfieldMemorySummary builds a compact Day-0 Mneme architecture baseline line (@intent task_lifecycle_cli_spec.md #BrownfieldTopologyBrief).
+func FormatBrownfieldMemorySummary(repoName string, bf *BrownfieldTopologyBrief) string {
+	if bf == nil || len(bf.Languages) == 0 {
+		return ""
+	}
+	var parts []string
+	parts = append(parts, fmt.Sprintf("stack=[%s]", strings.Join(bf.Languages, ",")))
+	if len(bf.SourceRoots) > 0 {
+		parts = append(parts, fmt.Sprintf("roots=[%s]", strings.Join(bf.SourceRoots, ",")))
+	}
+	if len(bf.TestRunners) > 0 {
+		parts = append(parts, fmt.Sprintf("runners=[%s]", strings.Join(bf.TestRunners, "; ")))
+	}
+	if len(bf.ActiveBoundaries) > 0 {
+		parts = append(parts, fmt.Sprintf("boundaries=[%s]", strings.Join(bf.ActiveBoundaries, "; ")))
+	}
+	if len(bf.Hotspots) > 0 {
+		limit := len(bf.Hotspots)
+		if limit > 3 {
+			limit = 3
+		}
+		spots := make([]string, 0, limit)
+		for i := 0; i < limit; i++ {
+			spots = append(spots, bf.Hotspots[i].Path)
+		}
+		parts = append(parts, fmt.Sprintf("hotspots=[%s]", strings.Join(spots, ",")))
+	}
+	return fmt.Sprintf("[Architecture Baseline in %s (INIT)] %s", repoName, strings.Join(parts, " "))
+}
+
+func summarizeArchitectureBoundaries(rules []config.ArchitectureBoundaryRule) []string {
+	if len(rules) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(rules))
+	for _, r := range rules {
+		label := strings.TrimSpace(r.Name)
+		if label == "" {
+			label = strings.TrimSpace(r.From)
+		}
+		if len(r.ForbidImports) > 0 {
+			out = append(out, fmt.Sprintf("%s (%s -> !%s)", label, r.From, strings.Join(r.ForbidImports, ", !")))
+		} else if len(r.AllowOnly) > 0 {
+			out = append(out, fmt.Sprintf("%s (%s -> allow %s)", label, r.From, strings.Join(r.AllowOnly, ", ")))
+		}
+	}
+	return out
+}
+
+func resolveHandshakeGovernance(treeRoot, primaryRoot string) (bool, bool, *BrownfieldTopologyBrief) {
 	cfg, err := config.LoadConfig(treeRoot)
 	if (err != nil || cfg == nil) && primaryRoot != "" && primaryRoot != treeRoot {
 		if fallbackCfg, fErr := config.LoadConfig(primaryRoot); fErr == nil {
 			cfg = fallbackCfg
 		}
 	}
-	if cfg == nil || cfg.Governance.QualityGates.StrictMode {
-		return true, nil
+	if cfg == nil {
+		return true, false, nil
 	}
-	return false, SynthesizeBrownfieldTopology(treeRoot, cfg)
+	intentTwinOff := cfg.Governance.QualityGates.EffectiveIntentTwinMode() == config.IntentTwinModeOff
+	if cfg.Governance.QualityGates.StrictMode {
+		return true, intentTwinOff, nil
+	}
+	return false, intentTwinOff, SynthesizeBrownfieldTopology(treeRoot, cfg)
 }
 
 func visitTopologyNode(root, path string, d fs.DirEntry, err error, acc *topologyAccumulator) error {

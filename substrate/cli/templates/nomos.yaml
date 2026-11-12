@@ -100,6 +100,15 @@ governance:
         #     - "TODO_IMPLEMENT"
         #     - "NotImplementedError"
 
+        # Optional: Directional package import boundaries enforced in <5ms across Go AST & polyglot files (Law 7).
+        # Automatically populated by 'nomos init' when clean domain/infra/delivery layers are detected.
+        # architecture_boundaries:
+        #     - name: "domain-purity"
+        #       from: "src/domain/**"
+        #       forbid_imports:
+        #           - "src/infra/**"
+        #           - "src/api/**"
+
         # Numerical AST & test hygiene thresholds
         thresholds:
             max_file_loc: 400                  # Max lines of code per source file
@@ -133,6 +142,8 @@ governance:
         #         backend_roots:
         #             - "substrate"
         #         strict_types: true
+        #         verify_obligations: true
+        #         fail_on_stale_obligations: true
         #     membrane:
         #         enabled: false
         #         frontend_roots:

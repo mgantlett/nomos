@@ -18,6 +18,13 @@ type ActionAffordance struct {
 // BuildPhaseNextActions synthesizes deterministic HATEOAS next-step commands for the active workspace state.
 // @intent INT-840 #ActionAffordance
 func BuildPhaseNextActions(phase Phase, taskKey, worktreePath string, directives, readyWavefront []string) []ActionAffordance {
+	return BuildHandshakeNextActions(phase, taskKey, worktreePath, directives, readyWavefront, false)
+}
+
+// BuildHandshakeNextActions synthesizes deterministic HATEOAS next-step commands, steering
+// intent_twin_mode=off workspaces with an empty wavefront directly to the lean chore + sync -m path.
+// @intent task_lifecycle_cli_spec.md #ActionAffordance
+func BuildHandshakeNextActions(phase Phase, taskKey, worktreePath string, directives, readyWavefront []string, leanChoreMode bool) []ActionAffordance {
 	key := strings.TrimSpace(taskKey)
 	if key == "" {
 		key = "<KEY>"
@@ -34,15 +41,19 @@ func BuildPhaseNextActions(phase Phase, taskKey, worktreePath string, directives
 	case PhaseSync, PhaseLearn:
 		return buildSyncLearnAffordances()
 	default:
-		return buildIdleAffordances(directives, readyWavefront)
+		return buildIdleAffordances(directives, readyWavefront, leanChoreMode)
 	}
 }
 
-func buildIdleAffordances(directives, readyWavefront []string) []ActionAffordance {
+func buildIdleAffordances(directives, readyWavefront []string, leanChoreMode bool) []ActionAffordance {
+	choreSummary := "Provision an isolated task worktree in EDIT phase in 1 turn"
+	if leanChoreMode {
+		choreSummary = `1-turn start: provision isolated EDIT worktree (release via 'nomos task sync <KEY> -m "<summary>"')`
+	}
 	actions := []ActionAffordance{
 		{
 			Command: `nomos task chore "<title>"`,
-			Summary: "Provision an isolated task worktree in EDIT phase in 1 turn",
+			Summary: choreSummary,
 			Phase:   PhaseEdit,
 		},
 	}
@@ -52,7 +63,7 @@ func buildIdleAffordances(directives, readyWavefront []string) []ActionAffordanc
 			Summary: "Start top unblocked wavefront task in isolated EDIT worktree",
 			Phase:   PhaseEdit,
 		})
-	} else {
+	} else if !leanChoreMode {
 		actions = append(actions, ActionAffordance{
 			Command: `nomos task create "<title>" --plane substrate`,
 			Summary: "Allocate a planned task in the Living Ledger",

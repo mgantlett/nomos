@@ -71,6 +71,9 @@ func buildBrownfieldTopologyPairs(bf *handshake.BrownfieldTopologyBrief) []brown
 	if len(bf.SharedModules) > 0 {
 		pairs = append(pairs, brownfieldKV{label: "Shared Modules", value: strings.Join(bf.SharedModules, ", ")})
 	}
+	if len(bf.ActiveBoundaries) > 0 {
+		pairs = append(pairs, brownfieldKV{label: "Layer Boundaries", value: strings.Join(bf.ActiveBoundaries, "; ")})
+	}
 	if len(bf.Hotspots) > 0 {
 		spots := make([]string, 0, len(bf.Hotspots))
 		for _, h := range bf.Hotspots {

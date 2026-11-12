@@ -78,6 +78,14 @@ func filterActiveRepoPatterns(all []*Memory, repoID string) []*Memory {
 			candidates = append(candidates, m)
 		}
 	}
+	if len(candidates) > 0 {
+		return candidates
+	}
+	for _, m := range all {
+		if m.Kind == KindArchitecture && m.Status == StatusActive && strings.ToLower(strings.TrimSpace(m.RepoID)) == repoID {
+			candidates = append(candidates, m)
+		}
+	}
 	return candidates
 }
 

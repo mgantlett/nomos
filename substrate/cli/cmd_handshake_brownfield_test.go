@@ -28,10 +28,11 @@ func TestPlainHandshakeBanner_BrownfieldTopology(t *testing.T) {
 			CoverageMode:   "live",
 			Languages:      []string{"javascript"},
 			TestRunners:    []string{"npm test (node --test)"},
-			SourceRoots:    []string{"./", "lib/"},
-			TestRoots:      []string{"tests/"},
-			SharedModules:  []string{"lib/error.js"},
-			Hotspots:       []handshake.BrownfieldHotspot{{Path: "lib/command.js", Lines: 2792}},
+			SourceRoots:      []string{"./", "lib/"},
+			TestRoots:        []string{"tests/"},
+			SharedModules:    []string{"lib/error.js"},
+			ActiveBoundaries: []string{"domain-purity (src/domain/** -> !src/infra/**)"},
+			Hotspots:         []handshake.BrownfieldHotspot{{Path: "lib/command.js", Lines: 2792}},
 		},
 	}
 
@@ -41,6 +42,8 @@ func TestPlainHandshakeBanner_BrownfieldTopology(t *testing.T) {
 		"javascript | test: npm test (node --test)",
 		"lib/ (tests: tests/)",
 		"lib/error.js",
+		"Layer Boundaries",
+		"domain-purity",
 		"Core Modules",
 		"lib/command.js (2792 LOC)",
 	} {

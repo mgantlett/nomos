@@ -81,3 +81,18 @@ func TestBuildPhaseNextActions_AllPhases(t *testing.T) {
 	}
 }
 
+func TestBuildHandshakeNextActions_LeanChoreModeOmitsCreateCeremony(t *testing.T) {
+	got := types.BuildHandshakeNextActions(types.PhaseIdle, "", "", []string{"00_tier1_agency.md"}, nil, true)
+	var cmds []string
+	for _, a := range got {
+		cmds = append(cmds, a.Command)
+	}
+	joined := strings.Join(cmds, "\n")
+	if !strings.Contains(joined, "nomos task chore") {
+		t.Fatalf("expected lean chore command in IDLE, got:\n%s", joined)
+	}
+	if strings.Contains(joined, "nomos task create") {
+		t.Fatalf("expected lean chore mode to omit task create ceremony when wavefront is empty, got:\n%s", joined)
+	}
+}
+

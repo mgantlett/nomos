@@ -94,3 +94,36 @@ func TestSynthesizeBrownfieldTopology_PolyglotRepo(t *testing.T) {
 		t.Fatalf("expected nil brownfield topology in strict_mode=true, got %+v", got)
 	}
 }
+
+func TestSynthesizeBrownfieldTopology_ActiveBoundariesAndMemorySummary(t *testing.T) {
+	dir := t.TempDir()
+	srcDir := filepath.Join(dir, "src", "domain")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "order.py"), []byte("class Order:\n    pass\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &config.EcosystemConfig{
+		Governance: config.GovernanceConfig{
+			QualityGates: config.QualityGatesConfig{
+				StrictMode: false,
+				ArchitectureBoundaries: []config.ArchitectureBoundaryRule{
+					{Name: "domain-purity", From: "src/domain/**", ForbidImports: []string{"src/infra/**"}},
+				},
+			},
+		},
+	}
+	topo := handshake.SynthesizeBrownfieldTopology(dir, cfg)
+	if topo == nil || topo.IntentTwinMode != config.IntentTwinModeOff {
+		t.Fatalf("expected non-nil topology with intent_twin_mode=off, got %+v", topo)
+	}
+	if len(topo.ActiveBoundaries) != 1 || !strings.Contains(topo.ActiveBoundaries[0], "domain-purity") {
+		t.Fatalf("expected ActiveBoundaries summary, got %v", topo.ActiveBoundaries)
+	}
+	memLine := handshake.FormatBrownfieldMemorySummary("orders-svc", topo)
+	if !strings.Contains(memLine, "domain-purity") || !strings.Contains(memLine, "stack=[python]") {
+		t.Fatalf("unexpected FormatBrownfieldMemorySummary output: %s", memLine)
+	}
+}

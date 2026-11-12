@@ -173,6 +173,10 @@ func buildImportMatchCandidates(relFile, rawImp string) []string {
 	slashImp := strings.ReplaceAll(strings.ReplaceAll(rawImp, "::", "/"), ".", "/")
 	if !strings.HasPrefix(rawImp, ".") {
 		add(slashImp)
+		slashParts := strings.Split(slashImp, "/")
+		for i := 1; i < len(slashParts); i++ {
+			add(strings.Join(slashParts[i:], "/"))
+		}
 	}
 	parts := strings.Split(rawImp, "/")
 	for i := 1; i < len(parts); i++ {

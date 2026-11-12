@@ -4,6 +4,8 @@ package selfupdate
 import (
 	"bufio"
 	"github.com/mgantlett/nomos/substrate/cli/tui"
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -184,5 +186,40 @@ func RenderScaffoldedNomosYAML(dir, rawTemplate, projectName, branch string) str
 			content = strings.Replace(content, "        strict_mode: false\n", "        strict_mode: false\n"+sb.String(), 1)
 		}
 	}
+	if inferred := impact.InferCleanArchitectureBoundaries(dir); len(inferred) > 0 {
+		content = injectScaffoldedArchitectureBoundaries(content, inferred)
+	}
 	return content
+}
+
+func injectScaffoldedArchitectureBoundaries(content string, rules []config.ArchitectureBoundaryRule) string {
+	rendered := renderArchitectureBoundariesYAMLBlock(rules)
+	commentedBoundaryBlock := "        # architecture_boundaries:\n" +
+		"        #     - name: \"domain-purity\"\n" +
+		"        #       from: \"src/domain/**\"\n" +
+		"        #       forbid_imports:\n" +
+		"        #           - \"src/infra/**\"\n" +
+		"        #           - \"src/api/**\"\n"
+	if strings.Contains(content, commentedBoundaryBlock) {
+		return strings.Replace(content, commentedBoundaryBlock, rendered, 1)
+	}
+	return strings.Replace(content, "        strict_mode: false\n", "        strict_mode: false\n"+rendered, 1)
+}
+
+func renderArchitectureBoundariesYAMLBlock(rules []config.ArchitectureBoundaryRule) string {
+	var sb strings.Builder
+	sb.WriteString("        architecture_boundaries:\n")
+	for _, r := range rules {
+		sb.WriteString("            - name: \"")
+		sb.WriteString(r.Name)
+		sb.WriteString("\"\n              from: \"")
+		sb.WriteString(r.From)
+		sb.WriteString("\"\n              forbid_imports:\n")
+		for _, f := range r.ForbidImports {
+			sb.WriteString("                  - \"")
+			sb.WriteString(f)
+			sb.WriteString("\"\n")
+		}
+	}
+	return sb.String()
 }
