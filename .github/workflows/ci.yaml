@@ -5,6 +5,12 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing SemVer tag to release (e.g. v4.17.0)'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -13,14 +19,19 @@ jobs:
   verify:
     name: Deterministic Quality Verification
     runs-on: ubuntu-24.04
+    outputs:
+      should_release: ${{ steps.detect_release.outputs.should_release }}
+      release_tag: ${{ steps.detect_release.outputs.release_tag }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
+          ref: ${{ inputs.tag || github.sha }}
           fetch-depth: 0
 
       - name: Fetch Nomos Release Receipts (Git Notes)
         run: |
+          git fetch --tags --force origin || true
           git fetch origin +refs/notes/nomos/releases:refs/notes/nomos/releases || true
 
       - name: Set up Go
@@ -40,7 +51,7 @@ jobs:
 
       - name: Run Substrate Test Suite
         run: |
-          go -C substrate test -v ./...
+          go -C substrate test ./...
 
       - name: Verify 42 Definition of Done Quality Gates
         run: |
@@ -60,3 +71,79 @@ jobs:
           distribution: goreleaser
           version: "~> v2"
           args: check
+
+      - name: Detect Canonical Release Tag at HEAD
+        id: detect_release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DISPATCH_TAG: ${{ inputs.tag }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref }}
+        run: |
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ] && [ -n "${DISPATCH_TAG}" ]; then
+            echo "release_tag=${DISPATCH_TAG}" >> "$GITHUB_OUTPUT"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${EVENT_NAME}" != "push" ] || [ "${REF_NAME}" != "refs/heads/main" ]; then
+            echo "release_tag=" >> "$GITHUB_OUTPUT"
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git fetch --tags --force origin || true
+          HEAD_TAG="$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || true)"
+          if [ -z "${HEAD_TAG}" ]; then
+            echo "release_tag=" >> "$GITHUB_OUTPUT"
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if gh release view "${HEAD_TAG}" --repo "${GITHUB_REPOSITORY}" --json isDraft -q '.isDraft' 2>/dev/null | grep -qx 'false'; then
+            echo "Release ${HEAD_TAG} is already published; skipping duplicate GoReleaser run."
+            echo "release_tag=${HEAD_TAG}" >> "$GITHUB_OUTPUT"
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "release_tag=${HEAD_TAG}" >> "$GITHUB_OUTPUT"
+          echo "should_release=true" >> "$GITHUB_OUTPUT"
+
+  goreleaser:
+    name: Publish Canonical Release
+    needs: verify
+    if: needs.verify.outputs.should_release == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.verify.outputs.release_tag }}
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'substrate/go.mod'
+          cache-dependency-path: 'substrate/go.sum'
+
+      - name: Extract Canonical Release Notes from CHANGELOG.md
+        env:
+          RELEASE_TAG: ${{ needs.verify.outputs.release_tag }}
+        run: |
+          bash packaging/render-release-notes.sh "${RELEASE_TAG}" > "$RUNNER_TEMP/release-notes.md"
+          if [ ! -s "$RUNNER_TEMP/release-notes.md" ]; then
+            echo "::error::Rendered release notes for ${RELEASE_TAG} are empty"
+            exit 1
+          fi
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean --release-notes "${{ runner.temp }}/release-notes.md"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUR_KEY: ${{ secrets.AUR_KEY }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ needs.verify.outputs.release_tag }}

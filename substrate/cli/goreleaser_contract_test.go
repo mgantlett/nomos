@@ -164,12 +164,15 @@ func TestReleaseWorkflowPatchNotesRollup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve repo root: %v", err)
 	}
-	relYaml, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", "release.yaml"))
+	ciYaml, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", "ci.yaml"))
 	if err != nil {
-		t.Fatalf("read release.yaml: %v", err)
+		t.Fatalf("read ci.yaml: %v", err)
 	}
-	if !strings.Contains(string(relYaml), "packaging/render-release-notes.sh") {
-		t.Fatalf("expected release.yaml to invoke canonical packaging/render-release-notes.sh")
+	if !strings.Contains(string(ciYaml), "packaging/render-release-notes.sh") || !strings.Contains(string(ciYaml), "needs: verify") {
+		t.Fatalf("expected unified ci.yaml to gate GoReleaser on verify and invoke canonical packaging/render-release-notes.sh")
+	}
+	if _, dupErr := os.Stat(filepath.Join(repoRoot, ".github", "workflows", "release.yaml")); !os.IsNotExist(dupErr) {
+		t.Fatalf("expected duplicate .github/workflows/release.yaml to be removed so release pushes run a single workflow")
 	}
 
 	patchNotes, pErr := runRenderReleaseNotes(t, repoRoot, "v4.10.1")

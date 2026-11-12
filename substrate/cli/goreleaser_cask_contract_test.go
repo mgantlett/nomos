@@ -130,8 +130,8 @@ func TestReleaseWorkflowInstallerAndSubstrateCategoryParity(t *testing.T) {
 	}
 	cases := []repoContractCase{
 		{
-			name:     "release workflow passes HOMEBREW_TAP_GITHUB_TOKEN to GoReleaser",
-			relPath:  filepath.Join(".github", "workflows", "release.yaml"),
+			name:     "unified CI release job passes HOMEBREW_TAP_GITHUB_TOKEN to GoReleaser",
+			relPath:  filepath.Join(".github", "workflows", "ci.yaml"),
 			mustHave: []string{"HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}"},
 		},
 		{

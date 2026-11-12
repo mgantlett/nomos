@@ -85,13 +85,14 @@ func operationalSurfaceContractCases() []repoContractCase {
 			forbid: []string{"mod tidy"},
 		},
 		{
-			name:    "TC-REL-009 release workflow runs tests and 42 DoD gates before GoReleaser",
-			relPath: filepath.Join(".github", "workflows", "release.yaml"),
+			name:    "TC-REL-009 unified CI workflow runs tests and 42 DoD gates before GoReleaser",
+			relPath: filepath.Join(".github", "workflows", "ci.yaml"),
 			mustHave: []string{
 				"go-version-file: 'substrate/go.mod'",
 				"go -C substrate test ./...",
 				"verify --all --strict",
 				"verify proof",
+				"needs: verify",
 			},
 			forbid: []string{"go-version: 'stable'"},
 		},
