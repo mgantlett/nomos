@@ -80,13 +80,22 @@ governance:
         enabled: true
 `
 
+// TestIntentSteelmanStrictFrontmatterAndNCTE verifies strict Intent frontmatter and NCTE-100 rules.
+// @verifies TC-NCTE-09 TC-NCTE-10
 func TestIntentSteelmanStrictFrontmatterAndNCTE(t *testing.T) {
+	eightKeyDoc := strings.Replace(canonicalStrictSpecFixture, "last_updated: \"2026-11-05\"\nlineage:\n  - INT-932\n  - SUB-1797\n", "", 1)
+	eightKeyDoc = strings.Replace(eightKeyDoc, "version: \"4.8.0\"\n", "", 1)
 	cases := []struct {
 		name      string
 		relPath   string
 		content   string
 		wantError string
 	}{
+		{
+			name:    "valid_static_eight_key_spec_passes",
+			relPath: "architecture/specs/static_eight_key_spec.md",
+			content: eightKeyDoc,
+		},
 		{
 			name:    "valid_flat_canonical_spec_passes",
 			relPath: "architecture/specs/sample_spec.md",

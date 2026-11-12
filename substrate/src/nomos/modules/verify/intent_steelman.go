@@ -1,4 +1,5 @@
 // Package verify implements Intent Steel-Man frontmatter, structural, and NCTE-100 validation (Law 4 & Law 6).
+// @intent intent.md nomos_controlled_technical_english_spec.md
 package verify
 
 import (
@@ -233,7 +234,7 @@ func validateStrictFrontmatterAllowlist(fmRaw string) string {
 	return ""
 }
 
-// validateStrictIntentFrontmatter verifies all 10 statutory frontmatter keys and optional lineage task keys.
+// validateStrictIntentFrontmatter verifies all 8 static identity frontmatter keys.
 func validateStrictIntentFrontmatter(fm intentFrontmatter) string {
 	if len(fm.Authors) == 0 {
 		return "YAML frontmatter missing required non-empty 'authors' list"
@@ -244,7 +245,7 @@ func validateStrictIntentFrontmatter(fm intentFrontmatter) string {
 	if !isoDatePattern.MatchString(strings.TrimSpace(fm.Date)) {
 		return fmt.Sprintf("invalid frontmatter date %q (expected YYYY-MM-DD)", fm.Date)
 	}
-	if !isoDatePattern.MatchString(strings.TrimSpace(fm.LastUpdated)) {
+	if strings.TrimSpace(fm.LastUpdated) != "" && !isoDatePattern.MatchString(strings.TrimSpace(fm.LastUpdated)) {
 		return fmt.Sprintf("invalid frontmatter last_updated %q (expected YYYY-MM-DD)", fm.LastUpdated)
 	}
 	if strings.TrimSpace(fm.SSoTRepository) == "" {
@@ -253,7 +254,7 @@ func validateStrictIntentFrontmatter(fm intentFrontmatter) string {
 	if strings.ToLower(strings.TrimSpace(fm.Type)) != docTypeSpec {
 		return fmt.Sprintf("invalid frontmatter type %q (strict Intent corpus requires 'type: spec')", fm.Type)
 	}
-	if !semverPattern.MatchString(strings.TrimSpace(fm.Version)) {
+	if strings.TrimSpace(fm.Version) != "" && !semverPattern.MatchString(strings.TrimSpace(fm.Version)) {
 		return fmt.Sprintf("invalid frontmatter version %q (expected SemVer X.Y.Z)", fm.Version)
 	}
 	for _, key := range fm.Lineage {
