@@ -65,3 +65,31 @@ func TestHookSymlinkSecretAndFirstEditImpact(t *testing.T) {
 		},
 	}, false, ws)
 }
+
+func TestHotspotFirstReadHint_FiresOnceAboveCeilingAndSilentBelow(t *testing.T) {
+	t.Setenv("NOMOS_HOME", t.TempDir())
+	wtDir := filepath.Join(t.TempDir(), "worktrees", "demo-SUB-2")
+	if err := os.MkdirAll(wtDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	small := filepath.Join(wtDir, "small.go")
+	if err := os.WriteFile(small, []byte("package chi\ntype Router interface { Get() }\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if msg := evaluateReadSpiralAdvisory(&HookPayload{ToolName: "Read", TargetFile: small, Cwd: wtDir}, "", "terse"); msg != "" {
+		t.Fatalf("expected silent read on small file, got: %q", msg)
+	}
+
+	hot := filepath.Join(wtDir, "mux_hot.go")
+	bigSrc := "package chi\n" + strings.Repeat("// line\n", 510) + "func Handle() {}\n"
+	if err := os.WriteFile(hot, []byte(bigSrc), 0644); err != nil {
+		t.Fatal(err)
+	}
+	msg1 := evaluateReadSpiralAdvisory(&HookPayload{ToolName: "Read", TargetFile: hot, Cwd: wtDir}, "", "terse")
+	if !strings.Contains(msg1, "Nomos Hotspot Read") || !strings.Contains(msg1, "small.go") {
+		t.Fatalf("expected one-time hotspot read orientation + peer hint, got: %q", msg1)
+	}
+	if msg2 := evaluateReadSpiralAdvisory(&HookPayload{ToolName: "Read", TargetFile: hot, Cwd: wtDir}, "", "terse"); msg2 != "" {
+		t.Fatalf("expected second read of hotspot file to be silent, got: %q", msg2)
+	}
+}

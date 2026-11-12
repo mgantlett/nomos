@@ -156,6 +156,7 @@ func evaluateFastASTBudgets(ctx *vscope.VerifyContext, wtRoot, absPath string, d
 		if baseBytes, ok := loadBaselineFileBytes(ctx, wtRoot, absPath); ok {
 			if baseRep, bErr := astdebt.AnalyzeFileDebt(absPath, baseBytes, t.MaxComplexity, t.MaxFuncLOC); bErr == nil && baseRep != nil {
 				evaluateRatchetedFastBudgets(rep, baseRep, t, warnPct, res)
+				enrichRatchetedCDSBreach(res, data, baseBytes, t)
 				return
 			}
 		}
@@ -210,7 +211,7 @@ func checkRatchetedMetricWithPct(label string, val, baseVal, limit, warnPct int,
 	}
 	ceil := maxInt(limit, baseVal)
 	if val > ceil {
-		res.Breaches = append(res.Breaches, fmt.Sprintf("%s %d/%d (exceeds brownfield baseline %d)", label, val, ceil, baseVal))
+		res.Breaches = append(res.Breaches, formatRatchetedBreachWithRecipe(res.File, label, val, ceil, baseVal))
 		return
 	}
 	if baseVal > limit {
@@ -218,6 +219,26 @@ func checkRatchetedMetricWithPct(label string, val, baseVal, limit, warnPct int,
 		return
 	}
 	checkBudgetMetricWithPct(label, val, limit, warnPct, res)
+}
+
+func formatRatchetedBreachWithRecipe(relFile, label string, val, ceil, baseVal int) string {
+	core := fmt.Sprintf("%s %d/%d (exceeds brownfield baseline %d)", label, val, ceil, baseVal)
+	if label == "file LOC" {
+		return fmt.Sprintf("%s -> [1-TURN RECIPE: revert net line growth in %s to <=%d LOC and place net-new helper functions in a new sibling file in the same directory]", core, relFile, ceil)
+	}
+	if strings.HasPrefix(label, "func ") {
+		return core + " -> [1-TURN RECIPE: extract net-new branches/lines into a small helper (use a new sibling file if file LOC is already at ceiling)]"
+	}
+	return core
+}
+
+func enrichRatchetedCDSBreach(res *FastFileRadarResult, curSrc, baseSrc []byte, t astdebt.Thresholds) {
+	for i, b := range res.Breaches {
+		if strings.HasPrefix(b, "cognitive debt ") {
+			res.Breaches[i] = PrescribeRatchetedCDSRecipe(res.File, curSrc, baseSrc, t)
+			return
+		}
+	}
 }
 
 func checkBudgetMetricWithPct(label string, val, limit, warnPct int, res *FastFileRadarResult) {

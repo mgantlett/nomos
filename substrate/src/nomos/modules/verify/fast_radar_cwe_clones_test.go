@@ -60,3 +60,18 @@ func TestDetectPolyglotCWESinks_AndFastRadarCloneHint(t *testing.T) {
 		t.Fatalf("expected Go interface peer hint naming mux.go, got: %q", hint)
 	}
 }
+
+func TestFormatRatchetedBreachWithRecipe_AndCWERecipes(t *testing.T) {
+	locMsg := formatRatchetedBreachWithRecipe("mux.go", "file LOC", 928, 925, 925)
+	if !strings.Contains(locMsg, "1-TURN RECIPE") || !strings.Contains(locMsg, "sibling file") {
+		t.Fatalf("expected sibling-file recipe on above-ceiling file LOC breach, got: %q", locMsg)
+	}
+	fnMsg := formatRatchetedBreachWithRecipe("mux.go", "func routeHTTP LOC", 70, 65, 65)
+	if !strings.Contains(fnMsg, "1-TURN RECIPE") {
+		t.Fatalf("expected function extraction recipe on ratcheted func breach, got: %q", fnMsg)
+	}
+	cweHits := DetectPolyglotCWESinks("storage/reports.py", []byte("from pathlib import Path\ndef r(base_dir, rel):\n    return (Path(base_dir)/rel).read_text()\n"))
+	if len(cweHits) == 0 || !strings.Contains(cweHits[0], "1-TURN RECIPE") {
+		t.Fatalf("expected 1-turn CWE-22 recipe, got: %v", cweHits)
+	}
+}

@@ -61,10 +61,10 @@ func detectCWE89SQLSink(src string) string {
 		return ""
 	}
 	if pyFStringSQLWhere.MatchString(src) || pyUnboundExecFStr.MatchString(src) || pyFormatConcatSQL.MatchString(src) || goSprintfSQLRe.MatchString(src) {
-		return "CWE-89 dynamic SQL interpolation at execution sink; use '?' parameter binding and allowlist identifiers (SecurityGate)"
+		return "CWE-89 dynamic SQL interpolation at execution sink; use '?' parameter binding and allowlist identifiers (SecurityGate) -> [1-TURN RECIPE: pass user values via execute(sql, (val,)) '?' placeholders and map dynamic sort/column names through an explicit ALLOWED dict]"
 	}
 	if pyFStringOrderBy.MatchString(src) && !sqlAllowlistHintRe.MatchString(src) {
-		return "CWE-89 unvalidated dynamic ORDER BY identifier interpolation; map sort columns through a strict allowlist (SecurityGate)"
+		return "CWE-89 unvalidated dynamic ORDER BY identifier interpolation; map sort columns through a strict allowlist (SecurityGate) -> [1-TURN RECIPE: map sort_col via ALLOWED = {'col': 'col'} before interpolating ORDER BY]"
 	}
 	return ""
 }
@@ -76,7 +76,7 @@ func detectCWE22PathSink(src string) string {
 	if safePathConfineRe.MatchString(src) {
 		return ""
 	}
-	return "CWE-22 unconfined path join/read from base_dir without canonical resolve + relative_to/filepath.Rel confinement (SecurityGate)"
+	return "CWE-22 unconfined path join/read from base_dir without canonical resolve + relative_to/filepath.Rel confinement (SecurityGate) -> [1-TURN RECIPE: root = Path(base_dir).resolve(); target = (root / rel).resolve(); call target.relative_to(root) before reading]"
 }
 
 func scanRatchetedCWELeaks(ctx *vscope.VerifyContext, wtRoot, absPath, relFile string, data []byte) []string {

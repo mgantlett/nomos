@@ -61,6 +61,9 @@ func evaluateReadSpiralAdvisoryWithProfile(p *HookPayload, hermeticDir string, p
 	warnAt, critAt := resolveReadSpiralBounds(profile)
 	tr.ConsecutiveReadCalls++
 	msg := advanceReadSpiralWarning(&tr, warnAt, critAt, isTrunk, profile.AdvisoryStyle)
+	if !isTrunk && hermeticDir == "" {
+		msg = joinHookAdvisories(msg, evaluateFirstHotspotReadHint(p, &tr, traceRoot))
+	}
 	saveHookSessionTrace(path, tr)
 	return msg
 }

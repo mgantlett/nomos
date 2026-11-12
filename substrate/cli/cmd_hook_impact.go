@@ -3,7 +3,9 @@
 package cli
 
 import (
+	"bytes"
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -109,6 +111,48 @@ func collectUnseenImpactedFiles(p *HookPayload, tr *hookSessionTrace, canonWt, b
 		unseen = append(unseen, rel)
 	}
 	return unseen, dirty
+}
+
+const hotspotReadCeilingLOC = 500
+
+// evaluateFirstHotspotReadHint emits a one-time orientation advisory when an agent inside an
+// active worktree reads a >=500-LOC brownfield hotspot file, surfacing sibling-file extraction
+// guidance and 1-hop AST/interface peers before the first edit is attempted.
+func evaluateFirstHotspotReadHint(p *HookPayload, tr *hookSessionTrace, wtRoot string) string {
+	resolved, rel, canonWt, ok := resolveUnseenHotspotReadTarget(p, tr, wtRoot)
+	if !ok {
+		return ""
+	}
+	data, err := os.ReadFile(resolved)
+	if err != nil {
+		return ""
+	}
+	lines := bytes.Count(data, []byte("\n")) + 1
+	if lines < hotspotReadCeilingLOC {
+		return ""
+	}
+	tr.ImpactedFiles = appendUniqueBounded(tr.ImpactedFiles, rel, 64)
+	msg := fmt.Sprintf("🧭 [Nomos Hotspot Read] %s (%d LOC >= %d ceiling): avoid growing in place; keep call-site edits minimal and place net-new helpers in a sibling file", rel, lines, hotspotReadCeilingLOC)
+	if peers := verify.ComputeFirstEditCoChangeHint(canonWt, rel); peers != "" {
+		msg += " | " + peers
+	}
+	return msg
+}
+
+func resolveUnseenHotspotReadTarget(p *HookPayload, tr *hookSessionTrace, wtRoot string) (string, string, string, bool) {
+	if p == nil || tr == nil || wtRoot == "" || p.CommandLine != "" || p.TargetFile == "" {
+		return "", "", "", false
+	}
+	canonWt := normalizeCanonicalPath(wtRoot, "/")
+	resolved := normalizeCanonicalPath(p.TargetFile, resolveHookWorkspaceDir(p, ""))
+	if !strings.HasPrefix(resolved, canonWt+"/") {
+		return "", "", "", false
+	}
+	rel := strings.TrimPrefix(resolved, canonWt+"/")
+	if isIgnoredPitfallScopeFile(rel) || containsTraceItem(tr.ImpactedFiles, rel) {
+		return "", "", "", false
+	}
+	return resolved, rel, canonWt, true
 }
 
 func renderCompactHandshakeBanner(event *handshake.HandshakeEvent) {
