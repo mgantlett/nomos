@@ -290,6 +290,9 @@ func VerifyExecutableObligations(root string, specPaths []string) []string
 
 // EvaluateArchitectureBoundaries checks Go AST and polyglot import statements against configured ArchitectureBoundaryRule entries.
 func EvaluateArchitectureBoundaries(root string, files []string, rules []config.ArchitectureBoundaryRule) []string
+
+// InferCleanArchitectureBoundaries discovers directional layer import rules that satisfy existing repository imports with zero violations.
+func InferCleanArchitectureBoundaries(root string) []config.ArchitectureBoundaryRule
 ```
 
 ---
@@ -312,6 +315,7 @@ func EvaluateArchitectureBoundaries(root string, files []string, rules []config.
 5. **Polyglot Architecture Boundary Enforcement (`architecture_boundaries`):**
    - Evaluates imports across Go (`go/parser`) and polyglot files (`import`, `require`, `from`, `use`, `using`, `#include`) against matching `from` globs.
    - Executes in under `5ms` inside both `EvaluateFastFileRadar` (`PreToolUse` / `PostToolUse` hooks) and `nomos verify`.
+   - `InferCleanArchitectureBoundaries` scans existing source directories during `nomos init` and emits directional `forbid_imports` rules verified to produce zero baseline violations.
 6. **Scoped `spec_roots` Steel-Man & Optional Schema Parity (`TC-TRC-005`):**
    - When `contracts.spec_roots` targets explicit files or nested subdirectories, `IntentSteelmanGate` audits only those paths and ignores sibling `intent/` directories.
    - When `project: nomos` or `contracts.spec_roots` remains empty, `IntentSteelmanGate` enforces flat `intent/architecture/specs/*_spec.md` topology across all of `intent/`.
@@ -339,6 +343,7 @@ func EvaluateArchitectureBoundaries(root string, files []string, rules []config.
 | `TC-OBL-008` | `ConfigImmutabilityGate` | Worktree `nomos.yaml` deletes Trunk `architecture_boundaries` rule | Fails closed blocking boundary downgrade | Law 1 & Law 7 |
 | `TC-OBL-009` | `VerifySpecTypeSignatures` | Spec declares TypeScript or Python field omitted in source | Rejects execution naming missing polyglot field | Law 4 & Law 7 |
 | `TC-OBL-010` | `verifyIntentASTAnchors` | Polyglot `@intent` tag references missing `#GhostType` anchor | Rejects execution naming unresolved polyglot anchor | Law 4 & Law 7 |
+| `TC-OBL-011` | `InferCleanArchitectureBoundaries` | Brownfield repo with clean `domain` vs `infra` layers | Emits verified zero-violation `architecture_boundaries` rules automatically | Law 4 & Law 7 |
 | `TC-MAT-01` | `CanonicalMatrix` | `CanonicalMatrixModel{Laws: 7, Rings: 3, Cells: 21}` | Enforces exact `7x3 = 21` invariant cell topology | Law 2 & Law 6 |
 | `TC-MAT-02` | `CanonicalLaws` | Statutory 1..7 law metadata registry | Binds every cell to one of the 7 laws | Law 4 |
 | `TC-MAT-03` | `InvariantCellSpec` | Cell specification with syntactic, dynamic, or cryptographic ring | Maps every sensor probe to a canonical cell coordinate | Law 2 |

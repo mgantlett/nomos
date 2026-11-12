@@ -285,16 +285,18 @@ package handshake
 
 // BrownfieldTopologyBrief summarizes active governance modes and discovered source topology (#BrownfieldTopologyBrief).
 type BrownfieldTopologyBrief struct {
-	GovernanceMode string              `json:"governance_mode"`
-	VerifyScope    string              `json:"verify_scope,omitempty"`
-	TDDMode        string              `json:"tdd_mode"`
-	CoverageMode   string              `json:"coverage_mode"`
-	Languages      []string            `json:"languages"`
-	TestRunners    []string            `json:"test_runners"`
-	SourceRoots    []string            `json:"source_roots"`
-	TestRoots      []string            `json:"test_roots,omitempty"`
-	SharedModules  []string            `json:"shared_modules,omitempty"`
-	Hotspots       []BrownfieldHotspot `json:"hotspots,omitempty"`
+	GovernanceMode   string              `json:"governance_mode"`
+	VerifyScope      string              `json:"verify_scope,omitempty"`
+	IntentTwinMode   string              `json:"intent_twin_mode,omitempty"`
+	TDDMode          string              `json:"tdd_mode"`
+	CoverageMode     string              `json:"coverage_mode"`
+	Languages        []string            `json:"languages"`
+	TestRunners      []string            `json:"test_runners"`
+	SourceRoots      []string            `json:"source_roots"`
+	TestRoots        []string            `json:"test_roots,omitempty"`
+	SharedModules    []string            `json:"shared_modules,omitempty"`
+	ActiveBoundaries []string            `json:"active_boundaries,omitempty"`
+	Hotspots         []BrownfieldHotspot `json:"hotspots,omitempty"`
 }
 
 // HandshakeEvent represents JIT session orientation telemetry (#HandshakeEvent).

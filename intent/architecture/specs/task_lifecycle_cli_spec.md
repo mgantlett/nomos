@@ -354,6 +354,12 @@ type UpdateCheckCache struct {
 * **Cross-Phase Receipt Reuse**: Reuses valid `42/42` receipts (`TTL <= 5m`, matching working-tree OID and trunk `HEAD` SHA) across `nomos verify`, `pre-commit`, `nomos task review`, and `nomos task sync`.
 * **Fail-Closed Invalidation**: Purges or bypasses cached receipts on any file byte mutation, untracked file addition, trunk `HEAD` advance, `--all` scan, or `NOMOS_NO_VERIFY_CACHE=1`.
 
+### 4.15 Day-0 Brownfield Onboarding (`nomos init` & Lean Steering)
+* **Zero-Violation Boundary Inference**: `nomos init` runs `InferCleanArchitectureBoundaries` on brownfield repositories and writes verified `architecture_boundaries` rules into `nomos.yaml`.
+* **Progressive Template Reference**: `templates/nomos.yaml` documents `architecture_boundaries` and `contracts` (`strict_types`, `verify_obligations`) for binary-only downstream installations.
+* **Day-0 Mneme Topology Seed**: `nomos init` idempotently persists a `KindArchitecture` (`topic: "init-topology"`) memory in `mneme.db`, and `RecallRepoPatternsReadOnly` surfaces it before statutory `pattern` records exist.
+* **Lean `intent_twin_mode: off` Steering**: When `intent_twin_mode` is `off` and the wavefront is empty, `nomos handshake` steers `IDLE` directly to `nomos task chore` and `sync -m`.
+
 ---
 
 ## 5. Table-Driven Verification Vectors
@@ -407,6 +413,8 @@ type UpdateCheckCache struct {
 | `TC-UPD-004` | Law 1 (24h Cached Update Notice) | `nomos handshake` / `nomos version` cached check | Emits 24h cached update notice; honors `NOMOS_NO_UPDATE_CHECK=1` |
 | `TC-UPD-005` | Law 4 (Workspace Contract Refresh) | `nomos update --sync-workspace` on drifted workspace | Detects managed template drift and refreshes contracts idempotently |
 | `TC-UPD-006` | Law 5 & Law 7 (Windows Swap & Linux Provenance) | `AtomicReplaceBinary` over active binary and non-Arch `/usr/bin/nomos` | Stages `.old` backup cleanly on Windows and classifies non-Arch `/usr/bin` as `system` |
+| `TC-INIT-01` | Law 4 & Law 7 (Day-0 Boundary & Mneme Seed) | `nomos init` on layered brownfield repo | Scaffolds zero-violation `architecture_boundaries` and seeds `mneme.db` idempotently |
+| `TC-INIT-02` | Law 1 (Cold-Start Recall & Lean Steering) | `nomos handshake` with `intent_twin_mode: off` and zero `pattern` records | Recalls Day-0 `architecture` memory and steers `IDLE` to `chore` |
 
 ---
 
