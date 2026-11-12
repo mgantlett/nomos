@@ -34,12 +34,16 @@ lineage:
   - SUB-2292
   - INT-1997
   - SUB-2339
+  - INT-1999
+  - SUB-2340
+  - INT-2000
+  - SUB-2342
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Task Lifecycle CLI and Workspace State Transition Specification"
 type: spec
-version: "4.9.0"
+version: "4.10.0"
 ---
 
 # Task Lifecycle CLI and Workspace State Transition Specification
@@ -296,7 +300,7 @@ type UpdateCheckCache struct {
 * **Semantics**: Emits a Lipgloss dashboard or JSON payload scoped to the active `project` (or all projects with `-A, --all-projects`). Reports phase, task card, worktree, token budget, DB status, `In Progress` vs `Pending` counts, and DAG wavefront candidates.
 
 ### 4.2 `nomos task create`
-* **Syntax**: `nomos task create <TITLE> --plane <intent|substrate> (--scope <TEXT> --ac <ITEM>... --verify <TEXT> | -F <PATH|-> | -d <MARKDOWN>) [--project <PROJECT>] [--depends-on <KEY>...] [--burden <1-10>] [--tier <T1|T2>] [--priority <int>] [--twin-of <KEY>]`
+* **Syntax**: `nomos task create <TITLE> --plane <intent|substrate> (--scope <TEXT> --ac <ITEM>... --verify <TEXT> | -F|--file <PATH|-> | -d|--desc <MARKDOWN>) [--key <KEY>] [--project <PROJECT>] [--depends-on <KEY>...] [--burden <1-10>] [--tier <T1|T2>] [--priority <int>] [--twin-of <KEY>]`
 * **Semantics**: Validates the 3-section backlog card (`task.ValidateCardDescription` in `card.go`) via `--scope`/`--ac`/`--verify` or Markdown body. Auto-derives `burden` (`2-8`) when `--burden` is absent, stamps `project` from `nomos.yaml` or `--project`, and persists `INT-<N>` / `SUB-<N>` as `TODO`.
 
 ### 4.3 `nomos task start`
@@ -312,7 +316,7 @@ type UpdateCheckCache struct {
 * **Semantics**: Transitions task status to `REVIEW`; runs Definition of Done gates via `verify.Pipeline`.
 
 ### 4.6 `nomos task sync`
-* **Syntax**: `nomos task sync <KEY> (-F <walkthrough_path> | -m <walkthrough_summary>)`
+* **Syntax**: `nomos task sync <KEY> (-F|--file <walkthrough_path> | -m|--message <walkthrough_summary>)`
 * **Semantics**: Accepts either `-F <walkthrough_path>` or inline `-m <walkthrough_summary>` and rejects empty or simultaneous flags (`ERR_VALIDATION_FAILED`). Auto-commits dirty worktree changes using the inline `-m` rationale or `-F` file before rebasing diverged `feature/<KEY>` branches onto trunk. Normalizes workspace `file://` links, scrubs workstation paths and credentials, and rejects prohibited boundary literals inside the walkthrough text before merge. Validates walkthrough **Receipt-Trace Parity** (`arXiv:2611.06116`) against `touchedFiles` and any `nomos hook` trace, degrading gracefully without traces. Rejects false no-mutation, single-file, or runner claims. Evaluates DoD gates once on the post-rebase tree and reuses fresh (`TTL <= 5m`) clean `HEAD^{tree}` + trunk SHA receipts. Invalidates cached receipts fail-closed on `--no-verify` commits, dirty files, or trunk SHA drift. Merges `feature/<KEY>` via `--ff-only`, writes the scrubbed receipt to `refs/notes/nomos/releases`, prunes the worktree and branch, and enters `IDLE`.
 
 ### 4.7 `nomos task abort`
@@ -335,7 +339,8 @@ type UpdateCheckCache struct {
 * **`nomos task pair <TITLE>`**: Atomically allocates twinned `INT-<N>` and `SUB-<N>` rows in `SQLiteTaskStore`, enforcing `#TaskCardInput` (`--scope` / `--int-scope` / `--sub-scope`, `--ac`, `--verify`, or `-F` / `-d`).
 * **`nomos task chore <TITLE>`**: Provisions a 1-step `SUB-<N>` (or `--plane intent` `INT-<N>`) task directly into an `EDIT` worktree (`burden: 1`) without card templates.
 * **`nomos task project <PROJECT> <KEY> [KEY...]`**: Updates `project` on one or more existing Living Ledger tasks through `SQLiteTaskStore` under the Database Encapsulation Invariant.
-* **`nomos task commit [KEY] -m <MSG>`**: Stages and commits worktree changes as a Golden Conventional Commit (`[<KEY>] <type>(<scope>): <summary>`) with flowing rationale prose, `___` visual divider, and `Task:` / `Twin:` Git trailers.
+* **`nomos task commit [KEY] (-m|--message <MSG>) [--rationale <TEXT>] [--mechanics <TEXT>] [-F|--file <PATH>]`**: Stages and commits worktree changes under `NOMOS_COMMIT_IN_PROGRESS=1` as a Golden Conventional Commit (`[<KEY>] <type>(<scope>): <summary>`) with rationale prose, `___` visual divider, and `Task:` / `Twin:` Git trailers.
+* **`nomos issue [TITLE] [--body <TEXT>] [--output <PATH>] [--clear] [--yes] [--web] [--json]`**: Collects scrubbed `IssueReport` diagnostics (`PRAGMA journal_mode`, `PRAGMA busy_timeout`, `PRAGMA wal_checkpoint`, `PRAGMA optimize` DB health) or clears cached anomalies.
 * **`nomos task show <KEY> [--json]`**: Displays the detailed Living Ledger task inspection card, twin linkage, HATEOAS `Next Actions`, or structured JSON.
 * **`nomos task status [--json]`**: Displays active workspace phase state, CapBAC step budget consumption, and HATEOAS `Next Actions` (or structured `#PhaseState` JSON).
 
@@ -415,6 +420,17 @@ type UpdateCheckCache struct {
 | `TC-UPD-006` | Law 5 & Law 7 (Windows Swap & Linux Provenance) | `AtomicReplaceBinary` over active binary and non-Arch `/usr/bin/nomos` | Stages `.old` backup cleanly on Windows and classifies non-Arch `/usr/bin` as `system` |
 | `TC-INIT-01` | Law 4 & Law 7 (Day-0 Boundary & Mneme Seed) | `nomos init` on layered brownfield repo | Scaffolds zero-violation `architecture_boundaries` and seeds `mneme.db` idempotently |
 | `TC-INIT-02` | Law 1 (Cold-Start Recall & Lean Steering) | `nomos handshake` with `intent_twin_mode: off` and zero `pattern` records | Recalls Day-0 `architecture` memory and steers `IDLE` to `chore` |
+| `TC-REL-001` | Law 4 (SPDX Apache-2.0 License) | `LICENSE` audit in `legal_release_contract_test.go` | Verifies verbatim SPDX Apache-2.0 text and appendix |
+| `TC-REL-005` | Law 4 (Third-Party Notice Parity) | `THIRD_PARTY_NOTICES.md` and `.goreleaser.yaml` archive audit | Covers direct `go.mod` dependencies and bundles notices |
+| `TC-REL-006` | Law 6 (Trademark & Logo Carve-Out) | `NOTICE` corporate attribution audit | Preserves trademark shield and logo carve-out cleanly |
+| `TC-REL-007` | Law 7 (DCO Contribution Provenance) | `CONTRIBUTING.md` and PR template audit | Requires Developer Certificate of Origin sign-off |
+| `TC-REL-009` | Law 2 (Verify-Before-Release CI) | `.github/workflows` unified pipeline audit | Executes unit suites and 42 DoD gates before GoReleaser |
+| `TC-REL-010` | Law 5 (POSIX Uninstall Script) | `uninstall.sh` static shell audit | Purges canonical `NOMOS_HOME` under POSIX `sh` |
+| `TC-REL-011` | Law 6 (Open-Core Issue Template) | `.github/ISSUE_TEMPLATE` bug report audit | Excludes sovereign plugins and lists Tier 1 environments |
+| `TC-REL-012` | Law 4 (Open-Core README Provenance) | `README.md` open-core architecture audit | Links `arXiv:2610.32285` and receipt-gated memory cleanly |
+| `TC-REL-013` | Law 6 (Pure Open-Core Commit Scope) | `commit_scope` purity audit | Contains zero sovereign UI directory special cases |
+| `TC-REL-014` | Law 4 (GoReleaser AUR Target) | `.goreleaser.yaml` AUR `nomos-bin` audit | Publishes static binary AUR package definition |
+| `TC-REL-015` | Law 4 (Arch PKGBUILD Contract) | `packaging/aur/PKGBUILD` static binary audit | Verifies Arch and Omarchy `PKGBUILD` target integrity |
 
 ---
 

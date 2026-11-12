@@ -4,7 +4,7 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-23"
-last_updated: "2026-11-11"
+last_updated: "2026-11-12"
 lineage:
   - INT-735
   - INT-855
@@ -24,12 +24,14 @@ lineage:
   - SUB-2211
   - INT-1984
   - SUB-2279
+  - INT-2000
+  - SUB-2342
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Nomos Mneme Receipt-Gated Episodic Memory Subsystem Specification"
 type: spec
-version: "4.15.0"
+version: "4.16.0"
 ---
 
 # Nomos Mneme Receipt-Gated Episodic Memory Subsystem Specification
@@ -233,6 +235,7 @@ $$\text{Score} = (0.75 \times \text{CosineSimilarity} + 0.25 \times \text{Lexica
   - `-p, --project <repo>`: Scope to repository (defaults to active repo).
   - `--topic <topic>`: Topic category (default: `General`).
   - `--kind <kind>`: Advisory kind of memory (`reflection`, `axiom`, `decision`; default: `reflection`).
+  - `--task <key>`: Explicit linked task key override.
 
 ### 5.2 `nomos mem recall <query>`
 - Hybrid lexical, subword feature-hash, and optional local embedding search.

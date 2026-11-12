@@ -4,16 +4,20 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-01"
-last_updated: "2026-11-10"
+last_updated: "2026-11-12"
 lineage:
   - INT-1944
   - SUB-2157
+  - INT-1999
+  - SUB-2340
+  - INT-2000
+  - SUB-2342
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Nomos Controlled Technical English (NCTE-100) Architectural Specification"
 type: spec
-version: "4.8.0"
+version: "4.9.0"
 ---
 
 # Nomos Controlled Technical English (NCTE-100) Architectural Specification
@@ -220,7 +224,7 @@ Token counting executes under deterministic line, fence, frontmatter, and inline
 ## 5. Controlled Vocabulary Registry (SSoT)
 
 The substrate compiles a 36-term Succinct Action Lexicon across five domains (`lifecycle`, `verification`, `isolation`, `memory`, `steering`) in `substrate/src/nomos/modules/ncte/lexicon.go`.
-Operators query the compiled registry via `nomos directive --lexicon`, `nomos directive --term <word>`, and `nomos directive --lint <file>`.
+Operators query the compiled registry via `nomos directive --lexicon [--domain <domain>]`, `nomos directive --term <word>`, and `nomos directive --lint <file>`.
 The system rejects unregistered synonyms.
 
 | Canonical Term | Part of Speech | Approved Semantic Meaning | Banned Synonyms |

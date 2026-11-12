@@ -4,7 +4,7 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-11-03"
-last_updated: "2026-11-11"
+last_updated: "2026-11-12"
 lineage:
   - INT-897
   - SUB-1672
@@ -14,12 +14,14 @@ lineage:
   - SUB-2241
   - INT-1986
   - SUB-2281
+  - INT-2000
+  - SUB-2342
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Compiled Go SSoT and Reflected Draft 2020-12 JSON Schema Architecture Specification"
 type: spec
-version: "4.4.0"
+version: "4.5.0"
 ---
 
 # Compiled Go SSoT and Reflected Draft 2020-12 JSON Schema Architecture Specification
@@ -140,6 +142,24 @@ type ContractsBoundaryConfig struct {
 	AutoPromote bool            `yaml:"auto_promote,omitempty" json:"auto_promote,omitempty"`
 }
 
+// MembraneConfig defines frontend-to-backend DTO boundary verification (#MembraneConfig).
+type MembraneConfig struct {
+	Enabled              bool     `yaml:"enabled" json:"enabled"`
+	FrontendRoots        []string `yaml:"frontend_roots,omitempty" json:"frontend_roots,omitempty"`
+	BackendDTORoots      []string `yaml:"backend_dto_roots,omitempty" json:"backend_dto_roots,omitempty"`
+	BanishDefensiveMasks bool     `yaml:"banish_defensive_masks,omitempty" json:"banish_defensive_masks,omitempty"`
+	FailOnContractDrift  bool     `yaml:"fail_on_contract_drift,omitempty" json:"fail_on_contract_drift,omitempty"`
+}
+
+// InfraConfig defines infrastructure and environment ingress verification (#InfraConfig).
+type InfraConfig struct {
+	Enabled         bool     `yaml:"enabled" json:"enabled"`
+	IngressConfigs  []string `yaml:"ingress_configs,omitempty" json:"ingress_configs,omitempty"`
+	EnvDeclarations []string `yaml:"env_declarations,omitempty" json:"env_declarations,omitempty"`
+	PortScan        bool     `yaml:"port_scan" json:"port_scan"`
+	FailOnOrphanEnv bool     `yaml:"fail_on_orphan_env" json:"fail_on_orphan_env"`
+}
+
 // ThresholdsConfig captures numerical AST and test hygiene quality bounds (#ThresholdsConfig).
 type ThresholdsConfig struct {
 	MaxCognitiveDebtScore     int `yaml:"max_cognitive_debt_score" json:"max_cognitive_debt_score"`
@@ -177,6 +197,12 @@ package types
 import (
 	"context"
 	"time"
+)
+
+const (
+	ErrIntent    = "ERR_INTENT"
+	ErrSubstrate = "ERR_SUBSTRATE"
+	ErrInvariant = "ERR_INVARIANT"
 )
 
 // NomosError encapsulates structured agent-focused context for invariant failures (#NomosError).

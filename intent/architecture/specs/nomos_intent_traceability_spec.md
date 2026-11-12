@@ -15,12 +15,16 @@ lineage:
   - INT-1969
   - INT-1996
   - SUB-2316
+  - INT-1999
+  - SUB-2340
+  - INT-2000
+  - SUB-2342
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Nomos Intent Traceability & Architectural Obligation Proofs Specification"
 type: spec
-version: "4.18.0"
+version: "4.19.0"
 ---
 
 # Nomos Intent Traceability & Architectural Obligation Proofs Specification
@@ -293,6 +297,12 @@ func EvaluateArchitectureBoundaries(root string, files []string, rules []config.
 
 // InferCleanArchitectureBoundaries discovers directional layer import rules that satisfy existing repository imports with zero violations.
 func InferCleanArchitectureBoundaries(root string) []config.ArchitectureBoundaryRule
+
+// VerifyNoOrphanedTestObligations checks Go verification suites for @verifies TC-* annotations absent from specification tables.
+func VerifyNoOrphanedTestObligations(root string, specPaths []string) []string
+
+// VerifyNormativeRegistrySurjection verifies 100% of self-hosted gate ProbeIDs, config structs, CLI flags, and ERR_* codes appear in specs.
+func VerifyNormativeRegistrySurjection(root string, specPaths []string) []string
 ```
 
 ---
@@ -321,6 +331,15 @@ func InferCleanArchitectureBoundaries(root string) []config.ArchitectureBoundary
    - When `project: nomos` or `contracts.spec_roots` remains empty, `IntentSteelmanGate` enforces flat `intent/architecture/specs/*_spec.md` topology across all of `intent/`.
    - When downstream repositories (`project != "nomos"`) configure canonical `spec_roots`, `IntentSteelmanGate` enforces strict Steel-Man topology across `spec_roots` while ignoring sibling `intent/` folders.
    - When `contracts.schema_files` is empty and root `nomos.schema.json` is absent, `ContractParityGate` skips JSON schema checks while enforcing `backend_roots`.
+7. **Bijective Struct Parity, Orphan-Free Obligations & Commit-Delta Isolation (`TC-OBL-012`..`TC-OBL-015`):**
+   - `VerifySpecTypeSignatures` enforces package-qualified bijective Go struct parity (`spec_fields == ast_fields`) and canonicalized field type parity.
+   - `VerifyNoOrphanedTestObligations` parses Go `*_test.go` comments and table vector names and rejects `TC-*` tags absent from `spec_roots`.
+   - `VerifyNormativeRegistrySurjection` verifies `100%` of self-hosted `RegisterGate` `ProbeID`s, `core/config` structs, CLI `--flags`, and live `ERR_*` codes appear in specs.
+   - Concurrent `SUB-*` worktrees defer only pending sibling `INT-*` commit deltas (`TC-*` vectors, new structs, and added struct fields) across shared specs.
+8. **CLI Invocation Flags & Complete Probe Registry (`nomos verify` / `nomos proof`):**
+   - `nomos verify` and `nomos proof` accept `--baseline`, `--fast-file`, `--impact`, `--range`, `--strict`, and `--worktree` flags.
+   - Active probes include `config_immutability`, `dead_code`, `ecosystem_drift`, `gate_integrity_proof`, `infra_ingress`, `ip_leak`, `review_receipt`, `threshold_integrity`, `topology_parity`, `uasset_dependency`, `ui_anti_mask`, and `visual_regression`.
+   - `AntiShimGate` rejects hollow return stubs with `ERR_TRIVIAL_PASS_SHIM`.
 
 ---
 
@@ -344,6 +363,10 @@ func InferCleanArchitectureBoundaries(root string) []config.ArchitectureBoundary
 | `TC-OBL-009` | `VerifySpecTypeSignatures` | Spec declares TypeScript or Python field omitted in source | Rejects execution naming missing polyglot field | Law 4 & Law 7 |
 | `TC-OBL-010` | `verifyIntentASTAnchors` | Polyglot `@intent` tag references missing `#GhostType` anchor | Rejects execution naming unresolved polyglot anchor | Law 4 & Law 7 |
 | `TC-OBL-011` | `InferCleanArchitectureBoundaries` | Brownfield repo with clean `domain` vs `infra` layers | Emits verified zero-violation `architecture_boundaries` rules automatically | Law 4 & Law 7 |
+| `TC-OBL-012` | `VerifySpecTypeSignatures` | Go source adds undocumented struct field or alters field type | Rejects execution on extra AST field or type mismatch | Law 4 & Law 7 |
+| `TC-OBL-013` | `VerifyNoOrphanedTestObligations` | Go suite tags `@verifies TC-GHOST-99` absent from specs | Rejects dangling `TC-GHOST-99` while ignoring fixture strings | Law 2 & Law 4 |
+| `TC-OBL-014` | `VerifyNormativeRegistrySurjection` | Self-hosted `nomos` omits gate `ProbeID`, CLI `--flag`, or `ERR_*` | Rejects undocumented normative surface entry | Law 4 & Law 6 |
+| `TC-OBL-015` | `collectActiveSiblingTwinDeltas` | Concurrent `SUB-*` tasks share one domain spec file | Defers only sibling `INT-*` commit delta without blocking | Law 3 & Law 4 |
 | `TC-MAT-01` | `CanonicalMatrix` | `CanonicalMatrixModel{Laws: 7, Rings: 3, Cells: 21}` | Enforces exact `7x3 = 21` invariant cell topology | Law 2 & Law 6 |
 | `TC-MAT-02` | `CanonicalLaws` | Statutory 1..7 law metadata registry | Binds every cell to one of the 7 laws | Law 4 |
 | `TC-MAT-03` | `InvariantCellSpec` | Cell specification with syntactic, dynamic, or cryptographic ring | Maps every sensor probe to a canonical cell coordinate | Law 2 |

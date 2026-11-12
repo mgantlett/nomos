@@ -4,19 +4,21 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-13"
-last_updated: "2026-11-11"
+last_updated: "2026-11-12"
 lineage:
   - INT-1944
   - SUB-2157
   - INT-1954
   - INT-1985
   - SUB-2280
+  - INT-2000
+  - SUB-2342
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Nomos Software Physics Engine - Kinematics, Continuous Collision Detection & Phase Ballistics Specification"
 type: spec
-version: "4.2.0"
+version: "4.3.0"
 ---
 
 # Nomos Software Physics Engine: Kinematics, Continuous Collision Detection & Phase Ballistics Specification
@@ -318,7 +320,7 @@ type CapabilityMetrics struct {
 ```
 
 ### 4.3 Cross-Plane Transduction Matrix (`nomos physics`, `nomos session`, `nomos capabilities`)
-The Open-Core Software Physics Engine exposes real-time worktree AST mass, inertia, and continuous collision detection through `nomos physics [--json]` under the `quality` CLI group.
+The Open-Core Software Physics Engine exposes real-time worktree AST mass, inertia, and continuous collision detection through `nomos physics [--json]` under the `quality` CLI group. Operators query session arcs via `nomos session` (`--id`, `--root`, `--brain`, `--json`) and capability registries via `nomos capabilities` (`--type`, `--json`).
 
 | Intent Physical Vector | Substrate Engine Package | CLI & Telemetry Projection |
 | :--- | :--- | :--- |
