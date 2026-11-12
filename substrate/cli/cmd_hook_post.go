@@ -225,7 +225,11 @@ func evaluateFastRadarInMemory(resolved, baseCwd string) string {
 		lines = append(lines, fmt.Sprintf("🚨 [Nomos Radar Breach] %s: %s", res.File, b))
 	}
 	for _, w := range res.Warnings {
-		lines = append(lines, fmt.Sprintf("⚠️  [Nomos Radar >=80%% Budget] %s: %s", res.File, w))
+		tag := "[Nomos Radar >=80% Budget]"
+		if strings.Contains(w, "hot-scope") {
+			tag = "[Nomos Hot-Scope Radar >=65% Budget]"
+		}
+		lines = append(lines, fmt.Sprintf("⚠️  %s %s: %s", tag, res.File, w))
 	}
 	return strings.Join(lines, "\n")
 }

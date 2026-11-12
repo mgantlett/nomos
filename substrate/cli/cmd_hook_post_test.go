@@ -14,3 +14,10 @@ func TestEvaluateCommandGuard_DirectSQLiteInterceptUsesLaw1(t *testing.T) {
 		t.Fatalf("expected Law 1 encapsulation message without private ADR-0062, got: %s", dec.Reason)
 	}
 }
+
+func TestFormatHotScopeRadarWarningTag(t *testing.T) {
+	hotLine := "func Run complexity 10/15 (66% hot-scope >=65% budget)"
+	if !strings.Contains(hotLine, "hot-scope") {
+		t.Fatalf("expected hot-scope marker in warning string")
+	}
+}

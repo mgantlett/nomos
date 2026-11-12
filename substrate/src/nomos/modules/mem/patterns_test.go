@@ -159,7 +159,7 @@ func TestRecallGraduationCandidates_ThresholdAndDecay(t *testing.T) {
 		t.Fatalf("TC-MEM-08: expected 0 graduation candidates for 1x built-in AST gate despite 3x views, got %v", cands)
 	}
 
-	// Second distinct task hitting Cognitive Complexity in substrate/src (recurred 2x) surfaces Tier A->Axiom candidate
+	// Built-in AST gate (Cognitive Complexity) recurring >= 2x suppresses cross-plane nomos.yaml banners (TC-MEM-18)
 	if err := RecordGateTrap(repo, "SUB-9", touched, []GateTrapEntry{{
 		GateName: "Cognitive Complexity Invariant",
 		Message:  "- substrate/src/worker.py:48 (run_worker) has cyclomatic complexity 17 (exceeds max 15)",
@@ -169,12 +169,32 @@ func TestRecallGraduationCandidates_ThresholdAndDecay(t *testing.T) {
 	if _, err := DistillTaskLearnings(repo, "SUB-9", "- Split run_worker into pure helpers", touched); err != nil {
 		t.Fatalf("second DistillTaskLearnings: %v", err)
 	}
-	cands := RecallGraduationCandidates(repo, 3)
-	if len(cands) != 1 || !strings.Contains(cands[0], "recurred 2x") || !strings.Contains(cands[0], "pitfall:cognitive_complexity_invariant:substrate/src") {
-		t.Fatalf("TC-MEM-08: expected 1 recurring structural graduation candidate at recurred 2x scoped to substrate/src, got %v", cands)
+	if cands := RecallGraduationCandidates(repo, 3); len(cands) != 0 {
+		t.Fatalf("TC-MEM-18: expected 0 nomos.yaml graduation banners for built-in AST gate at recurred 2x, got %v", cands)
 	}
 
-	// Dismissing the graduated pitfall transitions it to tombstoned and clears it from GraduationCandidates
+	// Policy-graduatable gate (Forbidden Literals) recurring 2x DOES surface Tier A->B candidate (TC-MEM-08)
+	for _, tk := range []string{"SUB-10", "SUB-11"} {
+		if err := RecordGateTrap(repo, tk, touched, []GateTrapEntry{{
+			GateName: "Forbidden Literals Invariant",
+			Message:  "- substrate/src/worker.py:12 contains forbidden path literal",
+		}}); err != nil {
+			t.Fatalf("policy RecordGateTrap: %v", err)
+		}
+		if _, err := DistillTaskLearnings(repo, tk, "- Parameterized runtime path resolution", touched); err != nil {
+			t.Fatalf("policy DistillTaskLearnings: %v", err)
+		}
+	}
+	cands := RecallGraduationCandidates(repo, 3)
+	if len(cands) != 1 || !strings.Contains(cands[0], "recurred 2x") || !strings.Contains(cands[0], "pitfall:forbidden_literals_invariant:substrate/src") {
+		t.Fatalf("TC-MEM-08: expected 1 policy graduation candidate at recurred 2x scoped to substrate/src, got %v", cands)
+	}
+	assertDismissClearsGraduationCandidates(t, repo)
+	assertTemporalDecayOrdering(t)
+}
+
+func assertDismissClearsGraduationCandidates(t *testing.T, repo string) {
+	t.Helper()
 	store2, err := NewStore("")
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
@@ -191,8 +211,10 @@ func TestRecallGraduationCandidates_ThresholdAndDecay(t *testing.T) {
 	if afterDismiss := RecallGraduationCandidates(repo, 3); len(afterDismiss) != 0 {
 		t.Fatalf("expected dismissed pitfall removed from GraduationCandidates, got %v", afterDismiss)
 	}
+}
 
-	// Verify CalculateTemporalDecay places KindPattern between KindAxiom and KindPitfall
+func assertTemporalDecayOrdering(t *testing.T) {
+	t.Helper()
 	aged := time.Now().UTC().Add(-30 * 24 * time.Hour)
 	dAxiom := CalculateTemporalDecay(aged, KindAxiom)
 	dPattern := CalculateTemporalDecay(aged, KindPattern)

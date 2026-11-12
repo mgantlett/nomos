@@ -3,11 +3,19 @@ package verify
 
 import (
 	"fmt"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/mem"
+)
+
+const (
+	defaultRadarWarnPct  = 80
+	hotScopeRadarWarnPct = 65
 )
 
 // FastFileRadarResult reports single-file AST budget proximity and immediate breaches (#QualityGatesConfig).
@@ -21,10 +29,7 @@ type FastFileRadarResult struct {
 
 // EvaluateFastFileRadar analyzes a single file in <15ms for >=80% AST budget warnings and immediate breaches (@intent: #QualityGatesConfig).
 func EvaluateFastFileRadar(repoRoot, filePath string) (*FastFileRadarResult, error) {
-	absPath := filePath
-	if abs, err := filepath.Abs(filePath); err == nil {
-		absPath = abs
-	}
+	absPath := resolveAbsRadarPath(filePath)
 	res := &FastFileRadarResult{File: absPath}
 
 	fi, err := os.Stat(absPath)
@@ -32,11 +37,7 @@ func EvaluateFastFileRadar(repoRoot, filePath string) (*FastFileRadarResult, err
 		return res, nil
 	}
 	wtRoot := resolveRadarWorktreeRoot(repoRoot, absPath)
-	if rootRel, rErr := filepath.Rel(wtRoot, absPath); rErr == nil && rootRel != "" && !strings.HasPrefix(rootRel, "..") {
-		res.File = filepath.ToSlash(rootRel)
-	} else if rootRel, rErr := filepath.Rel(repoRoot, absPath); rErr == nil && rootRel != "" && !strings.HasPrefix(rootRel, "..") {
-		res.File = filepath.ToSlash(rootRel)
-	}
+	res.File = resolveRelativeRadarFile(repoRoot, wtRoot, absPath)
 
 	data, err := os.ReadFile(absPath)
 	if err != nil {
@@ -53,8 +54,35 @@ func EvaluateFastFileRadar(repoRoot, filePath string) (*FastFileRadarResult, err
 	}
 	evaluateFastCWESinks(ctx, wtRoot, absPath, res.File, data, res)
 	evaluateFastIntraPackageClones(ctx, wtRoot, absPath, data, res)
-	evaluateFastASTBudgets(ctx, wtRoot, absPath, data, res)
+	warnPct := applyHotScopeRadarReflex(ctx, repoRoot, wtRoot, absPath, data, res)
+	evaluateFastASTBudgets(ctx, wtRoot, absPath, data, warnPct, res)
 	return res, nil
+}
+
+func resolveAbsRadarPath(filePath string) string {
+	if abs, err := filepath.Abs(filePath); err == nil {
+		return abs
+	}
+	return filePath
+}
+
+func resolveRelativeRadarFile(repoRoot, wtRoot, absPath string) string {
+	if rootRel, err := filepath.Rel(wtRoot, absPath); err == nil && rootRel != "" && !strings.HasPrefix(rootRel, "..") {
+		return filepath.ToSlash(rootRel)
+	}
+	if rootRel, err := filepath.Rel(repoRoot, absPath); err == nil && rootRel != "" && !strings.HasPrefix(rootRel, "..") {
+		return filepath.ToSlash(rootRel)
+	}
+	return absPath
+}
+
+func applyHotScopeRadarReflex(ctx *VerifyContext, repoRoot, wtRoot, absPath string, data []byte, res *FastFileRadarResult) int {
+	relDir := mem.DeriveDirectoryScope("", []string{res.File})
+	if mem.ResolveHotScopeReflex(resolveRadarPrimaryRoot(repoRoot, wtRoot), relDir) == nil {
+		return defaultRadarWarnPct
+	}
+	evaluateFastHotScopeProbes(ctx, absPath, res.File, data, res)
+	return hotScopeRadarWarnPct
 }
 
 func evaluateFastArchitectureBoundaries(ctx *VerifyContext, wtRoot, absPath string, res *FastFileRadarResult) {
@@ -112,7 +140,7 @@ func evaluateFastForbiddenLiterals(ctx *VerifyContext, wtRoot, absPath string, r
 	res.Breaches = append(res.Breaches, hits...)
 }
 
-func evaluateFastASTBudgets(ctx *VerifyContext, wtRoot, absPath string, data []byte, res *FastFileRadarResult) {
+func evaluateFastASTBudgets(ctx *VerifyContext, wtRoot, absPath string, data []byte, warnPct int, res *FastFileRadarResult) {
 	t := resolveThresholds(ctx)
 	rep, err := AnalyzeFileDebt(absPath, data, t.MaxComplexity, t.MaxFuncLOC)
 	if err != nil || rep == nil {
@@ -124,37 +152,37 @@ func evaluateFastASTBudgets(ctx *VerifyContext, wtRoot, absPath string, data []b
 	if isBrownfieldRatchetActive(ctx) {
 		if baseBytes, ok := loadBaselineFileBytes(ctx, wtRoot, absPath); ok {
 			if baseRep, bErr := AnalyzeFileDebt(absPath, baseBytes, t.MaxComplexity, t.MaxFuncLOC); bErr == nil && baseRep != nil {
-				evaluateRatchetedFastBudgets(rep, baseRep, t, res)
+				evaluateRatchetedFastBudgets(rep, baseRep, t, warnPct, res)
 				return
 			}
 		}
 	}
 
-	checkBudgetMetric("file LOC", rep.TotalLOC, t.MaxFileLOC, res)
+	checkBudgetMetricWithPct("file LOC", rep.TotalLOC, t.MaxFileLOC, warnPct, res)
 	if rep.DebtScore > 0 {
-		checkBudgetMetric("cognitive debt", rep.DebtScore, t.MaxCDS, res)
+		checkBudgetMetricWithPct("cognitive debt", rep.DebtScore, t.MaxCDS, warnPct, res)
 	}
 	for _, fn := range rep.Functions {
-		checkBudgetMetric(fmt.Sprintf("func %s LOC", fn.Name), fn.LOC, t.MaxFuncLOC, res)
-		checkBudgetMetric(fmt.Sprintf("func %s complexity", fn.Name), fn.Complexity, t.MaxComplexity, res)
+		checkBudgetMetricWithPct(fmt.Sprintf("func %s LOC", fn.Name), fn.LOC, t.MaxFuncLOC, warnPct, res)
+		checkBudgetMetricWithPct(fmt.Sprintf("func %s complexity", fn.Name), fn.Complexity, t.MaxComplexity, warnPct, res)
 	}
 }
 
-func evaluateRatchetedFastBudgets(rep, baseRep *FileDebtReport, t Thresholds, res *FastFileRadarResult) {
-	checkRatchetedMetric("file LOC", rep.TotalLOC, baseRep.TotalLOC, t.MaxFileLOC, res)
+func evaluateRatchetedFastBudgets(rep, baseRep *FileDebtReport, t Thresholds, warnPct int, res *FastFileRadarResult) {
+	checkRatchetedMetricWithPct("file LOC", rep.TotalLOC, baseRep.TotalLOC, t.MaxFileLOC, warnPct, res)
 	if rep.DebtScore > 0 {
-		checkRatchetedMetric("cognitive debt", rep.DebtScore, baseRep.DebtScore, t.MaxCDS, res)
+		checkRatchetedMetricWithPct("cognitive debt", rep.DebtScore, baseRep.DebtScore, t.MaxCDS, warnPct, res)
 	}
 	baseFns := indexBaselineFunctionDebts(baseRep.Functions)
 	for _, fn := range rep.Functions {
 		bfn, existed := baseFns[fn.Name]
 		if !existed {
-			checkBudgetMetric(fmt.Sprintf("func %s LOC", fn.Name), fn.LOC, t.MaxFuncLOC, res)
-			checkBudgetMetric(fmt.Sprintf("func %s complexity", fn.Name), fn.Complexity, t.MaxComplexity, res)
+			checkBudgetMetricWithPct(fmt.Sprintf("func %s LOC", fn.Name), fn.LOC, t.MaxFuncLOC, warnPct, res)
+			checkBudgetMetricWithPct(fmt.Sprintf("func %s complexity", fn.Name), fn.Complexity, t.MaxComplexity, warnPct, res)
 			continue
 		}
-		checkRatchetedMetric(fmt.Sprintf("func %s LOC", fn.Name), fn.LOC, bfn.LOC, t.MaxFuncLOC, res)
-		checkRatchetedMetric(fmt.Sprintf("func %s complexity", fn.Name), fn.Complexity, bfn.Complexity, t.MaxComplexity, res)
+		checkRatchetedMetricWithPct(fmt.Sprintf("func %s LOC", fn.Name), fn.LOC, bfn.LOC, t.MaxFuncLOC, warnPct, res)
+		checkRatchetedMetricWithPct(fmt.Sprintf("func %s complexity", fn.Name), fn.Complexity, bfn.Complexity, t.MaxComplexity, warnPct, res)
 	}
 }
 
@@ -173,7 +201,7 @@ func indexBaselineFunctionDebts(funcs []FunctionDebt) map[string]FunctionDebt {
 	return byName
 }
 
-func checkRatchetedMetric(label string, val, baseVal, limit int, res *FastFileRadarResult) {
+func checkRatchetedMetricWithPct(label string, val, baseVal, limit, warnPct int, res *FastFileRadarResult) {
 	if limit <= 0 {
 		return
 	}
@@ -186,10 +214,10 @@ func checkRatchetedMetric(label string, val, baseVal, limit int, res *FastFileRa
 		res.Warnings = append(res.Warnings, fmt.Sprintf("%s %d (brownfield baseline %d, delta %+d)", label, val, baseVal, val-baseVal))
 		return
 	}
-	checkBudgetMetric(label, val, limit, res)
+	checkBudgetMetricWithPct(label, val, limit, warnPct, res)
 }
 
-func checkBudgetMetric(label string, val, limit int, res *FastFileRadarResult) {
+func checkBudgetMetricWithPct(label string, val, limit, warnPct int, res *FastFileRadarResult) {
 	if limit <= 0 {
 		return
 	}
@@ -197,8 +225,47 @@ func checkBudgetMetric(label string, val, limit int, res *FastFileRadarResult) {
 		res.Breaches = append(res.Breaches, fmt.Sprintf("%s %d/%d (>100%% limit)", label, val, limit))
 		return
 	}
-	if val*100 >= limit*80 {
+	if warnPct <= 0 {
+		warnPct = defaultRadarWarnPct
+	}
+	if val*100 >= limit*warnPct {
 		pct := (val * 100) / limit
+		if warnPct < defaultRadarWarnPct {
+			res.Warnings = append(res.Warnings, fmt.Sprintf("%s %d/%d (%d%% hot-scope >=%d%% budget)", label, val, limit, pct, warnPct))
+			return
+		}
 		res.Warnings = append(res.Warnings, fmt.Sprintf("%s %d/%d (%d%% budget)", label, val, limit, pct))
 	}
+}
+
+func resolveRadarPrimaryRoot(repoRoot, wtRoot string) string {
+	if pr, err := workspace.FindRepoRoot(wtRoot); err == nil && pr != "" {
+		return pr
+	}
+	if repoRoot != "" {
+		if pr, err := workspace.FindRepoRoot(repoRoot); err == nil && pr != "" {
+			return pr
+		}
+		return repoRoot
+	}
+	return wtRoot
+}
+
+func evaluateFastHotScopeProbes(ctx *VerifyContext, absPath, relFile string, data []byte, res *FastFileRadarResult) {
+	maxParams := resolveThresholds(ctx).MaxFuncParams
+	if maxParams <= 0 {
+		maxParams = MaxFunctionParams
+	}
+	res.Breaches = append(res.Breaches, EvaluateParameterArityViolations(relFile, data, maxParams)...)
+	ext := strings.ToLower(filepath.Ext(absPath))
+	if ext == ".go" {
+		fset := token.NewFileSet()
+		if node, err := parser.ParseFile(fset, absPath, data, 0); err == nil {
+			checkUncheckedErrorsInFile(node, fset, relFile, &res.Breaches)
+		}
+		res.Breaches = append(res.Breaches, scanGoFileAntiShim(token.NewFileSet(), absPath, relFile)...)
+		return
+	}
+	res.Breaches = append(res.Breaches, checkPolyglotUncheckedErrors(ext, relFile, data)...)
+	res.Breaches = append(res.Breaches, scanPolyglotAntiShim(absPath, relFile)...)
 }

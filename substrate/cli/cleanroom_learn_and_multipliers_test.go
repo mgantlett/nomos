@@ -75,8 +75,9 @@ func verifyPolyglotTrapAndNomosLearnDistillation(t *testing.T, repoDir, wt strin
 		t.Skip("python3 not installed in test environment")
 	}
 
-	// Mark 3: Inject broken Python syntax and prove GoToolchainGate polyglot extension catches it
-	brokenPy := "\"\"\"Broken reconciliation syntax.\"\"\"\n\ndef reconcile_ledger(delta: int) -> int\n    return delta\n"
+	// Mark 3: Inject broken Python syntax + forbidden path literal and prove toolchain & policy gates catch them
+	forbiddenPrefix := "/" + "home/dev/ledger"
+	brokenPy := "\"\"\"Broken reconciliation syntax.\"\"\"\nLEGACY_PATH = \"" + forbiddenPrefix + "\"\ndef reconcile_ledger(delta: int) -> int\n    return delta\n"
 	pyTarget := filepath.Join(wt, "substrate", "src", "reconcile.py")
 	if err := os.WriteFile(pyTarget, []byte(brokenPy), 0644); err != nil {
 		t.Fatalf("write broken reconcile.py: %v", err)
@@ -114,7 +115,7 @@ func verifyHandshakeRecallsDistilledPitfallAndImpact(t *testing.T, repoDir strin
 	if err != nil {
 		t.Fatalf("CDV-LRN-04: SynthesizeDynamicHandshake in SUB-2 failed: %v", err)
 	}
-	if len(ev.LearnedPitfalls) == 0 || !strings.Contains(ev.LearnedPitfalls[0], "Python syntax compilation failed") {
+	if len(ev.LearnedPitfalls) == 0 || !strings.Contains(strings.Join(ev.LearnedPitfalls, "\n"), "Python syntax compilation failed") {
 		t.Fatalf("CDV-LRN-04: expected handshake to recall distilled SUB-1 Python pitfall, got: %v", ev.LearnedPitfalls)
 	}
 	if len(ev.VerifiedPatterns) == 0 || !strings.Contains(ev.VerifiedPatterns[0], "reconcile_ledger") {
@@ -140,8 +141,8 @@ func verifyHandshakeRecallsDistilledPitfallAndImpact(t *testing.T, repoDir strin
 		t.Fatalf("TV-LRN-09a: expected same-task duplicate handshakes not to inflate GraduationCandidates, got: %v", evSameTask.GraduationCandidates)
 	}
 
-	// True recurrence across 2 distinct tasks (SUB-1 + SUB-2 hitting the same scope trap) surfaces GraduationCandidates
-	_ = os.WriteFile(pyTarget, []byte("def broken_again(\n"), 0644)
+	// True policy recurrence across 2 distinct tasks (SUB-1 + SUB-2) surfaces GraduationCandidates while built-in toolchain traps stay suppressed (TC-MEM-18)
+	_ = os.WriteFile(pyTarget, []byte("LEGACY_PATH = \""+"/"+"home/dev/ledger\"\ndef broken_again(\n"), 0644)
 	_, _ = executeGateCheckForTask("SUB-2")
 	_ = os.WriteFile(pyTarget, []byte(updatedPy), 0644)
 	syncCleanroomTask(t, repoDir, "SUB-2", "Clamped reconciliation delta cleanly")

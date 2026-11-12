@@ -3,10 +3,28 @@ package mem
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
 )
+
+const (
+	// CleanStreakCoolingThreshold defines consecutive clean task recalls required to cool hot scopes and graduation nagging.
+	CleanStreakCoolingThreshold = 5
+	// HotScopeMinRecurrence defines minimum directory pitfall recurrences required to sensitize FastFileRadar.
+	HotScopeMinRecurrence = 3
+)
+
+// HotScopeReflex describes an active directory-scoped post-tool AST reflex (#HotScopeReflex).
+type HotScopeReflex struct {
+	Scope           string   `json:"scope"`
+	RecurrenceDepth int      `json:"recurrence_depth"`
+	CleanStreak     int      `json:"clean_streak"`
+	ActiveGates     []string `json:"active_gates"`
+}
 
 // RecallRepoPatterns retrieves active 2PC-verified structural blueprints partitioned to repoRoot and records active task access (@intent: #Memory).
 func RecallRepoPatterns(repoRoot, queryHint string, touchedFiles []string, limit int) []string {
@@ -170,6 +188,8 @@ func isBuiltInStructuralASTTopic(topic string) bool {
 		"pitfall:go_toolchain_gate",
 		"pitfall:polyglot_toolchain",
 		"pitfall:intent_steel-man",
+		"pitfall:intent_substrate_parity",
+		"pitfall:intent_traceability",
 		"pitfall:bilateral_parity",
 		"pitfall:plane_separation",
 		"pitfall:hermetic_worktree",
@@ -190,8 +210,8 @@ func isGraduationEligibleWithDepth(m *Memory, repoID string, topicDepth int) boo
 	if strings.ToLower(strings.TrimSpace(m.RepoID)) != repoID || isEphemeralTestAssertionContent(m.Content) {
 		return false
 	}
-	if isBuiltInStructuralASTTopic(m.Topic) {
-		return topicDepth >= 2
+	if isBuiltInStructuralASTTopic(m.Topic) || m.AccessCount >= CleanStreakCoolingThreshold {
+		return false
 	}
 	return topicDepth >= 2 || m.AccessCount >= GraduationAccessThreshold
 }
@@ -200,11 +220,82 @@ func formatGraduationCandidateLine(c *Memory, depth int) string {
 	if depth < 1 {
 		depth = 1
 	}
-	if isBuiltInStructuralASTTopic(c.Topic) {
-		return fmt.Sprintf("[Tier A->Axiom (recurred %dx · %dx recalled) #%d %s] Recurring structural trap - promote package axiom or dismiss: %s",
-			depth, c.AccessCount, c.ID, c.Topic, formatSnippet(c.Content, 96))
-	}
 	return fmt.Sprintf("[Tier A->B (recurred %dx · %dx recalled) #%d %s] Promote recurring invariant to nomos.yaml: %s",
 		depth, c.AccessCount, c.ID, c.Topic, formatSnippet(c.Content, 96))
+}
+
+// ResolveHotScopeReflex inspects active directory pitfalls for post-tool AST sensitization (@intent intent.md mneme_memory_spec.md #HotScopeReflex).
+func ResolveHotScopeReflex(repoRoot, relDir string) *HotScopeReflex {
+	cleanRoot := strings.TrimSpace(repoRoot)
+	cleanDir := strings.TrimSpace(filepath.ToSlash(relDir))
+	if cleanRoot == "" || cleanDir == "" || cleanDir == workspaceScopeLabel {
+		return nil
+	}
+	if _, err := os.Stat(config.ResolveMnemeDBPath()); err != nil {
+		return nil
+	}
+	store, err := NewStore("")
+	if err != nil {
+		return nil
+	}
+	defer func() {
+		if cErr := store.Close(); cErr != nil {
+			// closed
+		}
+	}()
+	all, err := store.ListAll()
+	if err != nil {
+		return nil
+	}
+	repoID := strings.ToLower(filepath.Base(filepath.Clean(cleanRoot)))
+	return buildHotScopeReflex(all, repoID, cleanDir, countPitfallTopicChain(all, repoID))
+}
+
+func buildHotScopeReflex(all []*Memory, repoID, cleanDir string, topicDepths map[string]int) *HotScopeReflex {
+	seenGates := make(map[string]bool)
+	var gates []string
+	maxDepth := 0
+	minStreak := -1
+
+	for _, m := range all {
+		if !isActiveHotScopeCandidate(m, repoID, cleanDir) {
+			continue
+		}
+		depth := topicDepths[strings.ToLower(m.Topic)]
+		if depth < HotScopeMinRecurrence || m.AccessCount >= CleanStreakCoolingThreshold {
+			continue
+		}
+		gateSlug := extractGateSlugFromPitfallTopic(m.Topic)
+		if gateSlug != "" && !seenGates[gateSlug] {
+			seenGates[gateSlug] = true
+			gates = append(gates, gateSlug)
+		}
+		if depth > maxDepth {
+			maxDepth = depth
+		}
+		if minStreak < 0 || m.AccessCount < minStreak {
+			minStreak = m.AccessCount
+		}
+	}
+	if len(gates) == 0 {
+		return nil
+	}
+	sort.Strings(gates)
+	return &HotScopeReflex{
+		Scope:           cleanDir,
+		RecurrenceDepth: maxDepth,
+		CleanStreak:     minStreak,
+		ActiveGates:     gates,
+	}
+}
+
+func isActiveHotScopeCandidate(m *Memory, repoID, cleanDir string) bool {
+	if m == nil || m.Status != StatusActive || m.Kind != KindPitfall {
+		return false
+	}
+	if strings.ToLower(strings.TrimSpace(m.RepoID)) != repoID || !isBuiltInStructuralASTTopic(m.Topic) {
+		return false
+	}
+	return strings.EqualFold(extractScopeFromPitfallTopic(m.Topic), cleanDir)
 }
 
