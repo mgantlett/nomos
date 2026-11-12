@@ -51,6 +51,8 @@ func EvaluateFastFileRadar(repoRoot, filePath string) (*FastFileRadarResult, err
 	if !isSupportedPolyglotSourceFile(absPath) || isVerificationSuiteFile(filepath.Base(absPath)) {
 		return res, nil
 	}
+	evaluateFastCWESinks(ctx, wtRoot, absPath, res.File, data, res)
+	evaluateFastIntraPackageClones(ctx, wtRoot, absPath, data, res)
 	evaluateFastASTBudgets(ctx, wtRoot, absPath, data, res)
 	return res, nil
 }

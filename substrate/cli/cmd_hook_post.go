@@ -76,7 +76,7 @@ func evaluateCommandGuard(cmdLine, baseCwd, hermeticDir string) HookDecision {
 			return dec
 		}
 	}
-	return evaluateTrunkShellRedirectGuard(cmdLine, baseCwd, hermeticDir)
+	return evaluateShellAliasAndRedirectGuard(cmdLine, baseCwd, hermeticDir)
 }
 
 func isForbiddenSQLiteCmd(cmdLine string) bool {
@@ -132,7 +132,10 @@ func EvaluatePostToolHook(p *HookPayload, hermeticDir string) string {
 	if !isPostToolTargetInScope(resolved, hermeticDir) {
 		return ""
 	}
-	pitfallMsg := evaluateJITDirectoryPitfallAdvisory(p, hermeticDir)
+	pitfallMsg := joinHookAdvisories(
+		evaluateJITDirectoryPitfallAdvisory(p, hermeticDir),
+		evaluateFirstEditImpactAdvisory(p, hermeticDir),
+	)
 	if syntaxMsg := validateStructuredFileInMemory(resolved); syntaxMsg != "" {
 		return joinHookAdvisories(syntaxMsg, pitfallMsg)
 	}

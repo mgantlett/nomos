@@ -91,7 +91,7 @@ func IsHostCredentialStorePath(rawPath string) bool {
 	}
 	lower := strings.ToLower(norm)
 	base := path.Base(lower)
-	if sensitiveBasenames[base] {
+	if sensitiveBasenames[base] || strings.HasPrefix(base, "signing_key") {
 		return true
 	}
 	if matchesHostCredentialDir(lower) {

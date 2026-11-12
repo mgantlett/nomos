@@ -68,6 +68,10 @@ Just-In-Time (JIT) Phase Invariant Envelopes under indirect control.`,
 }
 
 func renderHandshakeBanner(event *handshake.HandshakeEvent, installed bool, hookRoot string) {
+	if resolveAdvisoryStyle("", "NOMOS_ADVISORY_STYLE") == advisoryStyleTerse {
+		renderCompactHandshakeBanner(event)
+		return
+	}
 	if event != nil && !event.StrictMode && event.BrownfieldTopology != nil {
 		renderBrownfieldHandshakeBanner(event, event.BrownfieldTopology, hookRoot)
 		return

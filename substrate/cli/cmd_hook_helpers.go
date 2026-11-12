@@ -70,7 +70,7 @@ func evaluateTargetFilePreToolGuard(p *HookPayload, hermeticDir string) HookDeci
 		if !isReadOnlyTool(cp.ToolName) {
 			dec = evaluateFileMutationGuard(&cp, hermeticDir)
 		} else {
-			dec = evaluateBinaryReadGuard(&cp, hermeticDir != "")
+			dec = evaluateReadToolBoundaryAndBinary(&cp, hermeticDir)
 		}
 		if dec.Decision == hookDecisionDeny {
 			return dec

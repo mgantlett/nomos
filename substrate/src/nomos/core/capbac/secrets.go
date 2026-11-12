@@ -21,6 +21,8 @@ var canonicalSecretRules = []secretTokenRule{
 	{label: "Slack token", re: regexp.MustCompile(`xox[baprs]-[0-9A-Za-z-]{20,}`)},
 	{label: "HuggingFace token", re: regexp.MustCompile(`hf_[A-Za-z0-9]{30,}`)},
 	{label: "xAI API key", re: regexp.MustCompile(`xai-[A-Za-z0-9]{30,}`)},
+	{label: "npm registry token", re: regexp.MustCompile(`\bnpm_[A-Za-z0-9_]{12,}\b`)},
+	{label: "Webhook signing secret", re: regexp.MustCompile(`\bwhsec_[A-Za-z0-9_]{12,}\b`)},
 }
 
 // MatchSecretTokenLabel scans content against the canonical credential signature registry

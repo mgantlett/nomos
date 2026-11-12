@@ -31,6 +31,7 @@ type hookSessionTrace struct {
 	WarnedReadSpiral20   bool     `json:"warned_read_spiral_20,omitempty"`
 	MutatedFiles         []string `json:"mutated_files,omitempty"`
 	RecalledPitfallDirs  []string `json:"recalled_pitfall_dirs,omitempty"`
+	ImpactedFiles        []string `json:"impacted_files,omitempty"`
 }
 
 var standaloneVerifyCmdRe = regexp.MustCompile(`(?i)^\s*(?:cd\s+\S+\s*&&\s*)?(?:\S+/)?nomos\s+(?:verify|task\s+review|task\s+sync)(?:\s|$)`)

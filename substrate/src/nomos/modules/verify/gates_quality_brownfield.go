@@ -301,8 +301,12 @@ func scanSecretsScoped(ctx *VerifyContext, root string) ([]string, error) {
 			return nil
 		}
 		if data, rErr := os.ReadFile(path); rErr == nil {
+			relPath := relativeOrFullPath(root, path)
 			if label := matchSecretTokenLabel(string(data)); label != "" {
-				leaks = append(leaks, relativeOrFullPath(root, path)+" ("+label+")")
+				leaks = append(leaks, relPath+" ("+label+")")
+			}
+			for _, cwe := range scanRatchetedCWELeaks(ctx, root, path, relPath, data) {
+				leaks = append(leaks, relPath+" ("+cwe+")")
 			}
 		}
 		return nil

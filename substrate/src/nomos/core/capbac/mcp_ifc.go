@@ -58,15 +58,16 @@ type MCPBoundaryPolicy struct {
 	BlockedServers []string
 }
 
-// IsMCPToolName reports whether name uses an MCP tool namespace ('mcp__*' or 'mcp_*').
+// IsMCPToolName reports whether name uses an MCP tool namespace ('mcp__*', 'mcp_*', 'mcp.*', or 'invoke_mcp').
 // @intent nomos_hermetic_worktree_spec.md #MCPInvocation
 func IsMCPToolName(name string) bool {
 	lower := strings.ToLower(strings.TrimSpace(name))
-	return strings.HasPrefix(lower, "mcp__") || strings.HasPrefix(lower, "mcp_")
+	return strings.HasPrefix(lower, "mcp__") || strings.HasPrefix(lower, "mcp_") ||
+		strings.HasPrefix(lower, "mcp.") || lower == "invoke_mcp"
 }
 
-// ParseMCPInvocation parses Claude Code ('mcp__<server>__<action>') and Cursor/AGY
-// ('mcp_<server>_<action>') tool names into canonical MCPInvocation coordinates.
+// ParseMCPInvocation parses Claude Code ('mcp__<server>__<action>'), Cursor/AGY
+// ('mcp_<server>_<action>'), and dot/dispatch ('mcp.<action>' / 'invoke_mcp') coordinates.
 // @intent nomos_hermetic_worktree_spec.md #MCPInvocation
 func ParseMCPInvocation(toolName, targetFile, argsDigest string) (MCPInvocation, bool) {
 	trimmed := strings.TrimSpace(toolName)
@@ -74,8 +75,8 @@ func ParseMCPInvocation(toolName, targetFile, argsDigest string) (MCPInvocation,
 	if !IsMCPToolName(lower) {
 		return MCPInvocation{}, false
 	}
-
-	server, action := splitMCPServerAndAction(lower)
+	effectiveLower := resolveEffectiveMCPToolLower(lower, argsDigest)
+	server, action := splitMCPServerAndAction(effectiveLower)
 	if server == "" {
 		return MCPInvocation{}, false
 	}
@@ -98,6 +99,14 @@ func splitMCPServerAndAction(lower string) (string, string) {
 			return parts[0], parts[1]
 		}
 		return parts[0], ""
+	}
+	if strings.HasPrefix(lower, "mcp.") {
+		rest := strings.TrimPrefix(lower, "mcp.")
+		parts := strings.SplitN(rest, ".", 2)
+		if len(parts) == 2 && parts[0] != "" {
+			return parts[0], parts[1]
+		}
+		return "mcp", rest
 	}
 	rest := strings.TrimPrefix(lower, "mcp_")
 	parts := strings.SplitN(rest, "_", 2)
@@ -140,6 +149,9 @@ func EvaluateMCPBoundary(workspaceDir string, inv MCPInvocation, policy MCPBound
 		return dec
 	}
 	if dec, denied := checkMCPPayloadSecrets(inv); denied {
+		return dec
+	}
+	if dec, denied := evaluateMCPCatalogPin(workspaceDir, inv); denied {
 		return dec
 	}
 	return evaluateMCPFlowGraph(workspaceDir, inv)
