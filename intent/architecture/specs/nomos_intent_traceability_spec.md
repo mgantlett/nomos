@@ -4,27 +4,11 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-05"
-last_updated: "2026-11-12"
-lineage:
-  - INT-541
-  - INT-1935
-  - INT-1936
-  - INT-1937
-  - INT-1944
-  - SUB-2157
-  - INT-1969
-  - INT-1996
-  - SUB-2316
-  - INT-1999
-  - SUB-2340
-  - INT-2000
-  - SUB-2342
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Nomos Intent Traceability & Architectural Obligation Proofs Specification"
 type: spec
-version: "4.19.0"
 ---
 
 # Nomos Intent Traceability & Architectural Obligation Proofs Specification

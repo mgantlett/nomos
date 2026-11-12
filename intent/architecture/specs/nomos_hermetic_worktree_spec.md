@@ -4,31 +4,11 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-06"
-last_updated: "2026-11-12"
-lineage:
-  - INT-327
-  - SUB-327
-  - INT-954
-  - SUB-1894
-  - INT-1944
-  - SUB-2157
-  - SUB-2177
-  - SUB-2178
-  - INT-1948
-  - INT-1951
-  - INT-1960
-  - INT-1973
-  - SUB-2239
-  - INT-1997
-  - SUB-2339
-  - INT-2000
-  - SUB-2342
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Hermetic Worktree and Git Hygiene Specification"
 type: spec
-version: "4.7.0"
 ---
 
 # Hermetic Worktree and Git Hygiene Specification

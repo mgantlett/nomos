@@ -4,24 +4,11 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-11-03"
-last_updated: "2026-11-12"
-lineage:
-  - INT-897
-  - SUB-1672
-  - INT-1944
-  - SUB-2157
-  - INT-1976
-  - SUB-2241
-  - INT-1986
-  - SUB-2281
-  - INT-2000
-  - SUB-2342
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Compiled Go SSoT and Reflected Draft 2020-12 JSON Schema Architecture Specification"
 type: spec
-version: "4.5.0"
 ---
 
 # Compiled Go SSoT and Reflected Draft 2020-12 JSON Schema Architecture Specification

@@ -4,34 +4,11 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-23"
-last_updated: "2026-11-12"
-lineage:
-  - INT-735
-  - INT-855
-  - INT-899
-  - INT-926
-  - INT-927
-  - INT-938
-  - SUB-1213
-  - SUB-1524
-  - SUB-1680
-  - SUB-1806
-  - INT-1944
-  - SUB-2157
-  - INT-1956
-  - SUB-2203
-  - INT-1962
-  - SUB-2211
-  - INT-1984
-  - SUB-2279
-  - INT-2000
-  - SUB-2342
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Nomos Mneme Receipt-Gated Episodic Memory Subsystem Specification"
 type: spec
-version: "4.16.0"
 ---
 
 # Nomos Mneme Receipt-Gated Episodic Memory Subsystem Specification

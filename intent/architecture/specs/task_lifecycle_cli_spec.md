@@ -4,46 +4,11 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-23"
-last_updated: "2026-11-12"
-lineage:
-  - INT-733
-  - INT-854
-  - INT-864
-  - INT-867
-  - INT-890
-  - INT-899
-  - INT-929
-  - SUB-1210
-  - SUB-1510
-  - SUB-1549
-  - SUB-1558
-  - SUB-1623
-  - SUB-1680
-  - SUB-1776
-  - INT-1944
-  - SUB-2157
-  - INT-1961
-  - SUB-2210
-  - INT-1966
-  - SUB-2219
-  - INT-1976
-  - SUB-2241
-  - INT-1987
-  - SUB-2283
-  - INT-1989
-  - SUB-2292
-  - INT-1997
-  - SUB-2339
-  - INT-1999
-  - SUB-2340
-  - INT-2000
-  - SUB-2342
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Task Lifecycle CLI and Workspace State Transition Specification"
 type: spec
-version: "4.10.0"
 ---
 
 # Task Lifecycle CLI and Workspace State Transition Specification

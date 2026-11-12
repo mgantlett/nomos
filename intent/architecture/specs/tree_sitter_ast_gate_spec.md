@@ -4,22 +4,11 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-05"
-last_updated: "2026-11-11"
-lineage:
-  - INT-1944
-  - SUB-2157
-  - INT-1985
-  - SUB-2280
-  - INT-1986
-  - SUB-2281
-  - INT-1989
-  - SUB-2292
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Tree-sitter AST Gate Engine to Replace Legacy Gen 2 Regex Gates"
 type: spec
-version: "4.3.0"
 ---
 
 # Tree-sitter AST Gate Engine

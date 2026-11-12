@@ -4,46 +4,11 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-01"
-last_updated: "2026-11-12"
-lineage:
-  - INT-1941
-  - SUB-2134
-  - INT-1943
-  - SUB-2147
-  - INT-1944
-  - SUB-2157
-  - INT-1951
-  - INT-1952
-  - INT-1966
-  - SUB-2219
-  - INT-1973
-  - SUB-2239
-  - INT-1976
-  - SUB-2241
-  - INT-1984
-  - SUB-2279
-  - INT-1985
-  - SUB-2280
-  - INT-1986
-  - SUB-2281
-  - INT-1987
-  - SUB-2283
-  - INT-1989
-  - SUB-2292
-  - INT-1997
-  - SUB-2339
-  - INT-1999
-  - SUB-2340
-  - INT-2000
-  - SUB-2342
-  - INT-2001
-  - SUB-2343
 plane: intent
 ssot_repository: nomos
 status: active
 title: "The Nomos Layer 0 North Star Charter and 4-Layer Progressive Intent Compiler"
 type: spec
-version: "4.20.0"
 ---
 
 # The Nomos Layer 0 North Star Charter and 4-Layer Progressive Intent Compiler
