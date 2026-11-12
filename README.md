@@ -163,49 +163,25 @@ Every check in `nomos verify` maps to one of seven compiled architectural laws (
 
 ## 📊 Verified Benchmarks & Runtime Footprint
 
-Nomos is engineered so deterministic governance adds sub-second overhead on every agent turn while failing closed under adversarial stress (see [`nomos_intent_traceability_spec.md`](intent/architecture/specs/nomos_intent_traceability_spec.md)):
+Nomos is engineered so deterministic governance adds sub-second compiled Go overhead (`0` extra LLM prompt tokens) while turning commodity/open-weight workhorses into trunk-safe brownfield engineers and failing closed under adversarial stress (see [`nomos_intent_traceability_spec.md`](intent/architecture/specs/nomos_intent_traceability_spec.md)):
 
 > **🔬 Reproduce locally in one command:** Run `go -C substrate test ./cli -run "TestTraceTrialBench|TestCleanroomPolyglotObligation|TestCleanroomDownstreamVectors" -v` to execute the adversarial fail-closed, polyglot obligation, and 2PC lifecycle harnesses directly on your machine, or inspect the public third-party Harbor Hub trajectories below.
 
 | Engineering Metric | Verified Result | Reproducible Proof / Implementation |
 | :--- | :--- | :--- |
-| **42-Gate Structural & AST Overhead** | **`~460 ms` (`~24 ms` `--fast-file`)** | `nomos verify` structural/AST gate pass across Go/TS/Svelte/Py/Rust/C/JVM/C# (plus project `go test`/`tsc`/`pytest`/`cargo`/`gradle`/`dotnet` runtime) |
+| **Workhorse Brownfield Lift (`N = 108` Paired)** | **`86.1%` (`31/36`) vs. `27.8%` Stock (`+58.3 pp`, `3.1x`) · `-43%` to `-57%` Tokens** | `108` zero-hint Python/TS/Go brownfield episodes across `14B-32B` (`Qwen`, `Mistral`, local `16GB VRAM`); `100%` hexagonal layer purity vs. `0%` Stock ([`cleanroom_obligation_polyglot_stress_test.go`](substrate/cli/cleanroom_obligation_polyglot_stress_test.go)) |
+| **Prompt-Injection & Security Defense (`1,481` Traces)** | **`0.00%` ASR (`0/949` `AgentDojo` · `0/200` `SecBench-Live`) · `85.04%` UA** | Official `AgentDojo v1.2.2` (`1,081` traces across `4` suites, `-0.53 pp` utility delta vs. benign, `sha256:e0847020a2f5`) + `400`-run 4-model `SecBench-Live 1.0` (`-2.6%` turns, `sha256:7f671df45ed9`) |
+| **`Terminal-Bench 2.0` Container A/B (`89 / 89` Tasks)** | **`70.79%` `pass@1` (`+5.62 pp`) · `84.27%` `pass<=2` (`+19.10 pp`)** | Controlled binary-only Docker runs holding `Gemini CLI 0.67.0` + `gemini-3.5-flash` fixed with public Harbor Hub trajectories ([`nomos-harbor`](https://github.com/mgantlett/nomos-harbor)) |
+| **42-Gate Structural & AST Overhead** | **`~460 ms` (`~24 ms` `--fast-file` · `~4 ms` hook · `0` LLM tokens)** | `nomos verify` structural/AST gate pass across Go/TS/Svelte/Py/Rust/C/JVM/C# (plus project `go test`/`tsc`/`pytest`/`cargo`/`gradle`/`dotnet` runtime) |
 | **Static Binary Footprint** | **`~20 MB` stripped (`CGO_ENABLED=0`)** | Single Go release binary (`-ldflags="-s -w"`) with embedded `modernc.org/sqlite` WAL + `wazero` WASM runtime host; zero host runtime deps |
 | **Adversarial Fail-Closed Suite (`VEC-TTB-01..07`)** | **`7/7` vectors blocked in `1.98s`** | [`cleanroom_tracetrial_bench_test.go`](substrate/cli/cleanroom_tracetrial_bench_test.go) (`go -C substrate test ./cli -run TestTraceTrialBench -v`) |
-| **5-Round Live Multi-Model Security Audit (`N = 400`)** | **`0.00%` ASR (`0/200` vs. `9.0%` Control) · `92.5%` Utility · `-2.6%` Turns** | `4` models (`Claude Sonnet 5.5`, `Haiku 5.5`, `Gemini 3.8 Flash`, local `Qwen 3.8 27B`) across `MCPSecBench`, `AgentDojo`, `RedCode-Exec`, `BaxBench/CWEval`, `ImpossibleBench` (`v4.17.0`, `sha256:7f671df45ed9`) |
-| **Real-Repo Zero-Hint Brownfield Audit (`233k` LOC OSS)** | **`2x` Debt-Free (`33.3%` vs. `16.7%` Control) · `-14.7%` Tokens (`-233k` saved)** | Zero-file-hint paired runs across `sqlglot` (`152k` LOC), `commander.js`, `go-chi`, and `BurntSushi/toml` (`6/6` `42`-gate clean vs. `+26` `dCDS` leaked by Control) |
-| **Multi-Lab Polyglot Brownfield Audit (`N = 108`)** | **`86.1%` (`31/36`) vs. `27.8%` (`10/36` Stock; `0%` layer purity)** | `108` paired Python/TS/Go brownfield episodes across `14B-32B` (`Qwen`, `Mistral`, local `16GB VRAM`) + [`cleanroom_obligation_polyglot_stress_test.go`](substrate/cli/cleanroom_obligation_polyglot_stress_test.go) |
 | **Config & Boundary Tamper Resistance** | **`0` trunk leaks** | Worktree edits to `nomos.yaml` fail closed against pinned `main`; mid-2PC gate panics abort before `main` fast-forwards |
 | **Nomos Mneme Episodic Recall** | **`< 50 ms` local query** | 64-dim subword feature-hash + lexical SQLite recall (`mneme.db`, plus optional `LOCAL_EMBEDDING_URL`); mints `pattern`/`pitfall` records strictly after verified 2PC `Git Notes` release |
 | **Open-Core Automated Test Suite** | **`860+` test cases across `16` packages + `8` cleanroom suites** | Pure Apache 2.0 local test execution with zero cloud or telemetry dependencies |
 
-### 5-Round Paired Security & Real-Repo Brownfield Ablation (`v4.17.0` · `460` Live Trajectories)
+### 1. Open-Weight & Commodity Workhorse Brownfield Lift (`N = 108` Paired Episodes · `8B` to `32B`)
 
-Across `5` consecutive benchmark rounds totaling **`460` live containerized trajectories** (`400` multi-model `SecBench-Live 1.0` runs + `60` zero-file-hint `RealRepo-BrownfieldBench v2` runs at `temperature = 0.0`, [Field Dispatch D-11](https://sophialabs.ca/dispatches/paired-security-and-brownfield-ablation-v417)), `nomos v4.17.0` eliminated both adversarial compromises and governance turn/token overhead (`sha256:7f671df45ed9`):
-
-| Paired Benchmark Suite | Scale & Corpus | Ungoverned `Control` | `Nomos v4.17.0` Governed | Efficiency Delta (`Control` -> `Nomos`) |
-| :--- | :--- | :---: | :---: | :--- |
-| **4-Model `SecBench-Live 1.0` (Round 5)** | `80` runs (`Claude Sonnet 5.5`, `Haiku 5.5`, `Gemini 3.8 Flash`, local `Qwen 3.8 27B` across `MCPSecBench`, `AgentDojo`, `RedCode-Exec`, `BaxBench/CWEval`, `ImpossibleBench`) | `10.0%` ASR (`4/40` compromised) | **`0.0%` ASR (`0/40`) · `92.5%` Utility** (`100%` on `AgentDojo` & `RedCode-Exec`) | **`-2.6%` fewer turns** (`304` -> `296`; `CWE-22` gate blocks cut `10 -> 5 -> 2`) |
-| **5-Round Cumulative Security Ledger** | `400` runs (`200` paired adversarial trials, Rounds 1 - 5) | `9.0%` ASR (`18/200` compromised) | **`0.00%` ASR (`0/200` compromised)** | Zero successful exploits across `200` governed trials |
-| **`RealRepo-BrownfieldBench v2` (Round 5)** | `12` zero-hint runs across `233k` LOC OSS (`sqlglot`, `commander.js`, `go-chi`, `BurntSushi/toml`; hotspots up to `6,717` LOC) | `16.7%` (`1/6`) Debt-Free (`4/6` gate-clean; leaked `+26` `dCDS`) | **`33.3%` (`2/6`) Debt-Free (`2x`)** (`6/6` `42`-gate clean) | **`-14.7%` fewer tokens** (`1.58M` -> `1.35M`, `-233,078` saved; `-13.9%` `Search+Reads`) |
-
-### Terminal-Bench 2.0 Controlled A/B ([`Harbor`](https://github.com/harbor-framework/harbor) · [`nomos-harbor`](https://github.com/mgantlett/nomos-harbor) · `89 / 89` Tasks)
-
-Across all `89` containerized tasks in [`terminal-bench@2.0`](https://github.com/laude-institute/terminal-bench-2) holding `Gemini CLI 0.67.0`, `vertex_ai/gemini-3.5-flash`, and unmodified task timeouts fixed, adding compiled `nomos hook` pre-tool/post-tool governance lifted single-shot `pass@1` from **`65.17%` (`58 / 89`)** to **`70.79%` (`63 / 89`, `+5.62` pp, `0` API crashes)**, and **`84.27%` (`75 / 89`, `+19.10` pp, `pass<=2`)** when resuming the `26` failed trials with `nomos v4.7.0` (`--budget-sec` wall-clock advisories + interactive/binary stdout guards, cutting timeouts from `24` to `13`):
-
-| Arm | Agent Configuration | Score (`89` Tasks) | Lift vs. Control | Timeouts | Public Harbor Hub Trajectories |
-| :--- | :--- | :--- | :--- | :---: | :--- |
-| **Pure Stock Control (`pass@1`)** | Stock `Gemini CLI 0.67.0` (zero Nomos hooks) | **`58 / 89` (`65.17%`)** | Baseline | `24` | [`49f21995-f52a-4f33-837e-a3f86bbfadd0`](https://hub.harborframework.com/jobs/49f21995-f52a-4f33-837e-a3f86bbfadd0) |
-| **Nomos Single-Shot (`pass@1`)** | `Gemini CLI 0.67.0` + `nomos hook` (`--container-sandbox`) | **`63 / 89` (`70.79%`)** | **`+5.62` pp** (`14W / 9L`) | `16` | [`39059e9a-8236-472a-a43b-ab500146abe1`](https://hub.harborframework.com/jobs/39059e9a-8236-472a-a43b-ab500146abe1) |
-| **Nomos `v4.7.0` Resume (`pass<=2`)** | `v4.7.0` Budget Radar + interactive/binary guards resumed on `26` `0.0` trials | **`75 / 89` (`84.27%`)** | **`+19.10` pp** (`20W / 3L`) | `13` | [`6b9f81a5-0750-4242-80f2-0b5d0830355e`](https://hub.harborframework.com/jobs/6b9f81a5-0750-4242-80f2-0b5d0830355e) |
-
-### External Harness Reliability ([`TraceTrial-Bench`](https://github.com/TraceLite-AI/TraceTrial-Bench) · [`arXiv:2610.32285`](https://arxiv.org/abs/2610.32285))
-
-Across all 95 containerized tasks in [*Trial by Trace* (`TraceTrial-Bench`, `arXiv:2610.32285`)](https://arxiv.org/abs/2610.32285) (`190` paired Docker runs holding `Claude Code v2.1.220` and `Gemini 2.5 Flash-Lite` fixed), adding compiled `~4ms` `nomos hook` governance lifted **Agent deliverables by `+15.2%`** (`+78.3%` in Context & Continuity), lifted **Harness reliability by `+2.51`** (`44.89` → **`48.78`** Overall, `36W / 30T / 29L`), and cut **`harness_caused` failures by `-18.2%`** (`55` → `45`). Reproduce the 7-pillar fail-closed stress vectors locally via [`cleanroom_tracetrial_bench_test.go`](substrate/cli/cleanroom_tracetrial_bench_test.go) (`go -C substrate test ./cli -run TestTraceTrialBench -v`).
-
-### Multi-Lab Legacy-GPU & Open-Weight Brownfield Audit (`N = 108` Paired Episodes · `8B` to `32B`)
-
-Across `108` paired zero-hint brownfield episodes (`54` Stock vs. `54` Nomos `v4.13.1`, `temp=0.0`) spanning Python (`py-hex-01`, `py-debt-02`), TypeScript (`ts-hex-01`, `ts-debt-02`), and Go (`go-hex-01`, `go-debt-02`) on `6` open-weight models from `4` labs sized for single-card `16GB-24GB` GPUs (`RTX 4080`, `RTX 3090`, `A10G`, `L4`), deterministic AST & obligation ratchets lifted verified resolution on the `14B-32B` production tier from **`27.8%` (`10 / 36`, `0%` hexagonal layer purity)** to **`86.1%` (`31 / 36`, `+58.3` pp, `100%` layer purity on all merged diffs)** while cutting token burn **`-43%` to `-57%`** on multi-file refactors (polyglot boundary and obligation checks reproducible via [`cleanroom_obligation_polyglot_stress_test.go`](substrate/cli/cleanroom_obligation_polyglot_stress_test.go)):
+Ungoverned commodity and open-weight models routinely fail multi-file brownfield tasks by violating module boundaries or looping on broken edits. Across **`108` paired zero-hint brownfield episodes** (`54` Stock vs. `54` Nomos `v4.13.1`, `temp=0.0`) spanning Python (`py-hex-01`, `py-debt-02`), TypeScript (`ts-hex-01`, `ts-debt-02`), and Go (`go-hex-01`, `go-debt-02`) on `6` open-weight models from `4` labs sized for single-card `16GB-24GB` GPUs (`RTX 4080`, `RTX 3090`, `A10G`, `L4`), compiled AST & obligation ratchets lifted verified resolution on the `14B-32B` production tier from **`27.8%` (`10 / 36`, `0%` hexagonal layer purity)** to **`86.1%` (`31 / 36`, `+58.3` pp, `3.1x` lift, `100%` layer purity on all merged diffs)** while cutting total token burn **`-43%` to `-57%`** by halting architectural violations in `~24ms` instead of burning retry loops (reproducible via [`cleanroom_obligation_polyglot_stress_test.go`](substrate/cli/cleanroom_obligation_polyglot_stress_test.go)):
 
 | Open-Weight Model (`Lab · VRAM Class`) | Stock Verified (`9` Tasks) | Stock Hexagonal Layer Purity | Nomos `v4.13.1` Verified (`9` Tasks) | Nomos Layer Purity | Governance Delta |
 | :--- | :---: | :---: | :---: | :---: | :--- |
@@ -215,6 +191,30 @@ Across `108` paired zero-hint brownfield episodes (`54` Stock vs. `54` Nomos `v4
 | **`Mistral Small 3.2 24B`** (`Mistral · 16-24GB`) | `22.2%` (`2/9`) | `0.0%` (`0/3`) | **`88.9%` (`8/9`)** | **`100%` (`3/3`)** | **`+66.7` pp** (`4.0x` lift) |
 | **`Qwen 3.8 27B IQ3_M`** (`Local RTX 4080 16GB`) | `50.0%` (`3/6`) | `0.0%` (`0/3`) | **`100.0%` (`6/6`)** | **`100%` (`3/3`)** | **`+50.0` pp** (`-43%` to `-57%` tokens) |
 | **`Qwen 3 32B`** (`Alibaba · 24GB`) | `22.2%` (`2/9`) | `0.0%` (`0/3`) | **`88.9%` (`8/9`)** | **`100%` (`3/3`)** | **`+66.7` pp** (`4.0x` lift) |
+
+### 2. Zero-Trust Security & Real-Repo OSS Debt Containment (`1,541` Live Trajectories)
+
+Across official **`AgentDojo v1.2.2`** (`1,081` trajectories across all `4` suites: `workspace`, `banking`, `slack`, `travel` on `gemini-3.5-flash`, `sha256:e0847020a2f5`) plus `5` consecutive multi-model ablation rounds totaling **`460` containerized trajectories** (`400` `SecBench-Live 1.0` runs + `60` zero-file-hint `RealRepo-BrownfieldBench v2` runs at `temperature = 0.0`, [Field Dispatch D-11](https://sophialabs.ca/dispatches/paired-security-and-brownfield-ablation-v417), `sha256:7f671df45ed9`), `nomos v4.17.0` held Attack Success Rate at **`0.00%`** without degrading benign task utility or inflating turn counts:
+
+| Benchmark Suite | Scale & Corpus | Ungoverned `Control` | `Nomos v4.17.0` Governed | Efficiency / Utility Delta |
+| :--- | :--- | :---: | :---: | :--- |
+| **Official `AgentDojo v1.2.2` (`4` Suites)** | `1,081` runs (`132` benign + `949` `important_instructions` indirect prompt-injection tasks on `gemini-3.5-flash`) | Indirect tool-hijack exposure | **`0.00%` ASR (`0/949` breaches) · `85.04%` Utility Under Attack** | Only **`-0.53 pp`** vs. `85.57%` Benign Utility (`0` false-positive lockouts) |
+| **4-Model `SecBench-Live 1.0` (Rounds 1 - 5)** | `400` runs (`Claude Sonnet 5.5`, `Haiku 5.5`, `Gemini 3.8 Flash`, local `Qwen 3.8 27B` across `MCPSecBench`, `AgentDojo`, `RedCode-Exec`, `BaxBench/CWEval`, `ImpossibleBench`) | `9.0%` ASR (`18/200` compromised; `10.0%` in Round 5) | **`0.00%` ASR (`0/200` compromised) · `92.5%` Utility** | **`-2.6%` fewer turns** (`304` -> `296` in Round 5; `CWE-22` blocks cut `10 -> 5 -> 2`) |
+| **`RealRepo-BrownfieldBench v2` (`233k` LOC OSS)** | Zero-file-hint refactors across `sqlglot` (`152k` LOC), `commander.js`, `go-chi`, and `BurntSushi/toml` (hotspots up to `6,717` LOC) | Leaked **`+26` `dCDS`** structural debt (`16.7%` Debt-Free) | **`6/6` `42`-gate clean · `2x` Debt-Free (`33.3%`)** | **`-14.7%` fewer tokens** (`1.58M` -> `1.35M`, `-233,078` saved; `-13.9%` `Search+Reads`) |
+
+### 3. Terminal-Bench 2.0 Controlled Container A/B ([`Harbor`](https://github.com/harbor-framework/harbor) · [`nomos-harbor`](https://github.com/mgantlett/nomos-harbor) · `89 / 89` Tasks)
+
+Across all `89` containerized tasks in [`terminal-bench@2.0`](https://github.com/laude-institute/terminal-bench-2) running **binary-only inside disposable Docker sandboxes** (`--container-sandbox`, holding `Gemini CLI 0.67.0`, `vertex_ai/gemini-3.5-flash`, and unmodified task timeouts fixed), adding compiled `~4ms` `nomos hook` pre-tool/post-tool governance lifted single-shot `pass@1` from **`65.17%` (`58 / 89`)** to **`70.79%` (`63 / 89`, `+5.62` pp, `0` API crashes)**, and **`84.27%` (`75 / 89`, `+19.10` pp, `pass<=2`)** when resuming the `26` failed trials with Budget Radar wall-clock advisories and interactive/binary stdout guards (cutting timeouts from `24` to `13`):
+
+| Arm | Agent Configuration | Score (`89` Tasks) | Lift vs. Control | Timeouts | Public Harbor Hub Trajectories |
+| :--- | :--- | :--- | :--- | :---: | :--- |
+| **Pure Stock Control (`pass@1`)** | Stock `Gemini CLI 0.67.0` (zero Nomos hooks) | **`58 / 89` (`65.17%`)** | Baseline | `24` | [`49f21995-f52a-4f33-837e-a3f86bbfadd0`](https://hub.harborframework.com/jobs/49f21995-f52a-4f33-837e-a3f86bbfadd0) |
+| **Nomos Single-Shot (`pass@1`)** | `Gemini CLI 0.67.0` + `nomos hook` (`--container-sandbox`) | **`63 / 89` (`70.79%`)** | **`+5.62` pp** (`14W / 9L`) | `16` | [`39059e9a-8236-472a-a43b-ab500146abe1`](https://hub.harborframework.com/jobs/39059e9a-8236-472a-a43b-ab500146abe1) |
+| **Nomos `v4.7.0` Resume (`pass<=2`)** | `v4.7.0` Budget Radar + interactive/binary guards resumed on `26` `0.0` trials | **`75 / 89` (`84.27%`)** | **`+19.10` pp** (`20W / 3L`) | `13` | [`6b9f81a5-0750-4242-80f2-0b5d0830355e`](https://hub.harborframework.com/jobs/6b9f81a5-0750-4242-80f2-0b5d0830355e) |
+
+### 4. Frontier Harness Fault-Containment ([`TraceTrial-Bench`](https://github.com/TraceLite-AI/TraceTrial-Bench) · [`arXiv:2610.32285`](https://arxiv.org/abs/2610.32285))
+
+Even on already-strong frontier harnesses, compiled `~4ms` hooks eliminate context drift and shell-induced crashes without adding prompt overhead: across all `95` containerized tasks in [*Trial by Trace* (`TraceTrial-Bench`, `arXiv:2610.32285`)](https://arxiv.org/abs/2610.32285) (`190` paired Docker runs holding `Claude Code v2.1.220` and `Gemini 2.5 Flash-Lite` fixed), `nomos hook` lifted **Context & Continuity by `+78.3%`**, cut **`harness_caused` failures by `-18.2%`** (`55` -> `45`), lifted **Agent deliverables by `+15.2%`**, and raised overall harness reliability from `44.89` to **`48.78`** (`36W / 30T / 29L`). Reproduce the 7-pillar fail-closed stress vectors locally via [`cleanroom_tracetrial_bench_test.go`](substrate/cli/cleanroom_tracetrial_bench_test.go) (`go -C substrate test ./cli -run TestTraceTrialBench -v`).
 
 ---
 
