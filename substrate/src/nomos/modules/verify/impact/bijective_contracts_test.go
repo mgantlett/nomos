@@ -59,4 +59,10 @@ func TestLookupFields_PackageQualificationDisambiguatesCollisions(t *testing.T) 
 	if len(issues) != 0 {
 		t.Fatalf("expected package-qualified social.Violation to pass cleanly without domaincalc collision, got: %v", issues)
 	}
+
+	unqualifiedMD := "```go\ntype Violation struct {\n\tRule string\n\tDetail string\n}\n```\n"
+	unqualIssues := DiffSpecStructsBijective("social_spec.md", ExtractSpecStructIndex(unqualifiedMD), compiled, nil)
+	if len(unqualIssues) != 0 {
+		t.Fatalf("expected unqualified social.Violation to select nearest matching package struct without merging domaincalc fields, got: %v", unqualIssues)
+	}
 }

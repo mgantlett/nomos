@@ -247,8 +247,52 @@ func DiffSpecStructsBijective(relSpec string, specStructs map[SpecStructKey]map[
 	return issues
 }
 
+func (idx *CompiledStructIndex) resolveBestCandidateFields(key SpecStructKey, expected map[string]string) (map[string]string, bool) {
+	if idx == nil {
+		return nil, false
+	}
+	if key.Pkg != "" {
+		if exact, ok := idx.ByPkgType[key.Pkg+"."+key.Name]; ok {
+			return exact, true
+		}
+	}
+	pkgs := idx.TypePackages[key.Name]
+	if len(pkgs) == 0 {
+		return nil, false
+	}
+	if len(pkgs) == 1 {
+		return idx.ByPkgType[pkgs[0]+"."+key.Name], true
+	}
+	bestFields := idx.ByPkgType[pkgs[0]+"."+key.Name]
+	bestDist := structFieldDistance(expected, bestFields)
+	for _, p := range pkgs[1:] {
+		cand := idx.ByPkgType[p+"."+key.Name]
+		if d := structFieldDistance(expected, cand); d < bestDist {
+			bestDist = d
+			bestFields = cand
+		}
+	}
+	return bestFields, true
+}
+
+func structFieldDistance(expected, actual map[string]string) int {
+	dist := 0
+	for k, expType := range expected {
+		actType, ok := actual[k]
+		if !ok || actType != expType {
+			dist++
+		}
+	}
+	for k := range actual {
+		if _, ok := expected[k]; !ok {
+			dist++
+		}
+	}
+	return dist
+}
+
 func diffOneSpecStruct(relSpec string, key SpecStructKey, expected map[string]string, compiled *CompiledStructIndex, delta *SiblingDelta) []string {
-	actual, exists := compiled.LookupFields(key.Pkg, key.Name)
+	actual, exists := compiled.resolveBestCandidateFields(key, expected)
 	if !exists {
 		if delta.HasAddedStruct(key.Name) {
 			return nil
