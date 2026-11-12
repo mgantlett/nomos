@@ -8,28 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [v4.17.0] - 2026-11-12
 
-> Deterministic Open-Core Substrate Release (v4.17.0 · Apache 2.0)
+> Package Fan-Out Cohesion Gate (`max_package_files`) & Rename-Aware Brownfield Ratchets, 1-Turn AST Refactoring & CWE-22 Confinement Recipes, Working-Tree Verification Receipt Caching, Closed-Loop Mneme Hot-Scope Reflexes, Native MCP Catalog Pinning, Plus Pre-Tag GoReleaser & SemVer Airlock Gates (Apache 2.0)
 
-### Intent & Specifications
-- [INT-1989] docs(intent): specify rename-aware ratchets, verify cache, and CWE-22
-- [INT-1987] docs(intent): specify pre-tag GoReleaser, semver parity, and...
-- [INT-1986] docs(intent): specify max_package_files cohesion gate and...
-- [INT-1985] feat(intent): specify 1-turn AST refactoring recipes across...
-- [INT-1984] feat(intent): specify closed-loop Mneme hot-scope reflexes and...
+### Verification & Quality Gates (`nomos verify`)
+- **`max_package_files` Cohesion Gate & Core Sub-Package Decomposition (`INT-1986`, `SUB-2281`)**: Adds configurable `governance.quality_gates.thresholds.max_package_files` (default `40` non-test source files per directory) across Go SSoT configuration and `nomos.schema.json` (`TC-SSOT-06`, `TC-TS-12`) with monotonic `git ls-tree` brownfield ratcheting and strict enforcement on `nomos`, decomposing `substrate/src/nomos/modules/verify` (`70` -> `38` files across `verify/astdebt`, `verify/vscope`, `verify/impact`, and `verify/polyrun`) and `substrate/cli` (`79` -> `36` files across `cli/tui`, `cli/commitmsg`, `cli/inspectcmd`, `cli/diag`, `cli/selfupdate`, and `cli/taskui`).
+- **Rename-Aware Baseline Lookup & Monotonic Fan-Out Ratcheting (`INT-1989`, `SUB-2292`)**: Wires `ResolveRenamedBaselinePath` (`git diff --find-renames=50%`) into `loadBaselineFileBytes` (`TC-TS-13`) so moved files (`git mv`) inherit their pre-move AST baselines rather than being treated as net-new code, and permits zero-net-file edits inside pre-existing `> max_package_files` brownfield directories without false-positive fan-out blocks.
+- **1-Turn AST Refactoring & Polyglot CWE-22 Confinement Recipes (`INT-1985`, `INT-1989`, `SUB-2280`, `SUB-2292`)**: Enriches cognitive debt (`dCDS`), cyclomatic complexity (`V(G)`), function LOC, and parameter arity gate diagnostics across Go, Python, and JS/TS with `file:start-end` spans, exact numeric excess deltas, and explicit helper or `<fn>Options` extraction targets (`TC-PHY-05`, `TC-PHY-06`, `TC-TS-11`), and refines `FastFileRadar` CWE-22 path-sink precision (`TC-TS-14`) with Go, JS/TS, and Python path-confinement recipes.
 
-### Verification & Quality Gates
-- [SUB-2292] feat(verify,cli): add rename-aware ratchets, verify cache, and CWE-22
-- [SUB-2283] feat(verify,release): enforce pre-tag GoReleaser, semver parity,...
-- [SUB-2281] feat(verify,cli): enforce max_package_files gate and split...
-- [SUB-2280] feat(verify): emit 1-turn AST refactoring recipes on dCDS,...
+### CLI, Distribution & Hooks (`nomos hook`, `capbac`)
+- **Native MCP Catalog Pinning & 1-Hop `PostToolUse` Impact Recipes (`SUB-2278`, `SUB-2290`)**: Enforces native MCP catalog pinning (`mcp_catalog_pin.go`) alongside polyglot CWE and structural-clone fast-radar checks, surfaces 1-hop `PostToolUse` blast-radius alerts (`cmd_hook_impact.go`), and emits 1-turn `PostToolUse` recipes for above-ceiling file LOC, inline `dCDS`, CWE sinks, and first-read hotspot peers.
 
-### Task, Memory & Session
-- [SUB-2279] feat(mem,radar): close Open-Core Mneme self-learning loop with...
+### Task, Memory & Session (`nomos verify`, `nomos task sync`, `nomos mem`)
+- **Working-Tree SHA Verification Receipt Cache (`INT-1989`, `SUB-2292`)**: Computes unstaged working-tree SHA digests via an isolated temporary `GIT_INDEX_FILE` (`cmd_verify_working_tree_cache.go`) so verified clean-tree receipts are reused across `nomos verify`, `pre-commit`, and `nomos task sync` without redundant full-suite gate runs.
+- **Closed-Loop Mneme Hot-Scope Reflexes & Clean-Streak Cooling (`INT-1984`, `SUB-2279`)**: Escalates recurring directory pitfalls (`recurrence >= 3`, active head `access_count < 5`) into sensitized `65%` `FastFileRadar` warnings and inline `arity`, `unchecked_error_hygiene`, and `anti_shim` micro-probes (`TC-MEM-16`), cools reflexes automatically after `5` consecutive clean recalls (`TC-MEM-17`), and suppresses `nomos.yaml` graduation prompts for built-in compiled AST gates (`TC-MEM-18`).
 
-### Release & Packaging
-- [SUB-2290] fix(radar,hook): emit 1-turn PostToolUse recipes for file LOC,...
-- [SUB-2278] fix(security,radar): enforce native MCP catalog pinning,...
-- [SUB-2256] docs(changelog): reword v4.16.0 home-prefix prose for portal...
+### Release & Packaging (`nomos verify`, `CHANGELOG.md`)
+- **Pre-Tag GoReleaser Template, SemVer Parity & `CHANGELOG.md` Airlock (`INT-1987`, `SUB-2283`, `SUB-2256`)**: Enforces `EvaluatePreTagReleaseAirlock` inside `ReleaseReceiptGate` (`Cell 3.3`) prior to release commits or tags (`TC-SYNC-022`, `TC-SYNC-023`), validating `.goreleaser.yaml` Go `text/template` and v2.20+ `{{ .Env.<VAR> }}` secret-token syntax, statutory SemVer pin parity across `root.go`, `CHANGELOG.md`, `templates/nomos.yaml`, and `packaging/aur/PKGBUILD`, and cleanroom-safe `CHANGELOG.md` prose free of host user-home prefixes or Unicode dashes.
 
 ---
 
