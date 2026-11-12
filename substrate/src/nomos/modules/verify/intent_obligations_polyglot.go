@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -56,6 +57,39 @@ func verifyPolyglotSpecSignatures(root string, specFiles []string) []string {
 		issues = append(issues, diffSpecStructsAgainstAST(relSpec, contracts, sourceFields)...)
 	}
 	return issues
+}
+
+func diffSpecStructsAgainstAST(relSpec string, specStructs, compiledStructs map[string]map[string]bool) []string {
+	names := make([]string, 0, len(specStructs))
+	for name := range specStructs {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var issues []string
+	for _, typeName := range names {
+		actualFields, exists := compiledStructs[typeName]
+		if !exists {
+			issues = append(issues, fmt.Sprintf("%s: missing compiled Go struct %s", relSpec, typeName))
+			continue
+		}
+		issues = append(issues, findMissingStructFields(relSpec, typeName, specStructs[typeName], actualFields)...)
+	}
+	return issues
+}
+
+func findMissingStructFields(relSpec, typeName string, expected, actual map[string]bool) []string {
+	fields := make([]string, 0, len(expected))
+	for field := range expected {
+		fields = append(fields, field)
+	}
+	sort.Strings(fields)
+	var missing []string
+	for _, field := range fields {
+		if !actual[field] {
+			missing = append(missing, fmt.Sprintf("%s: struct %s missing declared field %s", relSpec, typeName, field))
+		}
+	}
+	return missing
 }
 
 func extractPolyglotSpecContractFields(specFile string) map[string]map[string]bool {

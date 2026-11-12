@@ -4,12 +4,12 @@ package verify
 
 import (
 	"fmt"
-	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
-	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 	"strings"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/task"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 )
 
 // evaluateConfiguredObligations evaluates architecture boundaries and specification contracts
@@ -27,24 +27,28 @@ func evaluateConfiguredObligations(gateName string, ctx *vscope.VerifyContext, r
 	return evaluateContractObligationChecks(gateName, ctx, cfg, root, targetDir)
 }
 
-// evaluateContractObligationChecks enforces strict contract struct parity, executable TC-*
-// bindings, and stale-digest freshness while isolating concurrent sibling SUB-* twins.
+// evaluateContractObligationChecks enforces bijective contract struct parity, executable TC-*
+// bindings, orphan-free tests, normative surjection, and stale-digest freshness.
 func evaluateContractObligationChecks(gateName string, ctx *vscope.VerifyContext, cfg *config.EcosystemConfig, root, targetDir string) *vscope.GateResult {
 	contracts := cfg.Governance.QualityGates.GetContractsBoundary().Contracts
 	if !contracts.Enabled || isIntentPlaneTask(ctx) {
 		return nil
 	}
 	activeTaskID, scanRoot := resolveContractScanScope(ctx, root)
+	siblingDelta := collectActiveSiblingTwinDeltas(scanRoot, activeTaskID)
 	deferredSpecs := collectActiveSiblingTwinSpecs(scanRoot, activeTaskID)
-	effectiveSpecs, hasDeferred := filterDeferredSpecRoots(scanRoot, contracts.SpecRoots, deferredSpecs)
-	hasSpecs := !hasDeferred || len(effectiveSpecs) > 0
-	if contracts.StrictTypes && hasSpecs {
-		if sigRes := checkContractTypeParity(gateName, scanRoot, targetDir, effectiveSpecs); sigRes != nil {
+	if contracts.StrictTypes {
+		if sigRes := checkContractTypeParityWithDelta(gateName, scanRoot, targetDir, contracts.SpecRoots, siblingDelta); sigRes != nil {
 			return sigRes
 		}
+		if strings.EqualFold(strings.TrimSpace(cfg.Project), "nomos") {
+			if surjRes := checkNormativeRegistrySurjection(gateName, scanRoot, contracts.SpecRoots); surjRes != nil {
+				return surjRes
+			}
+		}
 	}
-	if contracts.VerifyObligations && hasSpecs {
-		if oblRes := checkExecutableObligations(gateName, scanRoot, effectiveSpecs); oblRes != nil {
+	if contracts.VerifyObligations {
+		if oblRes := checkExecutableObligationsWithDelta(gateName, scanRoot, contracts.SpecRoots, siblingDelta); oblRes != nil {
 			return oblRes
 		}
 	}
@@ -70,9 +74,8 @@ func resolveContractScanScope(ctx *vscope.VerifyContext, root string) (string, s
 	return taskID, scanRoot
 }
 
-// checkContractTypeParity verifies fenced spec structs match compiled source AST declarations.
-func checkContractTypeParity(gateName, root, targetDir string, specRoots []string) *vscope.GateResult {
-	sigIssues := VerifySpecTypeSignatures(root, targetDir, specRoots)
+func checkContractTypeParityWithDelta(gateName, root, targetDir string, specRoots []string, delta *impact.SiblingDelta) *vscope.GateResult {
+	sigIssues := verifySpecTypeSignaturesWithDelta(root, targetDir, specRoots, delta)
 	if len(sigIssues) == 0 {
 		return nil
 	}
@@ -80,22 +83,43 @@ func checkContractTypeParity(gateName, root, targetDir string, specRoots []strin
 		GateName: gateName, ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
 		Passed:  false,
 		Message: fmt.Sprintf("specification contract signature drift: %s", strings.Join(sigIssues, "; ")),
-		Remedy:  "align source struct/interface/class fields with specification contract blocks (Law 4)",
+		Remedy:  "align source struct/interface/class fields and types bijectively with specification contract blocks (Law 4)",
 	}
 }
 
-// checkExecutableObligations verifies every table-declared TC-* vector is bound in tests.
-func checkExecutableObligations(gateName, root string, specRoots []string) *vscope.GateResult {
-	oblIssues := VerifyExecutableObligations(root, specRoots)
-	if len(oblIssues) == 0 {
+func checkNormativeRegistrySurjection(gateName, root string, specRoots []string) *vscope.GateResult {
+	surjIssues := VerifyNormativeRegistrySurjection(root, specRoots)
+	if len(surjIssues) == 0 {
 		return nil
 	}
 	return &vscope.GateResult{
 		GateName: gateName, ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
 		Passed:  false,
-		Message: fmt.Sprintf("unbound specification obligation vector(s): %s", strings.Join(oblIssues, "; ")),
-		Remedy:  "bind each TC-* vector in a unit test via '// @verifies <TC-ID>' (or '# @verifies <TC-ID>') (Law 2 & Law 4)",
+		Message: fmt.Sprintf("undocumented normative substrate surface: %s", strings.Join(surjIssues, "; ")),
+		Remedy:  "document every Gate ProbeID, core/config struct, CLI --flag, and ERR_* code in canonical Layer 2 specs (Law 4 & Law 6)",
 	}
+}
+
+func checkExecutableObligationsWithDelta(gateName, root string, specRoots []string, delta *impact.SiblingDelta) *vscope.GateResult {
+	oblIssues := verifyExecutableObligationsWithDelta(root, specRoots, delta)
+	if len(oblIssues) > 0 {
+		return &vscope.GateResult{
+			GateName: gateName, ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
+			Passed:  false,
+			Message: fmt.Sprintf("unbound specification obligation vector(s): %s", strings.Join(oblIssues, "; ")),
+			Remedy:  "bind each TC-* vector in a unit test via '// @verifies <TC-ID>' (or '# @verifies <TC-ID>') (Law 2 & Law 4)",
+		}
+	}
+	orphanIssues := VerifyNoOrphanedTestObligations(root, specRoots)
+	if len(orphanIssues) > 0 {
+		return &vscope.GateResult{
+			GateName: gateName, ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
+			Passed:  false,
+			Message: fmt.Sprintf("orphaned @verifies test obligation vector(s) absent from specs: %s", strings.Join(orphanIssues, "; ")),
+			Remedy:  "declare each @verifies TC-* vector in its canonical Layer 2 specification table or remove stale test tags (Law 2 & Law 4)",
+		}
+	}
+	return nil
 }
 
 func isIntentPlaneTask(ctx *vscope.VerifyContext) bool {

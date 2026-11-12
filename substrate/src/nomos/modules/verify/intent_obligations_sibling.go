@@ -9,6 +9,7 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/constants"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/task"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
 )
 
 // ResolveActiveWorktreeSpecRoots scopes specification paths when running inside an
@@ -38,8 +39,6 @@ func ResolveTaskContractSpecRoots(scanRoot, taskKey string, specRoots []string) 
 	return filtered
 }
 
-// extractWorktreeSubTaskKey extracts a canonical SUB-<N> key strictly when scanRoot
-// resides inside an isolated '/worktrees/' directory.
 func extractWorktreeSubTaskKey(scanRoot string) string {
 	return extractWorktreePrefixedKey(scanRoot, "SUB-")
 }
@@ -76,20 +75,111 @@ func collectActiveSiblingTwinSpecs(scanRoot, activeSubKey string) map[string]boo
 	ownSpecs := resolveOwnTwinSpecs(trunkRoot, cleanKey, tasks)
 	deferred := make(map[string]bool)
 	for _, rec := range tasks {
-		if rec.Key == cleanKey || !strings.HasPrefix(rec.Key, "SUB-") {
+		if !isEligibleSiblingRecord(trunkRoot, scanRoot, cleanKey, rec) {
 			continue
 		}
-		twin := strings.TrimSpace(rec.TwinKey)
-		if !strings.HasPrefix(twin, "INT-") || !isSiblingSubPendingForWorktree(trunkRoot, scanRoot, rec) {
-			continue
-		}
-		for sp := range listTwinCommitSpecFiles(trunkRoot, twin) {
+		for sp := range listTwinCommitSpecFiles(trunkRoot, strings.TrimSpace(rec.TwinKey)) {
 			if !ownSpecs[sp] {
 				deferred[sp] = true
 			}
 		}
 	}
 	return deferred
+}
+
+// collectActiveSiblingTwinDeltas extracts exact commit-delta TC-* vectors, structs, and struct fields
+// introduced by pending sibling INT-* twins even when they share a canonical domain spec with activeSubKey
+// (@intent nomos_intent_traceability_spec.md #ContractsConfig).
+func collectActiveSiblingTwinDeltas(scanRoot, activeSubKey string) *impact.SiblingDelta {
+	cleanKey := strings.TrimSpace(activeSubKey)
+	if !strings.HasPrefix(cleanKey, "SUB-") {
+		return nil
+	}
+	trunkRoot := resolvePrimaryRepoRoot(scanRoot)
+	tasks := loadRepoScopedTasks(trunkRoot)
+	if len(tasks) == 0 {
+		return nil
+	}
+	return computePendingSiblingDeltasFromTasks(trunkRoot, scanRoot, cleanKey, tasks)
+}
+
+func computePendingSiblingDeltasFromTasks(trunkRoot, scanRoot, activeSubKey string, tasks []task.TaskRecord) *impact.SiblingDelta {
+	ownTwin := findOwnTwinKey(activeSubKey, tasks)
+	delta := impact.NewSiblingDelta()
+	for _, rec := range tasks {
+		twin := strings.TrimSpace(rec.TwinKey)
+		if twin == ownTwin || !isEligibleSiblingRecord(trunkRoot, scanRoot, activeSubKey, rec) {
+			continue
+		}
+		accumulateTwinCommitDelta(trunkRoot, twin, delta)
+	}
+	if ownTwin != "" {
+		ownDelta := impact.NewSiblingDelta()
+		accumulateTwinCommitDelta(trunkRoot, ownTwin, ownDelta)
+		subtractOwnDelta(delta, ownDelta)
+	}
+	return delta
+}
+
+func isEligibleSiblingRecord(trunkRoot, scanRoot, activeSubKey string, rec task.TaskRecord) bool {
+	if rec.Key == activeSubKey || !strings.HasPrefix(rec.Key, "SUB-") {
+		return false
+	}
+	twin := strings.TrimSpace(rec.TwinKey)
+	return strings.HasPrefix(twin, "INT-") && isSiblingSubPendingForWorktree(trunkRoot, scanRoot, rec)
+}
+
+func findOwnTwinKey(activeSubKey string, tasks []task.TaskRecord) string {
+	for _, rec := range tasks {
+		if rec.Key == activeSubKey && strings.HasPrefix(strings.TrimSpace(rec.TwinKey), "INT-") {
+			return strings.TrimSpace(rec.TwinKey)
+		}
+	}
+	return ""
+}
+
+func accumulateTwinCommitDelta(repoRoot, twinKey string, into *impact.SiblingDelta) {
+	sha := findTaskCommitSHA(repoRoot, twinKey)
+	if sha == "" {
+		return
+	}
+	for specRel := range listTwinCommitSpecFiles(repoRoot, twinKey) {
+		beforeMD := readGitBlobString(repoRoot, sha+"~1:"+specRel)
+		afterMD := readGitBlobString(repoRoot, sha+":"+specRel)
+		if afterMD != "" {
+			impact.ComputeMarkdownSpecDelta(beforeMD, afterMD, into)
+		}
+	}
+}
+
+func subtractOwnDelta(sibling, own *impact.SiblingDelta) {
+	for tc := range own.AddedTCs {
+		delete(sibling.AddedTCs, tc)
+	}
+	for st := range own.AddedStructs {
+		delete(sibling.AddedStructs, st)
+	}
+	for st, fields := range own.AddedFields {
+		for f := range fields {
+			delete(sibling.AddedFields[st], f)
+		}
+	}
+}
+
+func findTaskCommitSHA(repoRoot, taskKey string) string {
+	out, err := workspace.SafeGitCommand(repoRoot, "log", "--fixed-strings", "--grep=["+taskKey+"]", "-n", "1", "--format=%H").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func readGitBlobString(repoRoot, specRev string) string {
+	out, err := workspace.SafeGitCommand(repoRoot, "show", specRev).Output()
+	if err != nil {
+		return ""
+	}
+	return string(out)
 }
 
 func resolvePrimaryRepoRoot(scanRoot string) string {
@@ -114,16 +204,12 @@ func loadRepoScopedTasks(trunkRoot string) []task.TaskRecord {
 }
 
 func resolveOwnTwinSpecs(trunkRoot, activeSubKey string, tasks []task.TaskRecord) map[string]bool {
-	for _, rec := range tasks {
-		if rec.Key == activeSubKey && strings.HasPrefix(strings.TrimSpace(rec.TwinKey), "INT-") {
-			return listTwinCommitSpecFiles(trunkRoot, strings.TrimSpace(rec.TwinKey))
-		}
+	if own := findOwnTwinKey(activeSubKey, tasks); own != "" {
+		return listTwinCommitSpecFiles(trunkRoot, own)
 	}
 	return nil
 }
 
-// isSiblingSubPendingForWorktree reports whether sibling SUB-* task rec is still pending
-// (TODO, READY, PLAN, EDIT, REVIEW) or completed on trunk after scanRoot's branch diverged.
 func isSiblingSubPendingForWorktree(trunkRoot, scanRoot string, rec task.TaskRecord) bool {
 	if rec.Status != task.StatusDone && rec.Status != task.StatusAborted {
 		return true
@@ -135,11 +221,7 @@ func isSiblingSubPendingForWorktree(trunkRoot, scanRoot string, rec task.TaskRec
 }
 
 func worktreeContainsTaskCommit(trunkRoot, scanRoot, subKey string) bool {
-	out, err := workspace.SafeGitCommand(trunkRoot, "log", "--fixed-strings", "--grep=["+subKey+"]", "-n", "1", "--format=%H").Output()
-	if err != nil {
-		return true
-	}
-	sha := strings.TrimSpace(string(out))
+	sha := findTaskCommitSHA(trunkRoot, subKey)
 	if sha == "" {
 		return true
 	}
@@ -161,8 +243,6 @@ func listTwinCommitSpecFiles(repoRoot, twinKey string) map[string]bool {
 	return specs
 }
 
-// filterDeferredSpecRoots expands specRoots to individual Markdown files when at least one
-// file matches deferred, returning the remaining non-deferred spec file paths.
 func filterDeferredSpecRoots(scanRoot string, specRoots []string, deferred map[string]bool) ([]string, bool) {
 	if len(deferred) == 0 {
 		return specRoots, false
