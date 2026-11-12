@@ -4,17 +4,19 @@ authors:
   - Nomos Open-Core Substrate
 classification: public
 date: "2026-10-13"
-last_updated: "2026-11-10"
+last_updated: "2026-11-11"
 lineage:
   - INT-1944
   - SUB-2157
   - INT-1954
+  - INT-1985
+  - SUB-2280
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Nomos Software Physics Engine - Kinematics, Continuous Collision Detection & Phase Ballistics Specification"
 type: spec
-version: "4.1.0"
+version: "4.2.0"
 ---
 
 # Nomos Software Physics Engine: Kinematics, Continuous Collision Detection & Phase Ballistics Specification
@@ -347,6 +349,8 @@ The Open-Core Software Physics Engine exposes real-time worktree AST mass, inert
 | `TC-LAUNCH-002` | Fail-Safe Telemetry Recording | `RecordInvocationSafe` with unavailable database path | `PASS` (Degrades silently with zero panic or CLI disruption) |
 | `TC-LAUNCH-003` | Capability Matrix Inspection | `nomos capabilities --json` | `PASS` (Emits structured capability and 7x3 gate registry JSON) |
 | `TC-LAUNCH-004` | Single-Capability Deep Dive | `nomos capabilities <probe_id>` | `PASS` (Renders law, ring, threshold, and remedy contract) |
+| `TC-PHY-05` | Brownfield dCDS Recipe | Positive `dCDS` over Git baseline (`PrescribeRatchetedCDSRecipe`) | Emits `file:start-end`, baseline ceiling, and top function `dCDS` delta |
+| `TC-PHY-06` | Complexity & Arity Recipe | Function exceeds `V(G)`, `LOC`, or `MaxFuncParams` | Emits `file:start-end`, numeric excess, and 1-step helper/struct target |
 
 ---
 
