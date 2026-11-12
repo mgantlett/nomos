@@ -308,29 +308,28 @@ func EnrichFileLOCViolations(root string, metrics []FileMetric, thresh Threshold
 }
 
 // EnrichComplexityViolations appends AST seam cut-lines and parameter arity checks to complexity violations.
-// @intent: #FunctionMetric
+// @intent software_physics_engine_spec.md tree_sitter_ast_gate_spec.md #FunctionMetric
 func EnrichComplexityViolations(root string, funcs []FunctionMetric, thresh Thresholds, checkParams bool) []string {
 	var violations []string
 	seenFiles := make(map[string][]byte)
+	endLines := make(map[string]map[string]int)
 	for _, fn := range funcs {
-		src, ok := seenFiles[fn.File]
-		if !ok {
-			src, _ = os.ReadFile(filepath.Join(root, fn.File))
-			seenFiles[fn.File] = src
-		}
+		src := loadCachedSourceBytes(root, fn.File, seenFiles)
+		endLine := lookupFunctionEndLine(fn, src, thresh, endLines)
+		span := formatFileSpan(fn.File, fn.Line, endLine)
 		if fn.Complexity > thresh.MaxComplexity {
-			msg := fmt.Sprintf("%s:%d (%s) cyclomatic complexity %d exceeds max %d", fn.File, fn.Line, fn.Name, fn.Complexity, thresh.MaxComplexity)
-			if seams := PrescribeFunctionSeams(fn.File, src, fn.Name, fn.Line); len(seams) > 0 {
-				msg += " -> " + strings.Join(seams, " ")
-			}
-			violations = append(violations, msg)
+			excess := fn.Complexity - thresh.MaxComplexity
+			msg := fmt.Sprintf("%s (%s) cyclomatic complexity %d exceeds max %d", span, fn.Name, fn.Complexity, thresh.MaxComplexity)
+			seams := PrescribeFunctionSeams(fn.File, src, fn.Name, fn.Line)
+			seams = append(seams, fmt.Sprintf("[1-TURN RECIPE: extract >=%d branch(es) from %s (%s) into helper %sStep()]", excess, fn.Name, span, fn.Name))
+			violations = append(violations, msg+" -> "+strings.Join(seams, " "))
 		}
 		if fn.LOC > thresh.MaxFuncLOC {
-			msg := fmt.Sprintf("%s:%d (%s) LOC %d exceeds max %d", fn.File, fn.Line, fn.Name, fn.LOC, thresh.MaxFuncLOC)
-			if seams := PrescribeFunctionSeams(fn.File, src, fn.Name, fn.Line); len(seams) > 0 {
-				msg += " -> " + strings.Join(seams, " ")
-			}
-			violations = append(violations, msg)
+			excess := fn.LOC - thresh.MaxFuncLOC
+			msg := fmt.Sprintf("%s (%s) LOC %d exceeds max %d", span, fn.Name, fn.LOC, thresh.MaxFuncLOC)
+			seams := PrescribeFunctionSeams(fn.File, src, fn.Name, fn.Line)
+			seams = append(seams, fmt.Sprintf("[1-TURN RECIPE: extract >=%d line(s) from %s (%s) into helper %sStep()]", excess, fn.Name, span, fn.Name))
+			violations = append(violations, msg+" -> "+strings.Join(seams, " "))
 		}
 	}
 	if checkParams {
@@ -343,4 +342,45 @@ func EnrichComplexityViolations(root string, funcs []FunctionMetric, thresh Thre
 		}
 	}
 	return violations
+}
+
+func loadCachedSourceBytes(root, relFile string, cache map[string][]byte) []byte {
+	if src, ok := cache[relFile]; ok {
+		return src
+	}
+	src, err := os.ReadFile(filepath.Join(root, relFile))
+	if err != nil {
+		src = nil
+	}
+	cache[relFile] = src
+	return src
+}
+
+func lookupFunctionEndLine(fn FunctionMetric, src []byte, thresh Thresholds, cache map[string]map[string]int) int {
+	byName, ok := cache[fn.File]
+	if !ok {
+		byName = make(map[string]int)
+		if rep, err := AnalyzeFileDebt(fn.File, src, thresh.MaxComplexity, thresh.MaxFuncLOC); err == nil && rep != nil {
+			for _, df := range rep.Functions {
+				if df.EndLine > byName[df.Name] {
+					byName[df.Name] = df.EndLine
+				}
+			}
+		}
+		cache[fn.File] = byName
+	}
+	if end := byName[fn.Name]; end >= fn.Line {
+		return end
+	}
+	if fn.LOC > 0 {
+		return fn.Line + fn.LOC - 1
+	}
+	return fn.Line
+}
+
+func formatFileSpan(relFile string, startLine, endLine int) string {
+	if endLine > startLine {
+		return fmt.Sprintf("%s:%d-%d", relFile, startLine, endLine)
+	}
+	return fmt.Sprintf("%s:%d", relFile, startLine)
 }

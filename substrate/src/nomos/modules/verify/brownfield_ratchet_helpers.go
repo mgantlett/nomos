@@ -16,7 +16,7 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/treesitter"
 )
 
-var lineNumberStripRe = regexp.MustCompile(`:[0-9]+`)
+var lineNumberStripRe = regexp.MustCompile(`:[0-9]+(?:-[0-9]+)?`)
 
 func collectPolyglotComplexityFromBytes(path, rel string, content []byte, out *[]FunctionMetric) {
 	engine, err := treesitter.GetDefaultEngine()
@@ -42,15 +42,16 @@ func evaluateRatchetedCDSViolations(ctx *VerifyContext, root string, metrics []F
 	if !isBrownfieldRatchetActive(ctx) {
 		return EnrichCDSViolations(root, metrics, sources, thresh, isWorktreeContext(ctx, root))
 	}
-	adjMetrics := make([]FileMetric, 0, len(metrics))
+	var newFileMetrics []FileMetric
 	changedSources := make(map[string][]byte)
 	baseSources := make(map[string][]byte)
+	var violations []string
 
 	for _, m := range metrics {
 		absPath := filepath.Join(root, m.Name)
 		baseBytes, ok := loadBaselineFileBytes(ctx, root, absPath)
 		if !ok {
-			adjMetrics = append(adjMetrics, m)
+			newFileMetrics = append(newFileMetrics, m)
 			changedSources[m.Name] = sources[m.Name]
 			continue
 		}
@@ -58,19 +59,74 @@ func evaluateRatchetedCDSViolations(ctx *VerifyContext, root string, metrics []F
 			changedSources[m.Name] = sources[m.Name]
 			baseSources[m.Name] = baseBytes
 		}
-		if baseRep, err := AnalyzeFileDebt(absPath, baseBytes, thresh.MaxComplexity, thresh.MaxFuncLOC); err == nil && baseRep != nil {
-			if m.CDS <= maxInt(thresh.MaxCDS, baseRep.DebtScore) {
-				m.CDS = thresh.MaxCDS
-			}
+		if recipe := evaluateSingleRatchetedCDS(m, absPath, sources[m.Name], baseBytes, thresh); recipe != "" {
+			violations = append(violations, recipe)
 		}
-		adjMetrics = append(adjMetrics, m)
 	}
 
-	violations := EnrichCDSViolations(root, adjMetrics, nil, thresh, false)
+	violations = append(violations, EnrichCDSViolations(root, newFileMetrics, sources, thresh, false)...)
 	if isWorktreeContext(ctx, root) && len(changedSources) > 0 {
 		violations = append(violations, detectNetNewCloneViolations(changedSources, baseSources, thresh)...)
 	}
 	return violations
+}
+
+func evaluateSingleRatchetedCDS(m FileMetric, absPath string, curSrc, baseBytes []byte, thresh Thresholds) string {
+	baseRep, err := AnalyzeFileDebt(absPath, baseBytes, thresh.MaxComplexity, thresh.MaxFuncLOC)
+	if err != nil || baseRep == nil {
+		if m.CDS > thresh.MaxCDS {
+			return fmt.Sprintf("%s has cognitive debt %d (exceeds max %d)", m.Name, m.CDS, thresh.MaxCDS)
+		}
+		return ""
+	}
+	ceil := maxInt(thresh.MaxCDS, baseRep.DebtScore)
+	if m.CDS <= ceil {
+		return ""
+	}
+	return PrescribeRatchetedCDSRecipe(m.Name, curSrc, baseBytes, thresh)
+}
+
+// PrescribeRatchetedCDSRecipe pinpoints the top offending function delta causing a brownfield dCDS breach (@intent intent.md software_physics_engine_spec.md tree_sitter_ast_gate_spec.md #FileDebtReport).
+func PrescribeRatchetedCDSRecipe(relPath string, curSrc, baseSrc []byte, thresh Thresholds) string {
+	curRep, cErr := AnalyzeFileDebt(relPath, curSrc, thresh.MaxComplexity, thresh.MaxFuncLOC)
+	baseRep, bErr := AnalyzeFileDebt(relPath, baseSrc, thresh.MaxComplexity, thresh.MaxFuncLOC)
+	if cErr != nil || curRep == nil || bErr != nil || baseRep == nil {
+		return fmt.Sprintf("%s exceeded brownfield cognitive debt ceiling", relPath)
+	}
+	ceil := maxInt(thresh.MaxCDS, baseRep.DebtScore)
+	dCDS := curRep.DebtScore - ceil
+	if dCDS < 1 {
+		dCDS = 1
+	}
+	header := fmt.Sprintf("%s cognitive debt %d exceeds brownfield ceiling %d (dCDS %+d, baseline %d)", relPath, curRep.DebtScore, ceil, curRep.DebtScore-baseRep.DebtScore, baseRep.DebtScore)
+	topFn, baseFn, fnDelta := selectTopOffendingFunctionDelta(curRep.Functions, baseRep.Functions)
+	if topFn.Name == "" {
+		return header
+	}
+	needBranches := (dCDS + 9) / 10
+	needLines := (dCDS + 1) / 2
+	return fmt.Sprintf("%s -> [1-TURN RECIPE: %s (%s:%d-%d) added %+d CDS (LOC %d->%d, V(G) %d->%d); extract >=%d line(s) or >=%d branch(es) into helper %sStep() to restore dCDS <= 0]",
+		header, topFn.Name, relPath, topFn.StartLine, topFn.EndLine, fnDelta, baseFn.LOC, topFn.LOC, baseFn.Complexity, topFn.Complexity, needLines, needBranches, topFn.Name)
+}
+
+func selectTopOffendingFunctionDelta(curFns, baseFns []FunctionDebt) (FunctionDebt, FunctionDebt, int) {
+	baseMap := indexBaselineFunctionDebts(baseFns)
+	var bestCur, bestBase FunctionDebt
+	bestDelta := 0
+	for _, fn := range curFns {
+		bfn := baseMap[fn.Name]
+		baseScore := CalculateFunctionDebt(bfn.LOC, bfn.Complexity, DefaultThresholds().MaxFuncLOC, DefaultThresholds().MaxComplexity)
+		if bfn.DebtScore > 0 {
+			baseScore = bfn.DebtScore
+		}
+		delta := fn.DebtScore - baseScore
+		if delta > bestDelta || (bestCur.Name == "" && fn.DebtScore > 0) {
+			bestCur = fn
+			bestBase = bfn
+			bestDelta = delta
+		}
+	}
+	return bestCur, bestBase, bestDelta
 }
 
 func detectNetNewCloneViolations(changedSources, baseSources map[string][]byte, thresh Thresholds) []string {

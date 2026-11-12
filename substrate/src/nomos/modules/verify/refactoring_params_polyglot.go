@@ -59,13 +59,20 @@ func scanPolyglotParamViolations(relPath string, src []byte, maxParams int) []st
 		if isJSFamilyExt(ext) && !isFollowedByFuncBodyOrArrow(text, openParen) {
 			continue
 		}
-		paramRaw, _, ok := extractBalancedParenSpanWithEnd(text, openParen)
+		paramRaw, closeIdx, ok := extractBalancedParenSpanWithEnd(text, openParen)
 		if !ok {
 			continue
 		}
 		if count := countTopLevelParams(ext, paramRaw); count > maxParams {
-			line := strings.Count(text[:m[0]], "\n") + 1
-			violations = append(violations, fmt.Sprintf("%s:%d (%s) parameter count %d exceeds max %d -> [SEAM: encapsulate parameters into an options/domain type]", relPath, line, name, count, maxParams))
+			startLine := strings.Count(text[:m[0]], "\n") + 1
+			endLine := strings.Count(text[:closeIdx], "\n") + 1
+			if endLine <= startLine {
+				endLine = startLine + 1
+			}
+			groupMin := (count - maxParams) + 1
+			span := formatFileSpan(relPath, startLine, endLine)
+			violations = append(violations, fmt.Sprintf("%s (%s) parameter count %d exceeds max %d -> [1-TURN RECIPE: group >=%d parameters into a %sOptions object/dataclass (%s)]",
+				span, name, count, maxParams, groupMin, name, span))
 		}
 	}
 	return violations

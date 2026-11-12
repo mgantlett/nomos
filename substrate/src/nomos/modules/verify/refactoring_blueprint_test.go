@@ -67,6 +67,7 @@ func TestPrescribePolyglotFunctionSeams(t *testing.T) {
 	}
 }
 
+// @verifies TC-PHY-06 TC-TS-11
 func TestEvaluateParameterArityViolations(t *testing.T) {
 	goClean := `package p
 func okFn(a, b, c, d int) int { return a + b + c + d }
@@ -75,24 +76,98 @@ func okFn(a, b, c, d int) int { return a + b + c + d }
 		t.Fatalf("expected 0 arity violations for 4 params, got: %v", v)
 	}
 
-	goTooMany := `package p
-func confettiHelper(a, b, c, d, e, f, g, h, i int) int {
-	return a + b + c + d + e + f + g + h + i
+	cases := []struct {
+		file string
+		src  string
+		want []string
+	}{
+		{
+			file: "confetti.go",
+			src:  "package p\nfunc confettiHelper(a, b, c, d, e, f, g, h, i int) int {\n\treturn a + b + c + d + e + f + g + h + i\n}\n",
+			want: []string{"confetti.go:2-4", "parameter count 9 exceeds max 8", "1-TURN RECIPE: group >=2 parameters into a confettiHelperOptions struct"},
+		},
+		{
+			file: "worker.py",
+			src:  "def run_worker(a, b, c, d, e, f, g, h, i):\n    return a + b\n",
+			want: []string{"worker.py:1-2", "parameter count 9 exceeds max 8", "1-TURN RECIPE: group >=2 parameters into a run_workerOptions object/dataclass"},
+		},
+		{
+			file: "widget.ts",
+			src:  "export function renderWidget(a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) {\n  return a + b;\n}\n",
+			want: []string{"widget.ts:1-2", "parameter count 9 exceeds max 8", "1-TURN RECIPE: group >=2 parameters into a renderWidgetOptions object/dataclass"},
+		},
+	}
+	for _, tc := range cases {
+		got := EvaluateParameterArityViolations(tc.file, []byte(tc.src), MaxFunctionParams)
+		if len(got) != 1 {
+			t.Fatalf("file %s: expected 1 arity violation, got %v", tc.file, got)
+		}
+		assertContainsAllSubstrings(t, got[0], tc.want...)
+	}
 }
-`
-	vGo := EvaluateParameterArityViolations("confetti.go", []byte(goTooMany), MaxFunctionParams)
-	if len(vGo) != 1 || !strings.Contains(vGo[0], "parameter count 9 exceeds max 8") {
-		t.Fatalf("expected Go parameter arity violation for 9 params, got: %v", vGo)
+
+// @verifies TC-PHY-05 TC-PHY-06 TC-TS-11
+func TestPrescribeRatchetedCDSAndComplexityRecipes_Polyglot(t *testing.T) {
+	thresh := DefaultThresholds()
+	cdsCases := []struct {
+		file string
+		base string
+		cur  string
+		want []string
+	}{
+		{
+			file: "mux.go",
+			base: buildLegacyGoSource(19, ""),
+			cur:  buildLegacyGoSource(21, ""),
+			want: []string{"mux.go cognitive debt", "exceeds brownfield ceiling", "dCDS +", "1-TURN RECIPE: LegacyDispatch (mux.go:3-", "LegacyDispatchStep()"},
+		},
+		{
+			file: "router.py",
+			base: buildPolyglotBranchFixture("py", 18),
+			cur:  buildPolyglotBranchFixture("py", 20),
+			want: []string{"router.py cognitive debt", "exceeds brownfield ceiling", "dCDS +", "1-TURN RECIPE: dispatch_route (router.py:1-", "dispatch_routeStep()"},
+		},
+		{
+			file: "router.ts",
+			base: buildPolyglotBranchFixture("ts", 18),
+			cur:  buildPolyglotBranchFixture("ts", 20),
+			want: []string{"router.ts cognitive debt", "exceeds brownfield ceiling", "dCDS +", "1-TURN RECIPE: dispatchRoute (router.ts:1-", "dispatchRouteStep()"},
+		},
+	}
+	for _, tc := range cdsCases {
+		got := PrescribeRatchetedCDSRecipe(tc.file, []byte(tc.cur), []byte(tc.base), thresh)
+		assertContainsAllSubstrings(t, got, tc.want...)
 	}
 
-	tsTooMany := `export function renderWidget(a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) {
-  return a + b;
-}
-`
-	vTS := EvaluateParameterArityViolations("widget.ts", []byte(tsTooMany), MaxFunctionParams)
-	if len(vTS) != 1 || !strings.Contains(vTS[0], "parameter count 9 exceeds max 8") {
-		t.Fatalf("expected TS parameter arity violation for 9 params, got: %v", vTS)
+	tempDir := t.TempDir()
+	goPath := filepath.Join(tempDir, "heavy.go")
+	if err := os.WriteFile(goPath, []byte(buildLegacyGoSource(18, "")), 0644); err != nil {
+		t.Fatal(err)
 	}
+	enriched := EnrichComplexityViolations(tempDir, []FunctionMetric{{File: "heavy.go", Line: 3, Name: "LegacyDispatch", Complexity: 19, LOC: 65}}, thresh, false)
+	if len(enriched) != 2 {
+		t.Fatalf("expected V(G) and LOC violations, got %v", enriched)
+	}
+	assertContainsAllSubstrings(t, enriched[0], "heavy.go:3-", "1-TURN RECIPE: extract >=4 branch(es) from LegacyDispatch", "LegacyDispatchStep()")
+	assertContainsAllSubstrings(t, enriched[1], "heavy.go:3-", "1-TURN RECIPE: extract >=5 line(s) from LegacyDispatch", "LegacyDispatchStep()")
+}
+
+func buildPolyglotBranchFixture(lang string, branches int) string {
+	var sb strings.Builder
+	if lang == "py" {
+		sb.WriteString("def dispatch_route(code: int) -> int:\n")
+		for i := 1; i <= branches; i++ {
+			sb.WriteString("    if code == 1:\n        return 2\n")
+		}
+		sb.WriteString("    return 0\n")
+		return sb.String()
+	}
+	sb.WriteString("export function dispatchRoute(code: number): number {\n")
+	for i := 1; i <= branches; i++ {
+		sb.WriteString("  if (code === 1) {\n    return 2;\n  }\n")
+	}
+	sb.WriteString("  return 0;\n}\n")
+	return sb.String()
 }
 
 func TestDetectStructuralClones_GoType2(t *testing.T) {

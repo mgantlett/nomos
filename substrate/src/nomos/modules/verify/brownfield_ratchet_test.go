@@ -47,6 +47,7 @@ func setupBrownfieldGitWorktreeFixture(t *testing.T) (string, string) {
 	return repo, wt
 }
 
+// @verifies TC-PHY-05
 func TestBrownfieldMonotonicRatchet_AllowsCleanFixAndBlocksBloat(t *testing.T) {
 	repo, wt := setupBrownfieldGitWorktreeFixture(t)
 	ctx := &VerifyContext{RepoRoot: repo, WorktreePath: wt, TaskID: "SUB-1", Phase: "REVIEW"}
@@ -76,13 +77,14 @@ func TestBrownfieldMonotonicRatchet_AllowsCleanFixAndBlocksBloat(t *testing.T) {
 	// 3. Bloating the pre-existing V(G)=23 God function to V(G)=25 fails closed!
 	mustWriteGoFixture(t, filepath.Join(wt, "pkg", "engine", "legacy.go"), buildLegacyGoSource(24, cleanHelper))
 	compRes, err := (&ComplexityGate{}).Evaluate(ctx)
-	if err != nil || compRes.Passed {
-		t.Fatalf("expected ComplexityGate to fail closed when legacy God function V(G) increases, got %+v", compRes)
+	if err != nil || compRes.Passed || !strings.Contains(compRes.Message, "1-TURN RECIPE") {
+		t.Fatalf("expected ComplexityGate to fail closed with 1-TURN RECIPE when legacy God function V(G) increases, got %+v", compRes)
 	}
 	cdsRes, err := (&CognitiveDebtGate{}).Evaluate(ctx)
 	if err != nil || cdsRes.Passed {
 		t.Fatalf("expected CognitiveDebtGate to fail closed when file CDS increases above baseline, got %+v", cdsRes)
 	}
+	assertContainsAllSubstrings(t, cdsRes.Message, "exceeds brownfield ceiling", "dCDS +", "1-TURN RECIPE", "LegacyDispatch (pkg/engine/legacy.go:")
 
 	// 4. Adding a panic("not implemented") shim in modified legacy file fails closed!
 	shimHelper := "\n// StubAction is unimplemented.\nfunc StubAction() error {\n\tpanic(\"not implemented\")\n}\n"
@@ -175,5 +177,14 @@ func TestBrownfieldMagicStringAndForbiddenLiteralRatchet(t *testing.T) {
 	litFail, _ := (&ForbiddenLiteralsGate{}).Evaluate(ctx)
 	if litFail.Passed {
 		t.Fatalf("expected ForbiddenLiteralsGate to block net-new forbidden literal")
+	}
+}
+
+func assertContainsAllSubstrings(t *testing.T, msg string, wants ...string) {
+	t.Helper()
+	for _, want := range wants {
+		if !strings.Contains(msg, want) {
+			t.Fatalf("expected message to contain %q, got:\n%s", want, msg)
+		}
 	}
 }

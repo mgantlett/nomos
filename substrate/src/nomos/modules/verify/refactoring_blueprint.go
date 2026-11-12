@@ -190,7 +190,11 @@ func computeGitBaselineDelta(root, relPath string, currentLOC, currentCDS, maxCo
 		return ""
 	}
 	cleanRel := filepath.ToSlash(relPath)
-	out, err := workspace.RunSafeGit(root, "show", "main:"+cleanRel)
+	baseRef := resolveBaselineCommitRef(&VerifyContext{RepoRoot: root, WorktreePath: root}, root)
+	if baseRef == "" {
+		baseRef = "main"
+	}
+	out, err := workspace.RunSafeGit(root, "show", baseRef+":"+cleanRel)
 	if err != nil || len(out) == 0 {
 		return ""
 	}
@@ -199,19 +203,26 @@ func computeGitBaselineDelta(root, relPath string, currentLOC, currentCDS, maxCo
 	if rep, dErr := AnalyzeFileDebt(cleanRel, out, maxComp, maxFuncLOC); dErr == nil && rep != nil {
 		mainCDS = rep.DebtScore
 	}
-	msg := fmt.Sprintf("[BASELINE main: %d LOC, %d CDS | ΔLOC %+d, ΔCDS %+d]", mainLOC, mainCDS, currentLOC-mainLOC, currentCDS-mainCDS)
+	msg := fmt.Sprintf("[BASELINE %s: %d LOC, %d CDS | ΔLOC %+d, ΔCDS %+d]", shortRefLabel(baseRef), mainCDSOrLOCLabel(mainLOC), mainCDS, currentLOC-mainLOC, currentCDS-mainCDS)
 	if mainLOC > 400 || mainCDS > 45 {
-		targetLOC := mainLOC - 30
-		if targetLOC < 400 {
-			targetLOC = 400
-		}
-		msg += fmt.Sprintf(" [BOY-SCOUT RATCHET: legacy monolith; extract helper module to reduce <= %d LOC]", targetLOC)
+		msg += fmt.Sprintf(" [RATCHET: restore ΔLOC <= 0 and ΔCDS <= 0 relative to baseline (%d LOC, %d CDS)]", mainLOC, mainCDS)
 	}
 	return msg
 }
 
+func shortRefLabel(ref string) string {
+	if len(ref) > 8 {
+		return ref[:8]
+	}
+	return ref
+}
+
+func mainCDSOrLOCLabel(loc int) int {
+	return loc
+}
+
 // EvaluateParameterArityViolations enforces the maximum parameter count per function to prevent low-cohesion splits.
-// @intent: #FunctionMetric
+// @intent software_physics_engine_spec.md tree_sitter_ast_gate_spec.md #FunctionMetric
 func EvaluateParameterArityViolations(relPath string, src []byte, maxParams int) []string {
 	if maxParams <= 0 || len(src) == 0 {
 		return nil
@@ -235,8 +246,12 @@ func scanGoParamViolations(relPath string, src []byte, maxParams int) []string {
 			continue
 		}
 		if count := countGoFuncParams(fn); count > maxParams {
-			line := fset.Position(fn.Pos()).Line
-			violations = append(violations, fmt.Sprintf("%s:%d (%s) parameter count %d exceeds max %d -> [SEAM: encapsulate parameters into a cohesive domain struct]", relPath, line, fn.Name.Name, count, maxParams))
+			startLine := fset.Position(fn.Pos()).Line
+			endLine := fset.Position(fn.End()).Line
+			groupMin := (count - maxParams) + 1
+			span := formatFileSpan(relPath, startLine, endLine)
+			violations = append(violations, fmt.Sprintf("%s (%s) parameter count %d exceeds max %d -> [1-TURN RECIPE: group >=%d parameters into a %sOptions struct (%s)]",
+				span, fn.Name.Name, count, maxParams, groupMin, fn.Name.Name, span))
 		}
 	}
 	return violations
