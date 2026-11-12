@@ -12,12 +12,14 @@ lineage:
   - SUB-2280
   - INT-1986
   - SUB-2281
+  - INT-1989
+  - SUB-2292
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Tree-sitter AST Gate Engine to Replace Legacy Gen 2 Regex Gates"
 type: spec
-version: "4.2.0"
+version: "4.3.0"
 ---
 
 # Tree-sitter AST Gate Engine
@@ -229,9 +231,10 @@ The Tree-sitter AST Gate Engine directly underpins six automated sensor probes i
 1. **`Cell 2.1 (anti_shim)`**: Detects empty AST blocks, stub bodies, or no-op returns (`return nil`, `{}`) via query `@empty_block`.
 2. **`Cell 2.1 (docstrings)`**: Evaluates docstring adjacency across all exported functions via `@func.doc`.
 3. **`Cell 1.1 (complexity)`**: Computes $M(F)$ for every function using compiled `@branch` queries and emits `file:start-end` 1-turn extraction targets on complexity, LOC, or arity breaches.
-4. **`Cell 1.1 (max_file_loc)`**: Enforces file line limits and per-directory source fan-out (`max_package_files`, default `40`; ratcheted on brownfield repos, strict on `nomos`).
-5. **`Cell 1.1 (cognitive_debt)`**: Enforces $CDS \le 45$ on strict files and monotonic `dCDS <= 0` on brownfield files with per-function `dCDS` attribution (`PrescribeRatchetedCDSRecipe`).
+4. **`Cell 1.1 (max_file_loc)`**: Enforces file line limits and per-directory source fan-out (`max_package_files`, default `40`), monotonically ratcheting pre-existing legacy directories on zero-net-file edits.
+5. **`Cell 1.1 (cognitive_debt)`**: Enforces $CDS \le 45$ on strict files, preserves baselines across `git diff --find-renames=50%` moves, and emits `PrescribeRatchetedCDSRecipe`.
 6. **`Cell 5.1 (magic_strings)`**: Scans string literal AST nodes across Go, TypeScript, and Svelte for unconfigured localhost ports or URLs.
+7. **`FastFileRadar (CWE-22)`**: Flags unconfined dynamic subpath reads under `base_dir`/`baseDir`, ignores constant literal subpaths, and emits language-specific 1-turn confinement recipes.
 
 ---
 
@@ -257,6 +260,8 @@ The following table-driven verification vectors validate the Tree-sitter AST Gat
 | `TC-POLY-004` | `csharp` | `public int Check(int x) { if (x == 0) return 1; return x; }` | `func: Check`, `branches: 1` | $M = 2$, $\text{LOC} = 1$ | `PASS` | C# `queries/csharp.scm` AST metric extraction |
 | `TC-TS-11` | `polyglot` | Function exceeds `V(G)`, `LOC`, `MaxFuncParams`, or brownfield `dCDS` | Span `file:start-end` + delta | Exact excess computed | `FAIL` | 1-turn extraction recipe emitted (`go`, `python`, `typescript`) |
 | `TC-TS-12` | `polyglot` | Directory exceeds `MaxPackageFiles` (`40` non-test files) | Directory fan-out counted | Strict or net-new growth | `FAIL` | Sub-package cohesion recipe emitted; legacy brownfield count ratcheted |
+| `TC-TS-13` | `polyglot` | Legacy file moved via `git mv` during sub-package split | Rename map `git diff -M50%` resolved | Baseline metrics preserved | `PASS` | Rename-aware baseline lookup prevents false greenfield penalties |
+| `TC-TS-14` | `polyglot` | Dynamic `baseDir` subpath read vs constant literal subpath | Untrusted vs constant join classified | Language recipe selected | `PASS` | Dynamic traversal fails with language recipe; constant subpath passes |
 
 ---
 

@@ -30,12 +30,14 @@ lineage:
   - SUB-2241
   - INT-1987
   - SUB-2283
+  - INT-1989
+  - SUB-2292
 plane: intent
 ssot_repository: nomos
 status: active
 title: "Task Lifecycle CLI and Workspace State Transition Specification"
 type: spec
-version: "4.7.0"
+version: "4.8.0"
 ---
 
 # Task Lifecycle CLI and Workspace State Transition Specification
@@ -345,6 +347,11 @@ type UpdateCheckCache struct {
 * **Statutory Semver Pin Parity**: Asserts matching release version pins across `substrate/cli/root.go` (`RootCmdVersion`), top `CHANGELOG.md` heading (`## [vX.Y.Z]`), and `packaging/aur/PKGBUILD` (`pkgver=X.Y.Z`).
 * **Changelog Airlock**: Rejects workstation home prefixes, `forbidden_literals`, `prohibited_packages`, raw credentials, and Unicode em-dash or en-dash drift inside `CHANGELOG.md` before tagging.
 
+### 4.14 Working-Tree Verification Receipt Cache
+* **Unstaged Tree Hashing**: Computes deterministic working-tree OIDs via a temporary Git index (`GIT_INDEX_FILE` and `git write-tree`) during unstaged `nomos verify` runs.
+* **Cross-Phase Receipt Reuse**: Reuses valid `42/42` receipts (`TTL <= 5m`, matching working-tree OID and trunk `HEAD` SHA) across `nomos verify`, `pre-commit`, `nomos task review`, and `nomos task sync`.
+* **Fail-Closed Invalidation**: Purges or bypasses cached receipts on any file byte mutation, untracked file addition, trunk `HEAD` advance, `--all` scan, or `NOMOS_NO_VERIFY_CACHE=1`.
+
 ---
 
 ## 5. Table-Driven Verification Vectors
@@ -372,6 +379,7 @@ type UpdateCheckCache struct {
 | `TC-SYNC-021` | Law 5 & Law 7 (Walkthrough Airlock) | `nomos task sync` with `file://` home path or prohibited package literal | Scrubs workspace/home paths; rejects prohibited boundary literals before merge |
 | `TC-SYNC-022` | Law 4 & Law 7 (GoReleaser & Semver Parity) | `nomos verify` on malformed `.goreleaser.yaml` template or drifted `PKGBUILD` `pkgver` | `ReleaseReceiptGate` rejects template syntax error or semver pin drift |
 | `TC-SYNC-023` | Law 5 & Law 7 (Changelog Airlock) | `nomos verify` on `CHANGELOG.md` containing home path or prohibited package | `ReleaseReceiptGate` rejects unsanitized `CHANGELOG.md` literal before release tag |
+| `TC-SYNC-024` | Law 2 (Working-Tree Verify Receipt Cache) | Unstaged `nomos verify` -> `nomos task commit` -> `nomos task sync` | Computes temp-index tree SHA once; reuses fresh receipt across `pre-commit` and `sync` |
 | `TC-SCH-01` | Law 4 (Intent Schema Type) | `TaskRecord{Key: "INT-101", Plane: "intent", SchemaType: "intent"}` | Validates intent plane schema binding cleanly |
 | `TC-SCH-02` | Law 4 (Substrate Schema Type) | `TaskRecord{Key: "SUB-101", Plane: "substrate", SchemaType: "substrate"}` | Validates substrate plane schema binding cleanly |
 | `TC-SCH-03` | Law 7 (Plane-Key Mismatch) | `TaskRecord{Key: "INT-101", Plane: "substrate"}` | Rejects cross-plane key/plane mismatch (`ERR_VALIDATION_FAILED`) |
