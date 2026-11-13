@@ -17,22 +17,16 @@
 
 ---
 
-AI coding agents optimize for making their prompt finish, even when that means taking shortcuts. Without a deterministic boundary, agents routinely introduce three silent failures into production repositories:
+Coding agents optimize for making their prompt finish, even when that means deleting failing tests, returning empty `// TODO` stubs, editing linter configs, or stuffing new complexity into fragile legacy files.
 
-- **Reward Hacking Tests:** Deleting, skipping, or weakening failing assertions instead of fixing the root cause.
-- **Hollow Shims & Stubs:** Leaving empty `// TODO` stubs, mock returns, or dead unreferenced code to make a build compile.
-- **Unbounded Workspace Drift:** Mutating `main` directly, polluting unrelated modules, or forgetting architectural context across sessions.
+**Nomos** is a single `~20 MB` static Go binary (`Apache 2.0`, zero cloud account, zero telemetry) that sits between your coding agent (**Claude Code**, **Cursor**, **OpenCode**, **Gemini CLI**, **Antigravity**, **Windsurf**, or **Aider**) and Git. Just as PostgreSQL placed ACID transactions between applications and raw disk, Nomos places **human-authored repository laws underneath machine speed** so nothing touches `main` unless it passes isolated `git worktree` sandboxes and compiled AST verification.
 
-Just as **PostgreSQL placed ACID transactions** between concurrent applications and raw disk files, **Nomos** introduces a new infrastructure layer between your coding agent (**Claude Code**, **Cursor**, **Antigravity**, **OpenCode**, **Windsurf**, or **Aider**) and your Git repository - physically enforcing **causal `INT-*`/`SUB-*` spec-vs-code DAGs**, **hermetic Git worktree sandboxes**, **42 polyglot anti-reward-hacking AST quality gates** (with trunk-pinned `nomos.yaml`), **receipt-gated SQLite memory (`mneme.db`)**, and **atomic Two-Phase Commit (2PC) releases** before a single line can touch `main`:
+```bash
+curl -fsSL https://sophialabs.ca/install | bash
+cd your-project && nomos init
+```
 
-| What Nomos Is *Not* | Why Legacy Layers Fail on Coding Agents | What the Nomos Layer Enforces |
-| :--- | :--- | :--- |
-| **Not Another Coding Agent** | Switching models or IDEs does not stop a stochastic optimizer from taking shortcuts under context pressure. | Keep Claude Code, Cursor, Antigravity, OpenCode, Windsurf, or Aider; Nomos governs state isolation and merge safety underneath them. |
-| **Not a Linter or Post-Hoc CI** | Linters (`golangci-lint`, `eslint`) assume cooperative humans *after* edits already dirtied your active branch. | Isolates tasks in disposable `git worktree` sandboxes, separates `INT-*` specs from `SUB-*` code so agents cannot rewrite specs to excuse broken code, pins `nomos.yaml` to `main`, and blocks deleted assertions or hollow shims *before* merge. |
-| **Not a `.cursorrules` Prompt Pack** | Advisory markdown rules decay once context crosses 60%, and failed runs poison repo notes. | Enforces compiled Go, Git hook, and AST exit codes (`exit 1`) outside the model context window, promoting `mneme.db` lessons strictly after a verified 2PC Git Notes receipt. |
-
-> **⚡ Two commands to install and initialize. Invisible after that.**
-> Run `curl -fsSL https://sophialabs.ca/install | bash` and `nomos init` once. There are zero custom slash commands to memorize, zero prompt templates to maintain, and zero manual handshake steps (`nomos hook session-start` runs `nomos handshake` automatically on session boot). You prompt Claude Code, Cursor, Antigravity, or OpenCode in plain English the exact way you already do, while Nomos governs worktree isolation, `~24ms` single-file AST checks, and two-phase commits silently under the hood.
+> **Two commands to install. Invisible after that.** You keep prompting your coding agent in plain English with zero custom slash commands or prompt templates to maintain, while Nomos governs sandboxes, `~24ms` AST checks, and atomic merges silently under the hood.
 
 <div align="center">
   <img src="intent/assets/nomos_hero_demo.gif" alt="Nomos Live Terminal Demo - Blocking main commits, catching an empty AST stub, and releasing via 2PC" width="100%" />
@@ -40,150 +34,122 @@ Just as **PostgreSQL placed ACID transactions** between concurrent applications 
 
 ---
 
+## ✨ What's Included Out of the Box (100% Apache 2.0 Open-Core)
+
+Every single-repository governance capability ships locally in the open-source `nomos` binary with zero crippled commands:
+
+### 1. Zero-Migration Brownfield Debt Ratchet (`nomos init`)
+- **Drop Into `200k+ LOC` Legacy Repos on Day 1:** Auto-detects existing brownfield repositories (`strict_mode: false`) with **zero upfront warning cleanup** required.
+- **Monotonic Merge-Base Ratchet:** Untouched `10,000`-line legacy files pass automatically, while **every file an agent touches** is ratcheted against `main` (`<= 0` added cyclomatic/cognitive debt, `>= 0` test coverage delta, `0` new structural clones or swallowed errors).
+- **Tamper-Proof Human Exceptions:** Agents are blocked from adding inline linter-ignore comments or editing `nomos.yaml` inside a task branch; human architects declare legitimate adapter carve-outs (`allow_only`, `forbid_imports`, `exclude`) directly on protected `main`.
+
+### 2. Hermetic Git Worktrees & Constitutional `main` (`nomos task`)
+- **Physically Read-Only `main`:** Direct agent commits to `main` fail closed; tasks execute inside disposable `worktrees/<repo>-<task>` sandboxes (`nomos task chore`, `nomos task pair`, `nomos task dag`).
+- **Spec-vs-Code Separation:** Separates human contracts (`INT-*`) from implementation (`SUB-*`) across a `PLAN -> EDIT -> REVIEW -> SYNC -> LEARN` state machine so an agent cannot rewrite a spec to excuse broken code.
+- **Atomic Two-Phase Commit & Audit Receipts:** `nomos task sync` verifies all gates, fast-forwards `main`, stamps a tamper-evident SHA-256 **Git Notes** receipt (`refs/notes/nomos/releases`), and prunes the worktree.
+
+### 3. 42 Polyglot Anti-Cheat AST & Obligation Gates (`nomos verify`)
+- **11 Languages in `~460ms` (`~24ms` Single-File Radar, `0` LLM Judge Tokens):** Built-in AST, `.scm` query, `wazero` WASM, and native toolchain/coverage probes across **Go, TypeScript/Svelte, Python, Rust, Ruby, C/C++, Java, Kotlin, and C#**.
+- **Anti-Reward-Hacking Checks:** Blocks deleted or skipped tests (`t.Skip`, `@pytest.mark.skip`, `#[ignore]`, `xit`, `@Disabled`, `[Fact(Skip=...)]`), hollow stubs (`todo!()`, `pass`, `NotImplementedError`), functions `> 60 LOC` (`400 LOC` file ceiling), cyclomatic complexity `> 15`, and hardcoded local paths or secrets.
+- **Sub-5ms Architectural Obligations:** Enforces directional hexagonal `architecture_boundaries`, exported contract field parity (`strict_types`), `TC-*` test-to-spec bindings (`verify_obligations`), and SHA-256 `spec_digests` staleness alerts.
+- **1-Turn Self-Correction (`NomosError`):** Gate failures emit exact file, line, violated law, and remediation instructions so agents fix issues on the next turn without thrashing.
+
+### 4. `~4ms` Pre-Tool Security Airlock & Loop Circuit-Breaker (`nomos hook`)
+- **Host Credential & SSRF Firewall:** Blocks agent reads of `~/.ssh`, `~/.aws`, `~/.kube`, `~/.gnupg`, `~/.config/gcloud`, `.netrc`, `.npmrc`, and `.pypirc`, blocks cloud metadata SSRF (`169.254.169.254`), and tracks multi-turn compositional taint (`CapabilityFlowGraph`) across web ingress and egress/MCP tools.
+- **Anti-Phantom Stop & 3-Strike Circuit-Breaker:** Prevents agents from claiming "tests pass" without a verified exit code and halts 3 consecutive non-progressing failures before burning context budgets.
+
+### 5. Receipt-Gated Episodic Memory (`nomos mem` / `mneme.db`)
+- **Zero-Cloud Local SQLite Recall (`<50ms`):** Pure-Go SQLite WAL store combining AST directory-scoped pitfalls/patterns with 64-dim subword hashing, lexical ranking, and optional local neural embeddings (`LOCAL_EMBEDDING_URL`).
+- **Zero Poisoned Notes:** Promotes `pitfall` and `pattern` lessons strictly after a verified 2PC release receipt so failed runs never pollute repository memory.
+
+### 6. Drop-In Hooks Across Every Major Coding Agent (`nomos hook install`)
+- **Works With Your Existing Stack:** Auto-scaffolds `AGENTS.md`, `CLAUDE.md`, self-healing Git hooks (`pre-commit`, `commit-msg`, `pre-push`), and native lifecycle hooks for **Claude Code** (`.claude/settings.json`), **Cursor** (`.cursor/hooks.json`), **OpenCode** (`.opencode/plugins/nomos.ts`), **Gemini CLI** (`.gemini/settings.json`), and **Antigravity** (`.agents/hooks.json`), plus `--container-sandbox` for Docker/CI workloads.
+
+---
+
 ## ⚡ Quick Start (Under 60 Seconds)
 
-### 1. Install the `nomos` Binary
+### 1. Install `nomos`
 
 ```bash
+# Linux, macOS & WSL2 (SHA-256 verified release binary; pin with NOMOS_VERSION=v4.17.0):
 curl -fsSL https://sophialabs.ca/install | bash
-```
 
-Installs the SHA-256-verified release binary directly to standard Go binary paths (`$GOBIN` / `$(go env GOPATH)/bin` / `~/go/bin`; pass `NOMOS_VERSION=v4.17.0` to pin a specific release tag). Or install on **macOS / Linux** via Homebrew, on **Arch Linux / Omarchy** via `makepkg`, or directly from `main` via the Go toolchain (`substrate/` subdirectory module):
-
-```bash
 # macOS & Linux (Homebrew):
 brew install --cask mgantlett/tap/nomos
 
 # Arch Linux / Omarchy (verified PKGBUILD):
 (tmp="$(mktemp -d)" && cd "$tmp" && curl -fsSLO https://raw.githubusercontent.com/mgantlett/nomos/main/packaging/aur/PKGBUILD && makepkg -si && rm -rf "$tmp")
 
-# Build from source (requires Go 1.26+; GOTOOLCHAIN=auto auto-fetches Go 1.26+ on older Go installs):
+# Build from source (Go 1.26+; GOTOOLCHAIN=auto fetches Go 1.26+ automatically):
 GOTOOLCHAIN=auto CGO_ENABLED=0 go install github.com/mgantlett/nomos/substrate/cmd/nomos@main
 ```
 
-To update an existing standalone install (verifies SHA-256 checksums, guards Homebrew/AUR installs, and optionally refreshes downstream workspace contracts), or to cleanly uninstall at any time:
+Update or cleanly uninstall anytime:
 
 ```bash
-# Update standalone nomos binary (and optionally refresh workspace AGENTS.md & ambient hooks):
-nomos update
-nomos update --sync-workspace
-
-# Uninstall cleanly:
+nomos update && nomos update --sync-workspace
 curl -fsSL https://sophialabs.ca/uninstall | bash
 ```
 
-### 2. Initialize Any Repository
+### 2. Initialize Any Greenfield or Brownfield Repository
 
 ```bash
 cd your-project
 nomos init
 ```
 
-`nomos init` detects your language stack, scaffolds [`nomos.yaml`](intent/architecture/specs/go_ssot_and_json_schema_spec.md) (validated against [`nomos.schema.json`](nomos.schema.json)), installs self-healing Git defense hooks (`pre-commit`, `commit-msg`, `pre-push`), and drops indirect-control agent contracts (`AGENTS.md`, `CLAUDE.md`) plus ambient lifecycle hooks across Claude Code, Gemini CLI, OpenCode, Cursor, and Antigravity (`.claude/settings.json`, `.gemini/settings.json`, `.opencode/plugins/nomos.ts`, `.cursor/hooks.json`, `.agents/hooks.json`) into your repo.
+### 3. Prompt Your Agent in Plain English
 
-### 3. Prompt Your Coding Agent Naturally
-
-You are done with the CLI. Open **Claude Code**, **Cursor**, **Antigravity**, **OpenCode**, or **Windsurf** and prompt in plain English:
+Open **Claude Code**, **Cursor**, **OpenCode**, **Gemini CLI**, **Antigravity**, or **Windsurf** and ask for a feature normally:
 
 ```text
 > "Add TTL cache eviction to Store with unit tests"
 ```
 
-Because `nomos init` injected `AGENTS.md` / `CLAUDE.md` and Git defense hooks, **your coding agent autonomously executes the Nomos lifecycle under the hood** (in as few as 2 CLI calls on small chores):
+Your agent autonomously executes the sandboxed lifecycle under the hood (in as few as 2 CLI calls on small chores):
 
 ```bash
-# Executed autonomously by your coding agent (not typed by you):
-nomos task chore "Add TTL cache eviction"                              # 1. Provisions isolated worktree (worktrees/<repo>-SUB-1)
-nomos task sync SUB-1 -m "Add TTL cache eviction and unit coverage"    # 2. Auto-commits, runs 42 DoD gates, merges & seals Git Note
+nomos task chore "Add TTL cache eviction"                              # 1. Opens isolated worktree (worktrees/<repo>-SUB-1)
+nomos task sync SUB-1 -m "Add TTL cache eviction and unit coverage"    # 2. Verifies 42 gates, merges to main & seals Git Note
 ```
 
-> **💡 OpenCode + OpenRouter Cheap Workhorse Stack (`0` Middleman Tax):**
-> `nomos init` scaffolds `.opencode/plugins/nomos.ts` with full lifecycle parity (`session-start` Turn-0 orientation, `pre-tool` secret/SSRF firewall, `post-tool` `~24ms` AST radar, and `session.idle` anti-phantom `stop` checks). Point OpenCode directly at any low-cost OpenRouter workhorse model and let local compiled Go AST gates enforce frontier merge quality with zero LLM judge token overhead.
+> **💡 Cheap Workhorse Stack (`OpenCode` + `OpenRouter` / Local `16GB` GPU):** Because `.opencode/plugins/nomos.ts` enforces frontier merge rules in local compiled Go (`0` middleman token tax), `14B-32B` open-weight models jump from `27.8%` to **`86.1%`** brownfield resolution (`3.1x` lift) while cutting token spend `-43%` to `-57%`.
 
 ---
 
-## 🏗️ How It Works in Your Repository
+## 🧩 Why Nomos Is a New Layer of the Stack
 
-<div align="center">
-  <img src="intent/assets/nomos_hero_blueprint_v1_5.jpg" alt="Nomos v1.5 Downstream Closed-Loop Lifecycle Architecture" width="100%" />
-</div>
-
-1. **Indirect Control & Receipt-Gated Episodic Memory (`nomos init` / `nomos hook` / `nomos mem`):** Your coding agent reads the bootstrapped `AGENTS.md` / `CLAUDE.md` protocol, runs sub-5ms compiled lifecycle hooks (`nomos hook session-start`, `pre-tool`, `post-tool`, `stop`, and zero-ceremony `nomos hook install` across Claude Code, Gemini CLI, OpenCode, Cursor, and Antigravity), and queries **Nomos Mneme** (`nomos mem recall`) for sub-50ms receipt-gated episodic memory (AST directory-scoped pitfalls/patterns + pure-Go subword feature hashing, lexical ranking, and optional local neural embeddings) before touching code.
-2. **Hermetic Worktree Sandbox & Causal Plane DAG (`nomos task`):** Direct commits on `main` fail closed. Tasks separate intent/contract specs (`INT-*`) from substrate code (`SUB-*`) in a local causal DAG (`nomos task pair`, `nomos task chore`, `nomos task dag`), and every task executes inside an isolated Git worktree (`worktrees/<repo>-<task>`) governed by a strict state machine (`IDLE → PLAN → EDIT → REVIEW → SYNC → LEARN`).
-3. **42-Gate Polyglot AST & Toolchain Verification (`nomos verify`):** Before any code can be reviewed or merged, Nomos evaluates `go/ast`, embedded `.scm` S-expression query rules, `wazero` WebAssembly linear-memory scanning, pure-Go multiline-aware structural scanners, and native compiler/coverage probes (`tsc --noEmit`, `pytest`, `cargo check`, `ruby -c`, `cmake`, `gradle`/`mvn`, `dotnet build`, plus LCOV and Cobertura XML ratchets) across **Go, TypeScript/Svelte, Python, Rust, Ruby, C/C++, Java, Kotlin, and C#** - catching empty stubs, `todo!()`/`pass`/`raise NotImplementedError` shims, skipped-test annotations (`t.Skip`, `@pytest.mark.skip`, `#[ignore]`, `xit`, `@Disabled`, `[Fact(Skip=...)]`), functions over `60 LOC` (`400 LOC` file ceiling), cyclomatic complexity spikes (`> 15`), hardcoded paths, security flaws, and test coverage drops.
-4. **1-Turn Auto-Remediation Loop (`NomosError`):** When a gate fails, `nomos verify` emits a structured [`NomosError`](intent/architecture/specs/go_ssot_and_json_schema_spec.md) with the exact file, line, violated law, and remediation instruction so the coding agent fixes its own mistake on the next turn.
-5. **Physically Locked Trunk & Atomic 2PC Release (`nomos task sync`):** Once all 42 gates pass, Nomos fast-forward merges the worktree into `main`, attaches a cryptographic **Git Notes (`refs/notes/nomos/releases`)** verification receipt, and prunes the sandbox.
-
----
-
-## 🧩 Core Capabilities & Deep-Dive Specifications
-
-| Capability | Canonical CLI Surface | What It Enforces | Architecture Specification |
-| :--- | :--- | :--- | :--- |
-| **Indirect Agent Control** | `nomos init`, `nomos handshake`, `nomos hook` | Bootstraps agent rules (`AGENTS.md`, `CLAUDE.md`), user/project hook installation (`nomos hook install --claude \| --gemini \| --opencode \| --cursor \| --antigravity \| --user`), additive lifecycle hooks (`nomos hook session-start \| pre-tool \| post-tool \| stop` at `~4ms` cold start with pure-Go syntax radar, anti-phantom `Stop` verification, and 3-strike + no-edit test-rerun circuit-breaking), and self-healing Git hooks without locking you into a specific model or IDE. | [`intent.md`](intent/intent.md) |
-| **Capability-Flow, Host-Credential Airlock & Zero-Trust MCP IFC** | `nomos hook pre-tool \| session-start` | Tracks multi-turn compositional taint (`CapabilityFlowGraph`) across web ingress, local credentials, and release/exfiltration sinks; blocks host credential reads (`~/.ssh`, `~/.aws`, `~/.kube`, `~/.gnupg`, `~/.config/gcloud`, `.netrc`, `.npmrc`, `.pypirc` + `blocked_read_paths`) via `credential_read_mode`; blocks cloud metadata SSRF (`169.254.169.254`), credential/email leaks, and disallowed domains via `BoundaryConfig` (`egress_mode`, `allowed_egress_domains`, `blocked_egress_domains`); and enforces zero-trust MCP server allow/block lists. | [`nomos_hermetic_worktree_spec.md`](intent/architecture/specs/nomos_hermetic_worktree_spec.md) |
-| **Phase Discipline & Worktrees** | `nomos task chore \| pair \| create \| start \| edit \| review \| dag` | Separates `INT-*` spec tasks from `SUB-*` code tasks in a causal DAG wavefront and enforces `IDLE → PLAN → EDIT → REVIEW → SYNC → LEARN` state transitions inside hermetic `worktrees/<repo>-<task>` sandboxes. | [`nomos_hermetic_worktree_spec.md`](intent/architecture/specs/nomos_hermetic_worktree_spec.md) |
-| **42-Gate AST & DoD Engine** | `nomos verify`, `nomos verify proof` | Runs 42 statutory Definition of Done (DoD) quality gates across the 7x3 Canonical Invariant Matrix (21 Cells) via Go AST, `.scm` S-expression query rules, `wazero` WASM linear-memory scanning, polyglot structural scanners, and native toolchain/coverage probes (`tsc`, `pytest`, `cargo`, `cmake`, `gradle`/`mvn`, `dotnet`). | [`tree_sitter_ast_gate_spec.md`](intent/architecture/specs/tree_sitter_ast_gate_spec.md) · [`nomos_intent_traceability_spec.md`](intent/architecture/specs/nomos_intent_traceability_spec.md) |
-| **Polyglot Architectural Obligation Proofs** | `nomos verify`, `nomos handshake`, `nomos status` | Enforces `<5ms` declarative hexagonal `architecture_boundaries` across 11 languages, polyglot fenced spec contract signature parity (`strict_types`), executable `TC-*` test obligation binding (`verify_obligations`), and cryptographic `spec_digests` SHA-256 taint alerts when upstream specs evolve. | [`nomos_intent_traceability_spec.md`](intent/architecture/specs/nomos_intent_traceability_spec.md) |
-| **Auto-Remediation & NCTE-100 Directives** | `nomos directive`, `nomos directive --lint \| --lexicon` | Translates gate failures into deterministic JSON/terminal `NomosError` payloads for 1-turn agent self-correction and enforces `NCTE-100` Controlled Technical English across specifications and directives. | [`nomos_controlled_technical_english_spec.md`](intent/architecture/specs/nomos_controlled_technical_english_spec.md) |
-| **Nomos Mneme Episodic Memory** | `nomos mem save \| recall \| list \| dismiss` | Pure-Go SQLite WAL receipt-gated episodic store (`mneme.db`) combining AST directory-scoped pitfall/pattern injection with 64-dim subword feature hashing, lexical ranking, and optional local neural embeddings (`LOCAL_EMBEDDING_URL`) scoped per repository (`repo_id`). | [`mneme_memory_spec.md`](intent/architecture/specs/mneme_memory_spec.md) |
-| **Atomic 2PC Sync & Git Notes** | `nomos task sync`, `nomos verify proof` | Two-Phase Commit release to `main` with mandatory walkthrough synthesis and immutable `refs/notes/nomos/releases` provenance receipts. | [`task_lifecycle_cli_spec.md`](intent/architecture/specs/task_lifecycle_cli_spec.md) |
-| **Git Hooks & Sanitized Issues** | `nomos issue` | Self-healing pre-commit/commit-msg/pre-push defense hooks and zero-leak sanitized diagnostic issue reporting. | [`nomos_hermetic_worktree_spec.md`](intent/architecture/specs/nomos_hermetic_worktree_spec.md) |
-| **Complete CLI & Config Reference** | `nomos --help` | Full flag-by-flag reference for all commands and Draft 2020-12 `nomos.schema.json` configuration contracts. | [`software_physics_engine_spec.md`](intent/architecture/specs/software_physics_engine_spec.md) · [`go_ssot_and_json_schema_spec.md`](intent/architecture/specs/go_ssot_and_json_schema_spec.md) |
-
-### Scope of Proof & Day-2 Brownfield Ergonomics
-
-- **Structural & Trace Obligations (Not Formal Semantic Theorem Proving):** Nomos does not run an LLM-as-a-Judge critic or require formal theorem provers (`Coq`, `Lean`, `TLA+`). Its `<5ms` obligation checks verify **compiled structural and traceability invariants** across 11 languages: directional import boundaries (`architecture_boundaries`), exported contract field parity (`strict_types`), anti-shim/anti-skip AST hygiene, executable `TC-*` test bindings (`verify_obligations`), and SHA-256 specification taint (`spec_digests`). Dynamic runtime behavior, cross-language FFI semantics, and domain business logic remain governed by your actual test suite.
-- **2-Tier Enforcement & Threat Model Boundary:**
-  1. **Ambient Lifecycle + Git Hooks (`Claude Code`, `Gemini CLI`, `OpenCode`, `Cursor`, `Antigravity`):** Compiled `~4ms` `pre-tool`/`post-tool`/`stop` hooks intercept tool execution, `--no-verify` bypass flags, and direct trunk writes alongside self-healing Git hooks.
-  2. **Git-Hook Mode & Container Sandbox (`Windsurf`, `Aider`, or Untrusted Workloads):** Harnesses without native pre-tool hooks enforce `AGENTS.md` + `pre-commit`/`commit-msg`/`pre-push` gates out of the box; pair with `--container-sandbox` (OCI container / separate host UID) when hard OS process isolation is required.
-- **Day-2 Escape Hatches (Zero Brownfield Lock-In):**
-  1. **Diff-Scoped Monotonic Ratchet (`baseline_commit`):** Existing `200k+ LOC` legacy files are never required to pass greenfield LOC or complexity ceilings upfront. Nomos evaluates structural regressions strictly on files touched by the active worktree diff against `main`.
-  2. **Trunk-Pinned Carve-Outs vs. Blocked Agent Shims:** Agents are blocked from adding inline linter suppression comments inside worktrees to reward-hack a gate. Human engineers declare legitimate adapter exceptions (`allow_only`, `forbid_imports`, `exclude`) in `nomos.yaml` on `main`, protected by `ConfigImmutabilityGate`.
-  3. **Progressive Spec Evolution (`nomos task pair` + `spec_digests`):** Updating a Layer 2 domain contract alongside a `SUB-*` implementation stamps a fresh SHA-256 receipt in one workflow; if an `INT-*` spec changes independently, Turn-0 `nomos handshake` surfaces the exact stale `spec_digests` delta instead of silently drifting.
-  4. **Bounded 3-Strike Circuit-Breaker:** If a smaller local model or misconfigured rule fails verification 3 consecutive turns without progress, `nomos hook` halts the loop cleanly rather than burning context tokens.
-
----
-
-## 🛡️ The 7 Laws of Nomos
-
-Every check in `nomos verify` maps to one of seven compiled architectural laws (full 42-gate matrix in [`nomos_intent_traceability_spec.md`](intent/architecture/specs/nomos_intent_traceability_spec.md)):
-
-| Law | Name | What It Prevents |
-| :---: | :--- | :--- |
-| **1** | **Dual-Core Inversion** | Prevents unverified agent execution outside the phase state machine (`PhaseDisciplineGate`). |
-| **2** | **Non-Verbal Proof** | Rejects conversational "tests pass" claims, `// TODO` shims, and empty function stubs (`AntiShimGate`). |
-| **3** | **Hermetic Worktree** | Physically blocks direct commits on `main` and path escapes outside the task worktree (`HermeticWorktreeGate`, `StagedBoundariesGate`). |
-| **4** | **Single Source of Truth** | Eliminates broken documentation links, orphaned specs, and unaligned schemas (`BrokenWireGate`, `ContractParityGate`). |
-| **5** | **Zero Hardcoded Paths** | Blocks machine-specific absolute paths (`/Users/...`, `/home/...`) and secret literals (`ForbiddenLiteralsGate`). |
-| **6** | **Canonical Singularity** | Prohibits duplicate CLI aliases, rogue task keys, and filesystem symlinks (`ZeroAliasGate`, `ZeroFilesystemAliasGate`). |
-| **7** | **Fail-Closed Pre-Flight** | Enforces strict plane separation, test coverage floors, static analysis, and vulnerability checks (`PlaneSeparationGate`). |
+| What Nomos Is *Not* | Why Existing Tools Leave `main` Exposed | What the Nomos Transaction Layer Adds |
+| :--- | :--- | :--- |
+| **Not Another Coding Agent** | Switching models or IDEs does not stop a stochastic optimizer from cutting corners at 70% context. | Keep your favorite agent; Nomos enforces sandbox isolation and merge rules underneath it. |
+| **Not a Linter or Post-Hoc CI** | Traditional linters assume honest humans *after* a branch is dirty; agents edit configs or add ignore comments. | Evaluates isolated `git worktree` diffs against `main` while locking `nomos.yaml`, specs, and assertions outside agent write scope. |
+| **Not a `.cursorrules` Prompt Pack** | Markdown rules decay past 60% context, and unverified agent notes poison future sessions. | Enforces compiled Go exit codes (`exit 1`) outside context windows and records `mneme.db` lessons only after verified merges. |
 
 ---
 
 ## 📊 Verified Benchmarks & Runtime Footprint
 
-Nomos is engineered so deterministic governance adds sub-second compiled Go overhead (`0` extra LLM prompt tokens) while turning commodity/open-weight workhorses into trunk-safe brownfield engineers and failing closed under adversarial stress (see [`nomos_intent_traceability_spec.md`](intent/architecture/specs/nomos_intent_traceability_spec.md)):
+> **🔬 Reproduce locally in one command:** `go -C substrate test ./cli -run "TestTraceTrialBench|TestCleanroomPolyglotObligation|TestCleanroomDownstreamVectors" -v`
 
-> **🔬 Reproduce locally in one command:** Run `go -C substrate test ./cli -run "TestTraceTrialBench|TestCleanroomPolyglotObligation|TestCleanroomDownstreamVectors" -v` to execute the adversarial fail-closed, polyglot obligation, and 2PC lifecycle harnesses directly on your machine, or inspect the public third-party Harbor Hub trajectories below.
-
-| Engineering Metric | Verified Result | Reproducible Proof / Implementation |
+| Engineering Metric | Verified Result | Proof / Suite |
 | :--- | :--- | :--- |
-| **Workhorse Brownfield Lift (`N = 108` Paired)** | **`86.1%` (`31/36`) vs. `27.8%` Stock (`+58.3 pp`, `3.1x`) · `-43%` to `-57%` Tokens** | `108` zero-hint Python/TS/Go brownfield episodes across `14B-32B` (`Qwen`, `Mistral`, local `16GB VRAM`); `100%` hexagonal layer purity vs. `0%` Stock ([`cleanroom_obligation_polyglot_stress_test.go`](substrate/cli/cleanroom_obligation_polyglot_stress_test.go)) |
-| **Prompt-Injection & Security Defense (`1,481` Traces)** | **`0.00%` ASR (`0/949` `AgentDojo` · `0/200` `SecBench-Live`) · `85.04%` UA** | Official `AgentDojo v1.2.2` (`1,081` traces across `4` suites, `-0.53 pp` utility delta vs. benign, `sha256:e0847020a2f5`) + `400`-run 4-model `SecBench-Live 1.0` (`-2.6%` turns, `sha256:7f671df45ed9`) |
-| **`Terminal-Bench 2.0` Container A/B (`89 / 89` Tasks)** | **`70.79%` `pass@1` (`+5.62 pp`) · `84.27%` `pass<=2` (`+19.10 pp`)** | Controlled binary-only Docker runs holding `Gemini CLI 0.67.0` + `gemini-3.5-flash` fixed with public Harbor Hub trajectories ([`nomos-harbor`](https://github.com/mgantlett/nomos-harbor)) |
-| **42-Gate Structural & AST Overhead** | **`~460 ms` (`~24 ms` `--fast-file` · `~4 ms` hook · `0` LLM tokens)** | `nomos verify` structural/AST gate pass across Go/TS/Svelte/Py/Rust/C/JVM/C# (plus project `go test`/`tsc`/`pytest`/`cargo`/`gradle`/`dotnet` runtime) |
-| **Static Binary Footprint** | **`~20 MB` stripped (`CGO_ENABLED=0`)** | Single Go release binary (`-ldflags="-s -w"`) with embedded `modernc.org/sqlite` WAL + `wazero` WASM runtime host; zero host runtime deps |
-| **Adversarial Fail-Closed Suite (`VEC-TTB-01..07`)** | **`7/7` vectors blocked in `1.98s`** | [`cleanroom_tracetrial_bench_test.go`](substrate/cli/cleanroom_tracetrial_bench_test.go) (`go -C substrate test ./cli -run TestTraceTrialBench -v`) |
-| **Config & Boundary Tamper Resistance** | **`0` trunk leaks** | Worktree edits to `nomos.yaml` fail closed against pinned `main`; mid-2PC gate panics abort before `main` fast-forwards |
-| **Nomos Mneme Episodic Recall** | **`< 50 ms` local query** | 64-dim subword feature-hash + lexical SQLite recall (`mneme.db`, plus optional `LOCAL_EMBEDDING_URL`); mints `pattern`/`pitfall` records strictly after verified 2PC `Git Notes` release |
-| **Open-Core Automated Test Suite** | **`860+` test cases across `16` packages + `8` cleanroom suites** | Pure Apache 2.0 local test execution with zero cloud or telemetry dependencies |
+| **Workhorse Brownfield Lift (`N = 108` Paired)** | **`86.1%` (`31/36`) vs. `27.8%` Stock (`3.1x` lift) · `-43%` to `-57%` Tokens** | `14B-32B` models across Python/TS/Go; `100%` hexagonal purity vs. `0%` Stock ([`cleanroom_obligation_polyglot_stress_test.go`](substrate/cli/cleanroom_obligation_polyglot_stress_test.go)) |
+| **Prompt-Injection & Security (`1,481` Traces)** | **`0.00%` ASR (`0/949` `AgentDojo` · `0/200` `SecBench-Live`) · `85.04%` UA** | Official `AgentDojo v1.2.2` (`-0.53 pp` benign delta) + 4-model `SecBench-Live 1.0` (`-2.6%` turns, [Dispatch D-11](https://sophialabs.ca/dispatches/paired-security-and-brownfield-ablation-v417)) |
+| **`233k`-LOC Mature OSS Brownfield Ratchet** | **`6/6` `42`-Gate Clean · `2x` Debt-Free · `-14.7%` Tokens** | Zero-hint refactors across `sqlglot` (`152k` LOC), `commander.js`, `go-chi`, and `BurntSushi/toml` (blocked `+26` hidden complexity debt) |
+| **`Terminal-Bench 2.0` (`k=5` · `445` Docker Runs)** | **`76.40%` `Pass@1` (`340/445`) · `92.13%` `Pass@5` (`82/89` Tasks)** | Lightweight `Gemini Flash` across `89` tasks (`91.20%` cached tokens, [`nomos-harbor`](https://github.com/mgantlett/nomos-harbor)) |
+| **Footprint & Gate Latency** | **`~20 MB` binary (`CGO_ENABLED=0`) · `~4ms` hook · `~24ms` `--fast-file`** | `860+` automated tests across `16` packages + `7/7` adversarial fail-closed vectors ([`cleanroom_tracetrial_bench_test.go`](substrate/cli/cleanroom_tracetrial_bench_test.go)) |
 
-### 1. Open-Weight & Commodity Workhorse Brownfield Lift (`N = 108` Paired Episodes · `8B` to `32B`)
+<details>
+<summary><b>🔬 Expand Full Per-Model Benchmark Tables (108-Run GPU Matrix, 1,541-Run Security/OSS Audit, Harbor & TraceTrial-Bench)</b></summary>
 
-Ungoverned commodity and open-weight models routinely fail multi-file brownfield tasks by violating module boundaries or looping on broken edits. Across **`108` paired zero-hint brownfield episodes** (`54` Stock vs. `54` Nomos `v4.13.1`, `temp=0.0`) spanning Python (`py-hex-01`, `py-debt-02`), TypeScript (`ts-hex-01`, `ts-debt-02`), and Go (`go-hex-01`, `go-debt-02`) on `6` open-weight models from `4` labs sized for single-card `16GB-24GB` GPUs (`RTX 4080`, `RTX 3090`, `A10G`, `L4`), compiled AST & obligation ratchets lifted verified resolution on the `14B-32B` production tier from **`27.8%` (`10 / 36`, `0%` hexagonal layer purity)** to **`86.1%` (`31 / 36`, `+58.3` pp, `3.1x` lift, `100%` layer purity on all merged diffs)** while cutting total token burn **`-43%` to `-57%`** by halting architectural violations in `~24ms` instead of burning retry loops (reproducible via [`cleanroom_obligation_polyglot_stress_test.go`](substrate/cli/cleanroom_obligation_polyglot_stress_test.go)):
+<br />
 
-| Open-Weight Model (`Lab · VRAM Class`) | Stock Verified (`9` Tasks) | Stock Hexagonal Layer Purity | Nomos `v4.13.1` Verified (`9` Tasks) | Nomos Layer Purity | Governance Delta |
+#### 1. Open-Weight & Commodity Workhorse Brownfield Lift (`N = 108` Paired Episodes · `8B` to `32B`)
+
+Across `108` paired zero-hint brownfield episodes (`54` Stock vs. `54` Nomos `v4.13.1`, `temp=0.0`) spanning Python, TypeScript, and Go on `6` open-weight models sized for single-card `16GB-24GB` GPUs (`RTX 4080`, `RTX 3090`, `A10G`, `L4`):
+
+| Open-Weight Model (`Lab · VRAM Class`) | Stock Verified (`9` Tasks) | Stock Layer Purity | Nomos `v4.13.1` Verified | Nomos Layer Purity | Governance Delta |
 | :--- | :---: | :---: | :---: | :---: | :--- |
 | **`Llama 3.1 8B Instruct`** (`Meta · 8GB`) | `22.2%` (`2/9`) | `0.0%` (`0/3`) | **`33.3%` (`3/9`)** | `33.3%` (`1/3`) | **`+11.1` pp** *(Fail-closed capacity floor)* |
 | **`Gemma 3 12B IT`** (`Google · 12GB`) | `33.3%` (`3/9`) | `0.0%` (`0/3`) | **`66.7%` (`6/9`)** | **`100%` (`3/3`)** | **`+33.3` pp** (`+100%` relative) |
@@ -192,29 +158,60 @@ Ungoverned commodity and open-weight models routinely fail multi-file brownfield
 | **`Qwen 3.8 27B IQ3_M`** (`Local RTX 4080 16GB`) | `50.0%` (`3/6`) | `0.0%` (`0/3`) | **`100.0%` (`6/6`)** | **`100%` (`3/3`)** | **`+50.0` pp** (`-43%` to `-57%` tokens) |
 | **`Qwen 3 32B`** (`Alibaba · 24GB`) | `22.2%` (`2/9`) | `0.0%` (`0/3`) | **`88.9%` (`8/9`)** | **`100%` (`3/3`)** | **`+66.7` pp** (`4.0x` lift) |
 
-### 2. Zero-Trust Security & Real-Repo OSS Debt Containment (`1,541` Live Trajectories)
-
-Across official **`AgentDojo v1.2.2`** (`1,081` trajectories across all `4` suites: `workspace`, `banking`, `slack`, `travel` on `gemini-3.5-flash`, `sha256:e0847020a2f5`) plus `5` consecutive multi-model ablation rounds totaling **`460` containerized trajectories** (`400` `SecBench-Live 1.0` runs + `60` zero-file-hint `RealRepo-BrownfieldBench v2` runs at `temperature = 0.0`, [Field Dispatch D-11](https://sophialabs.ca/dispatches/paired-security-and-brownfield-ablation-v417), `sha256:7f671df45ed9`), `nomos v4.17.0` held Attack Success Rate at **`0.00%`** without degrading benign task utility or inflating turn counts:
+#### 2. Zero-Trust Security & Real-Repo OSS Debt Containment (`1,541` Live Trajectories)
 
 | Benchmark Suite | Scale & Corpus | Ungoverned `Control` | `Nomos v4.17.0` Governed | Efficiency / Utility Delta |
 | :--- | :--- | :---: | :---: | :--- |
-| **Official `AgentDojo v1.2.2` (`4` Suites)** | `1,081` runs (`132` benign + `949` `important_instructions` indirect prompt-injection tasks on `gemini-3.5-flash`) | Indirect tool-hijack exposure | **`0.00%` ASR (`0/949` breaches) · `85.04%` Utility Under Attack** | Only **`-0.53 pp`** vs. `85.57%` Benign Utility (`0` false-positive lockouts) |
-| **4-Model `SecBench-Live 1.0` (Rounds 1 - 5)** | `400` runs (`Claude Sonnet 5.5`, `Haiku 5.5`, `Gemini 3.8 Flash`, local `Qwen 3.8 27B` across `MCPSecBench`, `AgentDojo`, `RedCode-Exec`, `BaxBench/CWEval`, `ImpossibleBench`) | `9.0%` ASR (`18/200` compromised; `10.0%` in Round 5) | **`0.00%` ASR (`0/200` compromised) · `92.5%` Utility** | **`-2.6%` fewer turns** (`304` -> `296` in Round 5; `CWE-22` blocks cut `10 -> 5 -> 2`) |
-| **`RealRepo-BrownfieldBench v2` (`233k` LOC OSS)** | Zero-file-hint refactors across `sqlglot` (`152k` LOC), `commander.js`, `go-chi`, and `BurntSushi/toml` (hotspots up to `6,717` LOC) | Leaked **`+26` `dCDS`** structural debt (`16.7%` Debt-Free) | **`6/6` `42`-gate clean · `2x` Debt-Free (`33.3%`)** | **`-14.7%` fewer tokens** (`1.58M` -> `1.35M`, `-233,078` saved; `-13.9%` `Search+Reads`) |
+| **Official `AgentDojo v1.2.2` (`4` Suites)** | `1,081` runs (`132` benign + `949` indirect prompt-injection tasks, `sha256:e0847020a2f5`) | Indirect tool-hijack exposure | **`0.00%` ASR (`0/949`) · `85.04%` UA** | Only **`-0.53 pp`** vs. `85.57%` Benign (`0` lockouts) |
+| **4-Model `SecBench-Live 1.0` (Rounds 1 - 5)** | `400` runs (`Claude Sonnet 5.5`, `Haiku 5.5`, `Gemini 3.8 Flash`, `Qwen 3.8 27B`, `sha256:7f671df45ed9`) | `9.0%` ASR (`18/200` compromised) | **`0.00%` ASR (`0/200`) · `92.5%` Utility** | **`-2.6%` fewer turns** (`304` -> `296` in Round 5) |
+| **`RealRepo-BrownfieldBench v2` (`233k` LOC)** | Zero-file-hint refactors across `sqlglot`, `commander.js`, `go-chi`, `BurntSushi/toml` | Leaked **`+26` `dCDS`** structural debt (`16.7%` clean) | **`6/6` `42`-gate clean · `2x` Debt-Free (`33.3%`)** | **`-14.7%` fewer tokens** (`1.58M` -> `1.35M`) |
 
-### 3. Terminal-Bench 2.0 Controlled Container A/B ([`Harbor`](https://github.com/harbor-framework/harbor) · [`nomos-harbor`](https://github.com/mgantlett/nomos-harbor) · `89 / 89` Tasks)
+#### 3. `Terminal-Bench 2.0` Harbor Hub Trajectories & `TraceTrial-Bench` (`arXiv:2610.32285`)
 
-Across all `89` containerized tasks in [`terminal-bench@2.0`](https://github.com/laude-institute/terminal-bench-2) running **binary-only inside disposable Docker sandboxes** (`--container-sandbox`, holding `Gemini CLI 0.67.0`, `vertex_ai/gemini-3.5-flash`, and unmodified task timeouts fixed), adding compiled `~4ms` `nomos hook` pre-tool/post-tool governance lifted single-shot `pass@1` from **`65.17%` (`58 / 89`)** to **`70.79%` (`63 / 89`, `+5.62` pp, `0` API crashes)**, and **`84.27%` (`75 / 89`, `+19.10` pp, `pass<=2`)** when resuming the `26` failed trials with Budget Radar wall-clock advisories and interactive/binary stdout guards (cutting timeouts from `24` to `13`):
+- **`Terminal-Bench 2.0` (`89 / 89` Tasks via [`Harbor`](https://github.com/harbor-framework/harbor) · [`nomos-harbor`](https://github.com/mgantlett/nomos-harbor)):** Multi-trial `k=5` evaluation (`445` Docker trials on `Gemini Flash`) achieved **`76.40%` `Pass@1` (`340/445`)** and **`92.13%` `Pass@5` (`82/89` tasks solved)** at `91.20%` prompt cache stability. In paired single-shot `Gemini CLI 0.67.0` A/B runs, Stock scored `58 / 89` (`65.17%`, [`49f21995`](https://hub.harborframework.com/jobs/49f21995-f52a-4f33-837e-a3f86bbfadd0)) vs. **`63 / 89` (`70.79%`, `+5.62 pp`)** single-shot ([`39059e9a`](https://hub.harborframework.com/jobs/39059e9a-8236-472a-a43b-ab500146abe1)) and **`75 / 89` (`84.27%`, `+19.10 pp`)** `pass<=2` ([`6b9f81a5`](https://hub.harborframework.com/jobs/6b9f81a5-0750-4242-80f2-0b5d0830355e)).
+- **Frontier Harness Fault-Containment ([`TraceTrial-Bench`](https://github.com/TraceLite-AI/TraceTrial-Bench) · [`arXiv:2610.32285`](https://arxiv.org/abs/2610.32285)):** Across `190` paired Docker runs (`95` tasks holding `Claude Code v2.1.220` + `Gemini 2.5 Flash-Lite` fixed), `nomos hook` lifted **Context & Continuity by `+78.3%`**, cut **`harness_caused` failures by `-18.2%`** (`55` -> `45`), and raised reliability from `44.89` to **`48.78`**.
 
-| Arm | Agent Configuration | Score (`89` Tasks) | Lift vs. Control | Timeouts | Public Harbor Hub Trajectories |
-| :--- | :--- | :--- | :--- | :---: | :--- |
-| **Pure Stock Control (`pass@1`)** | Stock `Gemini CLI 0.67.0` (zero Nomos hooks) | **`58 / 89` (`65.17%`)** | Baseline | `24` | [`49f21995-f52a-4f33-837e-a3f86bbfadd0`](https://hub.harborframework.com/jobs/49f21995-f52a-4f33-837e-a3f86bbfadd0) |
-| **Nomos Single-Shot (`pass@1`)** | `Gemini CLI 0.67.0` + `nomos hook` (`--container-sandbox`) | **`63 / 89` (`70.79%`)** | **`+5.62` pp** (`14W / 9L`) | `16` | [`39059e9a-8236-472a-a43b-ab500146abe1`](https://hub.harborframework.com/jobs/39059e9a-8236-472a-a43b-ab500146abe1) |
-| **Nomos `v4.7.0` Resume (`pass<=2`)** | `v4.7.0` Budget Radar + interactive/binary guards resumed on `26` `0.0` trials | **`75 / 89` (`84.27%`)** | **`+19.10` pp** (`20W / 3L`) | `13` | [`6b9f81a5-0750-4242-80f2-0b5d0830355e`](https://hub.harborframework.com/jobs/6b9f81a5-0750-4242-80f2-0b5d0830355e) |
+</details>
 
-### 4. Frontier Harness Fault-Containment ([`TraceTrial-Bench`](https://github.com/TraceLite-AI/TraceTrial-Bench) · [`arXiv:2610.32285`](https://arxiv.org/abs/2610.32285))
+<details>
+<summary><b>🏗️ Expand Architecture Blueprint, CLI Surface & Specifications</b></summary>
 
-Even on already-strong frontier harnesses, compiled `~4ms` hooks eliminate context drift and shell-induced crashes without adding prompt overhead: across all `95` containerized tasks in [*Trial by Trace* (`TraceTrial-Bench`, `arXiv:2610.32285`)](https://arxiv.org/abs/2610.32285) (`190` paired Docker runs holding `Claude Code v2.1.220` and `Gemini 2.5 Flash-Lite` fixed), `nomos hook` lifted **Context & Continuity by `+78.3%`**, cut **`harness_caused` failures by `-18.2%`** (`55` -> `45`), lifted **Agent deliverables by `+15.2%`**, and raised overall harness reliability from `44.89` to **`48.78`** (`36W / 30T / 29L`). Reproduce the 7-pillar fail-closed stress vectors locally via [`cleanroom_tracetrial_bench_test.go`](substrate/cli/cleanroom_tracetrial_bench_test.go) (`go -C substrate test ./cli -run TestTraceTrialBench -v`).
+<br />
+
+<div align="center">
+  <img src="intent/assets/nomos_hero_blueprint_v1_5.jpg" alt="Nomos v1.5 Downstream Closed-Loop Lifecycle Architecture" width="100%" />
+</div>
+
+| Capability | Canonical CLI Surface | Architecture Specification |
+| :--- | :--- | :--- |
+| **Indirect Control & Hooks** | `nomos init`, `nomos handshake`, `nomos hook install \| session-start \| pre-tool \| post-tool \| stop` | [`intent.md`](intent/intent.md) |
+| **Worktrees, DAG & 2PC Sync** | `nomos task chore \| pair \| create \| start \| edit \| review \| dag \| sync` | [`nomos_hermetic_worktree_spec.md`](intent/architecture/specs/nomos_hermetic_worktree_spec.md) · [`task_lifecycle_cli_spec.md`](intent/architecture/specs/task_lifecycle_cli_spec.md) |
+| **42-Gate AST & Obligation Engine** | `nomos verify`, `nomos verify proof`, `nomos status` | [`tree_sitter_ast_gate_spec.md`](intent/architecture/specs/tree_sitter_ast_gate_spec.md) · [`nomos_intent_traceability_spec.md`](intent/architecture/specs/nomos_intent_traceability_spec.md) |
+| **NCTE-100 Directives & Config SSoT** | `nomos directive [--lint \| --lexicon]`, `nomos --help` (`nomos.schema.json`) | [`nomos_controlled_technical_english_spec.md`](intent/architecture/specs/nomos_controlled_technical_english_spec.md) · [`go_ssot_and_json_schema_spec.md`](intent/architecture/specs/go_ssot_and_json_schema_spec.md) · [`software_physics_engine_spec.md`](intent/architecture/specs/software_physics_engine_spec.md) |
+| **Receipt-Gated Episodic Memory** | `nomos mem save \| recall \| list \| dismiss`, `nomos issue` | [`mneme_memory_spec.md`](intent/architecture/specs/mneme_memory_spec.md) |
+
+- **Scope of Proof:** Nomos verifies `<5ms` compiled structural and traceability invariants (import boundaries, contract field parity, anti-shim AST checks, `TC-*` test bindings, and SHA-256 spec digests) rather than LLM-as-a-Judge critics or formal theorem provers (`Coq`, `Lean`, `TLA+`); runtime semantics remain governed by your test suite.
+
+</details>
+
+<details>
+<summary><b>🛡️ Expand The 7 Laws of Nomos (42-Gate Invariant Matrix)</b></summary>
+
+<br />
+
+Full 42-gate matrix in [`nomos_intent_traceability_spec.md`](intent/architecture/specs/nomos_intent_traceability_spec.md):
+
+| Law | Name | What It Prevents |
+| :---: | :--- | :--- |
+| **1** | **Dual-Core Inversion** | Unverified agent execution outside the phase state machine (`PhaseDisciplineGate`). |
+| **2** | **Non-Verbal Proof** | Conversational "tests pass" claims, `// TODO` shims, and empty function stubs (`AntiShimGate`). |
+| **3** | **Hermetic Worktree** | Direct commits on `main` and path escapes outside the task worktree (`HermeticWorktreeGate`, `StagedBoundariesGate`). |
+| **4** | **Single Source of Truth** | Broken documentation links, orphaned specs, and unaligned schemas (`BrokenWireGate`, `ContractParityGate`). |
+| **5** | **Zero Hardcoded Paths** | Machine-specific absolute paths and secret literals (`ForbiddenLiteralsGate`). |
+| **6** | **Canonical Singularity** | Duplicate CLI aliases, rogue task keys, and filesystem symlinks (`ZeroAliasGate`, `ZeroFilesystemAliasGate`). |
+| **7** | **Fail-Closed Pre-Flight** | Cross-plane drift, test coverage drops, static-analysis regressions, and vulnerability leaks (`PlaneSeparationGate`). |
+
+</details>
 
 ---
 
@@ -224,11 +221,12 @@ Nomos Community Edition is **100% open-source under Apache 2.0** with zero telem
 
 | Capability Layer | Nomos Community Edition (Apache 2.0) | SophiaLabs Nomos Sovereign |
 | :--- | :--- | :--- |
+| **Zero-Migration Brownfield Debt Ratchet & Trunk-Pinned `nomos.yaml`** | ✅ Included | ✅ Included |
 | **Indirect Control for Tier 1 Coding Agents** (`AGENTS.md`, `CLAUDE.md`, `.claude/settings.json`, `.gemini/settings.json`, `.opencode/plugins/nomos.ts`, `.cursor/hooks.json`, `.agents/hooks.json`) | ✅ Included | ✅ Included |
 | **42-Gate Polyglot Verification Engine** (`nomos verify`, Go AST + Polyglot Scanners, 7 Laws + DoD) | ✅ Included | ✅ Included + Custom Enterprise Gates |
 | **Pre-Tool Security Airlock** (`CapabilityFlowGraph` IFC, Credential Airlock, Command & Zero-Trust MCP Guard) | ✅ Included | ✅ Included + Live 2D Firewall & Air-Gap Radar |
 | **Causal `INT-*`/`SUB-*` DAG, Hermetic Worktrees & 2PC Sync** (`nomos task`, trunk-pinned `nomos.yaml`, `refs/notes/nomos/releases`) | ✅ Included (Single-Seat) | ✅ Included + Multi-Seat CapBAC Leases & Cross-Repo DAGs |
-| **Nomos Mneme Subconscious Memory & Sanitized Issues** (`nomos mem`, `nomos issue`, local `mneme.db` hybrid vector/lexical recall + automatic 2PC `trap -> fix` pitfall distillation) | ✅ Included (Local Repo `mneme.db`) | ✅ + SOMA Dream Cycle Synthesis, Mneme Cortex HUD & Synchronized Squad Mesh |
+| **Nomos Mneme Receipt-Gated Episodic Memory & Sanitized Issues** (`nomos mem`, `nomos issue`, local `mneme.db` hybrid vector/lexical recall + automatic 2PC `trap -> fix` pitfall distillation) | ✅ Included (Local Repo `mneme.db`) | ✅ + SOMA Dream Cycle Synthesis, Mneme Cortex HUD & Synchronized Squad Mesh |
 | **4-Pillar Glass Cockpit SPA** (Unified Workfront & 2D Code DNA Atlas, 7x3 Verify Matrix, 70/30 Silicon Router, 2D Security & Air-Gap Radar) | Not Included (Terminal ANSI HUD Included) | 🔒 Sovereign Edition ([Explore Tour](https://sophialabs.ca/sovereign)) |
 | **Headless Tier 2 Autonomous Worker Fleet & Adversarial Conformance Critic** (`nomos code`, `nomos code review`, Intent-to-Code Twin Parity, `$0` Local GPU Burndown) | Not Included | 🔒 Sovereign Edition |
 | **Turnkey Air-Gapped NixOS GPU Appliances & Offline Ed25519 Entitlement** | Not Included | 🔒 Regulated & Enterprise ([Adoption Profiles](https://sophialabs.ca/editions)) |
@@ -237,8 +235,8 @@ Nomos Community Edition is **100% open-source under Apache 2.0** with zero telem
 
 ## 🤝 Community & License
 
-- **Community & Governance:** Join [GitHub Discussions](https://github.com/mgantlett/nomos/discussions) for setup Q&A, `nomos.yaml` tuning, and early ideas, see [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) for contribution guidelines, and see [`SECURITY.md`](SECURITY.md) for responsible vulnerability disclosure.
-- **License:** Licensed under the **Apache License, Version 2.0**. See [`LICENSE`](LICENSE), [`NOTICE`](NOTICE), and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for full text and attribution terms.
+- **Community & Governance:** Join [GitHub Discussions](https://github.com/mgantlett/nomos/discussions) for setup Q&A, `nomos.yaml` tuning, and feature ideas. See [`CONTRIBUTING.md`](CONTRIBUTING.md), [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md), and [`SECURITY.md`](SECURITY.md).
+- **License:** Licensed under the **Apache License, Version 2.0**. See [`LICENSE`](LICENSE), [`NOTICE`](NOTICE), and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 <div align="center">
   <sub>Built with deterministic rigor by <a href="https://sophialabs.ca"><b>SophiaLabs</b></a> · Governed by Nomos</sub>
