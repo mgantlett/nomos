@@ -295,6 +295,9 @@ func checkBooleanGovernanceFlagsDowngrade(trunkCfg, wtCfg *config.EcosystemConfi
 	if trunkCfg.Governance.Boundary.LockDependencies && !wtCfg.Governance.Boundary.LockDependencies {
 		return "worktree nomos.yaml illegally downgrades governance.boundary.lock_dependencies from trunk baseline (true -> false)"
 	}
+	if strings.TrimSpace(trunkCfg.Governance.QualityGates.CorpusCommand) != "" && strings.TrimSpace(wtCfg.Governance.QualityGates.CorpusCommand) != strings.TrimSpace(trunkCfg.Governance.QualityGates.CorpusCommand) {
+		return "worktree nomos.yaml illegally modifies or clears governance.quality_gates.corpus_command from trunk baseline"
+	}
 	return ""
 }
 

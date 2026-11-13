@@ -173,6 +173,11 @@ func (g *GoToolchainGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResul
 		return polyFail, nil
 	}
 	stacks = append(stacks, polyStacks...)
+	if corpusLabel, corpusFail := evaluateCorpusOracle(g.Name(), ctx, root); corpusFail != nil {
+		return corpusFail, nil
+	} else if corpusLabel != "" {
+		stacks = append(stacks, corpusLabel)
+	}
 	if len(stacks) == 0 {
 		return &vscope.GateResult{GateName: g.Name(), Passed: true, Message: "no Go or polyglot toolchain module detected in scope"}, nil
 	}

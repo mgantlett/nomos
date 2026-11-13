@@ -53,11 +53,13 @@ var configFieldDescriptions = map[string]string{
 	"forbidden_literals":           "Hardcoded string or path literals rejected by Law 5.",
 	"forbidden_shims":              "Stub or placeholder patterns rejected by the Anti-Shim Gate.",
 	"strict_mode":                  "Enforce statutory baseline thresholds without relaxation.",
+	"ratchet_mode":                 "Brownfield ratchet profile: standard (default hotspot burndown) or upstream (surgical external PR mode preventing collateral extractions).",
 	"verify_scope":                 "Default verification scope inside task worktrees: diff (default, evaluate modified files and packages) or repo (scan full repository on every verification).",
 	"intent_twin_mode":             "Cross-plane INT twin enforcement for SUB commits: off (default), feat (require INT twin on feat commits), or strict (require INT twin on all SUB commits).",
 	"tdd_mode":                     "Paired unit test enforcement policy: strict (default when strict_mode=true), ratchet (default when strict_mode=false), diff (require paired or modified test on every touched file), or off.",
 	"tdd_exclude":                  "Workspace-relative glob patterns excluded from paired unit test enforcement in TDDGate.",
 	"coverage_mode":                "Statement coverage enforcement policy: live (default zero-dep live probes plus artifacts), artifact (on-disk coverage reports only), or off.",
+	"corpus_command":               "Optional shell command executed during GoToolchainGate to assert zero regressions against a reference corpus.",
 	"polyglot_toolchains":          "Enable automatic polyglot test/linter toolchain discovery.",
 	"exclude":                      "Workspace-relative glob patterns excluded from AST gates.",
 	"intent_source_roots":          "Directories classified under the Intent plane (Law 7).",
@@ -165,6 +167,9 @@ func reflectStructSchema(t reflect.Type, defVal reflect.Value) *JSONSchemaNode {
 
 func applyStringEnumMetadata(name string, propNode *JSONSchemaNode) {
 	switch name {
+	case "ratchet_mode":
+		propNode.Enum = []string{RatchetModeStandard, RatchetModeUpstream}
+		propNode.Default = RatchetModeStandard
 	case "verify_scope":
 		propNode.Enum = []string{VerifyScopeDiff, VerifyScopeRepo}
 		propNode.Default = VerifyScopeDiff

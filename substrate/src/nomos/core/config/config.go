@@ -132,11 +132,13 @@ type QualityGatesConfig struct {
 	HasForbiddenLiteralsOverride bool                       `yaml:"-" json:"-"`
 	ForbiddenShims               []string                   `yaml:"forbidden_shims,omitempty" json:"forbidden_shims,omitempty"`
 	StrictMode                   bool                       `yaml:"strict_mode" json:"strict_mode"`
+	RatchetMode                  string                     `yaml:"ratchet_mode,omitempty" json:"ratchet_mode,omitempty"`
 	VerifyScope                  string                     `yaml:"verify_scope,omitempty" json:"verify_scope,omitempty"`
 	IntentTwinMode               string                     `yaml:"intent_twin_mode,omitempty" json:"intent_twin_mode,omitempty"`
 	TDDMode                      string                     `yaml:"tdd_mode,omitempty" json:"tdd_mode,omitempty"`
 	TDDExclude                   []string                   `yaml:"tdd_exclude,omitempty" json:"tdd_exclude,omitempty"`
 	CoverageMode                 string                     `yaml:"coverage_mode,omitempty" json:"coverage_mode,omitempty"`
+	CorpusCommand                string                     `yaml:"corpus_command,omitempty" json:"corpus_command,omitempty"`
 	PolyglotToolchains           *bool                      `yaml:"polyglot_toolchains,omitempty" json:"polyglot_toolchains,omitempty"`
 	Exclude                      []string                   `yaml:"exclude,omitempty" json:"exclude,omitempty"`
 	IntentSourceRoots            []string                   `yaml:"intent_source_roots,omitempty" json:"intent_source_roots,omitempty"`
@@ -349,6 +351,9 @@ func ValidateConfig(cfg *EcosystemConfig) error {
 }
 
 func validateGovernanceModes(cfg *EcosystemConfig) error {
+	if !IsValidRatchetMode(cfg.Governance.QualityGates.RatchetMode) {
+		return fmt.Errorf("ratchet_mode must be standard or upstream, got %q", cfg.Governance.QualityGates.RatchetMode)
+	}
 	if _, ok := VerifyScopeRank(cfg.Governance.QualityGates.VerifyScope); !ok {
 		return fmt.Errorf("verify_scope must be diff or repo, got %q", cfg.Governance.QualityGates.VerifyScope)
 	}

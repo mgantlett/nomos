@@ -129,6 +129,9 @@ func filterRatchetedFileLOC(ctx *vscope.VerifyContext, root string, metrics []as
 			filtered = append(filtered, m)
 			continue
 		}
+		if isUpstreamSurgicalRatchet(ctx) {
+			continue
+		}
 		baseLOC := countBytesLines(baseBytes)
 		allowed := thresh.MaxFileLOC
 		if baseLOC > thresh.MaxFileLOC {

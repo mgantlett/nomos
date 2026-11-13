@@ -61,6 +61,9 @@ func evaluateRatchetedCDSViolations(ctx *vscope.VerifyContext, root string, metr
 			changedSources[m.Name] = sources[m.Name]
 			baseSources[m.Name] = baseBytes
 		}
+		if isUpstreamSurgicalRatchet(ctx) {
+			continue
+		}
 		if recipe := evaluateSingleRatchetedCDS(m, absPath, sources[m.Name], baseBytes, thresh); recipe != "" {
 			violations = append(violations, recipe)
 		}

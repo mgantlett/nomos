@@ -4,6 +4,11 @@ package config
 import "strings"
 
 const (
+	// RatchetModeStandard enforces legacy file LOC and file-level dCDS ratchets for owned brownfield repositories (default).
+	RatchetModeStandard = "standard"
+	// RatchetModeUpstream enforces per-function bounds while preventing collateral extractions on external upstream PRs.
+	RatchetModeUpstream = "upstream"
+
 	// VerifyScopeDiff evaluates only modified or unattested files and packages inside task worktrees (default).
 	VerifyScopeDiff = "diff"
 	// VerifyScopeRepo scans 100% of repository files and packages even inside task worktrees.
@@ -32,6 +37,28 @@ const (
 	// CredentialReadModeTaintOnly permits credential reads on PreToolUse and records TaintCredentialSource to block outbound egress.
 	CredentialReadModeTaintOnly = "taint_only"
 )
+
+// EffectiveRatchetMode returns normalized ratchet_mode, defaulting to "standard" (@intent: #QualityGatesConfig).
+func (q *QualityGatesConfig) EffectiveRatchetMode() string {
+	if q == nil {
+		return RatchetModeStandard
+	}
+	norm := strings.ToLower(strings.TrimSpace(q.RatchetMode))
+	if norm == "" {
+		return RatchetModeStandard
+	}
+	return norm
+}
+
+// IsValidRatchetMode reports whether mode is a valid QualityGatesConfig.RatchetMode setting (@intent: #QualityGatesConfig).
+func IsValidRatchetMode(mode string) bool {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "", RatchetModeStandard, RatchetModeUpstream:
+		return true
+	default:
+		return false
+	}
+}
 
 // EffectiveVerifyScope returns the active worktree verification scope, defaulting to "diff" (@intent: #QualityGatesConfig).
 func (q *QualityGatesConfig) EffectiveVerifyScope() string {

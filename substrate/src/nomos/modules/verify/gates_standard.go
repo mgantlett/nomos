@@ -3,7 +3,6 @@ package verify
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
@@ -16,7 +15,6 @@ import (
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
-	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/treesitter"
 )
 
 var regexTaskKey = regexp.MustCompile(`^(INT|SUB)-[0-9]+(-[a-z0-9-]+)?$`)
@@ -139,6 +137,7 @@ func (g *MaxFileLOCGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult
 
 	violations := astdebt.EnrichFileLOCViolations(root, filterRatchetedFileLOC(ctx, root, metrics, thresh), thresh)
 	violations = append(violations, EvaluatePackageFanOutViolations(ctx, root, metrics, thresh)...)
+	violations = append(violations, EvaluateUpstreamSurgicalViolations(ctx, root, metrics)...)
 	if len(violations) > 0 {
 		return &vscope.GateResult{
 			GateName: g.Name(), Passed: false,
@@ -204,6 +203,7 @@ func (g *ComplexityGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult
 
 	ratchetedFuncs, checkArity := filterRatchetedComplexity(ctx, root, funcMetrics, thresh)
 	violations := astdebt.EnrichComplexityViolations(root, ratchetedFuncs, thresh, checkArity)
+	violations = append(violations, evaluateGoSwitchIdiomViolations(ctx, root)...)
 	violations = append(violations, evaluateTestComplexityViolations(ctx, root)...)
 	if len(violations) > 0 {
 		return &vscope.GateResult{
@@ -216,26 +216,8 @@ func (g *ComplexityGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult
 }
 
 func collectPolyglotComplexity(path, rel string, out *[]astdebt.FunctionMetric) {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return
-	}
-	engine, err := treesitter.GetDefaultEngine()
-	if err != nil {
-		return
-	}
-	rep, err := engine.ParseAndEvaluate(context.Background(), path, content)
-	if err != nil || rep == nil {
-		return
-	}
-	for _, fn := range rep.Functions {
-		*out = append(*out, astdebt.FunctionMetric{
-			File:       rel,
-			Line:       fn.Line,
-			Name:       fn.Name,
-			Complexity: fn.Complexity,
-			LOC:        fn.LOC,
-		})
+	if content, err := os.ReadFile(path); err == nil {
+		collectPolyglotComplexityFromBytes(path, rel, content, out)
 	}
 }
 

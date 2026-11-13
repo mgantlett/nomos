@@ -151,11 +151,12 @@ func evaluateFastASTBudgets(ctx *vscope.VerifyContext, wtRoot, absPath string, d
 	}
 	res.TotalLOC = rep.TotalLOC
 	res.DebtScore = rep.DebtScore
+	evaluateFastGoIdiomAndUpstreamChecks(ctx, wtRoot, absPath, data, res)
 
 	if vscope.IsBrownfieldRatchetActive(ctx) {
 		if baseBytes, ok := loadBaselineFileBytes(ctx, wtRoot, absPath); ok {
 			if baseRep, bErr := astdebt.AnalyzeFileDebt(absPath, baseBytes, t.MaxComplexity, t.MaxFuncLOC); bErr == nil && baseRep != nil {
-				evaluateRatchetedFastBudgets(rep, baseRep, t, warnPct, res)
+				evaluateRatchetedFastBudgets(rep, baseRep, t, warnPct, isUpstreamSurgicalRatchet(ctx), res)
 				enrichRatchetedCDSBreach(res, data, baseBytes, t)
 				return
 			}
@@ -172,10 +173,36 @@ func evaluateFastASTBudgets(ctx *vscope.VerifyContext, wtRoot, absPath string, d
 	}
 }
 
-func evaluateRatchetedFastBudgets(rep, baseRep *astdebt.FileDebtReport, t astdebt.Thresholds, warnPct int, res *FastFileRadarResult) {
-	checkRatchetedMetricWithPct("file LOC", rep.TotalLOC, baseRep.TotalLOC, t.MaxFileLOC, warnPct, res)
-	if rep.DebtScore > 0 {
-		checkRatchetedMetricWithPct("cognitive debt", rep.DebtScore, baseRep.DebtScore, t.MaxCDS, warnPct, res)
+func evaluateFastGoIdiomAndUpstreamChecks(ctx *vscope.VerifyContext, wtRoot, absPath string, data []byte, res *FastFileRadarResult) {
+	if strings.HasSuffix(absPath, ".go") {
+		fset := token.NewFileSet()
+		if node, err := parser.ParseFile(fset, absPath, data, 0); err == nil {
+			cur := CheckGoSwitchDefaultOrder(node, fset, res.File)
+			res.Breaches = append(res.Breaches, filterNetNewLineViolations(ctx, wtRoot, absPath, cur, func(baseBytes []byte) []string {
+				bFset := token.NewFileSet()
+				bNode, bErr := parser.ParseFile(bFset, absPath, baseBytes, 0)
+				if bErr != nil {
+					return nil
+				}
+				return CheckGoSwitchDefaultOrder(bNode, bFset, res.File)
+			})...)
+		}
+	}
+	if isUpstreamSurgicalRatchet(ctx) {
+		if _, existed := loadBaselineFileBytes(ctx, wtRoot, absPath); !existed {
+			if v := checkNetNewCopyrightEmail(res.File, data, resolveGitAuthorEmail(ctx, wtRoot)); v != "" {
+				res.Breaches = append(res.Breaches, v)
+			}
+		}
+	}
+}
+
+func evaluateRatchetedFastBudgets(rep, baseRep *astdebt.FileDebtReport, t astdebt.Thresholds, warnPct int, upstreamMode bool, res *FastFileRadarResult) {
+	if !upstreamMode {
+		checkRatchetedMetricWithPct("file LOC", rep.TotalLOC, baseRep.TotalLOC, t.MaxFileLOC, warnPct, res)
+		if rep.DebtScore > 0 {
+			checkRatchetedMetricWithPct("cognitive debt", rep.DebtScore, baseRep.DebtScore, t.MaxCDS, warnPct, res)
+		}
 	}
 	baseFns := indexBaselineFunctionDebts(baseRep.Functions)
 	for _, fn := range rep.Functions {

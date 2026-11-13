@@ -253,6 +253,10 @@
               },
               "additionalProperties": false
             },
+            "corpus_command": {
+              "description": "Optional shell command executed during GoToolchainGate to assert zero regressions against a reference corpus.",
+              "type": "string"
+            },
             "coverage_mode": {
               "description": "Statement coverage enforcement policy: live (default zero-dep live probes plus artifacts), artifact (on-disk coverage reports only), or off.",
               "type": "string",
@@ -305,6 +309,15 @@
               "description": "Enable automatic polyglot test/linter toolchain discovery.",
               "type": "boolean",
               "default": true
+            },
+            "ratchet_mode": {
+              "description": "Brownfield ratchet profile: standard (default hotspot burndown) or upstream (surgical external PR mode preventing collateral extractions).",
+              "type": "string",
+              "enum": [
+                "standard",
+                "upstream"
+              ],
+              "default": "standard"
             },
             "strict_mode": {
               "description": "Enforce statutory baseline thresholds without relaxation.",

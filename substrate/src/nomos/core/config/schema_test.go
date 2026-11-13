@@ -87,6 +87,32 @@ func TestMaxPackageFilesDefaultAndSchema(t *testing.T) {
 	}
 }
 
+// @verifies TC-SSOT-07
+func TestRatchetModeAndCorpusCommandSchema(t *testing.T) {
+	raw, err := GenerateConfigJSONSchema()
+	if err != nil {
+		t.Fatalf("GenerateConfigJSONSchema failed: %v", err)
+	}
+	var parsed JSONSchemaNode
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		t.Fatalf("unmarshal schema: %v", err)
+	}
+	qg := parsed.Properties["governance"].Properties["quality_gates"]
+	rm := qg.Properties["ratchet_mode"]
+	if rm == nil || rm.Type != "string" || rm.Default != RatchetModeStandard || len(rm.Enum) != 2 {
+		t.Fatalf("expected ratchet_mode enum [standard, upstream] with default standard, got %+v", rm)
+	}
+	cc := qg.Properties["corpus_command"]
+	if cc == nil || cc.Type != "string" || cc.Description == "" {
+		t.Fatalf("expected corpus_command string schema node, got %+v", cc)
+	}
+	cfg := DefaultNomosConfig()
+	cfg.Governance.QualityGates.RatchetMode = "invalid_mode"
+	if err := ValidateConfig(cfg); err == nil {
+		t.Fatalf("expected invalid ratchet_mode to fail ValidateConfig")
+	}
+}
+
 func TestWorkspaceNomosSchemaByteParity(t *testing.T) {
 	schemaPath := filepath.Clean("../../../../../nomos.schema.json")
 	if os.Getenv("NOMOS_WRITE_SCHEMA") == "1" {
