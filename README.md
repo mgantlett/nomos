@@ -222,14 +222,16 @@ Even on already-strong frontier harnesses, compiled `~4ms` hooks eliminate conte
 
 Nomos Community Edition is **100% open-source under Apache 2.0** with zero telemetry, zero cloud account requirements, and zero crippled CLI commands. Every single-developer and single-repository governance capability runs locally out of the box (see [`LICENSE`](LICENSE), [`NOTICE`](NOTICE), and [`intent/intent.md`](intent/intent.md)):
 
-| Capability Layer | Nomos Community Edition (Apache 2.0) | SophiaLabs Sovereign Enterprise |
+| Capability Layer | Nomos Community Edition (Apache 2.0) | SophiaLabs Nomos Sovereign |
 | :--- | :--- | :--- |
 | **Indirect Control for Tier 1 Coding Agents** (`AGENTS.md`, `CLAUDE.md`, `.claude/settings.json`, `.gemini/settings.json`, `.opencode/plugins/nomos.ts`, `.cursor/hooks.json`, `.agents/hooks.json`) | ✅ Included | ✅ Included |
-| **42-Gate Polyglot Verification Engine** (`nomos verify`, Go AST + Polyglot Scanners, 7 Laws + DoD) | ✅ Included | ✅ Included |
-| **Causal `INT-*`/`SUB-*` DAG, Hermetic Worktrees & 2PC Sync** (`nomos task`, trunk-pinned `nomos.yaml`, `refs/notes/nomos/releases`) | ✅ Included | ✅ Included |
-| **Nomos Mneme Receipt-Gated Episodic Memory & Sanitized Issues** (`nomos mem`, `nomos issue`) | ✅ Included | ✅ Included |
-| **Multi-Repository Causal DAGs & Cross-Team Fleet Governance** | Not Included | 🔒 Enterprise Only |
-| **Organization Control Plane, Centralized Audit Ledger & Hardware Attestation** | Not Included | 🔒 Enterprise Only |
+| **42-Gate Polyglot Verification Engine** (`nomos verify`, Go AST + Polyglot Scanners, 7 Laws + DoD) | ✅ Included | ✅ Included + Custom Enterprise Gates |
+| **Pre-Tool Security Airlock** (`CapabilityFlowGraph` IFC, Credential Airlock, Command & Zero-Trust MCP Guard) | ✅ Included | ✅ Included + Live 2D Firewall & Air-Gap Radar |
+| **Causal `INT-*`/`SUB-*` DAG, Hermetic Worktrees & 2PC Sync** (`nomos task`, trunk-pinned `nomos.yaml`, `refs/notes/nomos/releases`) | ✅ Included (Single-Seat) | ✅ Included + Multi-Seat CapBAC Leases & Cross-Repo DAGs |
+| **Nomos Mneme Subconscious Memory & Sanitized Issues** (`nomos mem`, `nomos issue`, local `mneme.db` hybrid vector/lexical recall + automatic 2PC `trap -> fix` pitfall distillation) | ✅ Included (Local Repo `mneme.db`) | ✅ + SOMA Dream Cycle Synthesis, Mneme Cortex HUD & Synchronized Squad Mesh |
+| **4-Pillar Glass Cockpit SPA** (Unified Workfront & 2D Code DNA Atlas, 7x3 Verify Matrix, 70/30 Silicon Router, 2D Security & Air-Gap Radar) | Not Included (Terminal ANSI HUD Included) | 🔒 Sovereign Edition ([Explore Tour](https://sophialabs.ca/sovereign)) |
+| **Headless Tier 2 Autonomous Worker Fleet & Adversarial Conformance Critic** (`nomos code`, `nomos code review`, Intent-to-Code Twin Parity, `$0` Local GPU Burndown) | Not Included | 🔒 Sovereign Edition |
+| **Turnkey Air-Gapped NixOS GPU Appliances & Offline Ed25519 Entitlement** | Not Included | 🔒 Regulated & Enterprise ([Adoption Profiles](https://sophialabs.ca/editions)) |
 
 ---
 
