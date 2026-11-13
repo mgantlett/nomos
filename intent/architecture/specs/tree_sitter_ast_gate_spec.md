@@ -219,11 +219,12 @@ The Tree-sitter AST Gate Engine directly underpins six automated sensor probes i
 
 1. **`Cell 2.1 (anti_shim)`**: Detects empty AST blocks, stub bodies, or no-op returns (`return nil`, `{}`) via query `@empty_block`.
 2. **`Cell 2.1 (docstrings)`**: Evaluates docstring adjacency across all exported functions via `@func.doc`.
-3. **`Cell 1.1 (complexity)`**: Computes $M(F)$ for every function using compiled `@branch` queries and emits `file:start-end` 1-turn extraction targets on complexity, LOC, or arity breaches.
-4. **`Cell 1.1 (max_file_loc)`**: Enforces file line limits and per-directory source fan-out (`max_package_files`, default `40`), monotonically ratcheting pre-existing legacy directories on zero-net-file edits.
-5. **`Cell 1.1 (cognitive_debt)`**: Enforces $CDS \le 45$ on strict files, preserves baselines across `git diff --find-renames=50%` moves, and emits `PrescribeRatchetedCDSRecipe`.
+3. **`Cell 1.1 (complexity)`**: Computes $M(F)$ via compiled `@branch` queries and rejects mid-switch `default:` clauses. Emits `file:start-end` extraction targets on complexity, LOC, or arity breaches.
+4. **`Cell 1.1 (max_file_loc)`**: Enforces file line limits and `max_package_files` (`40`). Under `ratchet_mode: upstream`, relaxes baseline file LOC/CDS ceilings while blocking collateral function moves and mismatched copyright emails.
+5. **`Cell 1.1 (cognitive_debt)`**: Enforces $CDS \le 45$ on strict files, preserves baselines across `git diff --find-renames=50%` moves, and emits `PrescribeRatchetedCDSRecipe` under `ratchet_mode: standard`.
 6. **`Cell 5.1 (magic_strings)`**: Scans string literal AST nodes across Go, TypeScript, and Svelte for unconfigured localhost ports or URLs.
 7. **`FastFileRadar (CWE-22)`**: Flags unconfined dynamic subpath reads under `base_dir`/`baseDir`, ignores constant literal subpaths, and emits language-specific 1-turn confinement recipes.
+8. **`Cell 2.2 (go_toolchain)` (`corpus_command`)**: Executes declarative reference-corpus regression checks with `NOMOS_BASELINE_REF` and fails closed on non-zero exit status.
 
 ---
 
@@ -251,6 +252,10 @@ The following table-driven verification vectors validate the Tree-sitter AST Gat
 | `TC-TS-12` | `polyglot` | Directory exceeds `MaxPackageFiles` (`40` non-test files) | Directory fan-out counted | Strict or net-new growth | `FAIL` | Sub-package cohesion recipe emitted; legacy brownfield count ratcheted |
 | `TC-TS-13` | `polyglot` | Legacy file moved via `git mv` during sub-package split | Rename map `git diff -M50%` resolved | Baseline metrics preserved | `PASS` | Rename-aware baseline lookup prevents false greenfield penalties |
 | `TC-TS-14` | `polyglot` | Dynamic `baseDir` subpath read vs constant literal subpath | Untrusted vs constant join classified | Language recipe selected | `PASS` | Dynamic traversal fails with language recipe; constant subpath passes |
+| `TC-TS-15` | `go` | `ratchet_mode: upstream` inline edit on >400-LOC baseline file vs collateral function move | Per-function bounds checked; baseline function removal into new file detected | Inline passes; collateral move fails | `FAIL` | Upstream surgical ratchet blocks collateral hotspot extraction |
+| `TC-TS-16` | `go` | `ratchet_mode: upstream` net-new file carrying third-party `Copyright` `<email>` | Header `<email>` compared against Git author email | Mismatched owner email detected | `FAIL` | Foreign copyright attribution on contributor file rejected |
+| `TC-TS-17` | `go` | `switch x { default: a(); case 1: b() }` | Non-terminal `default:` clause detected in Go AST | Clause index `< len-1` | `FAIL` | Mid-switch `default:` rejected in `ComplexityGate` and `FastFileRadar` |
+| `TC-TS-18` | `polyglot` | `corpus_command` exits non-zero on reference corpus regression | `GoToolchainGate` executes corpus probe with `NOMOS_BASELINE_REF` | Exit code `!= 0` | `FAIL` | Reference corpus regression fails closed |
 
 ---
 

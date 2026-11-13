@@ -107,11 +107,13 @@ type QualityGatesConfig struct {
 	HasForbiddenLiteralsOverride bool                       `yaml:"-" json:"-"`
 	ForbiddenShims               []string                   `yaml:"forbidden_shims,omitempty" json:"forbidden_shims,omitempty"`
 	StrictMode                   bool                       `yaml:"strict_mode" json:"strict_mode"`
+	RatchetMode                  string                     `yaml:"ratchet_mode,omitempty" json:"ratchet_mode,omitempty"`
 	VerifyScope                  string                     `yaml:"verify_scope,omitempty" json:"verify_scope,omitempty"`
 	IntentTwinMode               string                     `yaml:"intent_twin_mode,omitempty" json:"intent_twin_mode,omitempty"`
 	TDDMode                      string                     `yaml:"tdd_mode,omitempty" json:"tdd_mode,omitempty"`
 	TDDExclude                   []string                   `yaml:"tdd_exclude,omitempty" json:"tdd_exclude,omitempty"`
 	CoverageMode                 string                     `yaml:"coverage_mode,omitempty" json:"coverage_mode,omitempty"`
+	CorpusCommand                string                     `yaml:"corpus_command,omitempty" json:"corpus_command,omitempty"`
 	PolyglotToolchains           *bool                      `yaml:"polyglot_toolchains,omitempty" json:"polyglot_toolchains,omitempty"`
 	Exclude                      []string                   `yaml:"exclude,omitempty" json:"exclude,omitempty"`
 	IntentSourceRoots            []string                   `yaml:"intent_source_roots,omitempty" json:"intent_source_roots,omitempty"`
@@ -266,6 +268,7 @@ type SourceRootResolver interface {
 | `TC-SSOT-04` | `IntentTraceabilityGate` | `@intent #NonExistentStruct` or `@intent missing_spec.md` in Go docstring | **FAIL** (Unresolved AST type or spec anchor rejected) |
 | `TC-SSOT-05` | `LoadConfig` (`yaml.v3`) | Unknown YAML key in `nomos.yaml` | **FAIL** (`KnownFields(true)` rejects unknown configuration key) |
 | `TC-SSOT-06` | `GenerateConfigJSONSchema` | `ThresholdsConfig.MaxPackageFiles` reflection | **PASS** (Emits `max_package_files` default `40` with minimum `1`) |
+| `TC-SSOT-07` | `GenerateConfigJSONSchema` | `QualityGatesConfig.RatchetMode` and `CorpusCommand` reflection | **PASS** (Emits `ratchet_mode` enum `standard`/`upstream` and `corpus_command`) |
 | `TC-ERR-001` | `NewNomosError` | Error constructed with canonical `ERR_*` code and `WithRemedy` | **PASS** (`Validate()` passes and renders remedial CLI hint) |
 | `TC-ERR-002` | `NomosError.Validate` | Error constructed without canonical `ERR_*` code prefix | **FAIL** (`Validate()` rejects unregistered error code) |
 | `TC-ERR-003` | `WithExplainCommand` | Error enriched with `nomos task --help` inspection command | **PASS** (Preserves `ExplainCommand` in structured output) |
