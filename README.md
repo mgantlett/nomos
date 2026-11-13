@@ -72,7 +72,7 @@ Every single-repository governance capability ships locally in the open-source `
 ### 1. Install `nomos`
 
 ```bash
-# Linux, macOS & WSL2 (SHA-256 verified release binary; pin with NOMOS_VERSION=v4.17.0):
+# Linux, macOS & WSL2 (SHA-256 verified release binary; pin with NOMOS_VERSION=v4.18.0):
 curl -fsSL https://sophialabs.ca/install | bash
 
 # macOS & Linux (Homebrew):

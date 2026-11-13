@@ -1,6 +1,6 @@
 # Maintainer: Mark Gantlett <mark@sophialabs.ca>
 pkgname=nomos-bin
-pkgver=4.17.0
+pkgver=4.18.0
 pkgrel=1
 pkgdesc="Deterministic engineering substrate and 42-gate AST verification layer between coding agents and Git"
 arch=('x86_64' 'aarch64')
