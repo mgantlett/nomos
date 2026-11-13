@@ -102,4 +102,9 @@ func TestEvaluatePreTagReleaseAirlock_ChangelogSanitization(t *testing.T) {
 	if msg, _ := EvaluatePreTagReleaseAirlock(ctx, root); !strings.Contains(msg, "em-dash") {
 		t.Fatalf("expected Unicode em-dash in strict CHANGELOG.md to fail closed, got: %q", msg)
 	}
+
+	writeReleaseFixtureFile(t, root, "CHANGELOG.md", "# Changelog\n\n## [v4.16.2] - 2026-11-11\n\n- Enforced orphaned @verifies check while keeping `@verifies` valid.\n")
+	if msg, _ := EvaluatePreTagReleaseAirlock(ctx, root); !strings.Contains(msg, "@mention") {
+		t.Fatalf("expected bare @verifies in strict CHANGELOG.md to fail closed, got: %q", msg)
+	}
 }

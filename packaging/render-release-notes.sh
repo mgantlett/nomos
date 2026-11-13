@@ -151,12 +151,41 @@ else
   COMMIT_LEDGER="$(git log "${TARGET_REF}" --reverse --format='* %H %s')"
 fi
 
+escape_bare_at_mentions() {
+  awk '
+    {
+      n = split($0, segs, "`")
+      out = ""
+      for (i = 1; i <= n; i++) {
+        if (i % 2 == 1) {
+          s = segs[i]
+          res = ""
+          while (match(s, /(^|[[:space:](])@[A-Za-z0-9_.-]+/)) {
+            pre = substr(s, 1, RSTART - 1)
+            tok = substr(s, RSTART, RLENGTH)
+            lead = substr(tok, 1, 1)
+            if (lead == "@") {
+              res = res pre "`" tok "`"
+            } else {
+              res = res pre lead "`" substr(tok, 2) "`"
+            }
+            s = substr(s, RSTART + RLENGTH)
+          }
+          segs[i] = res s
+        }
+        out = out (i > 1 ? "`" : "") segs[i]
+      }
+      print out
+    }
+  '
+}
+
 PRINTED=0
 emit_block() {
   if [ "$PRINTED" -eq 1 ]; then
     printf '\n'
   fi
-  printf '%s\n' "$1"
+  printf '%s\n' "$1" | escape_bare_at_mentions
   PRINTED=1
 }
 

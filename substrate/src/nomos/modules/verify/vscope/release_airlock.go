@@ -21,6 +21,7 @@ var (
 	pkgbuildVerDeclRe     = regexp.MustCompile(`(?m)^pkgver=([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?)`)
 	templateSchemaPinRe   = regexp.MustCompile(`raw\.githubusercontent\.com/mgantlett/nomos/v([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?)/nomos\.schema\.json`)
 	changelogRawSecretRe  = regexp.MustCompile(`(?:-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16})`)
+	changelogBareAtTokRe  = regexp.MustCompile(`(?:^|[\s(])(@[A-Za-z0-9_.-]+)`)
 )
 
 type goreleaserAirlockManifest struct {
@@ -264,19 +265,52 @@ func validateChangelogAirlock(ctx *VerifyContext, root string) (string, string) 
 	if tok := detectChangelogHostPathLeak(text); tok != "" {
 		return fmt.Sprintf("CHANGELOG.md airlock rejected workstation or local URI path prefix %q (Law 5)", tok), remedy
 	}
+	if msg := detectChangelogBoundaryViolation(ctx, text); msg != "" {
+		return msg, remedy
+	}
+	if msg := detectStrictChangelogTypographyDrift(ctx, text); msg != "" {
+		return msg, remedy
+	}
+	return "", ""
+}
+
+func detectChangelogBoundaryViolation(ctx *VerifyContext, text string) string {
 	cfg := ResolveVerifyConfig(ctx)
-	if cfg != nil && cfg.Governance.Boundary.Enforce {
-		for _, pkg := range cfg.Governance.Boundary.ProhibitedPackages {
-			trimmed := strings.TrimSpace(pkg)
-			if trimmed != "" && strings.Contains(text, trimmed) {
-				return fmt.Sprintf("CHANGELOG.md airlock rejected prohibited boundary package %q (Law 7)", trimmed), remedy
+	if cfg == nil || !cfg.Governance.Boundary.Enforce {
+		return ""
+	}
+	for _, pkg := range cfg.Governance.Boundary.ProhibitedPackages {
+		trimmed := strings.TrimSpace(pkg)
+		if trimmed != "" && strings.Contains(text, trimmed) {
+			return fmt.Sprintf("CHANGELOG.md airlock rejected prohibited boundary package %q (Law 7)", trimmed)
+		}
+	}
+	return ""
+}
+
+func detectStrictChangelogTypographyDrift(ctx *VerifyContext, text string) string {
+	if IsBrownfieldRatchetActive(ctx) {
+		return ""
+	}
+	if strings.ContainsRune(text, '\u2014') || strings.ContainsRune(text, '\u2013') {
+		return "CHANGELOG.md airlock rejected Unicode em-dash or en-dash formatting drift; use spaced ASCII ' - '"
+	}
+	if atTok := detectBareChangelogAtMention(text); atTok != "" {
+		return fmt.Sprintf("CHANGELOG.md airlock rejected unbackticked GitHub @mention token %q; wrap annotation in backticks", atTok)
+	}
+	return ""
+}
+
+func detectBareChangelogAtMention(text string) string {
+	for _, line := range strings.Split(text, "\n") {
+		segs := strings.Split(line, "`")
+		for i := 0; i < len(segs); i += 2 {
+			if m := changelogBareAtTokRe.FindStringSubmatch(segs[i]); len(m) == 2 {
+				return m[1]
 			}
 		}
 	}
-	if !IsBrownfieldRatchetActive(ctx) && (strings.ContainsRune(text, '\u2014') || strings.ContainsRune(text, '\u2013')) {
-		return "CHANGELOG.md airlock rejected Unicode em-dash or en-dash formatting drift; use spaced ASCII ' - '", remedy
-	}
-	return "", ""
+	return ""
 }
 
 func detectChangelogHostPathLeak(text string) string {
