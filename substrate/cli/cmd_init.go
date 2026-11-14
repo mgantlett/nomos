@@ -18,6 +18,7 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/handshake"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/mem"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/xray"
 	"github.com/spf13/cobra"
 )
 
@@ -27,6 +28,7 @@ var initTemplates embed.FS
 // NewInitCmd creates the workspace initialization command.
 func NewInitCmd() *cobra.Command {
 	var targetDir string
+	var baselineLock bool
 
 	cmd := &cobra.Command{
 		Use:     "init",
@@ -42,22 +44,42 @@ func NewInitCmd() *cobra.Command {
 				}
 				dir = cwd
 			}
-			return executeInit(dir)
+			return executeInitWithOptions(dir, baselineLock)
 		},
 	}
 
 	cmd.Flags().StringVarP(&targetDir, "dir", "d", "", "Target directory to initialize (defaults to current directory)")
+	cmd.Flags().BoolVar(&baselineLock, "baseline", false, "Snapshot Day-0 brownfield structural debt bounds into nomos.baseline.json and enforce strict_mode: false")
 	return cmd
 }
 
 func executeInit(dir string) error {
+	return executeInitWithOptions(dir, false)
+}
+
+func executeInitWithOptions(dir string, baselineLock bool) error {
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
 		return types.NewNomosError(types.ErrCodeBoundary, "failed resolving absolute path for %s: %v", dir, err)
 	}
 
-	if err := scaffoldAllGovernanceFiles(absDir); err != nil {
+	var preInitXray *xray.XrayReport
+	if baselineLock {
+		rep, scanErr := xray.ScanRepository(absDir, xray.DefaultScanOptions())
+		if scanErr != nil {
+			return types.NewNomosError(types.ErrCodeSubstrate, "failed scanning Day-0 baseline: %v", scanErr)
+		}
+		preInitXray = rep
+	}
+
+	forceBrownfield := baselineLock && preInitXray != nil && preInitXray.HangoverScore > 0
+	if err := scaffoldAllGovernanceFilesWithMode(absDir, forceBrownfield); err != nil {
 		return err
+	}
+	if baselineLock {
+		if _, wErr := xray.WriteBaselineManifest(absDir, preInitXray); wErr != nil {
+			return types.NewNomosError(types.ErrCodeSubstrate, "failed writing %s: %v", constants.FileNomosBaselineJSON, wErr)
+		}
 	}
 
 	isGitRepo, createdBaselineCommit := initializeGitGovernance(absDir)
@@ -69,16 +91,25 @@ func executeInit(dir string) error {
 
 	defaultBranch := detectDefaultBranch(absDir)
 	printInitializationSummary(absDir, isGitRepo, createdBaselineCommit, defaultBranch)
+	if baselineLock && preInitXray != nil {
+		fmt.Printf("  %s Locked Day-0 brownfield baseline %s\n",
+			tui.UiSuccessStyle.Render("✅"),
+			tui.UiCommandStyle.Render(fmt.Sprintf("(%s · score %d/100 · grade %s)", constants.FileNomosBaselineJSON, preInitXray.HangoverScore, preInitXray.Grade)))
+	}
 	return nil
 }
 
 func scaffoldAllGovernanceFiles(absDir string) error {
+	return scaffoldAllGovernanceFilesWithMode(absDir, false)
+}
+
+func scaffoldAllGovernanceFilesWithMode(absDir string, forceBrownfield bool) error {
 	steps := []struct {
 		label string
 		fn    func(string) error
 	}{
 		{"workspace boundaries", selfupdate.ScaffoldNomosBoundaries},
-		{"nomos.yaml", scaffoldNomosConfig},
+		{"nomos.yaml", func(d string) error { return scaffoldNomosConfigWithMode(d, forceBrownfield) }},
 		{"AGENTS.md", selfupdate.ScaffoldAgentsConfig},
 		{"CLAUDE.md", selfupdate.ScaffoldClaudeConfig},
 	}
@@ -195,7 +226,11 @@ func printInitializationSummary(absDir string, isGitRepo, createdBaselineCommit 
 }
 
 func scaffoldNomosConfig(dir string) error {
-	configPath := filepath.Join(dir, "nomos.yaml")
+	return scaffoldNomosConfigWithMode(dir, false)
+}
+
+func scaffoldNomosConfigWithMode(dir string, forceBrownfield bool) error {
+	configPath := filepath.Join(dir, constants.FileNomosYAML)
 	if _, err := os.Stat(configPath); err == nil {
 		return nil
 	}
@@ -205,7 +240,7 @@ func scaffoldNomosConfig(dir string) error {
 	}
 	projectName := filepath.Base(dir)
 	branch := detectDefaultBranch(dir)
-	content := selfupdate.RenderScaffoldedNomosYAML(dir, string(tmplBytes), projectName, branch)
+	content := selfupdate.RenderScaffoldedNomosYAMLWithOptions(dir, string(tmplBytes), projectName, branch, forceBrownfield)
 	return os.WriteFile(configPath, []byte(content), 0644)
 }
 

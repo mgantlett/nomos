@@ -14,16 +14,25 @@ const (
 )
 
 const (
-	HelpRootExample = `  nomos init
+	HelpRootExample = `  nomos xray
+  nomos init --baseline
   nomos status
   nomos task dag
   nomos verify --all`
 
 	HelpInitLong = `Bootstrap or synchronize a repository with Nomos governance contracts:
 scaffolds nomos.yaml, synchronizes the managed protocol block in AGENTS.md and @AGENTS.md import in CLAUDE.md,
-chains ambient lifecycle hooks, and installs Git pre-commit/commit-msg/pre-push guards.`
+chains ambient lifecycle hooks, installs Git pre-commit/commit-msg/pre-push guards, and optionally snapshots Day-0 structural debt bounds (--baseline).`
 	HelpInitExample = `  nomos init
-  nomos init --dir ./my-service`
+  nomos init --baseline
+  nomos init --dir ./my-service --baseline`
+
+	HelpXrayLong = `Execute a zero-init, read-only structural debt and AI-hangover scan across 11 languages.
+Evaluates Type-2 structural clones, >400 LOC monoliths, oversized/complex functions, empty stubs,
+skipped tests, and CWE sinks in under 2 seconds without writing files or touching SQLite.`
+	HelpXrayExample = `  nomos xray
+  nomos xray ./legacy-service --markdown
+  nomos xray --top 15 --json`
 
 	HelpStatusExample = `  nomos status
   nomos status --all-projects

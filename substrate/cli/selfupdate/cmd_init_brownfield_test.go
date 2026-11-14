@@ -46,4 +46,10 @@ func TestRenderScaffoldedNomosYAML_InfersCleanArchitectureBoundaries(t *testing.
 	if len(cfg.Governance.QualityGates.ArchitectureBoundaries) != 1 {
 		t.Fatalf("expected 1 parsed ArchitectureBoundaryRule, got: %+v", cfg.Governance.QualityGates.ArchitectureBoundaries)
 	}
+
+	emptyDir := t.TempDir()
+	forced := RenderScaffoldedNomosYAMLWithOptions(emptyDir, rawTmpl, "forced-bf", "main", true)
+	if !strings.Contains(forced, "strict_mode: false") {
+		t.Fatalf("expected forceBrownfield=true to emit strict_mode: false, got:\n%s", forced)
+	}
 }

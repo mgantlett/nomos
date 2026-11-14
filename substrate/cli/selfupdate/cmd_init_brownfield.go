@@ -163,11 +163,16 @@ func isRootToolingConfigFile(name string) bool {
 
 // RenderScaffoldedNomosYAML executes deterministic selfupdate verification logic (@intent task_lifecycle_cli_spec.md).
 func RenderScaffoldedNomosYAML(dir, rawTemplate, projectName, branch string) string {
+	return RenderScaffoldedNomosYAMLWithOptions(dir, rawTemplate, projectName, branch, false)
+}
+
+// RenderScaffoldedNomosYAMLWithOptions renders nomos.yaml and optionally forces brownfield strict_mode: false calibration (@intent task_lifecycle_cli_spec.md).
+func RenderScaffoldedNomosYAMLWithOptions(dir, rawTemplate, projectName, branch string, forceBrownfield bool) string {
 	content := strings.ReplaceAll(rawTemplate, "{{.ProjectName}}", projectName)
 	content = strings.ReplaceAll(content, "{{.DefaultBranch}}", branch)
 
 	isBrownfield, substrateRoots := detectBrownfieldWorkspace(dir)
-	if !isBrownfield {
+	if !isBrownfield && !forceBrownfield {
 		return content
 	}
 	content = strings.Replace(content, "        strict_mode: true", "        strict_mode: false", 1)

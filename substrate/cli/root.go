@@ -107,6 +107,7 @@ func registerSubcommands(root *cobra.Command) {
 	addCommandWithGroup(root, NewTaskCmd(), "lifecycle")
 
 	addCommandWithGroup(root, NewVerifyCmd(), "quality")
+	addCommandWithGroup(root, NewXrayCmd(), "quality")
 	addCommandWithGroup(root, NewPhysicsCmd(), "quality")
 
 	addCommandWithGroup(root, NewHandshakeCmd(), "agent")

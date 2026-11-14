@@ -17,6 +17,9 @@ func TestConstants(t *testing.T) {
 	if FileNomosYAML != "nomos.yaml" {
 		t.Errorf("expected FileNomosYAML to be 'nomos.yaml', got %s", FileNomosYAML)
 	}
+	if FileNomosBaselineJSON != "nomos.baseline.json" {
+		t.Errorf("expected FileNomosBaselineJSON to be 'nomos.baseline.json', got %s", FileNomosBaselineJSON)
+	}
 	if FileNomosGlobalDB != "nomos_global.db" {
 		t.Errorf("expected FileNomosGlobalDB to be 'nomos_global.db', got %s", FileNomosGlobalDB)
 	}

@@ -6,13 +6,15 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/constants"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 )
 
 func collectGovernanceStagePaths(absDir string) []string {
 	candidates := []string{
 		".gitignore",
-		"nomos.yaml",
+		constants.FileNomosYAML,
+		constants.FileNomosBaselineJSON,
 		"AGENTS.md",
 		"CLAUDE.md",
 		agentsDirToken,
