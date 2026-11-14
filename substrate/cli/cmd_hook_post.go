@@ -13,6 +13,7 @@ import (
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/capbac"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/mtpo"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/treesitter"
 )
@@ -133,8 +134,11 @@ func EvaluatePostToolHook(p *HookPayload, hermeticDir string) string {
 		return ""
 	}
 	pitfallMsg := joinHookAdvisories(
-		evaluateJITDirectoryPitfallAdvisory(p, hermeticDir),
-		evaluateFirstEditImpactAdvisory(p, hermeticDir),
+		joinHookAdvisories(
+			evaluateJITDirectoryPitfallAdvisory(p, hermeticDir),
+			evaluateFirstEditImpactAdvisory(p, hermeticDir),
+		),
+		evaluateMTPOPostToolAdvisory(resolved),
 	)
 	if syntaxMsg := validateStructuredFileInMemory(resolved); syntaxMsg != "" {
 		return joinHookAdvisories(syntaxMsg, pitfallMsg)
@@ -232,4 +236,37 @@ func evaluateFastRadarInMemory(resolved, baseCwd string) string {
 		lines = append(lines, fmt.Sprintf("⚠️  %s %s: %s", tag, res.File, w))
 	}
 	return strings.Join(lines, "\n")
+}
+
+func evaluateMTPOPostToolAdvisory(resolved string) string {
+	repoRoot, wtRoot, taskKey, ok := extractWorktreeContextFromFile(resolved)
+	if !ok {
+		return ""
+	}
+	conflicts, err := mtpo.RecordFileMutation("", repoRoot, taskKey, wtRoot, resolved)
+	if err != nil || len(conflicts) == 0 {
+		return ""
+	}
+	return mtpo.FormatAdvisoryConflicts(conflicts)
+}
+
+func extractWorktreeContextFromFile(resolved string) (string, string, string, bool) {
+	slash := filepath.ToSlash(resolved)
+	idx := strings.Index(slash, "/worktrees/")
+	if idx <= 0 {
+		return "", "", "", false
+	}
+	repoRoot := slash[:idx]
+	rest := slash[idx+len("/worktrees/"):]
+	segEnd := strings.IndexByte(rest, '/')
+	if segEnd <= 0 {
+		return "", "", "", false
+	}
+	wtDirName := rest[:segEnd]
+	taskKey := extractTaskKeyFromDirName(wtDirName)
+	if taskKey == "" {
+		return "", "", "", false
+	}
+	wtRoot := filepath.Join(filepath.FromSlash(repoRoot), "worktrees", wtDirName)
+	return filepath.FromSlash(repoRoot), wtRoot, taskKey, true
 }

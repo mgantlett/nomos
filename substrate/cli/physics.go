@@ -36,12 +36,15 @@ type CollisionVector struct {
 }
 
 // WorktreeHull defines the bounding envelope and mutation surface of a worktree (#WorktreeHull).
+// @intent software_physics_engine_spec.md #WorktreeHull
 type WorktreeHull struct {
+	MTPOSeq           int64    `json:"mtpo_seq,omitempty"`
 	TaskKey           string   `json:"task_key"`
 	WorktreePath      string   `json:"worktree_path"`
 	Seat              string   `json:"seat,omitempty"`
 	Phase             string   `json:"phase"`
 	MutatedExports    []string `json:"mutated_exports"`
+	ReadSymbols       []string `json:"read_symbols,omitempty"`
 	ReferencedImports []string `json:"referenced_imports"`
 	TouchedFiles      []string `json:"touched_files"`
 	TotalMass         float64  `json:"total_mass"`
@@ -49,13 +52,18 @@ type WorktreeHull struct {
 }
 
 // DetectCollision evaluates two worktree hulls for mutated file and symbol collisions.
+// @intent software_physics_engine_spec.md #CollisionVector
 func DetectCollision(a, b *WorktreeHull) *CollisionVector {
 	if a == nil || b == nil || a.WorktreePath == b.WorktreePath {
 		return nil
 	}
 
 	files := intersectStrings(a.TouchedFiles, b.TouchedFiles)
-	symbols := intersectStrings(a.MutatedExports, b.MutatedExports)
+	symbols := unionUniqueStrings(
+		intersectStrings(a.MutatedExports, b.MutatedExports),
+		intersectStrings(a.MutatedExports, b.ReadSymbols),
+		intersectStrings(b.MutatedExports, a.ReadSymbols),
+	)
 
 	threat := ThreatGreen
 	if len(files) > 0 || len(symbols) > 0 {
@@ -73,6 +81,20 @@ func DetectCollision(a, b *WorktreeHull) *CollisionVector {
 		ThreatLevel:        threat,
 		TimestampEpochMs:   time.Now().UTC().UnixMilli(),
 	}
+}
+
+func unionUniqueStrings(groups ...[]string) []string {
+	seen := make(map[string]bool)
+	var out []string
+	for _, grp := range groups {
+		for _, item := range grp {
+			if item != "" && !seen[item] {
+				seen[item] = true
+				out = append(out, item)
+			}
+		}
+	}
+	return out
 }
 
 func intersectStrings(s1, s2 []string) []string {

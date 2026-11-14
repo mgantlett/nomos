@@ -83,10 +83,7 @@ func finalizeSyncWithWalkthrough(key, walkthroughPath, rawWalkthrough string) er
 		return cErr
 	}
 	branch := mgr.BranchName(key)
-	if _, rErr := rebaseOntoTrunkIfDiverged(mgr.RepoRoot, wtPath, branch); rErr != nil {
-		return rErr
-	}
-	report, gErr := executeGateCheckForTask(key)
+	report, gErr := rebaseAndVerifySyncedTask(mgr.RepoRoot, wtPath, branch, key)
 	if gErr != nil {
 		return gErr
 	}
@@ -97,8 +94,8 @@ func finalizeSyncWithWalkthrough(key, walkthroughPath, rawWalkthrough string) er
 	if pErr := validateReceiptTraceParityContent(wtPath, rawWalkthrough, touchedFiles); pErr != nil {
 		return pErr
 	}
-	preMergeSHA := readGitHeadSHA(mgr.RepoRoot)
-	if mErr := fastForwardTrunkMerge(mgr.RepoRoot, branch); mErr != nil {
+	preMergeSHA, mErr := mergeTrunkWithMTPOGuard(mgr.RepoRoot, branch, key)
+	if mErr != nil {
 		return mErr
 	}
 	return completeSyncedTaskMetadata(mgr, store, t, rawWalkthrough, preMergeSHA, touchedFiles, report)
@@ -113,6 +110,7 @@ func completeSyncedTaskMetadata(mgr *workspace.Manager, store task.TaskStore, t 
 		rollbackTrunkMergeOnDBError(mgr.RepoRoot, preMergeSHA)
 		return err
 	}
+	completeMTPOSync(mgr.RepoRoot, t.Key)
 	specDigests := collectSyncSpecDigests(mgr.RepoRoot, t.Key, touchedFiles, t.TwinKey)
 	recordReleaseReceipt(mgr.RepoRoot, wtPath, t.Key, rawWalkthrough, now, report, specDigests)
 	taskui.RevokeActiveLease(t.Key)

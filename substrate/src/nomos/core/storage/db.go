@@ -69,6 +69,26 @@ CREATE TABLE IF NOT EXISTS telemetry_capabilities (
 
 CREATE INDEX IF NOT EXISTS idx_telemetry_capabilities_plane ON telemetry_capabilities(plane);
 CREATE INDEX IF NOT EXISTS idx_telemetry_capabilities_type ON telemetry_capabilities(type);
+
+CREATE TABLE IF NOT EXISTS worktree_mtpo (
+    seq                INTEGER PRIMARY KEY AUTOINCREMENT,
+    repo_root          TEXT NOT NULL,
+    task_key           TEXT NOT NULL,
+    worktree_path      TEXT NOT NULL,
+    base_commit        TEXT NOT NULL DEFAULT '',
+    merged_commit      TEXT NOT NULL DEFAULT '',
+    base_commit_seq    INTEGER NOT NULL DEFAULT 0,
+    commit_seq         INTEGER NOT NULL DEFAULT 0,
+    status             TEXT NOT NULL DEFAULT 'ACTIVE',
+    write_files        TEXT NOT NULL DEFAULT '[]',
+    write_symbols      TEXT NOT NULL DEFAULT '[]',
+    read_symbols       TEXT NOT NULL DEFAULT '[]',
+    referenced_imports TEXT NOT NULL DEFAULT '[]',
+    updated_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_worktree_mtpo_repo_status ON worktree_mtpo(repo_root, status);
+CREATE INDEX IF NOT EXISTS idx_worktree_mtpo_repo_task ON worktree_mtpo(repo_root, task_key);
 `
 
 // OpenDB opens a pure-Go SQLite connection pool with WAL and foreign key pragmas.
@@ -109,7 +129,7 @@ func pingAndInit(db *sql.DB) error {
 
 // currentSchemaUserVersion tracks the authoritative SQLite schema version in the page-1 header.
 // Increment whenever SchemaDDL or migrateLegacyColumns changes so OpenDB skips redundant DDL writes.
-const currentSchemaUserVersion = 2
+const currentSchemaUserVersion = 3
 
 // InitSchema executes idempotent table definitions, indexes, and runtime pragmas.
 func InitSchema(db *sql.DB) error {

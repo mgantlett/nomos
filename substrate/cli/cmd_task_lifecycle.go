@@ -180,6 +180,7 @@ func runTaskStartWithOpts(rawKey string, autoEdit, forceProject bool) error {
 	if err := persistStartedLease(targetPhase, key, wtPath); err != nil {
 		return err
 	}
+	allocateWorktreeMTPO(mgr.RepoRoot, key, wtPath)
 	t.Status = targetStatus
 	if err := store.UpdateTask(*t); err != nil {
 		return err

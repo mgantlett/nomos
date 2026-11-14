@@ -17,6 +17,7 @@ import (
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/mtpo"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
 	"github.com/spf13/cobra"
@@ -78,13 +79,21 @@ func CollectWorkspacePhysics(repoRoot string) *PhysicsReport {
 	if err != nil {
 		return rep
 	}
+	mtpoByKey := loadActiveMTPOMap(repoRoot)
 
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
 		}
 		wtPath := filepath.Join(wtRoot, e.Name())
-		rep.Hulls = append(rep.Hulls, buildWorktreeHull(wtPath, e.Name()))
+		hull := buildWorktreeHull(wtPath, e.Name())
+		if ledger, ok := mtpoByKey[hull.TaskKey]; ok {
+			hull.MTPOSeq = ledger.Seq
+			hull.MutatedExports = unionUniqueStrings(hull.MutatedExports, ledger.WriteSymbols)
+			hull.ReadSymbols = unionUniqueStrings(hull.ReadSymbols, ledger.ReadSymbols)
+			hull.ReferencedImports = unionUniqueStrings(hull.ReferencedImports, ledger.ReferencedImports)
+		}
+		rep.Hulls = append(rep.Hulls, hull)
 	}
 
 	for i := 0; i < len(rep.Hulls); i++ {
@@ -172,8 +181,8 @@ func renderPhysicsReport(out io.Writer, rep *PhysicsReport) {
 	fmt.Fprintln(out, tui.KvLine("Active Worktrees", 18, tui.UiBoldValueStyle.Render(fmt.Sprintf("%d", len(rep.Hulls)))))
 	fmt.Fprintln(out, tui.KvLine("Collision Threat", 18, tui.StyleSemanticBadge(string(rep.MaxThreat))))
 	for _, h := range rep.Hulls {
-		fmt.Fprintf(out, "  • [%s] files=%d exports=%d mass=%.1f (%s)\n",
-			tui.StyleTaskKey(h.TaskKey), len(h.TouchedFiles), len(h.MutatedExports), h.TotalMass, tui.UiMutedStyle.Render(h.WorktreePath))
+		fmt.Fprintf(out, "  • [%s] seq=#%d files=%d exports=%d mass=%.1f (%s)\n",
+			tui.StyleTaskKey(h.TaskKey), h.MTPOSeq, len(h.TouchedFiles), len(h.MutatedExports), h.TotalMass, tui.UiMutedStyle.Render(h.WorktreePath))
 	}
 	for _, c := range rep.Collisions {
 		if c.ThreatLevel != ThreatGreen {
@@ -186,4 +195,16 @@ func renderPhysicsReport(out io.Writer, rep *PhysicsReport) {
 		{Command: "nomos status", Summary: "Inspect workspace lifecycle state and active leases"},
 		{Command: "nomos verify --impact", Summary: "Inspect 1-hop AST blast-radius map for modified files"},
 	})
+}
+
+func loadActiveMTPOMap(repoRoot string) map[string]mtpo.MTPOLedgerEntry {
+	out := make(map[string]mtpo.MTPOLedgerEntry)
+	entries, err := mtpo.ListActiveEntries("", repoRoot)
+	if err != nil {
+		return out
+	}
+	for _, e := range entries {
+		out[e.TaskKey] = e
+	}
+	return out
 }

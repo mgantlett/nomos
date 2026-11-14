@@ -15,6 +15,7 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/mem"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/mtpo"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/task"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/impact"
@@ -122,7 +123,55 @@ func provisionChoreWorktreeAndLease(key string) (string, string, error) {
 		}
 		_ = db.Close()
 	}
+	allocateWorktreeMTPO(mgr.RepoRoot, key, wtPath)
 	return wtPath, mgr.RepoRoot, nil
+}
+
+func allocateWorktreeMTPO(repoRoot, key, wtPath string) {
+	baseSHA := readGitHeadSHA(repoRoot)
+	if _, err := mtpo.AllocateSequence("", repoRoot, key, wtPath, baseSHA); err != nil {
+		return
+	}
+}
+
+func rebaseAndVerifySyncedTask(repoRoot, wtPath, branch, key string) (*verify.PipelineReport, error) {
+	rebased, rErr := rebaseOntoTrunkIfDiverged(repoRoot, wtPath, branch)
+	if rErr != nil {
+		return nil, rErr
+	}
+	if rebased {
+		invalidateWorktreeVerifyReceipt(repoRoot, wtPath)
+	}
+	report, gErr := executeGateCheckForTask(key)
+	if gErr != nil {
+		return nil, gErr
+	}
+	if rebased {
+		if uErr := mtpo.UpdateBaseCommit("", repoRoot, key, readGitHeadSHA(repoRoot)); uErr != nil {
+			// best-effort ledger refresh
+		}
+	}
+	return report, nil
+}
+
+func mergeTrunkWithMTPOGuard(repoRoot, branch, key string) (string, error) {
+	preMergeSHA := readGitHeadSHA(repoRoot)
+	verdict, vErr := mtpo.VerifySyncSerializability("", repoRoot, key, preMergeSHA)
+	if vErr == nil && verdict != nil && !verdict.Passed {
+		return "", types.NewNomosError(types.ErrCodeInvariant, "MTPO cross-worktree AST serializability conflict for %s", key).
+			WithRemedy(verdict.Remedy)
+	}
+	if mErr := fastForwardTrunkMerge(repoRoot, branch); mErr != nil {
+		return "", mErr
+	}
+	return preMergeSHA, nil
+}
+
+func completeMTPOSync(repoRoot, key string) {
+	mergedSHA := readGitHeadSHA(repoRoot)
+	if err := mtpo.CompleteSequence("", repoRoot, key, mtpo.StatusCommitted, mergedSHA); err != nil {
+		return
+	}
 }
 
 func renderLearnedPitfallsBriefing(repoRoot, taskTitle string) {
