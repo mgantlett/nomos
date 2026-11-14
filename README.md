@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="intent/assets/nomos_hero_emblem.jpg" alt="SophiaLabs // Nomos Unified Emblem" width="220" />
+<img src="intent/assets/nomos_hero_emblem.jpg" alt="SophiaLabs // Nomos Unified Emblem" width="180" />
 
 # Nomos (Νόμος)
 
@@ -13,6 +13,10 @@
 [![Docs](https://img.shields.io/badge/Docs-sophialabs.ca-0EA5E9)](https://sophialabs.ca/docs/introduction)
 [![Discussions](https://img.shields.io/github/discussions/mgantlett/nomos?color=0EA5E9&label=Discussions)](https://github.com/mgantlett/nomos/discussions)
 
+<br />
+
+<img src="intent/assets/nomos_hero_terminal.svg" alt="Nomos Split-Terminal Overview - Day-0 Brownfield X-Ray and Baseline Ratchet paired with Fail-Closed AST Verification and 2PC Release" width="100%" />
+
 </div>
 
 ---
@@ -21,17 +25,13 @@ Coding agents optimize for making their prompt finish, even when that means dele
 
 **Nomos** is a single `~20 MB` static Go binary (`Apache 2.0`, zero cloud account, zero telemetry) that sits between your coding agent (**Claude Code**, **Cursor**, **OpenCode**, **Gemini CLI**, **Antigravity**, **Windsurf**, or **Aider**) and Git. Just as PostgreSQL placed ACID transactions between applications and raw disk, Nomos places **human-authored repository laws underneath machine speed** so nothing touches `main` unless it passes isolated `git worktree` sandboxes and compiled AST verification.
 
+**Inspect in 5 seconds. Govern in one command. Invisible after that:**
+
 ```bash
 curl -fsSL https://sophialabs.ca/install | bash
 cd your-project && nomos xray .          # 5-sec read-only AI Hangover Score & hotspot scan (zero config)
 nomos init --baseline                    # Scaffolds nomos.yaml + freezes existing brownfield debt on Day 0
 ```
-
-> **Inspect in 5 seconds. Govern in one command. Invisible after that.** Audit any legacy codebase read-only with `nomos xray .`, lock your Day-0 ratchet with `nomos init --baseline`, and keep prompting your coding agent in plain English while Nomos governs sandboxes, `~24ms` AST checks, diff-scoped mutation proofs, and atomic merges silently under the hood.
-
-<div align="center">
-  <img src="intent/assets/nomos_hero_terminal.svg" alt="Nomos Split-Terminal Overview - Day-0 Brownfield X-Ray and Baseline Ratchet paired with Fail-Closed AST Verification and 2PC Release" width="100%" />
-</div>
 
 ---
 
@@ -43,22 +43,7 @@ Every single-repository governance capability ships locally in the open-source `
 - **Sub-Second Git-Aware Audit (`nomos xray .`):** Walks your Git index (`git ls-files --cached --others --exclude-standard`, honoring `.gitignore` automatically) across 11 languages to compute an `AI Hangover Score` (`0-100`, `Grade A-F`), structural clones, `>400 LOC` monoliths, oversized functions, high-arity (`>8` params) and deep-nesting (`>5` levels) signatures, magic-string duplication clusters, empty/TODO stubs, skipped tests, swallowed errors, secret/host-path leaks, CWE security sinks, and ready-to-lock hexagonal `architecture_boundaries` with **zero repository writes**.
 - **Drop Into `200k+ LOC` Legacy Repos on Day 1 (`nomos init --baseline`):** Freezes observed Day-0 structural envelopes in `nomos.baseline.json` (`strict_mode: false`) with **zero upfront warning cleanup**, while ratcheting **every file an agent touches** (`<= 0` added cyclomatic/cognitive/arity debt, `>= 0` test coverage delta, `0` new structural clones, swallowed errors, or secret/path leaks).
 - **Tamper-Proof Human Exceptions:** Agents are blocked from adding inline linter-ignore comments or editing `nomos.yaml` inside a task branch; human architects declare legitimate adapter carve-outs (`allow_only`, `forbid_imports`, `exclude`) directly on protected `main`.
-
-```text
-$ nomos xray .
-🔬 Nomos Brownfield X-Ray · nomos (634ms)
-────────────────────────────────────────────────────────────────────────────
-  AI Hangover Score  : 0/100 Grade A
-  Corpus Footprint   : 458 source files · 84742 LOC · go:458
-  Debt Signals       : 0 clone group(s) · 0 monolith(s) (>400 LOC) · 0 oversized func(s)
-  Signature & Reuse  : 0 high-arity · 0 deep-nesting · 0 magic-string cluster(s)
-  Anti-Cheat Signals : 0 empty/TODO stub(s) · 0 skipped test(s) · 0 swallowed error(s) · 0 secret/path leak(s) · 0 CWE sink(s)
-  Clean Boundaries   : 1 zero-violation architecture boundary rule(s) ready
-  Top Hotspots       : none (all scanned files within strict thresholds)
-────────────────────────────────────────────────────────────────────────────
-  ◈ Next Actions:
-    → nomos verify --all  (Evaluate all 42 deterministic Definition of Done gates across the repository)
-```
+- **Self-Hosted Dogfood Proof (`0/100 Grade A`):** `nomos` enforces `strict_mode: true` across its own `458`-file (`84,742 LOC`) Go codebase with `0` clones, `0` monoliths, `0` high-arity or deep-nesting violations, `0` empty stubs, and `0` swallowed errors.
 
 ### 2. Hermetic Worktrees, Multi-Agent `MTPO` & Constitutional `main` (`nomos task`, `nomos physics`)
 - **Physically Read-Only `main`:** Direct agent commits to `main` fail closed; tasks execute inside disposable `worktrees/<repo>-<task>` sandboxes (`nomos task chore`, `nomos task pair`, `nomos task dag`).
