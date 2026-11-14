@@ -129,17 +129,20 @@ func initializeGitGovernance(absDir string) (bool, bool) {
 	gitDir := filepath.Join(absDir, ".git")
 	fi, err := os.Stat(gitDir)
 	if err != nil || !fi.IsDir() {
-		fmt.Printf("⚠️ %s is not a git repository. Run 'git init' to enable Git defense hooks and worktree isolation.\n", absDir)
+		fmt.Printf("%s %s is not a git repository. Run %s to enable Git defense hooks and worktree isolation.\n",
+			tui.UiWarnStyle.Render("⚠️"),
+			tui.UiBoldValueStyle.Render(absDir),
+			tui.UiCommandStyle.Render("'git init'"))
 		return false, false
 	}
 
 	createdCommit, stageErr := stageAndCommitGovernanceOnly(absDir)
 	if stageErr != nil {
-		fmt.Printf("⚠️ failed staging governance files: %v\n", stageErr)
+		fmt.Printf("%s failed staging governance files: %v\n", tui.UiWarnStyle.Render("⚠️"), stageErr)
 	}
 
 	if hookErr := workspace.InstallHooks(absDir); hookErr != nil {
-		fmt.Printf("⚠️ failed installing git defense hooks: %v\n", hookErr)
+		fmt.Printf("%s failed installing git defense hooks: %v\n", tui.UiWarnStyle.Render("⚠️"), hookErr)
 	}
 	return true, createdCommit
 }

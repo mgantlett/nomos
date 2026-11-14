@@ -74,6 +74,6 @@ func executeXray(out io.Writer, targetDir string, topHotspots int, jsonOutput, m
 		_, wErr := fmt.Fprint(out, xray.FormatMarkdown(rep))
 		return wErr
 	}
-	_, wErr := fmt.Fprint(out, xray.FormatTerminal(rep))
+	_, wErr := fmt.Fprint(out, tui.RenderXrayTerminal(rep))
 	return wErr
 }

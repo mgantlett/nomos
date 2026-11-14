@@ -181,13 +181,25 @@ func renderPhysicsReport(out io.Writer, rep *PhysicsReport) {
 	fmt.Fprintln(out, tui.KvLine("Active Worktrees", 18, tui.UiBoldValueStyle.Render(fmt.Sprintf("%d", len(rep.Hulls)))))
 	fmt.Fprintln(out, tui.KvLine("Collision Threat", 18, tui.StyleSemanticBadge(string(rep.MaxThreat))))
 	for _, h := range rep.Hulls {
-		fmt.Fprintf(out, "  • [%s] seq=#%d files=%d exports=%d mass=%.1f (%s)\n",
-			tui.StyleTaskKey(h.TaskKey), h.MTPOSeq, len(h.TouchedFiles), len(h.MutatedExports), h.TotalMass, tui.UiMutedStyle.Render(h.WorktreePath))
+		seqTag := tui.UiCommandStyle.Render(fmt.Sprintf("seq=#%d", h.MTPOSeq))
+		stats := fmt.Sprintf("files=%s exports=%s mass=%s",
+			tui.UiBoldValueStyle.Render(fmt.Sprintf("%d", len(h.TouchedFiles))),
+			tui.UiBoldValueStyle.Render(fmt.Sprintf("%d", len(h.MutatedExports))),
+			tui.UiSubstrateStyle.Render(fmt.Sprintf("%.1f", h.TotalMass)))
+		fmt.Fprintf(out, "  • [%s] %s %s (%s)\n",
+			tui.StyleTaskKey(h.TaskKey), seqTag, stats, tui.UiMutedStyle.Render(h.WorktreePath))
 	}
 	for _, c := range rep.Collisions {
 		if c.ThreatLevel != ThreatGreen {
-			fmt.Fprintf(out, "  ⚠️  [%s] %s <-> %s | files=%v symbols=%v\n",
-				c.ThreatLevel, filepath.Base(c.WorktreeA), filepath.Base(c.WorktreeB), c.IntersectedFiles, c.IntersectedSymbols)
+			pair := fmt.Sprintf("%s <-> %s",
+				tui.UiCommandStyle.Render(filepath.Base(c.WorktreeA)),
+				tui.UiCommandStyle.Render(filepath.Base(c.WorktreeB)))
+			fmt.Fprintf(out, "  ⚠️  %s %s %s files=%v symbols=%v\n",
+				tui.StyleSemanticBadge(string(c.ThreatLevel)),
+				pair,
+				tui.UiMutedStyle.Render("|"),
+				c.IntersectedFiles,
+				c.IntersectedSymbols)
 		}
 	}
 	fmt.Fprintln(out, tui.UiRule(tui.RuleStandard))

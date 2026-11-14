@@ -63,13 +63,26 @@ func executePRProofMode(out io.Writer, targetDir string, report *verify.Pipeline
 	posture := prproof.GatePostureSummary{
 		GatesPassed: report.GatesPassed, GatesTotal: report.GatesTotal, PipelinePass: report.Passed,
 	}
-	passed, err := prproof.RenderVerifyPRAndMutation(out, targetDir, posture, prproof.PRProofOptions{
+	receipt, err := prproof.BuildPRProofReceipt(targetDir, posture, prproof.PRProofOptions{
 		BaseRef: prFlags.baseRef, MutateDiff: prFlags.mutateDiff, OutputPath: prFlags.prOutput,
-	}, jsonOutput)
+	})
 	if err != nil {
 		return types.NewNomosError(types.ErrCodeCore, "PR proof generation failed: %v", err)
 	}
-	if !passed {
+	if strings.TrimSpace(prFlags.prOutput) != "" {
+		md := prproof.FormatPRProofMarkdown(receipt)
+		if wErr := os.WriteFile(prFlags.prOutput, []byte(md), 0644); wErr != nil {
+			return types.NewNomosError(types.ErrCodeCore, "failed writing PR proof receipt %s: %v", prFlags.prOutput, wErr)
+		}
+	}
+	if jsonOutput {
+		if encoded, mErr := json.MarshalIndent(receipt, "", "  "); mErr == nil {
+			fmt.Fprintln(out, string(encoded))
+		}
+	} else {
+		fmt.Fprint(out, tui.RenderPRProofTerminal(receipt))
+	}
+	if !receipt.Passed {
 		return types.NewNomosError(types.ErrCodeInvariant, "PR proof verification failed")
 	}
 	return nil
@@ -80,7 +93,7 @@ func executeStandaloneMutateDiff(out io.Writer, targetDir, baseRef string) error
 	if err != nil {
 		return types.NewNomosError(types.ErrCodeCore, "diff micro-mutation probe failed: %v", err)
 	}
-	fmt.Fprint(out, prproof.FormatDiffMutationSummary(mutRep))
+	fmt.Fprint(out, tui.RenderDiffMutationTerminal(mutRep))
 	if !mutRep.Passed {
 		return types.NewNomosError(types.ErrCodeInvariant, "diff micro-mutation oracle detected %d surviving mutant(s)", mutRep.MutantsSurvived)
 	}
