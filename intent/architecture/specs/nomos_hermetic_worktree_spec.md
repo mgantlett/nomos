@@ -258,6 +258,8 @@ Session Sentinel (`CHARTER-4-BOUNDARY`) evaluates candidate workspace roots stru
 
 `nomos hook pre-tool` enforces `BoundaryConfig.CredentialReadMode` (`host_deny` default, `strict`, or `taint_only`) and `BlockedReadPaths` via `CredentialReadPolicy`. Under `host_deny`, `nomos hook pre-tool` rejects reads and shell commands targeting host credential stores (`~/.aws`, `~/.ssh/id_*`, `~/.kube/config`, `~/.gnupg`, `.netrc`, `.npmrc`, `.pypirc`). `nomos hook pre-tool` also rejects configured `blocked_read_paths` globs immediately, while non-template workspace `.env` reads record `TaintCredentialSource`. Under `strict`, `nomos hook pre-tool` also rejects non-template workspace `.env` reads on `PreToolUse`. Benign `.env.example`, `.env.sample`, `.env.template`, `.env.test`, `.env.defaults`, and `.env.schema` templates remain exempt. Under `taint_only`, credential reads pass `PreToolUse` and record `TaintCredentialSource`.
 
+`nomos task start` and `nomos task chore` allocate monotonic `MTPO` sequences (`mtpo.AllocateSequence`) inside SQLite table `worktree_mtpo` anchored to trunk `HEAD`. During active `EDIT` turns, `nomos hook post-tool` invokes `mtpo.RecordFileMutation` in under `25ms` to index modified files, exported AST symbols, read symbols, and package imports. When a higher-sequence worktree overlaps an earlier active worktree blast radius, `nomos hook post-tool` injects non-blocking advisory steering without locking files. During `nomos task sync`, `mtpo.VerifySyncSerializability` checks committed predecessors before fast-forwarding `main` and rejects stale base commits with a deterministic rebase and re-verify remedy.
+
 ---
 
 ## 6. Table-Driven Verification Vectors
@@ -303,6 +305,7 @@ Session Sentinel (`CHARTER-4-BOUNDARY`) evaluates candidate workspace roots stru
 | `TC-HOOK-004` | OpenCode full-lifecycle parity | `.opencode/plugins/nomos.ts` (`tool.execute.after` Turn-0 + `event` `session.idle`) | `"Injects session-start orientation once per session and enforces stop verification on session.idle."` | PASS |
 | `TC-LRN-13` | Slow-step shell timeout advisory | `nomos hook post-tool` on slow shell command without `timeout` | `"Emits timeout pacing advisory and skips explicit timeout invocations."` | PASS |
 | `TC-SEN-010` | Sentinel plugin workspace authorization (`CHARTER-4-BOUNDARY`) | `EvaluateSentinel` across `substrate/cmd/nomos-plugin-*` vs consumer repo | `"Authorizes Substrate and plugin workspaces at 100/100 CLEAN and flags external consumer peeking."` | PASS |
+| `TC-MTPO-04` | PostToolUse MTPO collision steering | `nomos hook post-tool` edits file overlapping earlier active worktree | `"Injects non-blocking MTPO advisory naming predecessor task key and symbol."` | PASS |
 
 ---
 

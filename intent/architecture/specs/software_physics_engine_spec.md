@@ -189,11 +189,13 @@ type CollisionVector struct {
 
 // WorktreeHull defines the bounding envelope and mutation surface of a worktree (#WorktreeHull).
 type WorktreeHull struct {
+	MTPOSeq           int64    `json:"mtpo_seq,omitempty"`
 	TaskKey           string   `json:"task_key"`
 	WorktreePath      string   `json:"worktree_path"`
 	Seat              string   `json:"seat,omitempty"`
 	Phase             string   `json:"phase"`
 	MutatedExports    []string `json:"mutated_exports"`
+	ReadSymbols       []string `json:"read_symbols,omitempty"`
 	ReferencedImports []string `json:"referenced_imports"`
 	TouchedFiles      []string `json:"touched_files"`
 	TotalMass         float64  `json:"total_mass"`
@@ -202,6 +204,56 @@ type WorktreeHull struct {
 
 // DetectCollision evaluates two worktree hulls for mutated file and symbol collisions.
 func DetectCollision(a, b *WorktreeHull) *CollisionVector
+```
+
+```go
+package mtpo
+
+// MTPOLedgerEntry records the Monotonic Trajectory Pre-Order sequence and AST read/write sets (#MTPOLedgerEntry).
+type MTPOLedgerEntry struct {
+	Seq               int64    `json:"seq"`
+	RepoRoot          string   `json:"repo_root"`
+	TaskKey           string   `json:"task_key"`
+	WorktreePath      string   `json:"worktree_path"`
+	BaseCommit        string   `json:"base_commit"`
+	Status            string   `json:"status"`
+	WriteFiles        []string `json:"write_files"`
+	WriteSymbols      []string `json:"write_symbols"`
+	ReadSymbols       []string `json:"read_symbols"`
+	ReferencedImports []string `json:"referenced_imports"`
+	UpdatedAt         string   `json:"updated_at"`
+}
+
+// MTPOConflict describes an AST write-write or read-write hazard between ordered trajectories (#MTPOConflict).
+type MTPOConflict struct {
+	EarlierSeq         int64    `json:"earlier_seq"`
+	EarlierTaskKey     string   `json:"earlier_task_key"`
+	LaterSeq           int64    `json:"later_seq"`
+	LaterTaskKey       string   `json:"later_task_key"`
+	HazardKind         string   `json:"hazard_kind"`
+	OverlappingFiles   []string `json:"overlapping_files,omitempty"`
+	OverlappingSymbols []string `json:"overlapping_symbols,omitempty"`
+	Advisory           string   `json:"advisory"`
+}
+
+// SerializabilityVerdict reports cross-worktree AST serializability before trunk fast-forward (#SerializabilityVerdict).
+type SerializabilityVerdict struct {
+	TaskKey        string         `json:"task_key"`
+	Seq            int64          `json:"seq"`
+	Passed         bool           `json:"passed"`
+	MergedConflict []MTPOConflict `json:"merged_conflict,omitempty"`
+	ActiveHazards  []MTPOConflict `json:"active_hazards,omitempty"`
+	Remedy         string         `json:"remedy,omitempty"`
+}
+
+// AllocateSequence assigns the next monotonic MTPO sequence for an active worktree.
+func AllocateSequence(dbPath, repoRoot, taskKey, worktreePath, baseCommit string) (*MTPOLedgerEntry, error)
+
+// RecordFileMutation updates AST symbol and import sets and returns advisory MTPO conflicts.
+func RecordFileMutation(dbPath, repoRoot, taskKey, worktreePath, editedFile string) ([]MTPOConflict, error)
+
+// VerifySyncSerializability checks cross-worktree AST serializability against merged predecessors.
+func VerifySyncSerializability(dbPath, repoRoot, taskKey, currentTrunkCommit string) (*SerializabilityVerdict, error)
 ```
 
 ### 4.2 Session Trajectory, Sentinel PRM & Capability Telemetry Contracts (`modules/session`, `modules/telemetry`)
@@ -343,11 +395,14 @@ The Open-Core Software Physics Engine exposes real-time worktree AST mass, inert
 | `TC-LAUNCH-004` | Single-Capability Deep Dive | `nomos capabilities <probe_id>` | `PASS` (Renders law, ring, threshold, and remedy contract) |
 | `TC-PHY-05` | Brownfield dCDS Recipe | Positive `dCDS` over Git baseline (`PrescribeRatchetedCDSRecipe`) | Emits `file:start-end`, baseline ceiling, and top function `dCDS` delta |
 | `TC-PHY-06` | Complexity & Arity Recipe | Function exceeds `V(G)`, `LOC`, or `MaxFuncParams` | Emits `file:start-end`, numeric excess, and 1-step helper/struct target |
+| `TC-MTPO-01` | Monotonic Trajectory Pre-Order | `nomos task start` and `nomos task chore` across concurrent worktrees | Allocates ascending `Seq` values in `worktree_mtpo` ledger |
+| `TC-MTPO-02` | Write-Time AST Mediation | `RecordFileMutation` on later trajectory touching earlier active symbol | Persists AST sets under `25ms` and emits advisory `MTPOConflict` |
+| `TC-MTPO-03` | 2PC AST Serializability | `VerifySyncSerializability` when predecessor merges overlapping symbol to `main` | Rejects stale base commit with rebase and verify remedy |
 
 ---
 
 ## 6. Cross-Plane Traceability & DoD Verification
 
-1. **Compiled Physics SSoT**: `substrate/cli/physics.go` and `substrate/cli/cmd_physics.go` enforce `WorktreeHull`, `CollisionVector`, `FileMass`, and `DetectCollision`.
+1. **Compiled Physics SSoT**: `substrate/cli/physics.go`, `substrate/cli/cmd_physics.go`, and `substrate/src/nomos/modules/mtpo/` enforce `WorktreeHull`, `CollisionVector`, `MTPOLedgerEntry`, and `VerifySyncSerializability`.
 2. **Enforcing 7x3 Matrix Cells**: Verified continuously by `Cell 1.1 (complexity / max_file_loc / cognitive_debt)`, `Cell 3.2 (hermetic_worktree)`, `Cell 3.3 (release_receipt)`, and `Cell 4.2 (contract_parity)`.
 3. **Deterministic Gate Execution**: Run `nomos verify` to pass all 42 Definition of Done quality gates with exit code `0`.
