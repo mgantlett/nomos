@@ -239,15 +239,19 @@ type XrayScanOptions struct {
 
 // XrayHotspot ranks a single source file by aggregated structural debt (#XrayHotspot).
 type XrayHotspot struct {
-	File          string   `json:"file"`
-	Language      string   `json:"language"`
-	LOC           int      `json:"loc"`
-	CDS           int      `json:"cds"`
-	MaxComplexity int      `json:"max_complexity"`
-	MaxFuncLOC    int      `json:"max_func_loc"`
-	Clones        int      `json:"clones,omitempty"`
-	Stubs         int      `json:"stubs,omitempty"`
-	Reasons       []string `json:"reasons,omitempty"`
+	File            string   `json:"file"`
+	Language        string   `json:"language"`
+	LOC             int      `json:"loc"`
+	CDS             int      `json:"cds"`
+	MaxComplexity   int      `json:"max_complexity"`
+	MaxFuncLOC      int      `json:"max_func_loc"`
+	MaxParams       int      `json:"max_params,omitempty"`
+	MaxNesting      int      `json:"max_nesting,omitempty"`
+	Clones          int      `json:"clones,omitempty"`
+	Stubs           int      `json:"stubs,omitempty"`
+	UncheckedErrors int      `json:"unchecked_errors,omitempty"`
+	SecretLeaks     int      `json:"secret_leaks,omitempty"`
+	Reasons         []string `json:"reasons,omitempty"`
 }
 
 // XrayBaselineEnvelope records observed upper-bound structural metrics for baseline locking (#XrayBaselineEnvelope).
@@ -257,6 +261,8 @@ type XrayBaselineEnvelope struct {
 	ObservedMaxComplexity   int `json:"observed_max_complexity"`
 	ObservedMaxCDS          int `json:"observed_max_cds"`
 	ObservedMaxPackageFiles int `json:"observed_max_package_files"`
+	ObservedMaxParams       int `json:"observed_max_params"`
+	ObservedMaxNesting      int `json:"observed_max_nesting"`
 	CloneGroupCount         int `json:"clone_group_count"`
 }
 
@@ -273,8 +279,13 @@ type XrayReport struct {
 	CloneGroups        int                  `json:"clone_groups"`
 	MonolithFiles      int                  `json:"monolith_files"`
 	OversizedFuncs     int                  `json:"oversized_funcs"`
+	HighArityFuncs     int                  `json:"high_arity_funcs"`
+	DeepNestingFuncs   int                  `json:"deep_nesting_funcs"`
 	EmptyStubs         int                  `json:"empty_stubs"`
 	SkippedTests       int                  `json:"skipped_tests"`
+	UncheckedErrors    int                  `json:"unchecked_errors"`
+	SecretPathLeaks    int                  `json:"secret_path_leaks"`
+	MagicStringGroups  int                  `json:"magic_string_groups"`
 	SecuritySinks      int                  `json:"security_sinks"`
 	InferredBoundaries int                  `json:"inferred_boundaries"`
 	Hotspots           []XrayHotspot        `json:"hotspots,omitempty"`
