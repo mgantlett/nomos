@@ -61,6 +61,12 @@ jobs:
         run: |
           nomos verify proof
 
+      - name: Emit Zero-Trust Pull Request Proof Receipt
+        if: github.event_name == 'pull_request'
+        run: |
+          nomos verify --pr --base-ref origin/main --mutate-diff --pr-output "$RUNNER_TEMP/pr-proof.md"
+          cat "$RUNNER_TEMP/pr-proof.md" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Audit Bilateral Capabilities & Architectural Engines
         run: |
           nomos capabilities

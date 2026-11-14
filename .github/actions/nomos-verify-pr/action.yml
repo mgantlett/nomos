@@ -1,0 +1,57 @@
+name: 'Nomos Zero-Trust PR Proof'
+description: 'Evaluate 42 deterministic Nomos quality gates, diff AST micro-mutation oracle, and seal a SHA-256 PR proof receipt.'
+
+inputs:
+  base-ref:
+    description: 'Git base reference for PR diff and X-Ray debt delta comparison'
+    required: false
+    default: 'origin/main'
+  mutate-diff:
+    description: 'Run zero-token AST micro-mutation probing across modified Go functions'
+    required: false
+    default: 'true'
+  working-directory:
+    description: 'Target repository directory'
+    required: false
+    default: '.'
+  receipt-path:
+    description: 'Output file path for the Markdown PR proof receipt'
+    required: false
+    default: 'nomos-pr-proof.md'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Go for Nomos CLI
+      uses: actions/setup-go@v6
+      with:
+        go-version: '1.25.x'
+
+    - name: Install or Reuse Nomos CLI
+      shell: bash
+      run: |
+        if ! command -v nomos >/dev/null 2>&1; then
+          if [ -f "${{ github.action_path }}/../../../substrate/go.mod" ]; then
+            CGO_ENABLED=0 go -C "${{ github.action_path }}/../../../substrate" build -o "$RUNNER_TEMP/nomos" ./cmd/nomos
+            echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+          else
+            CGO_ENABLED=0 go install github.com/mgantlett/nomos/substrate/cmd/nomos@latest
+          fi
+        fi
+
+    - name: Execute Zero-Trust PR Verification & Seal Receipt
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        INPUT_BASE_REF: ${{ inputs.base-ref }}
+        INPUT_MUTATE_DIFF: ${{ inputs.mutate-diff }}
+        INPUT_RECEIPT_PATH: ${{ inputs.receipt-path }}
+      run: |
+        EXTRA_FLAGS=()
+        if [ "${INPUT_MUTATE_DIFF}" = "true" ]; then
+          EXTRA_FLAGS+=(--mutate-diff)
+        fi
+        nomos verify --pr --base-ref "${INPUT_BASE_REF}" --pr-output "${INPUT_RECEIPT_PATH}" "${EXTRA_FLAGS[@]}"
+        if [ -f "${INPUT_RECEIPT_PATH}" ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+          cat "${INPUT_RECEIPT_PATH}" >> "$GITHUB_STEP_SUMMARY"
+        fi

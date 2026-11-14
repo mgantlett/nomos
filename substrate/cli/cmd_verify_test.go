@@ -12,6 +12,11 @@ func TestNewVerifyCmd_Registration(t *testing.T) {
 	if cmd.Use != "verify [path]" {
 		t.Errorf("unexpected command use: %s", cmd.Use)
 	}
+	for _, flagName := range []string{"pr", "pr-output", "mutate-diff", "base-ref"} {
+		if cmd.Flags().Lookup(flagName) == nil {
+			t.Fatalf("expected --%s flag to be registered on nomos verify", flagName)
+		}
+	}
 	proofCmd, _, err := cmd.Find([]string{"proof"})
 	if err != nil || proofCmd == nil {
 		t.Fatalf("expected proof subcommand to be registered, got error: %v", err)

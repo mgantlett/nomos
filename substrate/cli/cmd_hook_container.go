@@ -22,9 +22,17 @@ var (
 		"/logs/verifier",
 		"/solution",
 		"/tests",
+		"/verifier",
+		"/grading",
+		"/eval",
+		"/harness",
+		"/oracle",
+		"/proc/1/environ",
+		"/proc/1/cmdline",
+		"/proc/self/environ",
 	}
 	embeddedVerifierRootRe = regexp.MustCompile(
-		`(?:^|[\s"'` + "`" + `=:(,\[\{<>])(/logs/verifier(?:/[^\s"'` + "`" + `),\]\};]*)?|/solution(?:/[^\s"'` + "`" + `),\]\};]*)?|/tests(?:/[^\s"'` + "`" + `),\]\};]*)?)(?:[\s"'` + "`" + `),\]\};]|$)`,
+		`(?:^|[\s"'` + "`" + `=:(,\[\{<>])((?:/logs/verifier|/solution|/tests|/verifier|/grading|/eval|/harness|/oracle|/proc/1/environ|/proc/1/cmdline|/proc/self/environ)(?:/[^\s"'` + "`" + `),\]\};]*)?)(?:[\s"'` + "`" + `),\]\};]|$)`,
 	)
 	rootSweepCommandRe = regexp.MustCompile(`(?i)(?:^|[;&|]\s*)(?:find\s+/(?:\s|$)|(?:grep|rg)\b[^\n;|&]*\s+/(?:\s|$))`)
 )
@@ -105,6 +113,21 @@ func evaluateContainerCommandGuard(cmdLine, baseCwd string) HookDecision {
 }
 
 func evaluateContainerTargetGuard(p *HookPayload, baseCwd string) HookDecision {
+	targets := p.TargetFiles
+	if len(targets) == 0 && p.TargetFile != "" {
+		targets = []string{p.TargetFile}
+	}
+	for _, rawTarget := range targets {
+		cp := *p
+		cp.TargetFile = rawTarget
+		if dec := evaluateSingleContainerTarget(&cp, baseCwd); dec.Decision == hookDecisionDeny {
+			return dec
+		}
+	}
+	return HookDecision{Decision: hookDecisionAllow}
+}
+
+func evaluateSingleContainerTarget(p *HookPayload, baseCwd string) HookDecision {
 	if p.TargetFile == "" {
 		return HookDecision{Decision: hookDecisionAllow}
 	}

@@ -119,6 +119,46 @@ func TestHookContainerSandbox_AntiRewardHackingAndSysadminParity(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "TC-SHIM-02 grading harness file read denied",
+			payload: map[string]any{
+				"cwd": "/app",
+				"toolCall": map[string]any{
+					"name": "Read",
+					"args": map[string]any{"file_path": "/grading/score.py"},
+				},
+			},
+		},
+		{
+			name: "verifier script shell snoop denied",
+			payload: map[string]any{
+				"cwd": "/app",
+				"toolCall": map[string]any{
+					"name": "Bash",
+					"args": map[string]any{"command": "cat /verifier/run.sh"},
+				},
+			},
+		},
+		{
+			name: "pid1 environ verifier env snoop denied",
+			payload: map[string]any{
+				"cwd": "/app",
+				"toolCall": map[string]any{
+					"name": "Bash",
+					"args": map[string]any{"command": "tr '\\0' '\\n' < /proc/1/environ"},
+				},
+			},
+		},
+		{
+			name: "multi-file payload hiding protected oracle path denied",
+			payload: map[string]any{
+				"cwd": "/app",
+				"toolCall": map[string]any{
+					"name": "Read",
+					"args": map[string]any{"paths": []string{"/app/main.go", "/oracle/expected.json"}},
+				},
+			},
+		},
 	}
 
 	for _, tc := range denyCases {

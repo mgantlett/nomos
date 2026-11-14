@@ -24,6 +24,7 @@ import (
 func NewVerifyCmd() *cobra.Command {
 	var baseline, allFiles, strict, impactOnly, jsonOutput bool
 	var worktreeDir, fastFile, commitRange string
+	var prFlags verifyPRFlags
 
 	cmd := &cobra.Command{
 		Use:   "verify [path]",
@@ -42,7 +43,7 @@ Zero trust in conversational claims; non-verbal proof via AST and compilation ex
 			if impactOnly {
 				return runImpactMap(targetDir)
 			}
-			return runVerificationOutput(cmd.OutOrStdout(), targetDir, commitRange, baseline, allFiles, strict, jsonOutput)
+			return runVerificationWithPR(cmd.OutOrStdout(), targetDir, commitRange, baseline, allFiles, strict, jsonOutput, prFlags)
 		},
 	}
 
@@ -54,6 +55,10 @@ Zero trust in conversational claims; non-verbal proof via AST and compilation ex
 	cmd.Flags().StringVarP(&worktreeDir, "worktree", "w", "", "Target worktree path to evaluate")
 	cmd.Flags().StringVar(&fastFile, "fast-file", "", "Evaluate sub-15ms single-file AST & security early-warning radar")
 	cmd.Flags().StringVar(&commitRange, "range", "", "Evaluate unattested commits in range (e.g. origin/main..HEAD) for pre-push verification")
+	cmd.Flags().BoolVar(&prFlags.prMode, "pr", false, "Emit tamper-evident Pull Request proof receipt (Markdown or --json)")
+	cmd.Flags().StringVar(&prFlags.prOutput, "pr-output", "", "Optional file path to write rendered Pull Request proof receipt")
+	cmd.Flags().BoolVar(&prFlags.mutateDiff, "mutate-diff", false, "Probe modified Go functions with zero-token AST micro-mutants")
+	cmd.Flags().StringVar(&prFlags.baseRef, "base-ref", "", "Git base reference for PR receipt and diff micro-mutation comparison")
 
 	cmd.AddCommand(newVerifyProofCmd())
 
@@ -83,30 +88,19 @@ func runVerification(targetDir, commitRange string, baseline, allFiles, strict b
 }
 
 func runVerificationOutput(out io.Writer, targetDir, commitRange string, baseline, allFiles, strict, jsonOutput bool) error {
-	if abs, err := filepath.Abs(targetDir); err == nil {
-		targetDir = abs
-	}
-	repoRoot, err := workspace.FindRepoRoot(targetDir)
-	if err != nil {
-		repoRoot = targetDir
-	}
-	cleanTarget := filepath.ToSlash(targetDir)
-	if !baseline && !strings.Contains(cleanTarget, "/worktrees/") {
-		baseline = true
-	}
-	activeTask := ""
-	if !baseline {
-		activeTask = resolveWorktreeTaskKey(targetDir)
-	}
+	return runVerificationWithPR(out, targetDir, commitRange, baseline, allFiles, strict, jsonOutput, verifyPRFlags{})
+}
+
+func runVerificationWithPR(out io.Writer, targetDir, commitRange string, baseline, allFiles, strict, jsonOutput bool, prFlags verifyPRFlags) error {
+	repoRoot, targetDir, activeTask, baseline := normalizeVerifyTargetScope(targetDir, baseline)
 	ctx := &vscope.VerifyContext{
 		RepoRoot: repoRoot, WorktreePath: targetDir, TaskID: activeTask,
 		CommitRange: strings.TrimSpace(commitRange), IsBaseline: baseline,
 		AllFiles: allFiles, Strict: strict, Phase: "REVIEW",
 	}
-	if tryRenderCachedVerifyReceipt(out, ctx, jsonOutput) {
+	if !prFlags.hasCustomProbe() && tryRenderCachedVerifyReceipt(out, ctx, jsonOutput) {
 		return nil
 	}
-
 	pipeline := verify.NewPipeline(verify.DefaultBaselineGates())
 	report, err := pipeline.Execute(ctx)
 	diag.RecordVerificationAnomalies(repoRoot, activeTask, "verify", report, err)
@@ -114,21 +108,25 @@ func runVerificationOutput(out io.Writer, targetDir, commitRange string, baselin
 	if err != nil {
 		return err
 	}
+	return finalizeVerificationReport(out, ctx, jsonOutput, report, prFlags)
+}
 
-	if jsonOutput {
-		if data, mErr := json.MarshalIndent(report, "", "  "); mErr == nil {
-			fmt.Fprintln(out, string(data))
-		}
-	} else {
-		renderVerificationSummary(report)
-		if report.Passed && activeTask != "" {
-			tui.RenderPhaseTransitionNextActions(out, types.PhaseReview, activeTask, targetDir, repoRoot)
-		}
+func normalizeVerifyTargetScope(targetDir string, baseline bool) (string, string, string, bool) {
+	if abs, err := filepath.Abs(targetDir); err == nil {
+		targetDir = abs
 	}
-	if !report.Passed {
-		return handleFailedVerificationReport(repoRoot, targetDir, activeTask, allFiles, baseline, report)
+	repoRoot, err := workspace.FindRepoRoot(targetDir)
+	if err != nil {
+		repoRoot = targetDir
 	}
-	return nil
+	if !baseline && !strings.Contains(filepath.ToSlash(targetDir), "/worktrees/") {
+		baseline = true
+	}
+	activeTask := ""
+	if !baseline {
+		activeTask = resolveWorktreeTaskKey(targetDir)
+	}
+	return repoRoot, targetDir, activeTask, baseline
 }
 
 func handleFailedVerificationReport(repoRoot, targetDir, activeTask string, allFiles, baseline bool, report *verify.PipelineReport) error {

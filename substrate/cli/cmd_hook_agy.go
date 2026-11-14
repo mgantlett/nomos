@@ -36,7 +36,7 @@ func extractEffectiveCwd(m map[string]any) string {
 	)
 }
 
-// extractAllTargetFiles collects the primary target path plus every file header inside an apply_patch payload.
+// extractAllTargetFiles collects the primary target path, multi-file array fields, and apply_patch headers.
 func extractAllTargetFiles(m map[string]any, primary string) []string {
 	seen := make(map[string]bool)
 	var out []string
@@ -48,6 +48,9 @@ func extractAllTargetFiles(m map[string]any, primary string) []string {
 		}
 	}
 	add(primary)
+	for _, item := range collectNestedPathSlices(m) {
+		add(item)
+	}
 	patch := firstNonEmpty(
 		extractNestedString(m, hookFieldToolInput, hookFieldPatchText),
 		extractNestedString(m, hookFieldArgs, hookFieldPatchText),
@@ -65,6 +68,26 @@ func extractAllTargetFiles(m map[string]any, primary string) []string {
 		}
 	}
 	return out
+}
+
+func collectNestedPathSlices(m map[string]any) []string {
+	sliceKeys := []string{"paths", "Paths", "file_paths", "filePaths", "files", "TargetFiles"}
+	var all []string
+	for _, rootKey := range []string{hookFieldToolInput, hookFieldArgs} {
+		if sub, ok := m[rootKey].(map[string]any); ok {
+			for _, sk := range sliceKeys {
+				all = append(all, extractStringSlice(sub, sk)...)
+			}
+		}
+	}
+	if tc, ok := m[hookFieldToolCall].(map[string]any); ok {
+		if sub, ok := tc[hookFieldArgs].(map[string]any); ok {
+			for _, sk := range sliceKeys {
+				all = append(all, extractStringSlice(sub, sk)...)
+			}
+		}
+	}
+	return all
 }
 
 func resolveAntigravityPendingPath(p *HookPayload, hermeticDir string) string {

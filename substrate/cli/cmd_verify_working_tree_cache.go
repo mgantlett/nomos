@@ -1,6 +1,6 @@
-// Package cli implements temporary-index working-tree SHA hashing and receipt reuse
-// across unstaged 'nomos verify' and pre-commit hook invocations.
-// @intent intent.md task_lifecycle_cli_spec.md
+// Package cli implements temporary-index working-tree SHA hashing, receipt reuse,
+// and Pull Request proof / diff micro-mutation verification dispatch.
+// @intent intent.md task_lifecycle_cli_spec.md nomos_intent_traceability_spec.md tree_sitter_ast_gate_spec.md
 package cli
 
 import (
@@ -17,8 +17,75 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/prproof"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/vscope"
 )
+
+type verifyPRFlags struct {
+	prMode     bool
+	mutateDiff bool
+	prOutput   string
+	baseRef    string
+}
+
+func (f verifyPRFlags) hasCustomProbe() bool {
+	return f.prMode || f.mutateDiff || strings.TrimSpace(f.prOutput) != ""
+}
+
+func finalizeVerificationReport(out io.Writer, ctx *vscope.VerifyContext, jsonOutput bool, report *verify.PipelineReport, prFlags verifyPRFlags) error {
+	if prFlags.prMode || strings.TrimSpace(prFlags.prOutput) != "" {
+		return executePRProofMode(out, ctx.WorktreePath, report, prFlags, jsonOutput)
+	}
+	renderStandardVerifyReport(out, ctx.RepoRoot, ctx.WorktreePath, ctx.TaskID, jsonOutput, report)
+	if !report.Passed {
+		return handleFailedVerificationReport(ctx.RepoRoot, ctx.WorktreePath, ctx.TaskID, ctx.AllFiles, ctx.IsBaseline, report)
+	}
+	if prFlags.mutateDiff {
+		return executeStandaloneMutateDiff(out, ctx.WorktreePath, prFlags.baseRef)
+	}
+	return nil
+}
+
+func renderStandardVerifyReport(out io.Writer, repoRoot, targetDir, activeTask string, jsonOutput bool, report *verify.PipelineReport) {
+	if jsonOutput {
+		if data, mErr := json.MarshalIndent(report, "", "  "); mErr == nil {
+			fmt.Fprintln(out, string(data))
+		}
+		return
+	}
+	renderVerificationSummary(report)
+	if report.Passed && activeTask != "" {
+		tui.RenderPhaseTransitionNextActions(out, types.PhaseReview, activeTask, targetDir, repoRoot)
+	}
+}
+
+func executePRProofMode(out io.Writer, targetDir string, report *verify.PipelineReport, prFlags verifyPRFlags, jsonOutput bool) error {
+	posture := prproof.GatePostureSummary{
+		GatesPassed: report.GatesPassed, GatesTotal: report.GatesTotal, PipelinePass: report.Passed,
+	}
+	passed, err := prproof.RenderVerifyPRAndMutation(out, targetDir, posture, prproof.PRProofOptions{
+		BaseRef: prFlags.baseRef, MutateDiff: prFlags.mutateDiff, OutputPath: prFlags.prOutput,
+	}, jsonOutput)
+	if err != nil {
+		return types.NewNomosError(types.ErrCodeCore, "PR proof generation failed: %v", err)
+	}
+	if !passed {
+		return types.NewNomosError(types.ErrCodeInvariant, "PR proof verification failed")
+	}
+	return nil
+}
+
+func executeStandaloneMutateDiff(out io.Writer, targetDir, baseRef string) error {
+	mutRep, err := prproof.EvaluateDiffMutations(targetDir, baseRef)
+	if err != nil {
+		return types.NewNomosError(types.ErrCodeCore, "diff micro-mutation probe failed: %v", err)
+	}
+	fmt.Fprint(out, prproof.FormatDiffMutationSummary(mutRep))
+	if !mutRep.Passed {
+		return types.NewNomosError(types.ErrCodeInvariant, "diff micro-mutation oracle detected %d surviving mutant(s)", mutRep.MutantsSurvived)
+	}
+	return nil
+}
 
 // loadValidWorkingTreeVerifyReceipt returns a cached PipelineReport when the current
 // working tree (clean, staged, or unstaged) and trunk HEAD SHA match a fresh receipt.
