@@ -130,6 +130,7 @@ func operationalSurfaceContractCases() []repoContractCase {
 				"https://github.com/TraceLite-AI/TraceTrial-Bench",
 				"Receipt-Gated Episodic Memory",
 				"Multi-Seat CapBAC Leases & Cross-Repo DAGs",
+				"https://sophialabs.ca/sovereign#nomos-code",
 			},
 			forbid: []string{
 				"Autonomous Tier 2 Coding Agent",
