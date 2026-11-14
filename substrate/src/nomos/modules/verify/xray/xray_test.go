@@ -37,7 +37,7 @@ func seedPolyglotHangoverFixture(t *testing.T, root string) {
 	monolith.WriteString("    raise NotImplementedError\n")
 	mustWrite("src/infra/legacy_db.py", monolith.String())
 
-	mustWrite("src/domain/alpha_test.go", "package domain\nimport \"testing\"\nfunc TestSkipped(t *testing.T) {\n\tt.Skip(\"later\")\n}\n")
+	mustWrite("src/domain/alpha_test.go", "package domain\nimport \"testing\"\nfunc TestSkipped(t *testing.T) {\n\tt.Skip(\"later\")\n}\nfunc TestGuardedOS(t *testing.T) {\n\tif false {\n\t\tt.Skip(\"windows only\")\n\t}\n}\n")
 }
 
 func buildRepeatedGoClone(fnName string) string {
@@ -69,8 +69,8 @@ func TestScanRepository_PolyglotHangoverAndReadOnlyGuarantee(t *testing.T) {
 	if rep.CloneGroups < 1 || rep.MonolithFiles < 1 || rep.OversizedFuncs < 1 {
 		t.Fatalf("expected clone, monolith, and oversized function detection, got %+v", rep)
 	}
-	if rep.EmptyStubs < 1 || rep.SkippedTests < 1 || rep.SecuritySinks < 1 {
-		t.Fatalf("expected stub, skipped test, and CWE sink detection, got %+v", rep)
+	if rep.EmptyStubs < 1 || rep.SkippedTests != 1 || rep.SecuritySinks < 1 {
+		t.Fatalf("expected stub, exactly 1 unconditional skipped test, and CWE sink detection, got %+v", rep)
 	}
 	if rep.HangoverScore <= 0 || rep.Grade == "A" || len(rep.Hotspots) == 0 {
 		t.Fatalf("expected elevated hangover score and hotspots, got %+v", rep)

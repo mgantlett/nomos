@@ -39,7 +39,9 @@ var (
 		".ruff_cache": true, ".next": true, ".svelte-kit": true,
 		"coverage": true, "testdata": true,
 	}
-	explicitStubTokenRe = regexp.MustCompile(`(?m)(?:\btodo!\s*\(|\bunimplemented!\s*\(|\braise\s+NotImplementedError\b|\bthrow\s+new\s+Error\s*\(\s*["']not\s+implemented)`)
+	explicitPyStubRe   = regexp.MustCompile(`(?m)^\s*raise\s+NotImplementedError\b`)
+	explicitRustStubRe = regexp.MustCompile(`(?m)^\s*(?:todo|unimplemented)!\s*\(`)
+	explicitTSStubRe   = regexp.MustCompile(`(?im)^\s*throw\s+new\s+Error\s*\(\s*["']not\s+implemented`)
 )
 
 type scanAccumulator struct {
@@ -203,7 +205,7 @@ func evaluateImplementationMetrics(relSlash, lang string, loc int, data []byte, 
 	if len(eval.Files) > 0 {
 		cds = eval.Files[0].CDS
 	}
-	stubs := len(eval.EmptyBlocks) + len(explicitStubTokenRe.FindAll(data, -1))
+	stubs := len(eval.EmptyBlocks) + countExplicitPolyglotStubs(lang, data)
 	sinks := len(verify.DetectPolyglotCWESinks(relSlash, data))
 
 	acc.report.EmptyStubs += stubs
@@ -221,6 +223,41 @@ func evaluateImplementationMetrics(relSlash, lang string, loc int, data []byte, 
 	acc.hotspotsByFile[relSlash] = buildHotspotCandidate(fm, acc.thresholds)
 }
 
+func countExplicitPolyglotStubs(lang string, data []byte) int {
+	switch lang {
+	case "go":
+		return countGoPanicOrTrivialShims(data)
+	case "python":
+		return len(explicitPyStubRe.FindAll(data, -1))
+	case "rust":
+		return len(explicitRustStubRe.FindAll(data, -1))
+	case "typescript", "svelte":
+		return len(explicitTSStubRe.FindAll(data, -1))
+	default:
+		return 0
+	}
+}
+
+func countGoPanicOrTrivialShims(data []byte) int {
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, "impl.go", data, 0)
+	if err != nil {
+		return 0
+	}
+	count := 0
+	for _, decl := range node.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Body == nil {
+			continue
+		}
+		dto := verify.ScanFunctionAntiShim(fn)
+		if dto.IsPanicShim || dto.IsTrivialPassShim {
+			count++
+		}
+	}
+	return count
+}
+
 func countSkippedTests(lang string, data []byte) int {
 	if lang != "go" {
 		return len(treesitter.DetectSkippedTests(lang, data))
@@ -231,18 +268,32 @@ func countSkippedTests(lang string, data []byte) int {
 		return 0
 	}
 	count := 0
-	ast.Inspect(node, func(n ast.Node) bool {
-		call, ok := n.(*ast.CallExpr)
-		if !ok {
-			return true
-		}
-		sel, isSel := call.Fun.(*ast.SelectorExpr)
-		if isSel && (sel.Sel.Name == "Skip" || sel.Sel.Name == "Skipf" || sel.Sel.Name == "SkipNow") {
+	for _, decl := range node.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if ok && isUnconditionalGoSkipFunc(fn) {
 			count++
 		}
-		return true
-	})
+	}
 	return count
+}
+
+func isUnconditionalGoSkipFunc(fn *ast.FuncDecl) bool {
+	if fn == nil || fn.Name == nil || !strings.HasPrefix(fn.Name.Name, "Test") || fn.Body == nil || len(fn.Body.List) == 0 {
+		return false
+	}
+	exprStmt, ok := fn.Body.List[0].(*ast.ExprStmt)
+	if !ok {
+		return false
+	}
+	call, ok := exprStmt.X.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	sel, isSel := call.Fun.(*ast.SelectorExpr)
+	if !isSel || sel.Sel == nil {
+		return false
+	}
+	return sel.Sel.Name == "Skip" || sel.Sel.Name == "Skipf" || sel.Sel.Name == "SkipNow"
 }
 
 func countLines(data []byte) int {

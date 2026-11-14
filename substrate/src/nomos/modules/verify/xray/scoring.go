@@ -89,16 +89,24 @@ func computeHangoverScore(rep *XrayReport) int {
 	if rep.FilesScanned == 0 {
 		return 0
 	}
-	raw := rep.CloneGroups*8 +
-		rep.MonolithFiles*7 +
+	faults := rep.CloneGroups*10 +
+		rep.MonolithFiles*8 +
 		rep.OversizedFuncs*4 +
-		rep.EmptyStubs*6 +
-		rep.SkippedTests*5 +
-		rep.SecuritySinks*12
-	if raw > 100 {
+		rep.EmptyStubs*7 +
+		rep.SkippedTests*6 +
+		rep.SecuritySinks*14
+	if faults == 0 {
+		return 0
+	}
+	scale := 1.0 + float64(rep.FilesScanned)/50.0
+	normalized := int(float64(faults)/scale + 0.5)
+	if normalized < 1 {
+		normalized = 1
+	}
+	if normalized > 100 {
 		return 100
 	}
-	return raw
+	return normalized
 }
 
 func computeHangoverGrade(score int) string {
@@ -123,7 +131,7 @@ func hotspotRankWeight(h *XrayHotspot) int {
 func selectTopHotspots(byFile map[string]*XrayHotspot, limit int) []XrayHotspot {
 	candidates := make([]XrayHotspot, 0, len(byFile))
 	for _, hs := range byFile {
-		if len(hs.Reasons) > 0 || hs.CDS > 20 {
+		if len(hs.Reasons) > 0 {
 			candidates = append(candidates, *hs)
 		}
 	}
