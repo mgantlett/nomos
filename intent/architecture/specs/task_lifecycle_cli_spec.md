@@ -327,7 +327,7 @@ type UpdateCheckCache struct {
 ### 4.15 Day-0 Brownfield Onboarding (`nomos init` & Lean Steering)
 * **Zero-Violation Boundary Inference**: `nomos init` runs `InferCleanArchitectureBoundaries` on brownfield repositories and writes verified `architecture_boundaries` rules into `nomos.yaml`.
 * **Progressive Template Reference**: `templates/nomos.yaml` documents `architecture_boundaries` and `contracts` (`strict_types`, `verify_obligations`) for binary-only downstream installations.
-* **Day-0 Mneme Topology Seed**: `nomos init` idempotently persists a `KindArchitecture` (`topic: "init-topology"`) memory in `mneme.db`, and `RecallRepoPatternsReadOnly` surfaces it before statutory `pattern` records exist.
+* **Day-0 Mneme Seed & Canonical Hook Guard**: `nomos init` writes canonical `hooks.json` manifests and seeds `mneme.db` (`topic: "init-topology"`). It skips `NOMOS_INIT_IN_PROGRESS=1` commits when `HEAD` holds a release receipt and refuses `NOMOS_IN_TOOLCHAIN_GATE=1` runs.
 * **Lean `intent_twin_mode: off` Steering**: When `intent_twin_mode` is `off` and the wavefront is empty, `nomos handshake` steers `IDLE` directly to `nomos task chore` and `sync -m`.
 
 ### 4.16 Zero-Init Brownfield X-Ray & Baseline Lock (`nomos xray` & `nomos init --baseline`)
@@ -359,7 +359,7 @@ type UpdateCheckCache struct {
 | `TC-TSK-17` | Law 2 (Receipt-Trace Parity) | `nomos task sync SUB-99 -F walkthrough.md` (contradicts diff or hook trace) | Rejects walkthrough diff contradiction; degrades gracefully without hook trace |
 | `TC-SYNC-020` | Law 2 (Pre-Verify Rebase & Receipt Cache) | `nomos task commit` -> `nomos task sync` | Rebases before verify; reuses clean tree+trunk receipts; invalidates on drift |
 | `TC-SYNC-021` | Law 5 & Law 7 (Walkthrough Airlock) | `nomos task sync` with `file://` home path or prohibited package literal | Scrubs workspace/home paths; rejects prohibited boundary literals before merge |
-| `TC-SYNC-022` | Law 4 & Law 7 (GoReleaser & Semver Parity) | `nomos verify` on malformed `.goreleaser.yaml` template or drifted `PKGBUILD` `pkgver` | `ReleaseReceiptGate` rejects template syntax error or semver pin drift |
+| `TC-SYNC-022` | Law 4 & Law 7 (GoReleaser, Semver & Action Parity) | `nomos verify` on malformed `.goreleaser.yaml`, drifted `PKGBUILD` `pkgver`, or drifted root `action.yml` `go-version` | `ReleaseReceiptGate` rejects template syntax, semver pin, or Go toolchain pin drift |
 | `TC-SYNC-023` | Law 5 & Law 7 (Changelog Airlock) | `nomos verify` on `CHANGELOG.md` containing home path or prohibited package | `ReleaseReceiptGate` rejects unsanitized `CHANGELOG.md` literal before release tag |
 | `TC-SYNC-024` | Law 2 (Working-Tree Verify Receipt Cache) | Unstaged `nomos verify` -> `nomos task commit` -> `nomos task sync` | Computes temp-index tree SHA once; reuses fresh receipt across `pre-commit` and `sync` |
 | `TC-SYNC-025` | Law 1 & Law 2 (Inline 1-Turn Sync) | `nomos task sync SUB-99 -m "<summary>"` vs `-m` + `-F` | Merges and seals receipt in 1 call; rejects `-m` with `-F` |
