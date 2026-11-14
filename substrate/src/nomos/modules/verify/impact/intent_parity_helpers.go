@@ -5,10 +5,12 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 )
 
@@ -181,9 +183,31 @@ func compareAssetParity(label, wsPath, tplPath string) string {
 		return fmt.Sprintf("workspace %s missing for template", label)
 	}
 	if h1 != h2 {
+		if strings.HasSuffix(wsPath, ".json") && isCanonicalJSONSuperset(wsPath, tplPath) {
+			return ""
+		}
 		return fmt.Sprintf("%s drifted from template (ws=%s, tpl=%s)", label, h1[:8], h2[:8])
 	}
 	return ""
+}
+
+func isCanonicalJSONSuperset(wsPath, tplPath string) bool {
+	wsBytes, e1 := os.ReadFile(wsPath)
+	tplBytes, e2 := os.ReadFile(tplPath)
+	if e1 != nil || e2 != nil {
+		return false
+	}
+	var wsMap, tplMap map[string]any
+	if json.Unmarshal(wsBytes, &wsMap) != nil || json.Unmarshal(tplBytes, &tplMap) != nil {
+		return false
+	}
+	for k, tplVal := range tplMap {
+		wsVal, ok := wsMap[k]
+		if !ok || !reflect.DeepEqual(wsVal, tplVal) {
+			return false
+		}
+	}
+	return true
 }
 
 func computeFileHash(path string) (string, int64, error) {

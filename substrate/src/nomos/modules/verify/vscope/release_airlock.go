@@ -20,6 +20,8 @@ var (
 	changelogTopHeadingRe = regexp.MustCompile(`(?m)^##\s+\[v?([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?)\]`)
 	pkgbuildVerDeclRe     = regexp.MustCompile(`(?m)^pkgver=([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?)`)
 	templateSchemaPinRe   = regexp.MustCompile(`raw\.githubusercontent\.com/mgantlett/nomos/v([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?)/nomos\.schema\.json`)
+	goModMinorDirectiveRe = regexp.MustCompile(`(?m)^go\s+([0-9]+\.[0-9]+)`)
+	actionGoVersionPinRe  = regexp.MustCompile(`(?m)^\s*go-version:\s*['"]?([0-9]+\.[0-9]+)`)
 	changelogRawSecretRe  = regexp.MustCompile(`(?:-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16})`)
 	changelogBareAtTokRe  = regexp.MustCompile(`(?:^|[\s(])(@[A-Za-z0-9_.-]+)`)
 )
@@ -199,7 +201,32 @@ func validateStatutorySemverParity(root string) (string, string) {
 	if issue := checkPKGBUILDVersionPin(root, wantVer); issue != "" {
 		return issue, remedy
 	}
+	if issue := checkActionYAMLGoPin(root); issue != "" {
+		return issue, "align action.yml go-version major.minor pin with substrate/go.mod before tagging"
+	}
 	return "", ""
+}
+
+func checkActionYAMLGoPin(root string) string {
+	goModPath := filepath.Join(root, "substrate", "go.mod")
+	actionPath := filepath.Join(root, "action.yml")
+	if !FileExists(goModPath) || !FileExists(actionPath) {
+		return ""
+	}
+	modBytes, err := os.ReadFile(goModPath)
+	if err != nil {
+		return ""
+	}
+	actBytes, err := os.ReadFile(actionPath)
+	if err != nil {
+		return ""
+	}
+	gm := goModMinorDirectiveRe.FindSubmatch(modBytes)
+	am := actionGoVersionPinRe.FindSubmatch(actBytes)
+	if len(gm) >= 2 && len(am) >= 2 && string(gm[1]) != string(am[1]) {
+		return fmt.Sprintf("statutory toolchain pin drift: substrate/go.mod go=%s != action.yml go-version=%s.x", string(gm[1]), string(am[1]))
+	}
+	return ""
 }
 
 func checkChangelogSemverPin(root, wantVer string) string {

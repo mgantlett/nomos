@@ -32,7 +32,18 @@ func collectGovernanceStagePaths(absDir string) []string {
 	return existing
 }
 
+func hasExistingReleaseProvenance(absDir string) bool {
+	return workspace.SafeGitCommand(absDir, "notes", "--ref=nomos/releases", "show", "HEAD").Run() == nil
+}
+
+func isProtectedToolchainTarget(absDir string) bool {
+	return os.Getenv("NOMOS_IN_TOOLCHAIN_GATE") == "1" && hasExistingReleaseProvenance(absDir)
+}
+
 func stageAndCommitGovernanceOnly(absDir string) (bool, error) {
+	if hasExistingReleaseProvenance(absDir) {
+		return false, nil
+	}
 	govPaths := collectGovernanceStagePaths(absDir)
 	if len(govPaths) == 0 {
 		return false, nil

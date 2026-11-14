@@ -82,6 +82,14 @@ func TestEvaluatePreTagReleaseAirlock_GoReleaserAndSemverParity(t *testing.T) {
 	if msg, _ := EvaluatePreTagReleaseAirlock(ctx3, root3); !strings.Contains(msg, "CHANGELOG.md top release v4.16.1") {
 		t.Fatalf("expected CHANGELOG.md semver pin drift rejection, got: %q", msg)
 	}
+
+	// Inject action.yml Go toolchain major.minor drift against substrate/go.mod.
+	root4, ctx4 := seedAlignedReleaseRepo(t)
+	writeReleaseFixtureFile(t, root4, "substrate/go.mod", "module github.com/mgantlett/nomos/substrate\n\ngo 1.26.5\n")
+	writeReleaseFixtureFile(t, root4, "action.yml", "name: 'Test'\nruns:\n  using: 'composite'\n  steps:\n    - uses: actions/setup-go@v6\n      with:\n        go-version: '1.25.x'\n")
+	if msg, _ := EvaluatePreTagReleaseAirlock(ctx4, root4); !strings.Contains(msg, "action.yml go-version=1.25.x") {
+		t.Fatalf("expected action.yml go-version pin drift rejection, got: %q", msg)
+	}
 }
 
 // @verifies TC-SYNC-023

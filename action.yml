@@ -7,7 +7,7 @@ inputs:
     required: false
     default: 'origin/main'
   mutate-diff:
-    description: 'Run zero-token AST micro-mutation probing across modified Go functions'
+    description: 'Run zero-token AST micro-mutation probing across modified Go, TypeScript/JS, and Python functions'
     required: false
     default: 'true'
   working-directory:
@@ -25,17 +25,17 @@ runs:
     - name: Set up Go for Nomos CLI
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.x'
+        go-version: '1.26.x'
 
     - name: Install or Reuse Nomos CLI
       shell: bash
       run: |
         if ! command -v nomos >/dev/null 2>&1; then
-          if [ -f "${{ github.action_path }}/../../../substrate/go.mod" ]; then
-            CGO_ENABLED=0 go -C "${{ github.action_path }}/../../../substrate" build -o "$RUNNER_TEMP/nomos" ./cmd/nomos
+          if [ -f "${{ github.action_path }}/substrate/go.mod" ]; then
+            GOTOOLCHAIN=auto CGO_ENABLED=0 go -C "${{ github.action_path }}/substrate" build -o "$RUNNER_TEMP/nomos" ./cmd/nomos
             echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
           else
-            CGO_ENABLED=0 go install github.com/mgantlett/nomos/substrate/cmd/nomos@latest
+            GOTOOLCHAIN=auto CGO_ENABLED=0 go install github.com/mgantlett/nomos/substrate/cmd/nomos@latest
           fi
         fi
 

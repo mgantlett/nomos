@@ -62,6 +62,9 @@ func executeInitWithOptions(dir string, baselineLock bool) error {
 	if err != nil {
 		return types.NewNomosError(types.ErrCodeBoundary, "failed resolving absolute path for %s: %v", dir, err)
 	}
+	if isProtectedToolchainTarget(absDir) {
+		return types.NewNomosError(types.ErrCodeBoundary, "refusing to execute nomos init against release-governed repository %s inside toolchain gate", absDir)
+	}
 
 	var preInitXray *xray.XrayReport
 	if baselineLock {

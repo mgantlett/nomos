@@ -161,3 +161,46 @@ func TestPosixHookShellCommand_GUIFallbackPathAndMissingBinaryGrace(t *testing.T
 		t.Fatalf("expected GUI fallback nomos binary to enforce trunk Write block, got:\n%s", string(guiOut))
 	}
 }
+
+func TestExecuteInit_SkipsAutoCommitWhenReleaseNotesExistAndKeepsCanonicalHooks(t *testing.T) {
+	t.Setenv("NOMOS_HOME", t.TempDir())
+	t.Setenv("NOMOS_IN_TOOLCHAIN_GATE", "")
+	repoDir := t.TempDir()
+	runGitOrFail(t, repoDir, "init", "-b", "main")
+	runGitOrFail(t, repoDir, "config", "user.email", "dev@example.com")
+	runGitOrFail(t, repoDir, "config", "user.name", "Maintainer")
+	if err := os.WriteFile(filepath.Join(repoDir, "main.go"), []byte("package main\nfunc main() {}\n"), 0644); err != nil {
+		t.Fatalf("write main.go: %v", err)
+	}
+	runGitOrFail(t, repoDir, "add", "main.go")
+	runGitOrFail(t, repoDir, "commit", "-m", "feat: initial")
+	runGitOrFail(t, repoDir, "notes", "--ref=nomos/releases", "add", "-m", `{"task":"SUB-1"}`, "HEAD")
+	headBefore := strings.TrimSpace(runGitOrFail(t, repoDir, "rev-parse", "HEAD"))
+
+	if err := executeInit(repoDir); err != nil {
+		t.Fatalf("first executeInit failed: %v", err)
+	}
+	firstHooks, err := os.ReadFile(filepath.Join(repoDir, ".agents", "hooks.json"))
+	if err != nil {
+		t.Fatalf("read first hooks.json: %v", err)
+	}
+	if err := executeInit(repoDir); err != nil {
+		t.Fatalf("second executeInit failed: %v", err)
+	}
+	secondHooks, err := os.ReadFile(filepath.Join(repoDir, ".agents", "hooks.json"))
+	if err != nil {
+		t.Fatalf("read second hooks.json: %v", err)
+	}
+	if string(firstHooks) != string(secondHooks) {
+		t.Fatalf("expected idempotent canonical hooks.json across repeated executeInit runs")
+	}
+	headAfter := strings.TrimSpace(runGitOrFail(t, repoDir, "rev-parse", "HEAD"))
+	if headAfter != headBefore {
+		t.Fatalf("expected zero unreceipted auto-commits when refs/notes/nomos/releases exists on HEAD (%s != %s)", headAfter, headBefore)
+	}
+
+	t.Setenv("NOMOS_IN_TOOLCHAIN_GATE", "1")
+	if gErr := executeInit(repoDir); gErr == nil {
+		t.Fatalf("expected executeInit to refuse mutating release-governed repo during toolchain gate")
+	}
+}

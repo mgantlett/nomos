@@ -17,7 +17,7 @@ func FormatTerminal(rep *XrayReport) string {
 	sb.WriteString(strings.Repeat("─", 76) + "\n")
 	sb.WriteString(fmt.Sprintf("  AI Hangover Score : %d/100 (Grade %s)\n", rep.HangoverScore, rep.Grade))
 	sb.WriteString(fmt.Sprintf("  Corpus Footprint  : %d source files · %d LOC · %s\n",
-		rep.FilesScanned, rep.TotalLOC, formatLanguageBreakdown(rep.Languages)))
+		rep.FilesScanned, rep.TotalLOC, FormatLanguageBreakdown(rep.Languages)))
 	sb.WriteString(fmt.Sprintf("  Debt Signals      : %d clone group(s) · %d monolith(s) (>400 LOC) · %d oversized func(s)\n",
 		rep.CloneGroups, rep.MonolithFiles, rep.OversizedFuncs))
 	sb.WriteString(fmt.Sprintf("  Anti-Cheat Signals: %d empty/TODO stub(s) · %d skipped test(s) · %d CWE sink(s)\n",
@@ -81,7 +81,8 @@ func appendMarkdownHotspots(sb *strings.Builder, hotspots []XrayHotspot) {
 	sb.WriteString("\n")
 }
 
-func formatLanguageBreakdown(langs map[string]int) string {
+// FormatLanguageBreakdown formats scanned file counts per language in deterministic descending order.
+func FormatLanguageBreakdown(langs map[string]int) string {
 	if len(langs) == 0 {
 		return "no supported code files"
 	}

@@ -3,7 +3,6 @@ package tui
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -25,8 +24,12 @@ func RenderXrayTerminal(rep *xray.XrayReport) string {
 	appendXraySummaryLines(&sb, rep)
 	appendLipglossHotspots(&sb, rep.Hotspots)
 	sb.WriteString(UiRule(RuleStandard) + "\n")
+	nextSummary := "Freeze existing brownfield debt into a Day-0 ratchet baseline"
+	if rep.Initialized {
+		nextSummary = "Evaluate all 42 deterministic Definition of Done gates across the repository"
+	}
 	RenderNextActions(&sb, []types.ActionAffordance{
-		{Command: rep.NextCommand, Summary: "Freeze existing brownfield debt into a Day-0 ratchet baseline"},
+		{Command: rep.NextCommand, Summary: nextSummary},
 	})
 	return sb.String()
 }
@@ -40,7 +43,7 @@ func appendXraySummaryLines(sb *strings.Builder, rep *xray.XrayReport) {
 	footprint := fmt.Sprintf("%s source files · %s LOC · %s",
 		UiBoldValueStyle.Render(fmt.Sprintf("%d", rep.FilesScanned)),
 		UiBoldValueStyle.Render(fmt.Sprintf("%d", rep.TotalLOC)),
-		UiMutedStyle.Render(formatXrayLanguages(rep.Languages)))
+		UiMutedStyle.Render(xray.FormatLanguageBreakdown(rep.Languages)))
 	sb.WriteString(KvLine("Corpus Footprint", 18, footprint) + "\n")
 
 	debt := fmt.Sprintf("%s clone group(s) · %s monolith(s) (>400 LOC) · %s oversized func(s)",
@@ -240,25 +243,4 @@ func styleHotspotCDS(cds int) string {
 		return UiWarnStyle.Render(fmt.Sprintf("%d", cds))
 	}
 	return UiBoldValueStyle.Render(fmt.Sprintf("%d", cds))
-}
-
-func formatXrayLanguages(langs map[string]int) string {
-	if len(langs) == 0 {
-		return "no supported code files"
-	}
-	keys := make([]string, 0, len(langs))
-	for k := range langs {
-		keys = append(keys, k)
-	}
-	sort.Slice(keys, func(i, j int) bool {
-		if langs[keys[i]] != langs[keys[j]] {
-			return langs[keys[i]] > langs[keys[j]]
-		}
-		return keys[i] < keys[j]
-	})
-	parts := make([]string, 0, len(keys))
-	for _, k := range keys {
-		parts = append(parts, fmt.Sprintf("%s:%d", k, langs[k]))
-	}
-	return strings.Join(parts, ", ")
 }
