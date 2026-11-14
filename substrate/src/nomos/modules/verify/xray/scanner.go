@@ -77,11 +77,13 @@ func ScanRepository(targetDir string, opts XrayScanOptions) (*XrayReport, error)
 		topLimit = DefaultTopHotspots
 	}
 	acc := newScanAccumulator(absRoot)
-	walkErr := filepath.WalkDir(absRoot, func(path string, d fs.DirEntry, wErr error) error {
-		return visitRepositoryEntry(absRoot, path, d, wErr, acc)
-	})
-	if walkErr != nil {
-		return nil, fmt.Errorf("failed walking repository %s: %w", filepath.Base(absRoot), walkErr)
+	if !tryScanViaGitIndex(absRoot, acc) {
+		walkErr := filepath.WalkDir(absRoot, func(path string, d fs.DirEntry, wErr error) error {
+			return visitRepositoryEntry(absRoot, path, d, wErr, acc)
+		})
+		if walkErr != nil {
+			return nil, fmt.Errorf("failed walking repository %s: %w", filepath.Base(absRoot), walkErr)
+		}
 	}
 	finalizeScanReport(absRoot, topLimit, start, acc)
 	return acc.report, nil
@@ -170,7 +172,7 @@ func inspectCandidateFile(absRoot, path string, d fs.DirEntry, acc *scanAccumula
 }
 
 func isBundledAssetRelPath(relSlash string) bool {
-	if strings.Contains(relSlash, "/sovereign-sandbox/assets/") {
+	if strings.Contains(relSlash, "/sovereign-sandbox/assets/") || strings.Contains(relSlash, "/_app/immutable/") {
 		return true
 	}
 	return strings.Contains(relSlash, "/assets/") && hashedBundleChunkRe.MatchString(relSlash)
@@ -204,7 +206,11 @@ func shouldSkipDir(name string) bool {
 	if strings.HasPrefix(name, ".") {
 		return true
 	}
-	return ignoredScanDirs[strings.ToLower(name)]
+	lower := strings.ToLower(name)
+	if strings.HasPrefix(lower, "build.") || strings.HasPrefix(lower, "dist.") || strings.HasPrefix(lower, "out.") || lower == "_app" {
+		return true
+	}
+	return ignoredScanDirs[lower]
 }
 
 func ingestSourceFile(relSlash, lang string, data []byte, acc *scanAccumulator) {

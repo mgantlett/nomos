@@ -131,7 +131,11 @@ func shouldSkipBrownfieldScanDir(name string) bool {
 	if strings.HasPrefix(name, ".") {
 		return true
 	}
-	return brownfieldIgnoredDirs[strings.ToLower(name)]
+	lower := strings.ToLower(name)
+	if strings.HasPrefix(lower, "build.") || strings.HasPrefix(lower, "dist.") || strings.HasPrefix(lower, "out.") || lower == "_app" {
+		return true
+	}
+	return brownfieldIgnoredDirs[lower]
 }
 
 func isImplementationSourceFile(name string) bool {

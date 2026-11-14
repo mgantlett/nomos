@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/constants"
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/xray"
 )
 
@@ -166,5 +167,48 @@ func TestScanRepository_DayZeroVerifyParitySensorsAndHashedBundles(t *testing.T)
 	}
 	if len(rep.Hotspots) != 1 || rep.Hotspots[0].UncheckedErrors != 1 || rep.Hotspots[0].SecretLeaks != 1 {
 		t.Fatalf("unexpected hotspot payload: %+v", rep.Hotspots)
+	}
+}
+
+func TestScanRepository_HonorsGitIgnoreAndBuildNext(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "git-governed-app")
+	if err := os.MkdirAll(filepath.Join(root, "src"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte("custom_artifacts/\n**/build.next/\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "src", "clean.go"), []byte("package src\n\n// Add sums two integers.\nfunc Add(a, b int) int { return a + b }\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	ignoredDir := filepath.Join(root, "custom_artifacts")
+	buildNextDir := filepath.Join(root, "ui", "build.next", "client", "_app", "immutable", "chunks")
+	if err := os.MkdirAll(ignoredDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(buildNextDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	noisyChunk := "export function bad() { try { run(); } catch (e) {} }\n" + strings.Repeat("// filler\n", 420)
+	if err := os.WriteFile(filepath.Join(ignoredDir, "generated.ts"), []byte(noisyChunk), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(buildNextDir, "BuZu7gLC.js"), []byte(noisyChunk), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := workspace.RunSafeGit(root, "init"); err != nil {
+		t.Fatalf("git init failed: %v", err)
+	}
+	if _, err := workspace.RunSafeGit(root, "add", ".gitignore", "src/clean.go"); err != nil {
+		t.Fatalf("git add failed: %v", err)
+	}
+
+	rep, err := xray.ScanRepository(root, xray.DefaultScanOptions())
+	if err != nil {
+		t.Fatalf("ScanRepository failed: %v", err)
+	}
+	if rep.FilesScanned != 1 || rep.HangoverScore != 0 || len(rep.Hotspots) != 0 {
+		t.Fatalf("expected only tracked clean.go (score 0, 1 file), got %+v", rep)
 	}
 }

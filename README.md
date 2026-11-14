@@ -40,9 +40,25 @@ nomos init --baseline                    # Scaffolds nomos.yaml + freezes existi
 Every single-repository governance capability ships locally in the open-source `nomos` binary with zero crippled commands:
 
 ### 1. Zero-Init Brownfield X-Ray & Debt Ratchet (`nomos xray`, `nomos init --baseline`)
-- **5-Second Read-Only Audit (`nomos xray .`):** Computes an `AI Hangover Score` (`0-100`, `Grade A-F`), `>400 LOC` monoliths, structural clones, empty/TODO stubs, skipped tests, CWE security sinks, and ready-to-lock hexagonal `architecture_boundaries` in milliseconds with **zero repository writes**.
-- **Drop Into `200k+ LOC` Legacy Repos on Day 1 (`nomos init --baseline`):** Freezes existing brownfield debt on `main` (`strict_mode: false`) with **zero upfront warning cleanup**, while ratcheting **every file an agent touches** (`<= 0` added cyclomatic/cognitive debt, `>= 0` test coverage delta, `0` new structural clones or swallowed errors).
+- **Sub-Second Git-Aware Audit (`nomos xray .`):** Walks your Git index (`git ls-files --cached --others --exclude-standard`, honoring `.gitignore` automatically) across 11 languages to compute an `AI Hangover Score` (`0-100`, `Grade A-F`), structural clones, `>400 LOC` monoliths, oversized functions, high-arity (`>8` params) and deep-nesting (`>5` levels) signatures, magic-string duplication clusters, empty/TODO stubs, skipped tests, swallowed errors, secret/host-path leaks, CWE security sinks, and ready-to-lock hexagonal `architecture_boundaries` with **zero repository writes**.
+- **Drop Into `200k+ LOC` Legacy Repos on Day 1 (`nomos init --baseline`):** Freezes observed Day-0 structural envelopes in `nomos.baseline.json` (`strict_mode: false`) with **zero upfront warning cleanup**, while ratcheting **every file an agent touches** (`<= 0` added cyclomatic/cognitive/arity debt, `>= 0` test coverage delta, `0` new structural clones, swallowed errors, or secret/path leaks).
 - **Tamper-Proof Human Exceptions:** Agents are blocked from adding inline linter-ignore comments or editing `nomos.yaml` inside a task branch; human architects declare legitimate adapter carve-outs (`allow_only`, `forbid_imports`, `exclude`) directly on protected `main`.
+
+```text
+$ nomos xray .
+🔬 Nomos Brownfield X-Ray · nomos (634ms)
+────────────────────────────────────────────────────────────────────────────
+  AI Hangover Score  : 0/100 Grade A
+  Corpus Footprint   : 458 source files · 84742 LOC · go:458
+  Debt Signals       : 0 clone group(s) · 0 monolith(s) (>400 LOC) · 0 oversized func(s)
+  Signature & Reuse  : 0 high-arity · 0 deep-nesting · 0 magic-string cluster(s)
+  Anti-Cheat Signals : 0 empty/TODO stub(s) · 0 skipped test(s) · 0 swallowed error(s) · 0 secret/path leak(s) · 0 CWE sink(s)
+  Clean Boundaries   : 1 zero-violation architecture boundary rule(s) ready
+  Top Hotspots       : none (all scanned files within strict thresholds)
+────────────────────────────────────────────────────────────────────────────
+  ◈ Next Actions:
+    → nomos verify --all  (Evaluate all 42 deterministic Definition of Done gates across the repository)
+```
 
 ### 2. Hermetic Worktrees, Multi-Agent `MTPO` & Constitutional `main` (`nomos task`, `nomos physics`)
 - **Physically Read-Only `main`:** Direct agent commits to `main` fail closed; tasks execute inside disposable `worktrees/<repo>-<task>` sandboxes (`nomos task chore`, `nomos task pair`, `nomos task dag`).
@@ -96,8 +112,8 @@ curl -fsSL https://sophialabs.ca/uninstall | bash
 
 ```bash
 cd your-project
-nomos xray .              # Optional 5-sec read-only AI Hangover Score & hotspot audit
-nomos init --baseline     # Scaffolds nomos.yaml, hooks & freezes existing brownfield debt
+nomos xray .              # Sub-second Git-aware AI Hangover Score & 10-sensor hotspot audit
+nomos init --baseline     # Scaffolds nomos.yaml, hooks & locks nomos.baseline.json on Day 0
 ```
 
 ### 3. Prompt Your Agent in Plain English
@@ -113,6 +129,17 @@ Your agent autonomously executes the sandboxed lifecycle under the hood (in as f
 ```bash
 nomos task chore "Add TTL cache eviction"                              # 1. Opens isolated worktree (worktrees/<repo>-SUB-1)
 nomos task sync SUB-1 -m "Add TTL cache eviction and unit coverage"    # 2. Verifies 42 gates, merges to main & seals Git Note
+```
+
+### 4. Enforce Zero-Trust PR Proof Receipts in GitHub Actions (Optional)
+
+```yaml
+- uses: actions/checkout@v4
+  with: { fetch-depth: 0 }
+- uses: mgantlett/nomos@v4.19.0
+  with:
+    base-ref: origin/main
+    mutate-diff: 'true'
 ```
 
 > **💡 Cheap Workhorse Stack (`OpenCode` + `OpenRouter` / Local `16GB` GPU):** Because `.opencode/plugins/nomos.ts` enforces frontier merge rules in local compiled Go (`0` middleman token tax), `14B-32B` open-weight models jump from `27.8%` to **`86.1%`** brownfield resolution (`3.1x` lift) while cutting token spend `-43%` to `-57%`.
