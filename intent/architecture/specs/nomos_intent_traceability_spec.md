@@ -289,6 +289,83 @@ func VerifyNoOrphanedTestObligations(root string, specPaths []string) []string
 func VerifyNormativeRegistrySurjection(root string, specPaths []string) []string
 ```
 
+### 4.4 Zero-Trust PR Proof Receipt & Diff Micro-Mutation Contracts (`substrate/src/nomos/modules/verify/prproof/`)
+
+```go
+package prproof
+
+// DiffMutant records one single-point AST operator or literal mutation probed against package tests (#DiffMutant).
+type DiffMutant struct {
+	ID         string `json:"id"`
+	File       string `json:"file"`
+	Function   string `json:"function"`
+	Line       int    `json:"line"`
+	OriginalOp string `json:"original_op"`
+	MutatedOp  string `json:"mutated_op"`
+	Killed     bool   `json:"killed"`
+}
+
+// DiffMutationReport summarizes zero-token AST micro-mutation probing across modified functions (#DiffMutationReport).
+type DiffMutationReport struct {
+	BaseRef         string       `json:"base_ref"`
+	MutantsTotal    int          `json:"mutants_total"`
+	MutantsKilled   int          `json:"mutants_killed"`
+	MutantsSurvived int          `json:"mutants_survived"`
+	KillScorePct    float64      `json:"kill_score_pct"`
+	Passed          bool         `json:"passed"`
+	DurationMillis  int64        `json:"duration_ms"`
+	Survivors       []DiffMutant `json:"survivors,omitempty"`
+}
+
+// GatePostureSummary captures 42-gate verification posture for PR proof sealing (#GatePostureSummary).
+type GatePostureSummary struct {
+	GatesPassed  int  `json:"gates_passed"`
+	GatesTotal   int  `json:"gates_total"`
+	PipelinePass bool `json:"pipeline_pass"`
+}
+
+// PRProofOptions configures base-ref selection, diff mutation probing, and receipt file output (#PRProofOptions).
+type PRProofOptions struct {
+	BaseRef    string `json:"base_ref,omitempty"`
+	MutateDiff bool   `json:"mutate_diff,omitempty"`
+	OutputPath string `json:"output_path,omitempty"`
+}
+
+// PRDebtDelta compares current structural hangover metrics against the base ref or baseline manifest (#PRDebtDelta).
+type PRDebtDelta struct {
+	BaseRef          string `json:"base_ref"`
+	BaseScore        int    `json:"base_score"`
+	HeadScore        int    `json:"head_score"`
+	DeltaScore       int    `json:"delta_score"`
+	HeadGrade        string `json:"head_grade"`
+	BaselineManifest bool   `json:"baseline_manifest"`
+}
+
+// PRProofReceipt seals 42-gate posture, plane separation, debt delta, and mutation score (#PRProofReceipt).
+type PRProofReceipt struct {
+	SchemaVersion  string              `json:"schema_version"`
+	ProjectName    string              `json:"project_name"`
+	BaseRef        string              `json:"base_ref"`
+	HeadCommit     string              `json:"head_commit"`
+	GatesPassed    int                 `json:"gates_passed"`
+	GatesTotal     int                 `json:"gates_total"`
+	PlaneSummary   string              `json:"plane_summary"`
+	DebtDelta      PRDebtDelta         `json:"debt_delta"`
+	MutationReport *DiffMutationReport `json:"mutation_report,omitempty"`
+	Passed         bool                `json:"passed"`
+	ReceiptSHA256  string              `json:"receipt_sha256"`
+}
+
+// EvaluateDiffMutations mutates single-point AST operators in ephemeral shadow copies and runs targeted tests.
+func EvaluateDiffMutations(repoRoot, baseRef string) (*DiffMutationReport, error)
+
+// BuildPRProofReceipt constructs and hashes a portable PR proof receipt for CI and code review.
+func BuildPRProofReceipt(repoRoot string, posture GatePostureSummary, opts PRProofOptions) (*PRProofReceipt, error)
+
+// FormatPRProofMarkdown renders a deterministic Markdown PR proof summary table.
+func FormatPRProofMarkdown(receipt *PRProofReceipt) string
+```
+
 ---
 
 ## 5. Deterministic Execution Semantics
@@ -321,9 +398,14 @@ func VerifyNormativeRegistrySurjection(root string, specPaths []string) []string
    - `VerifyNormativeRegistrySurjection` verifies `100%` of self-hosted `RegisterGate` `ProbeID`s, `core/config` structs, CLI `--flags`, and live `ERR_*` codes appear in specs.
    - Concurrent `SUB-*` worktrees defer only pending sibling `INT-*` commit deltas (`TC-*` vectors, new structs, and added struct fields) across shared specs.
 8. **CLI Invocation Flags & Complete Probe Registry (`nomos verify` / `nomos proof`):**
-   - `nomos verify` and `nomos proof` accept `--baseline`, `--fast-file`, `--impact`, `--range`, `--strict`, and `--worktree` flags.
+   - `nomos verify` and `nomos proof` accept `--base-ref`, `--baseline`, `--fast-file`, `--impact`, `--mutate-diff`, `--pr`, `--pr-output`, `--range`, `--strict`, and `--worktree` flags.
    - Active probes include `config_immutability`, `dead_code`, `ecosystem_drift`, `gate_integrity_proof`, `infra_ingress`, `ip_leak`, `review_receipt`, `threshold_integrity`, `topology_parity`, `uasset_dependency`, `ui_anti_mask`, and `visual_regression`.
    - `AntiShimGate` rejects hollow return stubs with `ERR_TRIVIAL_PASS_SHIM`.
+9. **Zero-Trust PR Proof Receipts & Diff Micro-Mutation Oracle (`TC-PR-01`..`TC-SHIM-02`):**
+   - `nomos verify --mutate-diff` mutates single-point Go AST operators inside ephemeral shadow directories using zero LLM tokens.
+   - Surviving behavioral mutants reject execution, catching tautological assertions that pass unchanged when branch predicates flip.
+   - `nomos verify --pr` emits Markdown or `--json` `PRProofReceipt` digests sealing 42-gate posture, plane separation, `xray` debt delta, and SHA-256 provenance.
+   - `EvaluateContainerPreToolHook` blocks shell and file snooping against `/tests`, `/solution`, `/logs/verifier`, `/verifier`, `/grading`, `/eval`, `/harness`, `/oracle`, and `/proc/1/environ`.
 
 ---
 
@@ -373,6 +455,10 @@ func VerifyNormativeRegistrySurjection(root string, specPaths []string) []string
 | `TC-AGT-08` | `ForbiddenLiteralsGate` | Source file contains hardcoded workstation home path | Fails closed on forbidden path literal | Law 5 |
 | `TC-AGT-09` | `ContractParityGate` | Zero canonical assets discovered during parity check | Fails closed rejecting vacuous asset discovery | Law 4 |
 | `TC-AGT-10` | `AntiShimGate` (`AntiShimDTO`) | Function body consists solely of `panic("TODO")` stub | Fails closed with `IsPanicShim == true` | Law 2 & Law 7 |
+| `TC-MUT-01` | `EvaluateDiffMutations` | Modified Go function tested only by tautological `true` check | Mutant survives and fails `nomos verify --mutate-diff` | Law 2 & Law 7 |
+| `TC-PR-01` | `BuildPRProofReceipt` | `nomos verify --pr` evaluates clean branch against `main` | Seals 42-gate posture, debt delta, and SHA-256 digest | Law 2 & Law 4 |
+| `TC-PR-02` | `FormatPRProofMarkdown` | `PRProofReceipt` rendered via `--pr` and `--pr-output` | Writes deterministic Markdown table without workstation literals | Law 4 & Law 5 |
+| `TC-SHIM-02` | `EvaluateContainerPreToolHook` | Agent reads `/grading/score.py`, `/verifier/run.sh`, or `/proc/1/environ` | Rejects verifier-snooping payload before tool execution | Law 2 & Law 3 |
 
 ---
 
@@ -382,6 +468,7 @@ func VerifyNormativeRegistrySurjection(root string, specPaths []string) []string
    - `substrate/src/nomos/core/config/config.go` (`ContractsConfig`, `ArchitectureBoundaryRule`, `QualityGatesConfig`).
    - `substrate/src/nomos/modules/task/git_notes.go` (`ReleaseNotePayload`, `StaleSpecObligation`, `ComputeStaleSpecObligations`).
    - `substrate/src/nomos/modules/verify/gates_intent.go` & `substrate/src/nomos/modules/verify/intent_schema_helpers.go` (`IntentTraceabilityGate`, `VerifyExecutableObligations`, `VerifySpecTypeSignatures`, `EvaluateArchitectureBoundaries`).
+   - `substrate/src/nomos/modules/verify/prproof/` (`DiffMutant`, `DiffMutationReport`, `PRProofReceipt`, `EvaluateDiffMutations`, `BuildPRProofReceipt`).
 2. **7x3 Invariant Matrix Coordinates:**
    - `Cell 4.1 (intent_traceability)` and `Cell 4.2 (contract_parity)` enforce `@intent` anchors, executable `TC-*` bindings, struct parity, taint checks, and import boundaries.
    - `Cell 3.3 (release_receipt)` validates `ReleaseNotePayload` integrity including optional `spec_digests` SHA-256 entries.

@@ -299,6 +299,9 @@ type XrayBaselineManifest struct {
 func ScanRepository(rootDir string, opts XrayScanOptions) (*XrayReport, error)
 ```
 
+### 4.5 Diff-Targeted AST Micro-Mutation & Verifier-Snooping Airlock
+`prproof.EvaluateDiffMutations` (`nomos verify --mutate-diff`) extracts modified Go functions relative to `baseRef`. The mutator applies AST operator inversions (`>` to `>=`, `<` to `<=`, `==` to `!=`, and `true` to `false`) in shadow directories. Each mutant executes targeted `go test` runs with zero LLM tokens and rejects execution when behavioral mutants survive. `EvaluateContainerPreToolHook` enforces the `shim-02` airlock across single-file and multi-file payloads. The hook blocks reads targeting `/tests`, `/solution`, `/logs/verifier`, `/verifier`, `/grading`, `/eval`, `/harness`, `/oracle`, and `/proc/1/environ`.
+
 ---
 
 ## 5. Table-Driven Verification Vectors
@@ -331,6 +334,7 @@ The following table-driven verification vectors validate the Tree-sitter AST Gat
 | `TC-TS-18` | `polyglot` | `corpus_command` exits non-zero on reference corpus regression | `GoToolchainGate` executes corpus probe with `NOMOS_BASELINE_REF` | Exit code `!= 0` | `FAIL` | Reference corpus regression fails closed |
 | `TC-XRAY-01` | `polyglot` | Uninitialized Go, Python, and TS fixture with clones and stubs | `xray.ScanRepository` aggregates polyglot metrics and hotspots | Non-zero `HangoverScore` and `BaselineEnvelope` | `PASS` | Read-only scan writes zero files or SQLite rows |
 | `TC-XRAY-02` | `polyglot` | `XrayReport` serialized via JSON and Markdown formatters | Relative hotspot paths emitted | Zero host home-directory literals | `PASS` | Law 5 path scrubbing holds across `XrayReport` outputs |
+| `TC-MUT-02` | `go` | Modified Go function tested with boundary assertions | `prproof.EvaluateDiffMutations` flips AST operators | `KillScorePct == 100` | `PASS` | Boundary tests kill every diff AST mutant |
 
 ---
 
@@ -342,5 +346,6 @@ The following table-driven verification vectors validate the Tree-sitter AST Gat
 | Pure-Go `wazero` WASM sandbox (`WazeroTreeSitterEngine`) | `substrate/src/nomos/modules/verify/treesitter/engine.go` | `Cell 4.2 (contract_parity)`, `Cell 2.2 (go_toolchain)` |
 | Embedded `.scm` S-expression queries & polyglot scanners | `substrate/src/nomos/modules/verify/treesitter/scm_query.go`, `polyglot_scanner.go` | `Cell 2.1 (anti_shim / docstrings)`, `Cell 5.1 (magic_strings)` |
 | Zero-init brownfield X-Ray & baseline envelope (`XrayReport`, `ScanRepository`) | `substrate/src/nomos/modules/verify/xray/types.go`, `scanner.go` | `Cell 1.1 (cognitive_debt)`, `Cell 4.2 (contract_parity)` |
+| Diff AST micro-mutation & PR proof (`EvaluateDiffMutations`, `PRProofReceipt`) | `substrate/src/nomos/modules/verify/prproof/mutator.go`, `receipt.go` | `Cell 2.2 (go_toolchain)`, `Cell 2.3 (gate_integrity_proof)` |
 
 Run `nomos verify` to execute all 42 Definition of Done quality gates and confirm exit code `0`.
