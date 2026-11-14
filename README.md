@@ -30,7 +30,7 @@ nomos init --baseline                    # Scaffolds nomos.yaml + freezes existi
 > **Inspect in 5 seconds. Govern in one command. Invisible after that.** Audit any legacy codebase read-only with `nomos xray .`, lock your Day-0 ratchet with `nomos init --baseline`, and keep prompting your coding agent in plain English while Nomos governs sandboxes, `~24ms` AST checks, diff-scoped mutation proofs, and atomic merges silently under the hood.
 
 <div align="center">
-  <img src="intent/assets/nomos_hero_demo.gif" alt="Nomos Live Terminal Demo - Blocking main commits, catching an empty AST stub, and releasing via 2PC" width="100%" />
+  <img src="intent/assets/nomos_hero_terminal.svg" alt="Nomos Split-Terminal Overview - Day-0 Brownfield X-Ray and Baseline Ratchet paired with Fail-Closed AST Verification and 2PC Release" width="100%" />
 </div>
 
 ---
