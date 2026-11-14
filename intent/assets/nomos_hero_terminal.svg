@@ -47,9 +47,9 @@
 
     <style>
       .sans { font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-      .mono { font-family: 'JetBrains Mono', 'SFMono-Regular', ui-monospace, Menlo, Monaco, Consolas, 'Liberation Mono', 'DejaVu Sans Mono', monospace; font-size: 12.2px; font-variant-ligatures: none; }
-      .mono-sm { font-family: 'JetBrains Mono', 'SFMono-Regular', ui-monospace, Menlo, Monaco, Consolas, 'Liberation Mono', 'DejaVu Sans Mono', monospace; font-size: 11.2px; font-variant-ligatures: none; }
-      .mono-xs { font-family: 'JetBrains Mono', 'SFMono-Regular', ui-monospace, Menlo, Monaco, Consolas, 'Liberation Mono', 'DejaVu Sans Mono', monospace; font-size: 10.4px; font-variant-ligatures: none; }
+      .mono { font-family: 'JetBrains Mono', 'SFMono-Regular', ui-monospace, Menlo, Monaco, Consolas, 'Liberation Mono', 'DejaVu Sans Mono', monospace; font-size: 12.0px; font-variant-ligatures: none; }
+      .mono-sm { font-family: 'JetBrains Mono', 'SFMono-Regular', ui-monospace, Menlo, Monaco, Consolas, 'Liberation Mono', 'DejaVu Sans Mono', monospace; font-size: 11.1px; font-variant-ligatures: none; }
+      .mono-xs { font-family: 'JetBrains Mono', 'SFMono-Regular', ui-monospace, Menlo, Monaco, Consolas, 'Liberation Mono', 'DejaVu Sans Mono', monospace; font-size: 10.3px; font-variant-ligatures: none; }
       .bold { font-weight: 700; }
       .c-alabaster { fill: #f8fafc; }
       .c-value { fill: #e2e8f0; }
@@ -71,45 +71,45 @@
   <rect x="1" y="1" width="1158" height="210" rx="14" fill="url(#purpleGlow)"/>
   <line x1="24" y1="1" x2="1136" y2="1" stroke="url(#topBorderGrad)" stroke-width="1.5"/>
 
-  <!-- Top Telemetry Ribbon -->
-  <g transform="translate(20, 12)">
-    <rect x="0" y="0" width="8.5" height="8.5" rx="1.8" fill="#38bdf8" transform="translate(0, 5.5) rotate(45 4.25 4.25)"/>
-    <text x="17" y="14" class="sans" font-size="11.5">
+  <!-- Top Telemetry Ribbon (x=16..1144, matching Pane 1 left & Pane 2 right) -->
+  <g transform="translate(16, 12)">
+    <rect x="0" y="0" width="8.5" height="8.5" rx="1.8" fill="#38bdf8" transform="translate(2, 5.5) rotate(45 4.25 4.25)"/>
+    <text x="19" y="14" class="sans" font-size="11.5">
       <tspan class="bold" letter-spacing="0.8" fill="#f8fafc">NOMOS SUBSTRATE</tspan>
       <tspan dx="8" fill="#64748b">·  Zero-Config Brownfield Ratchet + Deterministic Git Airlock</tspan>
     </text>
 
-    <!-- Right capability pills -->
-    <g transform="translate(658, 0)">
-      <rect x="0" y="0" width="102" height="20" rx="10" fill="#082438" stroke="#0ea5e9" stroke-opacity="0.35"/>
-      <text x="51" y="13.5" text-anchor="middle" class="mono-xs bold" fill="#38bdf8">11 Languages</text>
+    <!-- Right capability pills: 98 + 8 + 114 + 8 + 98 + 8 + 134 = 468px; 16 + 660 + 468 = 1144 -->
+    <g transform="translate(660, 0)">
+      <rect x="0" y="0" width="98" height="20" rx="10" fill="#082438" stroke="#0ea5e9" stroke-opacity="0.35"/>
+      <text x="49" y="13.5" text-anchor="middle" class="mono-xs bold" fill="#38bdf8">11 Languages</text>
 
-      <rect x="110" y="0" width="116" height="20" rx="10" fill="#082438" stroke="#0ea5e9" stroke-opacity="0.35"/>
-      <text x="168" y="13.5" text-anchor="middle" class="mono-xs bold" fill="#7dd3fc">~24ms AST Radar</text>
+      <rect x="106" y="0" width="114" height="20" rx="10" fill="#082438" stroke="#0ea5e9" stroke-opacity="0.35"/>
+      <text x="163" y="13.5" text-anchor="middle" class="mono-xs bold" fill="#7dd3fc">~24ms AST Radar</text>
 
-      <rect x="234" y="0" width="104" height="20" rx="10" fill="#1f1033" stroke="#a855f7" stroke-opacity="0.35"/>
-      <text x="286" y="13.5" text-anchor="middle" class="mono-xs bold" fill="#c084fc">42 DoD Gates</text>
+      <rect x="228" y="0" width="98" height="20" rx="10" fill="#1f1033" stroke="#a855f7" stroke-opacity="0.35"/>
+      <text x="277" y="13.5" text-anchor="middle" class="mono-xs bold" fill="#c084fc">42 DoD Gates</text>
 
-      <rect x="346" y="0" width="136" height="20" rx="10" fill="#06281e" stroke="#10b981" stroke-opacity="0.35"/>
-      <text x="414" y="13.5" text-anchor="middle" class="mono-xs bold" fill="#34d399">0 LLM Judge Tokens</text>
+      <rect x="334" y="0" width="134" height="20" rx="10" fill="#06281e" stroke="#10b981" stroke-opacity="0.35"/>
+      <text x="401" y="13.5" text-anchor="middle" class="mono-xs bold" fill="#34d399">0 LLM Judge Tokens</text>
     </g>
   </g>
 
   <!-- ===================================================================== -->
-  <!-- LEFT TERMINAL PANE: DAY 0 BROWNFIELD X-RAY & RATCHET                  -->
+  <!-- LEFT TERMINAL PANE: DAY 0 BROWNFIELD X-RAY & RATCHET (x=16..566)      -->
   <!-- ===================================================================== -->
   <g transform="translate(16, 43)">
-    <rect x="0" y="0" width="553" height="469" rx="10" fill="url(#paneBg)" stroke="#1e293b" stroke-width="1"/>
+    <rect x="0" y="0" width="550" height="469" rx="10" fill="url(#paneBg)" stroke="#1e293b" stroke-width="1"/>
     <!-- Window Titlebar -->
-    <path d="M 0 10 Q 0 0 10 0 L 543 0 Q 553 0 553 10 L 553 34 L 0 34 Z" fill="#0d1526"/>
-    <line x1="0" y1="34" x2="553" y2="34" stroke="#1e293b" stroke-width="1"/>
+    <path d="M 0 10 Q 0 0 10 0 L 540 0 Q 550 0 550 10 L 550 34 L 0 34 Z" fill="#0d1526"/>
+    <line x1="0" y1="34" x2="550" y2="34" stroke="#1e293b" stroke-width="1"/>
     <circle cx="18" cy="17" r="4.5" fill="#f87171" fill-opacity="0.85"/>
     <circle cx="32" cy="17" r="4.5" fill="#fbbf24" fill-opacity="0.85"/>
     <circle cx="46" cy="17" r="4.5" fill="#34d399" fill-opacity="0.85"/>
     <text x="64" y="21" class="mono-sm bold" fill="#f8fafc">1. DAY-0 AUDIT &amp; BASELINE</text>
-    <text x="254" y="21" class="mono-xs" fill="#64748b">~/payments-api (main)</text>
-    <rect x="421" y="8" width="118" height="18" rx="4" fill="#082438" stroke="#38bdf8" stroke-opacity="0.32"/>
-    <text x="480" y="20.5" text-anchor="middle" class="mono-xs bold" fill="#38bdf8">READ-ONLY · 412ms</text>
+    <text x="252" y="21" class="mono-xs" fill="#64748b">~/payments-api (main)</text>
+    <rect x="418" y="8" width="118" height="18" rx="4" fill="#082438" stroke="#38bdf8" stroke-opacity="0.32"/>
+    <text x="477" y="20.5" text-anchor="middle" class="mono-xs bold" fill="#38bdf8">READ-ONLY · 412ms</text>
 
     <!-- Terminal Body -->
     <g transform="translate(18, 56)">
@@ -121,49 +121,49 @@
         <circle cx="6" cy="-4" r="4.5" fill="none" stroke="#38bdf8" stroke-width="1.6"/>
         <circle cx="6" cy="-4" r="1.5" fill="#38bdf8"/>
         <text x="17" y="0" class="mono bold" fill="url(#brandTitleGrad)">Nomos Brownfield X-Ray · payments-api (412ms)</text>
-        <rect x="0" y="8" width="517" height="1.5" fill="url(#horizonRule)"/>
+        <rect x="0" y="8" width="514" height="1.5" fill="url(#horizonRule)"/>
       </g>
 
       <!-- Tabular Key-Value Summary Rows -->
       <g transform="translate(0, 49)">
         <!-- Score + Grade C Pill -->
         <text x="8" y="0" class="mono c-label">AI Hangover Score</text>
-        <text x="142" y="0" class="mono c-muted">:</text>
-        <text x="154" y="0" class="mono c-alabaster bold">34/100</text>
-        <rect x="208" y="-12" width="62" height="16" rx="3" fill="#291d07" stroke="#fbbf24" stroke-opacity="0.45"/>
-        <text x="239" y="0" text-anchor="middle" class="mono-xs c-amber">Grade C</text>
+        <text x="148" y="0" class="mono c-muted">:</text>
+        <text x="160" y="0" class="mono c-alabaster bold">34/100</text>
+        <rect x="216" y="-12" width="62" height="16" rx="3" fill="#291d07" stroke="#fbbf24" stroke-opacity="0.45"/>
+        <text x="247" y="0" text-anchor="middle" class="mono-xs c-amber">Grade C</text>
 
         <text x="8" y="20" class="mono c-label">Corpus Footprint</text>
-        <text x="142" y="20" class="mono c-muted">:</text>
-        <text x="154" y="20" class="mono"><tspan class="c-alabaster bold">312</tspan> <tspan class="c-value">files ·</tspan> <tspan class="c-alabaster bold">68,420</tspan> <tspan class="c-value">LOC ·</tspan> <tspan class="c-muted">go:198 ts:114</tspan></text>
+        <text x="148" y="20" class="mono c-muted">:</text>
+        <text x="160" y="20" class="mono"><tspan class="c-alabaster bold">312</tspan> <tspan class="c-value">files ·</tspan> <tspan class="c-alabaster bold">68,420</tspan> <tspan class="c-value">LOC ·</tspan> <tspan class="c-muted">go:198 ts:114</tspan></text>
 
         <text x="8" y="40" class="mono c-label">Debt Signals</text>
-        <text x="142" y="40" class="mono c-muted">:</text>
-        <text x="154" y="40" class="mono"><tspan class="c-amber">4</tspan> <tspan class="c-value">clones ·</tspan> <tspan class="c-amber">6</tspan> <tspan class="c-value">monoliths ·</tspan> <tspan class="c-amber">9</tspan> <tspan class="c-value">oversized funcs</tspan></text>
+        <text x="148" y="40" class="mono c-muted">:</text>
+        <text x="160" y="40" class="mono"><tspan class="c-amber">4</tspan> <tspan class="c-value">clones ·</tspan> <tspan class="c-amber">6</tspan> <tspan class="c-value">monoliths ·</tspan> <tspan class="c-amber">9</tspan> <tspan class="c-value">oversized funcs</tspan></text>
 
         <text x="8" y="60" class="mono c-label">Signature &amp; Reuse</text>
-        <text x="142" y="60" class="mono c-muted">:</text>
-        <text x="154" y="60" class="mono"><tspan class="c-amber">5</tspan> <tspan class="c-value">high-arity ·</tspan> <tspan class="c-amber">3</tspan> <tspan class="c-value">deep-nesting ·</tspan> <tspan class="c-amber">2</tspan> <tspan class="c-value">magic-str</tspan></text>
+        <text x="148" y="60" class="mono c-muted">:</text>
+        <text x="160" y="60" class="mono"><tspan class="c-amber">5</tspan> <tspan class="c-value">high-arity ·</tspan> <tspan class="c-amber">3</tspan> <tspan class="c-value">deep-nesting ·</tspan> <tspan class="c-amber">2</tspan> <tspan class="c-value">magic-str</tspan></text>
 
         <text x="8" y="80" class="mono c-label">Anti-Cheat Radar</text>
-        <text x="142" y="80" class="mono c-muted">:</text>
-        <text x="154" y="80" class="mono"><tspan class="c-amber">2</tspan> <tspan class="c-value">stubs ·</tspan> <tspan class="c-amber">3</tspan> <tspan class="c-value">swallowed err ·</tspan> <tspan class="c-coral">1</tspan> <tspan class="c-value">secret/path leak</tspan></text>
+        <text x="148" y="80" class="mono c-muted">:</text>
+        <text x="160" y="80" class="mono"><tspan class="c-amber">2</tspan> <tspan class="c-value">stubs ·</tspan> <tspan class="c-amber">3</tspan> <tspan class="c-value">swallowed err ·</tspan> <tspan class="c-coral">1</tspan> <tspan class="c-value">secret/path leak</tspan></text>
 
         <text x="8" y="100" class="mono c-label">Clean Boundaries</text>
-        <text x="142" y="100" class="mono c-muted">:</text>
-        <text x="154" y="100" class="mono"><tspan class="c-mint">2</tspan> <tspan class="c-value">zero-violation architecture rules ready</tspan></text>
+        <text x="148" y="100" class="mono c-muted">:</text>
+        <text x="160" y="100" class="mono"><tspan class="c-mint">2</tspan> <tspan class="c-value">zero-violation architecture rules ready</tspan></text>
 
         <!-- Hotspots -->
         <text x="8" y="123" class="mono c-alabaster bold">Top Hotspots:</text>
         <text x="16" y="142" class="mono-sm"><tspan class="c-muted">1.</tspan> <tspan class="c-cmd">pkg/checkout/charge.go</tspan></text>
-        <text x="208" y="142" class="mono-sm"><tspan class="c-muted">[</tspan><tspan class="c-cyan">go</tspan> <tspan class="c-value">· 618 LOC · CDS</tspan> <tspan class="c-coral">92</tspan> <tspan class="c-value">· V(G) 24</tspan><tspan class="c-muted">]</tspan></text>
+        <text x="218" y="142" class="mono-sm"><tspan class="c-muted">[</tspan><tspan class="c-cyan">go</tspan> <tspan class="c-value">· 618 LOC · CDS</tspan> <tspan class="c-coral">92</tspan> <tspan class="c-value">· V(G) 24</tspan><tspan class="c-muted">]</tspan></text>
         <text x="34" y="157" class="mono-xs c-muted">(file_loc=618&gt;400, params=10&gt;8, swallowed_errors=2)</text>
 
         <text x="16" y="176" class="mono-sm"><tspan class="c-muted">2.</tspan> <tspan class="c-cmd">web/api/webhook_sync.ts</tspan></text>
-        <text x="208" y="176" class="mono-sm"><tspan class="c-muted">[</tspan><tspan class="c-cyan">ts</tspan> <tspan class="c-value">· 445 LOC · CDS</tspan> <tspan class="c-amber">64</tspan> <tspan class="c-value">· V(G) 21</tspan><tspan class="c-muted">]</tspan></text>
+        <text x="218" y="176" class="mono-sm"><tspan class="c-muted">[</tspan><tspan class="c-cyan">ts</tspan> <tspan class="c-value">· 445 LOC · CDS</tspan> <tspan class="c-amber">64</tspan> <tspan class="c-value">· V(G) 21</tspan><tspan class="c-muted">]</tspan></text>
         <text x="34" y="191" class="mono-xs c-muted">(complexity=21&gt;15, nesting=7&gt;5, secret_leaks=1)</text>
 
-        <rect x="0" y="203" width="517" height="1.5" fill="url(#horizonRule)"/>
+        <rect x="0" y="203" width="514" height="1.5" fill="url(#horizonRule)"/>
 
         <!-- Next Actions -->
         <text x="8" y="221" class="mono-sm"><tspan class="c-purple">◈</tspan> <tspan class="c-alabaster bold">Next Actions:</tspan></text>
@@ -181,20 +181,20 @@
   </g>
 
   <!-- ===================================================================== -->
-  <!-- RIGHT TERMINAL PANE: DAY 1+ AGENT GUARDRAIL & 2PC RELEASE             -->
+  <!-- RIGHT TERMINAL PANE: DAY 1+ AGENT GUARDRAIL & 2PC RELEASE (x=594..1144) -->
   <!-- ===================================================================== -->
-  <g transform="translate(591, 43)">
-    <rect x="0" y="0" width="553" height="469" rx="10" fill="url(#paneBg)" stroke="#1e293b" stroke-width="1"/>
+  <g transform="translate(594, 43)">
+    <rect x="0" y="0" width="550" height="469" rx="10" fill="url(#paneBg)" stroke="#1e293b" stroke-width="1"/>
     <!-- Window Titlebar -->
-    <path d="M 0 10 Q 0 0 10 0 L 543 0 Q 553 0 553 10 L 553 34 L 0 34 Z" fill="#0d1526"/>
-    <line x1="0" y1="34" x2="553" y2="34" stroke="#1e293b" stroke-width="1"/>
+    <path d="M 0 10 Q 0 0 10 0 L 540 0 Q 550 0 550 10 L 550 34 L 0 34 Z" fill="#0d1526"/>
+    <line x1="0" y1="34" x2="550" y2="34" stroke="#1e293b" stroke-width="1"/>
     <circle cx="18" cy="17" r="4.5" fill="#f87171" fill-opacity="0.85"/>
     <circle cx="32" cy="17" r="4.5" fill="#fbbf24" fill-opacity="0.85"/>
     <circle cx="46" cy="17" r="4.5" fill="#34d399" fill-opacity="0.85"/>
     <text x="64" y="21" class="mono-sm bold" fill="#f8fafc">2. AGENT GUARDRAIL &amp; 2PC SYNC</text>
     <text x="282" y="21" class="mono-xs" fill="#64748b">worktrees/...-SUB-1</text>
-    <rect x="441" y="8" width="98" height="18" rx="4" fill="#06281e" stroke="#34d399" stroke-opacity="0.38"/>
-    <text x="490" y="20.5" text-anchor="middle" class="mono-xs bold" fill="#34d399">FAIL-CLOSED</text>
+    <rect x="438" y="8" width="98" height="18" rx="4" fill="#06281e" stroke="#34d399" stroke-opacity="0.38"/>
+    <text x="487" y="20.5" text-anchor="middle" class="mono-xs bold" fill="#34d399">FAIL-CLOSED</text>
 
     <!-- Terminal Body -->
     <g transform="translate(18, 56)">
@@ -210,9 +210,9 @@
         <g transform="translate(0, 22)">
           <path d="M 6 -9 L 11 -7 L 11 -2 C 11 1.5 8.5 3.5 6 4.5 C 3.5 3.5 1 1.5 1 -2 L 1 -7 Z" fill="none" stroke="#38bdf8" stroke-width="1.5"/>
           <text x="17" y="0" class="mono bold" fill="url(#brandTitleGrad)">Nomos Substrate · Definition of Done</text>
-          <rect x="302" y="-12" width="48" height="16" rx="3" fill="#2c0b14" stroke="#f87171" stroke-opacity="0.45"/>
-          <text x="326" y="0" text-anchor="middle" class="mono-xs c-coral">FAIL</text>
-          <rect x="0" y="8" width="517" height="1.5" fill="url(#horizonRule)"/>
+          <rect x="312" y="-12" width="48" height="16" rx="3" fill="#2c0b14" stroke="#f87171" stroke-opacity="0.45"/>
+          <text x="336" y="0" text-anchor="middle" class="mono-xs c-coral">FAIL</text>
+          <rect x="0" y="8" width="514" height="1.5" fill="url(#horizonRule)"/>
         </g>
 
         <text x="8" y="47" class="mono-sm c-coral">✗ Verification Failed · 40/42 Gates Passed (28ms)</text>
@@ -223,7 +223,7 @@
         <text x="16" y="103" class="mono-sm"><tspan class="c-coral">! [Unchecked Errors Gate]</tspan> <tspan class="c-value">charge.go:104 ignored err on tx.Save()</tspan></text>
         <text x="30" y="119" class="mono-xs"><tspan class="c-amber">Remedy:</tspan> <tspan class="c-value">propagate or handle returned error + maintain &gt;=0% cov</tspan></text>
 
-        <rect x="0" y="131" width="517" height="1.5" fill="url(#horizonRule)"/>
+        <rect x="0" y="131" width="514" height="1.5" fill="url(#horizonRule)"/>
       </g>
 
       <!-- Step C: Agent self-heals from Remedy -> 1-turn atomic 2PC release -->
@@ -231,7 +231,7 @@
         <text x="0" y="0" class="mono"><tspan class="c-elec">❯</tspan> <tspan class="c-alabaster bold">nomos task sync SUB-1 -m "feat(checkout): idempotent refund"</tspan></text>
 
         <g transform="translate(0, 21)">
-          <rect x="0" y="-10" width="517" height="134" rx="6" fill="#071318" stroke="#1e293b" stroke-width="1"/>
+          <rect x="0" y="-10" width="514" height="134" rx="6" fill="#071318" stroke="#1e293b" stroke-width="1"/>
 
           <!-- Row 1 -->
           <text x="14" y="9" class="mono-sm c-label">Law 1-7 Invariant Matrix</text>
@@ -254,7 +254,7 @@
           <text x="351" y="48.5" text-anchor="middle" class="mono-xs c-mint">PASS</text>
           <text x="382" y="49" class="mono-xs c-muted">(0 tautologies)</text>
 
-          <line x1="14" y1="62" x2="503" y2="62" stroke="#1e293b" stroke-width="1"/>
+          <line x1="14" y1="62" x2="500" y2="62" stroke="#1e293b" stroke-width="1"/>
 
           <text x="14" y="80" class="mono-sm c-mint">✓ All Laws Enforced · 42/42 Gates Satisfied</text>
           <text x="14" y="99" class="mono-sm"><tspan class="c-mint">✓ Fast-forwarded main</tspan> <tspan class="c-muted">&amp; pruned worktrees/payments-api-SUB-1</tspan></text>
@@ -264,10 +264,9 @@
     </g>
   </g>
 
-  <!-- Center Transition Connector (rendered on top with halo ring) -->
+  <!-- Center Transition Connector (28px gap 566..594; r=10.5 spans 569.5..590.5 -> 3.5px clear on each side) -->
   <g transform="translate(580, 278)">
-    <circle cx="0" cy="0" r="15" fill="#070c18"/>
-    <circle cx="0" cy="0" r="12.5" fill="#0d1526" stroke="#38bdf8" stroke-opacity="0.6" stroke-width="1.2"/>
-    <text x="0" y="4" text-anchor="middle" class="mono bold" fill="#38bdf8">→</text>
+    <circle cx="0" cy="0" r="10.5" fill="#0d1526" stroke="#38bdf8" stroke-opacity="0.6" stroke-width="1.2"/>
+    <text x="0" y="3.8" text-anchor="middle" class="mono-sm bold" fill="#38bdf8">→</text>
   </g>
 </svg>
