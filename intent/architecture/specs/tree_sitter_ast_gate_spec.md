@@ -226,6 +226,79 @@ The Tree-sitter AST Gate Engine directly underpins six automated sensor probes i
 7. **`FastFileRadar (CWE-22)`**: Flags unconfined dynamic subpath reads under `base_dir`/`baseDir`, ignores constant literal subpaths, and emits language-specific 1-turn confinement recipes.
 8. **`Cell 2.2 (go_toolchain)` (`corpus_command`)**: Executes declarative reference-corpus regression checks with `NOMOS_BASELINE_REF` and fails closed on non-zero exit status.
 
+### 4.4 Zero-Init Brownfield X-Ray & Baseline Envelope Contract (`substrate/src/nomos/modules/verify/xray/types.go`)
+`nomos xray` and `nomos init --baseline` evaluate uninitialized polyglot repositories using `xray.ScanRepository` without mutating repository files or SQLite state:
+
+```go
+package xray
+
+// XrayScanOptions configures read-only brownfield structural scanning (#XrayScanOptions).
+type XrayScanOptions struct {
+	TopHotspots int `json:"top_hotspots"`
+}
+
+// XrayHotspot ranks a single source file by aggregated structural debt (#XrayHotspot).
+type XrayHotspot struct {
+	File          string   `json:"file"`
+	Language      string   `json:"language"`
+	LOC           int      `json:"loc"`
+	CDS           int      `json:"cds"`
+	MaxComplexity int      `json:"max_complexity"`
+	MaxFuncLOC    int      `json:"max_func_loc"`
+	Clones        int      `json:"clones,omitempty"`
+	Stubs         int      `json:"stubs,omitempty"`
+	Reasons       []string `json:"reasons,omitempty"`
+}
+
+// XrayBaselineEnvelope records observed upper-bound structural metrics for baseline locking (#XrayBaselineEnvelope).
+type XrayBaselineEnvelope struct {
+	ObservedMaxFileLOC      int `json:"observed_max_file_loc"`
+	ObservedMaxFuncLOC      int `json:"observed_max_func_loc"`
+	ObservedMaxComplexity   int `json:"observed_max_complexity"`
+	ObservedMaxCDS          int `json:"observed_max_cds"`
+	ObservedMaxPackageFiles int `json:"observed_max_package_files"`
+	CloneGroupCount         int `json:"clone_group_count"`
+}
+
+// XrayReport summarizes zero-init polyglot structural debt and hangover indicators (#XrayReport).
+type XrayReport struct {
+	ProjectName        string               `json:"project_name"`
+	DurationMillis     int64                `json:"duration_ms"`
+	Initialized        bool                 `json:"initialized"`
+	FilesScanned       int                  `json:"files_scanned"`
+	TotalLOC           int                  `json:"total_loc"`
+	Languages          map[string]int       `json:"languages"`
+	HangoverScore      int                  `json:"hangover_score"`
+	Grade              string               `json:"grade"`
+	CloneGroups        int                  `json:"clone_groups"`
+	MonolithFiles      int                  `json:"monolith_files"`
+	OversizedFuncs     int                  `json:"oversized_funcs"`
+	EmptyStubs         int                  `json:"empty_stubs"`
+	SkippedTests       int                  `json:"skipped_tests"`
+	SecuritySinks      int                  `json:"security_sinks"`
+	InferredBoundaries int                  `json:"inferred_boundaries"`
+	Hotspots           []XrayHotspot        `json:"hotspots,omitempty"`
+	BaselineEnvelope   XrayBaselineEnvelope `json:"baseline_envelope"`
+	NextCommand        string               `json:"next_command"`
+}
+
+// XrayBaselineManifest persists trunk-pinned Day-0 structural debt bounds in nomos.baseline.json (#XrayBaselineManifest).
+type XrayBaselineManifest struct {
+	SchemaVersion      string               `json:"schema_version"`
+	ProjectName        string               `json:"project_name"`
+	RecordedAt         string               `json:"recorded_at"`
+	HeadCommit         string               `json:"head_commit,omitempty"`
+	HangoverScore      int                  `json:"hangover_score"`
+	Grade              string               `json:"grade"`
+	FilesScanned       int                  `json:"files_scanned"`
+	TotalLOC           int                  `json:"total_loc"`
+	InferredBoundaries int                  `json:"inferred_boundaries"`
+	BaselineEnvelope   XrayBaselineEnvelope `json:"baseline_envelope"`
+}
+
+func ScanRepository(rootDir string, opts XrayScanOptions) (*XrayReport, error)
+```
+
 ---
 
 ## 5. Table-Driven Verification Vectors
@@ -256,6 +329,8 @@ The following table-driven verification vectors validate the Tree-sitter AST Gat
 | `TC-TS-16` | `go` | `ratchet_mode: upstream` net-new file carrying third-party `Copyright` `<email>` | Header `<email>` compared against Git author email | Mismatched owner email detected | `FAIL` | Foreign copyright attribution on contributor file rejected |
 | `TC-TS-17` | `go` | `switch x { default: a(); case 1: b() }` | Non-terminal `default:` clause detected in Go AST | Clause index `< len-1` | `FAIL` | Mid-switch `default:` rejected in `ComplexityGate` and `FastFileRadar` |
 | `TC-TS-18` | `polyglot` | `corpus_command` exits non-zero on reference corpus regression | `GoToolchainGate` executes corpus probe with `NOMOS_BASELINE_REF` | Exit code `!= 0` | `FAIL` | Reference corpus regression fails closed |
+| `TC-XRAY-01` | `polyglot` | Uninitialized Go, Python, and TS fixture with clones and stubs | `xray.ScanRepository` aggregates polyglot metrics and hotspots | Non-zero `HangoverScore` and `BaselineEnvelope` | `PASS` | Read-only scan writes zero files or SQLite rows |
+| `TC-XRAY-02` | `polyglot` | `XrayReport` serialized via JSON and Markdown formatters | Relative hotspot paths emitted | Zero host home-directory literals | `PASS` | Law 5 path scrubbing holds across `XrayReport` outputs |
 
 ---
 
@@ -266,5 +341,6 @@ The following table-driven verification vectors validate the Tree-sitter AST Gat
 | Metric types & CDS formula (`FunctionMetric`, `CalculateCDS`) | `substrate/src/nomos/modules/verify/treesitter/types.go` | `Cell 1.1 (complexity / max_file_loc / cognitive_debt)` |
 | Pure-Go `wazero` WASM sandbox (`WazeroTreeSitterEngine`) | `substrate/src/nomos/modules/verify/treesitter/engine.go` | `Cell 4.2 (contract_parity)`, `Cell 2.2 (go_toolchain)` |
 | Embedded `.scm` S-expression queries & polyglot scanners | `substrate/src/nomos/modules/verify/treesitter/scm_query.go`, `polyglot_scanner.go` | `Cell 2.1 (anti_shim / docstrings)`, `Cell 5.1 (magic_strings)` |
+| Zero-init brownfield X-Ray & baseline envelope (`XrayReport`, `ScanRepository`) | `substrate/src/nomos/modules/verify/xray/types.go`, `scanner.go` | `Cell 1.1 (cognitive_debt)`, `Cell 4.2 (contract_parity)` |
 
 Run `nomos verify` to execute all 42 Definition of Done quality gates and confirm exit code `0`.

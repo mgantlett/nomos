@@ -71,7 +71,7 @@ Instead of scattered task notes, `intent/architecture/specs/` maintains **8 Cano
 | **2** | `nomos_hermetic_worktree_spec.md` | `core/workspace`, `core/capbac`, `modules/verify` | `Manager`, `WorktreeSession`, `EmbeddedAsset`, `ParityAuditReport`, `CapBACLease`, `CapabilityFlowGraph`, `CredentialReadPolicy`, `MCPInvocation`, `CommitSchemaGate` |
 | **3** | `task_lifecycle_cli_spec.md` | `modules/task`, `core/storage`, `cli/*` | `TaskRecord`, `TaskCardInput`, `WavefrontCandidate`, `ReleaseNotePayload`, `ReleaseHookTrace`, `RuntimeMaintainReport`, `IssueReport`, `UpdateReport`, `UpdateCheckCache` |
 | **4** | `nomos_intent_traceability_spec.md` | `modules/verify/*`, `core/config` | `ContractsConfig`, `ArchitectureBoundaryRule`, `StaleSpecObligation`, `CanonicalMatrixModel`, `InvariantCellSpec`, `GateSpec`, `PipelineReport`, `ProofReport`, `AntiShimDTO` |
-| **5** | `tree_sitter_ast_gate_spec.md` | `modules/verify/treesitter` | `FunctionMetric`, `FileMetric`, `GateEvaluationReport`, `EngineThresholds`, `SCMQuerySpec`, `WazeroTreeSitterEngine` |
+| **5** | `tree_sitter_ast_gate_spec.md` | `modules/verify/treesitter`, `modules/verify/xray` | `FunctionMetric`, `FileMetric`, `GateEvaluationReport`, `EngineThresholds`, `SCMQuerySpec`, `WazeroTreeSitterEngine`, `XrayScanOptions`, `XrayHotspot`, `XrayBaselineEnvelope`, `XrayReport`, `XrayBaselineManifest` |
 | **6** | `mneme_memory_spec.md` | `modules/mem` | `Memory`, `MemoryKind`, `MemoryStatus`, `MemoryFilter`, `SearchOptions`, `SearchResult`, `GateTrapEntry`, `PitfallHygieneReport`, `MaintainReport` |
 | **7** | `nomos_controlled_technical_english_spec.md` | `modules/ncte`, `modules/handshake` | `NCTEBounds`, `NCTEPolicy`, `VocabularyEntry`, `NCTEDiagnostic`, `NCTESpecReport`, `IntentSteelmanGate`, `HandshakeEvent`, `BrownfieldTopologyBrief` |
 | **8** | `software_physics_engine_spec.md` | `cli`, `modules/session`, `modules/telemetry` | `FileMass`, `CollisionVector`, `WorktreeHull`, `AgentSession`, `SessionTrajectory`, `SessionDetail`, `SentinelScorecard`, `SessionDatasetRecord`, `CapabilityMetrics` |
@@ -124,7 +124,7 @@ func ValidateWorktreeBoundary(repoRoot, currentBranch, targetFile string) error
 
 ## 6. Cross-Plane Traceability & DoD Verification
 
-1. **Bilateral Task Lineage**: `INT-1941`, `SUB-2134`, `INT-1943`, `SUB-2147`, `INT-1951`, and `INT-1952`.
+1. **Bilateral Task Lineage**: `INT-1941`, `SUB-2134`, `INT-1943`, `SUB-2147`, `INT-1951`, `INT-1952`, `INT-2023`, and `SUB-2408`.
 2. **Enforcing 7x3 Matrix Coordinates**: `Cell 4.1 (intent_steelman)`, `Cell 4.1 (intent_traceability)`, `Cell 6.1 (zero_filesystem_alias)`, and `Cell 7.1 (plane_separation)`.
 3. **Executable Obligation Suite**: `substrate/cli/intent_manifesto_obligations_test.go` binds `TC-INT-01` through `TC-INT-06` and all 8 canonical domain specifications.
 4. **Verification Command**: Execute `nomos verify` across all 42 Definition of Done quality gates and assert exit code `0`.
