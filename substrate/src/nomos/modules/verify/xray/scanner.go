@@ -5,9 +5,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -34,10 +31,10 @@ var (
 		".git": true, ".hg": true, ".svn": true, ".tmp": true,
 		"worktrees": true, "node_modules": true, "vendor": true,
 		".venv": true, "venv": true, "env": true, "dist": true,
-		"build": true, "out": true, "target": true, "__pycache__": true,
-		".tox": true, ".mypy_cache": true, ".pytest_cache": true,
-		".ruff_cache": true, ".next": true, ".svelte-kit": true,
-		"coverage": true, "testdata": true,
+		"webdist": true, "build": true, "out": true, "target": true,
+		"__pycache__": true, ".tox": true, ".mypy_cache": true,
+		".pytest_cache": true, ".ruff_cache": true, ".next": true,
+		".svelte-kit": true, "coverage": true, "testdata": true,
 	}
 	explicitPyStubRe   = regexp.MustCompile(`(?m)^\s*raise\s+NotImplementedError\b`)
 	explicitRustStubRe = regexp.MustCompile(`(?m)^\s*(?:todo|unimplemented)!\s*\(`)
@@ -144,6 +141,9 @@ func visitRepositoryEntry(absRoot, path string, d fs.DirEntry, err error, acc *s
 }
 
 func inspectCandidateFile(absRoot, path string, d fs.DirEntry, acc *scanAccumulator) error {
+	if isBundledArtifactFileName(d.Name()) {
+		return nil
+	}
 	lang := treesitter.DetectLanguage(d.Name())
 	if !codeLanguages[lang] || !isReadableRegularFile(d) {
 		return nil
@@ -158,6 +158,22 @@ func inspectCandidateFile(absRoot, path string, d fs.DirEntry, acc *scanAccumula
 	}
 	ingestSourceFile(filepath.ToSlash(rel), lang, data, acc)
 	return nil
+}
+
+func isBundledArtifactFileName(name string) bool {
+	lower := strings.ToLower(name)
+	return strings.HasSuffix(lower, ".min.js") || strings.HasSuffix(lower, ".bundle.js") || strings.HasSuffix(lower, ".d.ts")
+}
+
+func isMinifiedSourceChunk(lang string, loc, byteLen int) bool {
+	if lang != "typescript" || byteLen < 2048 {
+		return false
+	}
+	lines := loc
+	if lines < 1 {
+		lines = 1
+	}
+	return byteLen/lines > 300
 }
 
 func isReadableRegularFile(d fs.DirEntry) bool {
@@ -177,6 +193,9 @@ func shouldSkipDir(name string) bool {
 
 func ingestSourceFile(relSlash, lang string, data []byte, acc *scanAccumulator) {
 	loc := countLines(data)
+	if isMinifiedSourceChunk(lang, loc, len(data)) {
+		return
+	}
 	acc.report.FilesScanned++
 	acc.report.TotalLOC += loc
 	acc.report.Languages[lang]++
@@ -221,79 +240,6 @@ func evaluateImplementationMetrics(relSlash, lang string, loc int, data []byte, 
 	}
 	updateBaselineEnvelope(&acc.report.BaselineEnvelope, fm)
 	acc.hotspotsByFile[relSlash] = buildHotspotCandidate(fm, acc.thresholds)
-}
-
-func countExplicitPolyglotStubs(lang string, data []byte) int {
-	switch lang {
-	case "go":
-		return countGoPanicOrTrivialShims(data)
-	case "python":
-		return len(explicitPyStubRe.FindAll(data, -1))
-	case "rust":
-		return len(explicitRustStubRe.FindAll(data, -1))
-	case "typescript", "svelte":
-		return len(explicitTSStubRe.FindAll(data, -1))
-	default:
-		return 0
-	}
-}
-
-func countGoPanicOrTrivialShims(data []byte) int {
-	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, "impl.go", data, 0)
-	if err != nil {
-		return 0
-	}
-	count := 0
-	for _, decl := range node.Decls {
-		fn, ok := decl.(*ast.FuncDecl)
-		if !ok || fn.Body == nil {
-			continue
-		}
-		dto := verify.ScanFunctionAntiShim(fn)
-		if dto.IsPanicShim || dto.IsTrivialPassShim {
-			count++
-		}
-	}
-	return count
-}
-
-func countSkippedTests(lang string, data []byte) int {
-	if lang != "go" {
-		return len(treesitter.DetectSkippedTests(lang, data))
-	}
-	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, "test.go", data, 0)
-	if err != nil {
-		return 0
-	}
-	count := 0
-	for _, decl := range node.Decls {
-		fn, ok := decl.(*ast.FuncDecl)
-		if ok && isUnconditionalGoSkipFunc(fn) {
-			count++
-		}
-	}
-	return count
-}
-
-func isUnconditionalGoSkipFunc(fn *ast.FuncDecl) bool {
-	if fn == nil || fn.Name == nil || !strings.HasPrefix(fn.Name.Name, "Test") || fn.Body == nil || len(fn.Body.List) == 0 {
-		return false
-	}
-	exprStmt, ok := fn.Body.List[0].(*ast.ExprStmt)
-	if !ok {
-		return false
-	}
-	call, ok := exprStmt.X.(*ast.CallExpr)
-	if !ok {
-		return false
-	}
-	sel, isSel := call.Fun.(*ast.SelectorExpr)
-	if !isSel || sel.Sel == nil {
-		return false
-	}
-	return sel.Sel.Name == "Skip" || sel.Sel.Name == "Skipf" || sel.Sel.Name == "SkipNow"
 }
 
 func countLines(data []byte) int {

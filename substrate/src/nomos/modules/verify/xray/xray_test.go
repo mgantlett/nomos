@@ -38,6 +38,7 @@ func seedPolyglotHangoverFixture(t *testing.T, root string) {
 	mustWrite("src/infra/legacy_db.py", monolith.String())
 
 	mustWrite("src/domain/alpha_test.go", "package domain\nimport \"testing\"\nfunc TestSkipped(t *testing.T) {\n\tt.Skip(\"later\")\n}\nfunc TestGuardedOS(t *testing.T) {\n\tif false {\n\t\tt.Skip(\"windows only\")\n\t}\n}\n")
+	mustWrite("static/assets/vendor-chunk.js", "function a(){return 1}"+strings.Repeat(";if(x){y++}", 400)+"\n")
 }
 
 func buildRepeatedGoClone(fnName string) string {
