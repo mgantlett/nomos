@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [v4.19.0] - 2026-11-14
+
+> Zero-Init Brownfield Debt Scanner (`nomos xray`) & Day-0 Ratchet Baseline (`nomos init --baseline`), Zero-Trust PR Proof & Diff-Scoped AST Mutation Testing (`nomos verify --pr --mutate-diff` + GitHub Action), Multi-Worktree AST Write-Time Collision Radar (`MTPO`), Plus Canonical Lipgloss Terminal Rendering (Apache 2.0)
+
+### Brownfield Onboarding & X-Ray (`nomos xray`, `nomos init`)
+- **Zero-Init Brownfield AI Hangover Scanner & Day-0 Ratchet Baseline (`INT-2023`, `SUB-2408`, `SUB-2414`, `SUB-2416`)**: Adds read-only polyglot `nomos xray [dir]` (`--json`, `--markdown`, `--top`) computing a deterministic `0-100` `AI Hangover Score` (`Grade A` to `Grade F`), structural clones, `>400 LOC` monoliths, empty/TODO stubs, skipped tests, CWE security sinks, and zero-violation hexagonal `architecture_boundaries` in milliseconds without requiring `nomos init` or repository writes (`TC-XRY-01`, `TC-XRY-02`). Aligns Go skip/stub detection with `AntiShimGate`, filters minified webdist chunks (`*.min.js`, `.svelte-kit`, `.next`), and adds `nomos init --baseline` (`TC-XRY-03`) to scaffold `nomos.yaml` and freeze existing brownfield debt on Day 0.
+
+### Verification, Mutation Proofs & CI (`nomos verify`, `action.yml`)
+- **Zero-Trust PR Proof Receipts & Diff-Scoped AST Mutation Testing (`INT-2024`, `SUB-2409`)**: Adds `nomos verify --pr` (`--pr-output`, `--json`) generating deterministic GitHub PR governance receipts (`GatePostureSummary`, hotspot complexity/LOC deltas, CWE taint summary, boundary purity, and SHA-256 receipt digest, `TC-PRP-01`), pure-Go diff-scoped AST mutation testing via `nomos verify --mutate-diff` (`--mutate-max`) across Go, TypeScript/JS, and Python (`TC-PRP-02`, `TC-PRP-03`) proving modified tests fail when newly added conditionals or return values are mutated, and a root composite GitHub Action (`action.yml`) for 1-step pull-request attestation.
+
+### Multi-Agent Worktree Physics & CLI TUI (`nomos physics`, `nomos hook`, `nomos cli`)
+- **Multi-Worktree AST Write-Time Collision Prevention (`INT-2025`, `SUB-2410`)**: Implements `MultiWorktreeSymbolHull` (`MTPO`) across sibling `worktrees/*` sandboxes (`TC-MTP-01..03`), surfacing real-time file and exported AST symbol overlap advisories during `nomos physics` (`--json`), `nomos task start`, and `nomos hook post-tool` before parallel coding agents drift into semantic merge conflicts.
+- **Canonical Lipgloss TUI Rendering Across Gen-2 Surfaces (`SUB-3003`)**: Upgrades `nomos xray`, `nomos init --baseline`, `nomos verify --pr`, `nomos verify --mutate-diff`, and `nomos physics` terminal output to the canonical SophiaLabs Lipgloss design system (`substrate/cli/tui/gen2_render.go`) with adaptive ASCII fallback for non-TTY pipelines and `--pr-output` Markdown files.
+
+---
+
 ## [v4.18.0] - 2026-11-13
 
 > Upstream surgical ratchet, switch default AST check, and `corpus_command` gate; Close binary-only brownfield init gaps with inferred boundaries, Day-0 Mneme seeding, and lean steering; Restructure `README.md` for progressive disclosure, scannable open-core feature checklist, and elevated brownfield ratchet; Add v4.17.0 5-round paired security and brownfield benchmark receipts (Apache 2.0)
