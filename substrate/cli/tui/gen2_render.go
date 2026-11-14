@@ -52,9 +52,17 @@ func appendXraySummaryLines(sb *strings.Builder, rep *xray.XrayReport) {
 		styleNonZeroCount(rep.OversizedFuncs, UiWarnStyle))
 	sb.WriteString(KvLine("Debt Signals", 18, debt) + "\n")
 
-	antiCheat := fmt.Sprintf("%s empty/TODO stub(s) · %s skipped test(s) · %s CWE sink(s)",
+	sigReuse := fmt.Sprintf("%s high-arity · %s deep-nesting · %s magic-string cluster(s)",
+		styleNonZeroCount(rep.HighArityFuncs, UiWarnStyle),
+		styleNonZeroCount(rep.DeepNestingFuncs, UiWarnStyle),
+		styleNonZeroCount(rep.MagicStringGroups, UiWarnStyle))
+	sb.WriteString(KvLine("Signature & Reuse", 18, sigReuse) + "\n")
+
+	antiCheat := fmt.Sprintf("%s empty/TODO stub(s) · %s skipped test(s) · %s swallowed error(s) · %s secret/path leak(s) · %s CWE sink(s)",
 		styleNonZeroCount(rep.EmptyStubs, UiWarnStyle),
 		styleNonZeroCount(rep.SkippedTests, UiWarnStyle),
+		styleNonZeroCount(rep.UncheckedErrors, UiWarnStyle),
+		styleNonZeroCount(rep.SecretPathLeaks, UiDangerStyle),
 		styleNonZeroCount(rep.SecuritySinks, UiDangerStyle))
 	sb.WriteString(KvLine("Anti-Cheat Signals", 18, antiCheat) + "\n")
 

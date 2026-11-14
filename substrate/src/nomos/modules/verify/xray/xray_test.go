@@ -126,3 +126,45 @@ func TestXrayFormatting_PathScrubbingAndBaselineRoundTrip(t *testing.T) {
 		t.Fatalf("loaded manifest mismatch: got %+v want score=%d", loaded, rep.HangoverScore)
 	}
 }
+
+func TestScanRepository_DayZeroVerifyParitySensorsAndHashedBundles(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "parity-target")
+	writeFixture := func(rel, body string) {
+		full := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
+			t.Fatalf("mkdir %s: %v", rel, err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0644); err != nil {
+			t.Fatalf("write %s: %v", rel, err)
+		}
+	}
+
+	var magic strings.Builder
+	magic.WriteString("package svc\n\nfunc run() error { return nil }\n")
+	magic.WriteString("func Overloaded(a, b, c, d, e, f, g, h, i int) int {\n\t_ = run()\n")
+	magic.WriteString("\tif a > 0 {\n\t\tfor j := 0; j < b; j++ {\n\t\t\tif c > 0 {\n\t\t\t\tswitch d {\n\t\t\t\tcase 1:\n\t\t\t\t\tif e > 0 {\n\t\t\t\t\t\tfor k := 0; k < f; k++ {\n\t\t\t\t\t\t\treturn k\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n")
+	magic.WriteString("\tconst hostCfg = \"/" + "Users" + "/dev/app.yaml\"\n\t_ = hostCfg\n\t_ = []string{\n")
+	for idx := 0; idx < 12; idx++ {
+		magic.WriteString("\t\t\"REPEATED_MAGIC_LITERAL\",\n")
+	}
+	magic.WriteString("\t}\n\treturn i\n}\n")
+	writeFixture("src/svc/handler.go", magic.String())
+	writeFixture("static/sovereign-sandbox/assets/gitGraphDiagram-WNU8YQGX-C4AM6nWs.js", "export function x() {\n  return 1;\n}\n")
+
+	rep, err := xray.ScanRepository(root, xray.DefaultScanOptions())
+	if err != nil {
+		t.Fatalf("ScanRepository failed: %v", err)
+	}
+	if rep.FilesScanned != 1 {
+		t.Fatalf("expected hashed bundle chunk to be excluded (FilesScanned=1), got %d", rep.FilesScanned)
+	}
+	if rep.HighArityFuncs != 1 || rep.DeepNestingFuncs != 1 || rep.UncheckedErrors != 1 || rep.SecretPathLeaks != 1 || rep.MagicStringGroups != 1 {
+		t.Fatalf("expected all 5 parity counters to equal 1, got %+v", rep)
+	}
+	if rep.BaselineEnvelope.ObservedMaxParams != 9 || rep.BaselineEnvelope.ObservedMaxNesting != 6 {
+		t.Fatalf("expected ObservedMaxParams=9 ObservedMaxNesting=6, got %+v", rep.BaselineEnvelope)
+	}
+	if len(rep.Hotspots) != 1 || rep.Hotspots[0].UncheckedErrors != 1 || rep.Hotspots[0].SecretLeaks != 1 {
+		t.Fatalf("unexpected hotspot payload: %+v", rep.Hotspots)
+	}
+}

@@ -20,8 +20,10 @@ func FormatTerminal(rep *XrayReport) string {
 		rep.FilesScanned, rep.TotalLOC, FormatLanguageBreakdown(rep.Languages)))
 	sb.WriteString(fmt.Sprintf("  Debt Signals      : %d clone group(s) · %d monolith(s) (>400 LOC) · %d oversized func(s)\n",
 		rep.CloneGroups, rep.MonolithFiles, rep.OversizedFuncs))
-	sb.WriteString(fmt.Sprintf("  Anti-Cheat Signals: %d empty/TODO stub(s) · %d skipped test(s) · %d CWE sink(s)\n",
-		rep.EmptyStubs, rep.SkippedTests, rep.SecuritySinks))
+	sb.WriteString(fmt.Sprintf("  Signature & Reuse : %d high-arity func(s) · %d deep-nesting func(s) · %d magic-string cluster(s)\n",
+		rep.HighArityFuncs, rep.DeepNestingFuncs, rep.MagicStringGroups))
+	sb.WriteString(fmt.Sprintf("  Anti-Cheat Signals: %d empty/TODO stub(s) · %d skipped test(s) · %d swallowed error(s) · %d secret/path leak(s) · %d CWE sink(s)\n",
+		rep.EmptyStubs, rep.SkippedTests, rep.UncheckedErrors, rep.SecretPathLeaks, rep.SecuritySinks))
 	sb.WriteString(fmt.Sprintf("  Clean Boundaries  : %d zero-violation architecture boundary rule(s) ready\n", rep.InferredBoundaries))
 	appendTerminalHotspots(&sb, rep.Hotspots)
 	sb.WriteString(strings.Repeat("─", 76) + "\n")
@@ -55,13 +57,26 @@ func FormatMarkdown(rep *XrayReport) string {
 	sb.WriteString(fmt.Sprintf("**Hangover Score:** `%d/100` (Grade **%s**) · **Scanned:** `%d` files (`%d` LOC) in `%dms`\n\n",
 		rep.HangoverScore, rep.Grade, rep.FilesScanned, rep.TotalLOC, rep.DurationMillis))
 	sb.WriteString("| Signal | Count |\n| :--- | ---: |\n")
-	sb.WriteString(fmt.Sprintf("| Structural Clone Groups | `%d` |\n", rep.CloneGroups))
-	sb.WriteString(fmt.Sprintf("| Monolith Files (`>400` LOC) | `%d` |\n", rep.MonolithFiles))
-	sb.WriteString(fmt.Sprintf("| Oversized / Complex Functions | `%d` |\n", rep.OversizedFuncs))
-	sb.WriteString(fmt.Sprintf("| Empty / Stub Blocks | `%d` |\n", rep.EmptyStubs))
-	sb.WriteString(fmt.Sprintf("| Skipped Tests | `%d` |\n", rep.SkippedTests))
-	sb.WriteString(fmt.Sprintf("| Security Sinks (`CWE-89` / `CWE-22`) | `%d` |\n", rep.SecuritySinks))
-	sb.WriteString(fmt.Sprintf("| Inferred Clean Architecture Rules | `%d` |\n\n", rep.InferredBoundaries))
+	for _, row := range []struct {
+		label string
+		val   int
+	}{
+		{"Structural Clone Groups", rep.CloneGroups},
+		{"Monolith Files (`>400` LOC)", rep.MonolithFiles},
+		{"Oversized / Complex Functions", rep.OversizedFuncs},
+		{"High-Arity Functions (`>8` params)", rep.HighArityFuncs},
+		{"Deep-Nesting Functions (`>5` levels)", rep.DeepNestingFuncs},
+		{"Magic-String Clusters (`>10` repeats)", rep.MagicStringGroups},
+		{"Empty / Stub Blocks", rep.EmptyStubs},
+		{"Skipped Tests", rep.SkippedTests},
+		{"Swallowed / Unchecked Errors", rep.UncheckedErrors},
+		{"Secret / Host-Path Leaks", rep.SecretPathLeaks},
+		{"Security Sinks (`CWE-89` / `CWE-22`)", rep.SecuritySinks},
+		{"Inferred Clean Architecture Rules", rep.InferredBoundaries},
+	} {
+		sb.WriteString(fmt.Sprintf("| %s | `%d` |\n", row.label, row.val))
+	}
+	sb.WriteString("\n")
 	appendMarkdownHotspots(&sb, rep.Hotspots)
 	sb.WriteString(fmt.Sprintf("Lock baseline debt with zero upfront cleanup:\n```sh\n%s\n```\n", rep.NextCommand))
 	return sb.String()

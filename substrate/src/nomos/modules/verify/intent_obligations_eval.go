@@ -80,7 +80,7 @@ func checkContractTypeParityWithDelta(gateName, root, targetDir string, specRoot
 		return nil
 	}
 	return &vscope.GateResult{
-		GateName: gateName, ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
+		GateName: gateName, ProbeID: probeIDIntentTraceability, Law: 4, Ring: RingSyntactic,
 		Passed:  false,
 		Message: fmt.Sprintf("specification contract signature drift: %s", strings.Join(sigIssues, "; ")),
 		Remedy:  "align source struct/interface/class fields and types bijectively with specification contract blocks (Law 4)",
@@ -93,7 +93,7 @@ func checkNormativeRegistrySurjection(gateName, root string, specRoots []string)
 		return nil
 	}
 	return &vscope.GateResult{
-		GateName: gateName, ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
+		GateName: gateName, ProbeID: probeIDIntentTraceability, Law: 4, Ring: RingSyntactic,
 		Passed:  false,
 		Message: fmt.Sprintf("undocumented normative substrate surface: %s", strings.Join(surjIssues, "; ")),
 		Remedy:  "document every Gate ProbeID, core/config struct, CLI --flag, and ERR_* code in canonical Layer 2 specs (Law 4 & Law 6)",
@@ -104,7 +104,7 @@ func checkExecutableObligationsWithDelta(gateName, root string, specRoots []stri
 	oblIssues := verifyExecutableObligationsWithDelta(root, specRoots, delta)
 	if len(oblIssues) > 0 {
 		return &vscope.GateResult{
-			GateName: gateName, ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
+			GateName: gateName, ProbeID: probeIDIntentTraceability, Law: 4, Ring: RingSyntactic,
 			Passed:  false,
 			Message: fmt.Sprintf("unbound specification obligation vector(s): %s", strings.Join(oblIssues, "; ")),
 			Remedy:  "bind each TC-* vector in a unit test via '// @verifies <TC-ID>' (or '# @verifies <TC-ID>') (Law 2 & Law 4)",
@@ -113,7 +113,7 @@ func checkExecutableObligationsWithDelta(gateName, root string, specRoots []stri
 	orphanIssues := VerifyNoOrphanedTestObligations(root, specRoots)
 	if len(orphanIssues) > 0 {
 		return &vscope.GateResult{
-			GateName: gateName, ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
+			GateName: gateName, ProbeID: probeIDIntentTraceability, Law: 4, Ring: RingSyntactic,
 			Passed:  false,
 			Message: fmt.Sprintf("orphaned @verifies test obligation vector(s) absent from specs: %s", strings.Join(orphanIssues, "; ")),
 			Remedy:  "declare each @verifies TC-* vector in its canonical Layer 2 specification table or remove stale test tags (Law 2 & Law 4)",
@@ -143,7 +143,7 @@ func checkStaleSpecObligations(gateName string, ctx *vscope.VerifyContext, root 
 		return nil
 	}
 	return &vscope.GateResult{
-		GateName: gateName, ProbeID: "intent_traceability", Law: 4, Ring: RingCryptographic,
+		GateName: gateName, ProbeID: probeIDIntentTraceability, Law: 4, Ring: RingCryptographic,
 		Passed:  false,
 		Message: fmt.Sprintf("stale specification obligation(s) detected: %s", strings.Join(items, "; ")),
 		Remedy:  "execute and sync a downstream SUB-* task referencing the updated specification to refresh spec_digests in refs/notes/nomos/releases (Law 4)",
@@ -180,7 +180,7 @@ func evaluateConfiguredArchitectureBoundaries(gateName string, ctx *vscope.Verif
 		return nil
 	}
 	return &vscope.GateResult{
-		GateName: gateName, ProbeID: "intent_traceability", Law: 7, Ring: RingSyntactic,
+		GateName: gateName, ProbeID: probeIDIntentTraceability, Law: 7, Ring: RingSyntactic,
 		Passed:  false,
 		Message: fmt.Sprintf("architecture boundary violation(s): %s", strings.Join(violations, "; ")),
 		Remedy:  "remove forbidden cross-layer imports or route calls through an allowed interface package per nomos.yaml architecture_boundaries (Law 7)",

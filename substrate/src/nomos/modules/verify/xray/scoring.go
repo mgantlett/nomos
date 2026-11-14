@@ -39,29 +39,51 @@ func updateBaselineEnvelope(env *XrayBaselineEnvelope, fm fileEvalMetrics) {
 	if fm.maxFnLOC > env.ObservedMaxFuncLOC {
 		env.ObservedMaxFuncLOC = fm.maxFnLOC
 	}
+	if fm.maxParams > env.ObservedMaxParams {
+		env.ObservedMaxParams = fm.maxParams
+	}
+	if fm.maxNesting > env.ObservedMaxNesting {
+		env.ObservedMaxNesting = fm.maxNesting
+	}
 }
 
 func buildHotspotCandidate(fm fileEvalMetrics, th treesitter.EngineThresholds) *XrayHotspot {
-	var reasons []string
-	if fm.loc > th.MaxFileLOC {
-		reasons = append(reasons, fmt.Sprintf("file_loc=%d>%d", fm.loc, th.MaxFileLOC))
-	}
-	if fm.maxComp > th.MaxComplexity {
-		reasons = append(reasons, fmt.Sprintf("complexity=%d>%d", fm.maxComp, th.MaxComplexity))
-	}
-	if fm.maxFnLOC > th.MaxFuncLOC {
-		reasons = append(reasons, fmt.Sprintf("func_loc=%d>%d", fm.maxFnLOC, th.MaxFuncLOC))
-	}
-	if fm.stubs > 0 {
-		reasons = append(reasons, fmt.Sprintf("stubs=%d", fm.stubs))
-	}
-	if fm.sinks > 0 {
-		reasons = append(reasons, fmt.Sprintf("cwe_sinks=%d", fm.sinks))
-	}
+	reasons := collectHotspotReasons(fm, th)
 	return &XrayHotspot{
 		File: fm.relSlash, Language: fm.lang, LOC: fm.loc, CDS: fm.cds,
-		MaxComplexity: fm.maxComp, MaxFuncLOC: fm.maxFnLOC, Stubs: fm.stubs, Reasons: reasons,
+		MaxComplexity: fm.maxComp, MaxFuncLOC: fm.maxFnLOC,
+		MaxParams: fm.maxParams, MaxNesting: fm.maxNesting,
+		Stubs: fm.stubs, UncheckedErrors: fm.unchecked, SecretLeaks: fm.secretLeak,
+		Reasons: reasons,
 	}
+}
+
+func collectHotspotReasons(fm fileEvalMetrics, th treesitter.EngineThresholds) []string {
+	var reasons []string
+	reasons = appendThresholdReason(reasons, "file_loc", fm.loc, th.MaxFileLOC)
+	reasons = appendThresholdReason(reasons, "complexity", fm.maxComp, th.MaxComplexity)
+	reasons = appendThresholdReason(reasons, "func_loc", fm.maxFnLOC, th.MaxFuncLOC)
+	reasons = appendThresholdReason(reasons, "params", fm.maxParams, astdebt.MaxFunctionParams)
+	reasons = appendThresholdReason(reasons, "nesting", fm.maxNesting, astdebt.MaxFunctionNesting)
+	reasons = appendCountReason(reasons, "stubs", fm.stubs)
+	reasons = appendCountReason(reasons, "swallowed_errors", fm.unchecked)
+	reasons = appendCountReason(reasons, "secret_leaks", fm.secretLeak)
+	reasons = appendCountReason(reasons, "cwe_sinks", fm.sinks)
+	return reasons
+}
+
+func appendThresholdReason(reasons []string, key string, val, limit int) []string {
+	if val > limit {
+		return append(reasons, fmt.Sprintf("%s=%d>%d", key, val, limit))
+	}
+	return reasons
+}
+
+func appendCountReason(reasons []string, key string, val int) []string {
+	if val > 0 {
+		return append(reasons, fmt.Sprintf("%s=%d", key, val))
+	}
+	return reasons
 }
 
 func applyCloneCountsToHotspots(groups []astdebt.CloneGroup, hotspots map[string]*XrayHotspot) {
@@ -92,8 +114,13 @@ func computeHangoverScore(rep *XrayReport) int {
 	faults := rep.CloneGroups*10 +
 		rep.MonolithFiles*8 +
 		rep.OversizedFuncs*4 +
+		rep.HighArityFuncs*3 +
+		rep.DeepNestingFuncs*3 +
 		rep.EmptyStubs*7 +
 		rep.SkippedTests*6 +
+		rep.UncheckedErrors*5 +
+		rep.SecretPathLeaks*12 +
+		rep.MagicStringGroups*4 +
 		rep.SecuritySinks*14
 	if faults == 0 {
 		return 0
@@ -125,7 +152,8 @@ func computeHangoverGrade(score int) string {
 }
 
 func hotspotRankWeight(h *XrayHotspot) int {
-	return h.CDS*3 + h.MaxComplexity*4 + h.Clones*25 + h.Stubs*20 + h.LOC/10
+	return h.CDS*3 + h.MaxComplexity*4 + h.Clones*25 + h.Stubs*20 +
+		h.UncheckedErrors*15 + h.SecretLeaks*30 + h.LOC/10
 }
 
 func selectTopHotspots(byFile map[string]*XrayHotspot, limit int) []XrayHotspot {

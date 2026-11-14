@@ -203,6 +203,7 @@ func (g *ComplexityGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.GateResult
 
 	ratchetedFuncs, checkArity := filterRatchetedComplexity(ctx, root, funcMetrics, thresh)
 	violations := astdebt.EnrichComplexityViolations(root, ratchetedFuncs, thresh, checkArity)
+	violations = append(violations, evaluateBrownfieldArityRatchet(ctx, root, funcMetrics, thresh)...)
 	violations = append(violations, evaluateGoSwitchIdiomViolations(ctx, root)...)
 	violations = append(violations, evaluateTestComplexityViolations(ctx, root)...)
 	if len(violations) > 0 {

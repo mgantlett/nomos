@@ -24,6 +24,8 @@ func init() {
 	RegisterGate("uasset_dependency", func() vscope.Gate { return &UAssetDependencyGate{} })
 }
 
+const probeIDIntentTraceability = "intent_traceability"
+
 // IntentTraceabilityGate verifies Go code links back to Intent specifications (Cell 4.1, Law 4).
 type IntentTraceabilityGate struct{}
 
@@ -43,7 +45,7 @@ func (g *IntentTraceabilityGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.Ga
 	}
 	if unresolved := verifyIntentASTAnchors(ctx, root, scanAnchorDir); len(unresolved) > 0 {
 		return &vscope.GateResult{
-			GateName: g.Name(), ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
+			GateName: g.Name(), ProbeID: probeIDIntentTraceability, Law: 4, Ring: RingSyntactic,
 			Passed:  false,
 			Message: fmt.Sprintf("unresolved @intent AST/spec anchor(s): %s", strings.Join(unresolved, "; ")),
 			Remedy:  "ensure #<TypeName> matches a declared source type and <spec>.md resolves under intent_source_roots (Law 4)",
@@ -51,7 +53,7 @@ func (g *IntentTraceabilityGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.Ga
 	}
 	if targetDir == "" {
 		return &vscope.GateResult{
-			GateName: g.Name(), ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
+			GateName: g.Name(), ProbeID: probeIDIntentTraceability, Law: 4, Ring: RingSyntactic,
 			Passed: true, Message: "polyglot @intent anchors verified",
 		}, nil
 	}
@@ -59,7 +61,7 @@ func (g *IntentTraceabilityGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.Ga
 	tagged, total := countTraceabilityTags(targetDir)
 	if total == 0 {
 		return &vscope.GateResult{
-			GateName: g.Name(), ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
+			GateName: g.Name(), ProbeID: probeIDIntentTraceability, Law: 4, Ring: RingSyntactic,
 			Passed: true, Message: "polyglot @intent anchors verified (zero Go exported symbols)",
 		}, nil
 	}
@@ -69,7 +71,7 @@ func (g *IntentTraceabilityGate) Evaluate(ctx *vscope.VerifyContext) (*vscope.Ga
 		density = (tagged * 100) / total
 	}
 	return &vscope.GateResult{
-		GateName: g.Name(), ProbeID: "intent_traceability", Law: 4, Ring: RingSyntactic,
+		GateName: g.Name(), ProbeID: probeIDIntentTraceability, Law: 4, Ring: RingSyntactic,
 		Passed: true, Message: fmt.Sprintf("intent traceability density %d%% (%d/%d symbols tagged)", density, tagged, total),
 	}, nil
 }

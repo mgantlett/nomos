@@ -36,9 +36,10 @@ var (
 		".pytest_cache": true, ".ruff_cache": true, ".next": true,
 		".svelte-kit": true, "coverage": true, "testdata": true,
 	}
-	explicitPyStubRe   = regexp.MustCompile(`(?m)^\s*raise\s+NotImplementedError\b`)
-	explicitRustStubRe = regexp.MustCompile(`(?m)^\s*(?:todo|unimplemented)!\s*\(`)
-	explicitTSStubRe   = regexp.MustCompile(`(?im)^\s*throw\s+new\s+Error\s*\(\s*["']not\s+implemented`)
+	explicitPyStubRe    = regexp.MustCompile(`(?m)^\s*raise\s+NotImplementedError\b`)
+	explicitRustStubRe  = regexp.MustCompile(`(?m)^\s*(?:todo|unimplemented)!\s*\(`)
+	explicitTSStubRe    = regexp.MustCompile(`(?im)^\s*throw\s+new\s+Error\s*\(\s*["']not\s+implemented`)
+	hashedBundleChunkRe = regexp.MustCompile(`-[A-Za-z0-9_-]{8}\.(?:js|mjs|cjs)$`)
 )
 
 type scanAccumulator struct {
@@ -50,14 +51,18 @@ type scanAccumulator struct {
 }
 
 type fileEvalMetrics struct {
-	relSlash string
-	lang     string
-	loc      int
-	cds      int
-	maxComp  int
-	maxFnLOC int
-	stubs    int
-	sinks    int
+	relSlash   string
+	lang       string
+	loc        int
+	cds        int
+	maxComp    int
+	maxFnLOC   int
+	maxParams  int
+	maxNesting int
+	stubs      int
+	sinks      int
+	unchecked  int
+	secretLeak int
 }
 
 // ScanRepository executes a read-only 11-language structural scan of targetDir without writing files or touching SQLite (@intent tree_sitter_ast_gate_spec.md #XrayReport).
@@ -152,12 +157,23 @@ func inspectCandidateFile(absRoot, path string, d fs.DirEntry, acc *scanAccumula
 	if rErr != nil || strings.HasPrefix(rel, "..") {
 		return nil
 	}
+	relSlash := filepath.ToSlash(rel)
+	if isBundledAssetRelPath(relSlash) {
+		return nil
+	}
 	data, readErr := os.ReadFile(path)
 	if readErr != nil {
 		return nil
 	}
-	ingestSourceFile(filepath.ToSlash(rel), lang, data, acc)
+	ingestSourceFile(relSlash, lang, data, acc)
 	return nil
+}
+
+func isBundledAssetRelPath(relSlash string) bool {
+	if strings.Contains(relSlash, "/sovereign-sandbox/assets/") {
+		return true
+	}
+	return strings.Contains(relSlash, "/assets/") && hashedBundleChunkRe.MatchString(relSlash)
 }
 
 func isBundledArtifactFileName(name string) bool {
@@ -226,9 +242,18 @@ func evaluateImplementationMetrics(relSlash, lang string, loc int, data []byte, 
 	}
 	stubs := len(eval.EmptyBlocks) + countExplicitPolyglotStubs(lang, data)
 	sinks := len(verify.DetectPolyglotCWESinks(relSlash, data))
+	maxParams, maxNesting, highArity, deepNest := astdebt.SummarizeFileArityAndNesting(
+		relSlash, data, astdebt.MaxFunctionParams, astdebt.MaxFunctionNesting,
+	)
+	unchecked := verify.CountFileUncheckedErrors(relSlash, data)
+	secretLeaks := verify.CountFileSecretAndPathLeaks(relSlash, data)
 
 	acc.report.EmptyStubs += stubs
 	acc.report.SecuritySinks += sinks
+	acc.report.HighArityFuncs += highArity
+	acc.report.DeepNestingFuncs += deepNest
+	acc.report.UncheckedErrors += unchecked
+	acc.report.SecretPathLeaks += secretLeaks
 	if loc > acc.thresholds.MaxFileLOC {
 		acc.report.MonolithFiles++
 	}
@@ -236,7 +261,8 @@ func evaluateImplementationMetrics(relSlash, lang string, loc int, data []byte, 
 	acc.report.OversizedFuncs += oversized
 	fm := fileEvalMetrics{
 		relSlash: relSlash, lang: lang, loc: loc, cds: cds,
-		maxComp: maxComp, maxFnLOC: maxFnLOC, stubs: stubs, sinks: sinks,
+		maxComp: maxComp, maxFnLOC: maxFnLOC, maxParams: maxParams, maxNesting: maxNesting,
+		stubs: stubs, sinks: sinks, unchecked: unchecked, secretLeak: secretLeaks,
 	}
 	updateBaselineEnvelope(&acc.report.BaselineEnvelope, fm)
 	acc.hotspotsByFile[relSlash] = buildHotspotCandidate(fm, acc.thresholds)
@@ -262,6 +288,9 @@ func finalizeScanReport(absRoot string, topLimit int, start time.Time, acc *scan
 	acc.report.BaselineEnvelope.CloneGroupCount = len(clones)
 	applyCloneCountsToHotspots(clones, acc.hotspotsByFile)
 
+	acc.report.MagicStringGroups = verify.CountCorpusMagicStringGroups(
+		acc.nonTestSources, verify.DefaultXrayMagicStringThreshold,
+	)
 	acc.report.InferredBoundaries = len(impact.InferCleanArchitectureBoundaries(absRoot))
 	acc.report.HangoverScore = computeHangoverScore(acc.report)
 	acc.report.Grade = computeHangoverGrade(acc.report.HangoverScore)
