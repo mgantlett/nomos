@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nomos-cli"
-version = "4.34.0"
+version = "4.34.1"
 description = "Zero-dependency launcher for Nomos: Apache-2.0 static Go AST & Git execution substrate for AI coding agents (nomos xray, nomos init, nomos verify, nomos mcp)."
 readme = "README.md"
 license = "Apache-2.0"

@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/mgantlett/nomos/v4.34.0/nomos.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mgantlett/nomos/v4.34.1/nomos.schema.json
 # Nomos Branch Guard configuration (compact default).
 # Full thresholds, contracts, and worktree options: run 'nomos init --worktrees' or use IDE $schema autocomplete.
 project: "{{.ProjectName}}"

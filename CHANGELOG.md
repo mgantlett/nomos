@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [v4.34.1] - 2026-11-27
+
+> Fix budget critical and final-deadline deliverable flush advisories (Apache 2.0)
+
+### Agent Upgrade & New Surfaces
+- **Upgrade**: `npx -y @mgantlett/nomos@latest update --sync-workspace` (or `uvx --refresh nomos-cli xray . --json`).
+- **Active Surfaces**: `nomos cli`.
+
+### CLI, Distribution & Hooks (`nomos cli`)
+- **Fix budget critical and final-deadline deliverable flush advisories (`INT-2330`, `SUB-3928`)**: Strengthen critical budget deliverable-flush and add final-deadline checkpoint.
+
+---
+
 ## [v4.34.0] - 2026-11-26
 > Suppression & Type-Escape Diff-Ratchet, Native Zod 4 Contract Parity, Held-Out Test Oracle Lock (`--lock-tests`), Hard `--scope` Write Fence, 15-Second Architectural Intent Brief (`--intent-brief`), Optional Runtime `benchmark_ratchet`, and Polyglot `SiblingDelta` Multi-Agent Isolation (Apache 2.0)
 
