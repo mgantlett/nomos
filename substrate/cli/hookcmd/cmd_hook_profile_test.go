@@ -126,3 +126,41 @@ func TestHookAdvisoryProfile_TV_LRN_12_EndToEndAndHardGateInvariance(t *testing.
 		t.Fatalf("TV-LRN-12: expected hard anti-reward-hacking deny on /tests regardless of advisory flags, got %s", hardDenyVerifier)
 	}
 }
+
+// TestBudgetThreeStageDeliverableFlush verifies 65% warn, 80% crit deliverable-flush, and 92% final-deadline checkpoints.
+func TestBudgetThreeStageDeliverableFlush(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	sandboxDir := t.TempDir()
+	p := &shellguard.HookPayload{SessionID: "sess-final-deadline"}
+	statePath := resolveBudgetStateFilePath(p, sandboxDir)
+	args := []string{
+		"post-tool", "--container-sandbox",
+		"--budget-sec", "1000", "--budget-warn-pct", "65", "--budget-crit-pct", "80",
+	}
+	payload := map[string]any{
+		"session_id":      "sess-final-deadline",
+		"hook_event_name": "PostToolUse",
+		"tool_name":       "Bash",
+		"tool_input":      map[string]any{"command": "echo bench"},
+		"tool_response":   map[string]any{"stdout": "ok\n"},
+	}
+
+	saveBudgetState(statePath, sessionBudgetState{StartedUnix: time.Now().Unix() - 810, Warned75: true})
+	critOut := runInternalHook(t, args, payload)
+	if !strings.Contains(critOut, "STOP exploring, tuning, or benchmarking now") {
+		t.Fatalf("expected critical deliverable-flush advisory at 81%%, got %s", critOut)
+	}
+
+	st := loadBudgetState(statePath)
+	st.StartedUnix = time.Now().Unix() - 930
+	saveBudgetState(statePath, st)
+	finalOut := runInternalHook(t, args, payload)
+	if !strings.Contains(finalOut, "Nomos Budget Final Deadline") || !strings.Contains(finalOut, "HARD TIMEOUT IMMINENT") {
+		t.Fatalf("expected final-deadline flush advisory at 93%%, got %s", finalOut)
+	}
+
+	repeatOut := runInternalHook(t, args, payload)
+	if repeatOut != "{}" {
+		t.Fatalf("expected deduplicated silent {} after final-deadline advisory fired, got %s", repeatOut)
+	}
+}

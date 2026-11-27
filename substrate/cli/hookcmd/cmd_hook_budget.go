@@ -21,6 +21,7 @@ type sessionBudgetState struct {
 	LastPreToolUnix int64           `json:"last_pre_tool_unix,omitempty"`
 	Warned75        bool            `json:"warned_75"`
 	Warned90        bool            `json:"warned_90"`
+	WarnedFinal     bool            `json:"warned_final,omitempty"`
 	WarnedSlowStep  bool            `json:"warned_slow_step,omitempty"`
 	HealthAlerts    map[string]bool `json:"health_alerts,omitempty"`
 }
@@ -96,6 +97,17 @@ func evaluateSessionBudgetRadarWithProfile(p *shellguard.HookPayload, hermeticDi
 	return joinHookAdvisories(checkpointMsg, slowMsg)
 }
 
+func resolveFinalBudgetPct(critPct int) int {
+	finalPct := critPct + 8
+	if finalPct < 92 {
+		finalPct = 92
+	}
+	if finalPct > 98 {
+		finalPct = 98
+	}
+	return finalPct
+}
+
 func evaluateBudgetThresholdCheckpoint(st *sessionBudgetState, elapsed, budgetSec int, profile HookAdvisoryProfile, dirty *bool) string {
 	warnPct := profile.WarnPct
 	if warnPct <= 0 {
@@ -105,7 +117,15 @@ func evaluateBudgetThresholdCheckpoint(st *sessionBudgetState, elapsed, budgetSe
 	if critPct <= warnPct {
 		critPct = defaultBudgetCritPct
 	}
+	finalPct := resolveFinalBudgetPct(critPct)
 	pct := (elapsed * 100) / budgetSec
+	if pct >= finalPct && !st.WarnedFinal {
+		st.Warned75 = true
+		st.Warned90 = true
+		st.WarnedFinal = true
+		*dirty = true
+		return formatBudgetFinalDeadlineAdvisory(pct, elapsed, budgetSec, profile.AdvisoryStyle)
+	}
 	if pct >= critPct && !st.Warned90 {
 		st.Warned75 = true
 		st.Warned90 = true

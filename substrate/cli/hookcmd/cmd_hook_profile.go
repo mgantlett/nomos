@@ -159,18 +159,33 @@ func formatBudgetCheckpointAdvisory(pct, elapsed, budgetSec int, critical bool, 
 	}
 	if style == advisoryStyleTerse {
 		if critical {
-			return fmt.Sprintf("🚨 [Nomos Budget] %d%% (%ds/%ds, %ds left): finalize and run final verification now.", pct, elapsed, budgetSec, rem)
+			return fmt.Sprintf("🚨 [Nomos Budget] %d%% (%ds/%ds, %ds left): stop tuning, write deliverables to disk, finalize and run final verification now.", pct, elapsed, budgetSec, rem)
 		}
 		return fmt.Sprintf("⏱️ [Nomos Budget] %d%% (%ds/%ds, %ds left): checkpoint working baseline now.", pct, elapsed, budgetSec, rem)
 	}
 	if critical {
 		return fmt.Sprintf(
-			"🚨 [Nomos Budget Radar] %d%% of session time budget elapsed (%ds / %ds, %ds remaining): finalize outputs, stop background scratch processes, and run final verification immediately.",
+			"🚨 [Nomos Budget Radar] %d%% of session time budget elapsed (%ds / %ds, %ds remaining): STOP exploring, tuning, or benchmarking now - write all required deliverable files to disk, stop background scratch processes, and run final end-to-end verification immediately.",
 			pct, elapsed, budgetSec, rem,
 		)
 	}
 	return fmt.Sprintf(
 		"⏱️ [Nomos Budget Radar] %d%% of session time budget elapsed (%ds / %ds, %ds remaining): commit or verify a working baseline artifact now and bound heavy commands with timeout.",
+		pct, elapsed, budgetSec, rem,
+	)
+}
+
+// formatBudgetFinalDeadlineAdvisory renders a one-shot last-chance flush warning immediately before hard timeout.
+func formatBudgetFinalDeadlineAdvisory(pct, elapsed, budgetSec int, style string) string {
+	rem := budgetSec - elapsed
+	if rem < 0 {
+		rem = 0
+	}
+	if style == advisoryStyleTerse {
+		return fmt.Sprintf("🚨 [Nomos Final Deadline] %d%% (%ds/%ds, %ds left): timeout imminent - stop tuning, write deliverables to disk, exit now.", pct, elapsed, budgetSec, rem)
+	}
+	return fmt.Sprintf(
+		"🚨 [Nomos Budget Final Deadline] %d%% of session time budget elapsed (%ds / %ds, %ds remaining): HARD TIMEOUT IMMINENT - abort all experiments and micro-optimizations immediately, persist your best working deliverable files to disk, and exit cleanly.",
 		pct, elapsed, budgetSec, rem,
 	)
 }
