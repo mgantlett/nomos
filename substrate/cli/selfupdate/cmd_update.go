@@ -27,12 +27,18 @@ const (
 	installMethodHomebrew   = "homebrew"
 	installMethodAUR        = "aur"
 	installMethodNix        = "nix"
+	installMethodScoop      = "scoop"
+	installMethodWinget     = "winget"
+	installMethodMise       = "mise"
 	installMethodSystem     = "system"
 
 	upgradeCmdStandalone = "nomos update"
 	upgradeCmdHomebrew   = "brew upgrade --cask mgantlett/tap/nomos"
 	upgradeCmdAUR        = "yay -Syu nomos-bin"
 	upgradeCmdNix        = "nix profile upgrade nomos"
+	upgradeCmdScoop      = "scoop update nomos"
+	upgradeCmdWinget     = "winget upgrade mgantlett.nomos"
+	upgradeCmdMise       = "mise upgrade aqua:mgantlett/nomos"
 	upgradeCmdSystem     = "upgrade nomos via your system package manager or reinstall via curl -fsSL https://sophialabs.ca/install | bash"
 
 	updateHTTPTimeout = 30 * time.Second
@@ -100,17 +106,47 @@ func DetectInstallMethod(binaryPath string) (string, string) {
 	return DetectInstallMethodForHost(binaryPath, isArchLinuxHost())
 }
 
+type managedInstallMatcher struct {
+	method   string
+	cmd      string
+	markers  []string
+}
+
+var managedInstallMatchers = []managedInstallMatcher{
+	{
+		method:  installMethodHomebrew,
+		cmd:     upgradeCmdHomebrew,
+		markers: []string{"/opt/homebrew/", "/cellar/", "/caskroom/", "linuxbrew"},
+	},
+	{
+		method:  installMethodNix,
+		cmd:     upgradeCmdNix,
+		markers: []string{"/nix/store/"},
+	},
+	{
+		method:  installMethodScoop,
+		cmd:     upgradeCmdScoop,
+		markers: []string{"/scoop/apps/", "/scoop/shims/"},
+	},
+	{
+		method:  installMethodWinget,
+		cmd:     upgradeCmdWinget,
+		markers: []string{"/microsoft/winget/packages/", "/microsoft/winget/links/"},
+	},
+	{
+		method:  installMethodMise,
+		cmd:     upgradeCmdMise,
+		markers: []string{"/mise/installs/", "/mise/shims/"},
+	},
+}
+
 // DetectInstallMethodForHost classifies binary ownership given explicit Arch Linux host detection.
 func DetectInstallMethodForHost(binaryPath string, isArchLinux bool) (string, string) {
-	lower := strings.ToLower(filepath.ToSlash(strings.TrimSpace(binaryPath)))
-	if strings.Contains(lower, "/opt/homebrew/") ||
-		strings.Contains(lower, "/cellar/") ||
-		strings.Contains(lower, "/caskroom/") ||
-		strings.Contains(lower, "linuxbrew") {
-		return installMethodHomebrew, upgradeCmdHomebrew
-	}
-	if strings.Contains(lower, "/nix/store/") {
-		return installMethodNix, upgradeCmdNix
+	lower := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(strings.TrimSpace(binaryPath)), "\\", "/"))
+	for _, matcher := range managedInstallMatchers {
+		if containsAnySubstring(lower, matcher.markers) {
+			return matcher.method, matcher.cmd
+		}
 	}
 	if strings.HasPrefix(lower, "/usr/bin/") || strings.HasPrefix(lower, "/bin/") {
 		if isArchLinux {
@@ -119,6 +155,15 @@ func DetectInstallMethodForHost(binaryPath string, isArchLinux bool) (string, st
 		return installMethodSystem, upgradeCmdSystem
 	}
 	return installMethodStandalone, upgradeCmdStandalone
+}
+
+func containsAnySubstring(target string, needles []string) bool {
+	for _, needle := range needles {
+		if strings.Contains(target, needle) {
+			return true
+		}
+	}
+	return false
 }
 
 func isArchLinuxHost() bool {

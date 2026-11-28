@@ -123,6 +123,9 @@ func TestUpdateCmd_PackageManagerGuardBlocksOverwrite(t *testing.T) {
 		{filepath.Join("/opt", "homebrew", "bin", "nomos"), "homebrew", "brew upgrade --cask mgantlett/tap/nomos"},
 		{filepath.Join("/usr", "bin", "nomos"), wantUsrBinMethod, wantUsrBinRemedy},
 		{filepath.Join("/nix", "store", "abc-nomos", "bin", "nomos"), "nix", "nix profile upgrade nomos"},
+		{`C:\Users\dev\scoop\apps\nomos\current\nomos.exe`, "scoop", "scoop update nomos"},
+		{`C:\Users\dev\AppData\Local\Microsoft\WinGet\Packages\mgantlett.nomos\nomos.exe`, "winget", "winget upgrade mgantlett.nomos"},
+		{filepath.Join("/var", "lib", "mise", "installs", "aqua-mgantlett-nomos", "4.35.0", "nomos"), "mise", "mise upgrade aqua:mgantlett/nomos"},
 	}
 
 	for _, tc := range cases {
