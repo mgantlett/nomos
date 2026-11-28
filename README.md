@@ -9,7 +9,7 @@
 [![Nomos X-Ray](https://sophialabs.ca/api/xray/badge/mgantlett/nomos.svg)](https://sophialabs.ca/mgantlett/nomos)
 [![Telemetry](https://img.shields.io/badge/Telemetry-Live-0284C7)](https://sophialabs.ca/system/analytics)
 
-**Nomos** is a single `~20 MB` static Go binary (`Apache 2.0`, `0` LLM tokens, zero cloud account) between your coding agent (**Claude Code**, **Cursor**, **OpenCode**, **Codex**, **Gemini CLI**, **Antigravity**, **Windsurf**, or **Aider**) and Git. Run `nomos init` once (or paste 1 prompt into your agent) - Nomos blocks skipped tests, hollow stubs, monolith bloat, and leaked secrets in `24ms` (`<365ms` full 42-gate diff verify even across `3.60M`-LOC monorepos), your agent fixes its own mess mid-turn, and your `feat/*` workflow never changes:
+**Nomos** is a single `~20 MB` static Go binary (`Apache 2.0`, `0` LLM tokens, zero cloud account) between your coding agent (**Claude Code**, **Cursor**, **OpenCode**, **Codex**, **Gemini CLI**, **Antigravity**, **Windsurf**, or **Aider**) and Git. Run `nomos init` once, or paste one prompt into your agent. Nomos blocks skipped tests, hollow stubs, monolith bloat, and leaked secrets in `24ms` (`<365ms` full 42-gate diff verify even across `3.60M`-LOC monorepos), so your agent fixes its own mess mid-turn while your `feat/*` workflow stays unchanged:
 
 ```text
 You             -> Same plain-English prompts, same IDE, normal feat/* PRs (0 new commands to learn)
@@ -21,16 +21,16 @@ Nomos Substrate -> Invisible ~4ms hooks + 42 AST gates + Day-0 debt ratchet (0 L
 Git             -> main stays read-only & verified; shortcuts fail closed before commit
 ```
 
-> **Initialize once, then forget `nomos` exists.** Nomos supplies `0`-token repository physics; **your coding agent supplies the intelligence** to self-correct before ending its turn. Use `nomos xray .` anytime you want a `~4s` codebase health scan.
+> **Initialise once, then forget `nomos` exists.** Nomos supplies `0`-token repository physics; **your coding agent supplies the intelligence** to self-correct before ending its turn. Use `nomos xray .` anytime you want a `~4s` codebase health scan.
 
 ### Two Ways to Set Up in 30 Seconds (Or Scan in Browser First)
 
-> **Zero-Install Browser Scan (5s):** Paste any public GitHub repository at [**sophialabs.ca/xray**](https://sophialabs.ca/xray) - or just replace `github.com` with `sophialabs.ca` in your browser URL bar (e.g. `https://sophialabs.ca/go-chi/chi`) - to inspect its 11-language `AI Hangover Score` (`0-100`) and download a pre-computed `nomos.baseline.json` + 4-line GitHub Action PR gate before installing anything locally.
+> **Zero-Install Browser Scan (5s):** Paste any public GitHub repo at [**sophialabs.ca/xray**](https://sophialabs.ca/xray), or replace `github.com` with `sophialabs.ca` in your URL bar (e.g. `https://sophialabs.ca/go-chi/chi`). Inspect its 11-language `AI Hangover Score` (`0-100`) and grab a pre-computed `nomos.baseline.json` plus a 4-line GitHub Action PR gate before installing anything locally.
 
 **Path A - Paste 1 Prompt Into Your Coding Agent (Zero Manual Setup):**
 
 ```text
-Install Nomos (curl -fsSL https://sophialabs.ca/install | bash), run `nomos xray .` to summarize our Day-0 AI Hangover Score and top 3 structural hotspots, then run `nomos init` so Branch Guard, brownfield baseline ratcheting, and agent hooks run automatically underneath future feature branches (use `nomos init --local` if we want git status untouched; do not enable `--worktrees`).
+Install Nomos (curl -fsSL https://sophialabs.ca/install | bash) and run `nomos xray .` to summarise our Day-0 AI Hangover Score and top 3 hotspots. Then run `nomos init` so Branch Guard, brownfield baseline ratcheting, and agent hooks run underneath future feature branches (use `nomos init --local` to keep git status clean; do not enable `--worktrees`).
 ```
 
 **Path B - Run 3 Commands in Your Terminal:**
@@ -62,16 +62,16 @@ Your coding agent receives that deterministic AST fix recipe mid-turn and repair
 
 ## How It Works Without Changing Your Workflow (`100%` Apache 2.0 Open-Core)
 
-Every single-repository governance capability ships locally in the open-source `nomos` binary with zero crippled commands, organized around three clear boundaries:
+Every single-repository governance capability ships locally in the open-source `nomos` binary with zero crippled commands, organised around three clear boundaries:
 
 ### 1. What You Touch Once (`30` Seconds: `nomos xray`, `nomos init`)
 - **On-Demand 5s Stethoscope (`nomos xray . [--markdown]`):** Walks `git ls-files` across 11 languages for an `AI Hangover Score` (`0-100`, `Grade A-F`), clones, monoliths (`>400 LOC`), stubs, swallowed errors, secret/host-path leaks, CWE sinks, and ready-to-lock `architecture_boundaries` with **zero repository writes**. Run it on Day 0 or whenever you want a codebase report card.
-- **Ratchet-by-Default Drop-In (`nomos init`):** Always starts in safe **Ratchet mode** (`strict_mode: false`, compact `~18`-line `nomos.yaml`, `nomos.baseline.json` auto-locked whenever Day-0 debt exists) so **zero existing legacy files fail** and clean scratch repos never hit surprise strict blowups (self-hosted `nomos` holds `0/100 Grade A` under `strict_mode: true`). Auto-detects installed agents across repo, `$PATH`, and `$HOME` without dumping unused IDE folders, scaffolds a compact `~13`-line `AGENTS.md` Branch Guard block, and wires native lifecycle + Git hooks (`nomos --help` shows everyday commands; `nomos --help-agent` reveals internal agent RPCs). Promote anytime with `nomos init --strict`.
-- **Visible Saves & Guided Graduation (`nomos status`):** Hooks stay silent on clean edits, then surface real value at natural checkpoints: `post-commit` prints a 1-line Shield Receipt on your first verified commit or whenever shortcuts were caught / lessons distilled, and `nomos status` renders your **Shield Scorecard** (blocked shortcuts by category, verified commits, distilled lessons, baseline anchor) plus a 4-rung graduation ladder (`Stealth` -> `Branch Guard` -> `CI PR Proofs` -> `Strict / Worktrees`).
+- **Ratchet-by-Default Drop-In (`nomos init`):** Starts in safe **Ratchet mode** (`strict_mode: false`, compact `~18`-line `nomos.yaml`, auto-locked `nomos.baseline.json` when Day-0 debt exists) so **zero existing legacy files fail** and clean repos stay smooth (`nomos` itself holds `0/100 Grade A` under `strict_mode: true`). Auto-detects installed agents across repo, `$PATH`, and `$HOME` without dumping unused IDE folders, writes a compact `~13`-line `AGENTS.md` block, and wires native lifecycle + Git hooks (`nomos --help` for daily commands; `nomos --help-agent` for agent RPCs). Promote anytime with `nomos init --strict`.
+- **Visible Saves & Guided Graduation (`nomos status`):** Hooks stay silent on clean edits and surface real saves at natural checkpoints. `post-commit` prints a 1-line Shield Receipt on your first verified commit or whenever shortcuts are caught or lessons distilled. `nomos status` renders your **Shield Scorecard** (blocked shortcuts, verified commits, distilled lessons, baseline anchor) plus a 4-rung graduation ladder (`Stealth` -> `Branch Guard` -> `CI PR Proofs` -> `Strict / Worktrees`).
 - **Zero-Footprint Stealth Trial (`nomos init --local`):** Registers generated configs and hooks in `.git/info/exclude` instead of `.gitignore`, leaving `git status` 100% clean while you evaluate solo; promote anytime with `nomos init`.
 
 ### 2. What Runs Invisibly Underneath Every Agent Turn (`0` Commands to Learn)
-- **Protected `main` & Automatic `feat/*` Verification:** Default `isolation_mode: "branch"` blocks direct `main`/`master` writes and config/hook tampering (`nomos.yaml`, `nomos.baseline.json`, `.git/hooks/*`), while plain `git commit` on `feat/*` branches runs `42` polyglot AST gates across **Go, TypeScript/Svelte, Python, Rust, Ruby, C/C++, Java, Kotlin, and C#** in `~460ms` (`~24ms` single-file radar, `0` LLM tokens) - catching skipped/deleted tests (`t.Skip`, `@pytest.mark.skip`, `#[ignore]`, `xit`, `@Disabled`, `[Fact(Skip=...)]`), hollow stubs (`todo!()`, `pass`, `NotImplementedError`), `>60 LOC` functions (`400 LOC` file ceiling), `architecture_boundaries`, and `strict_types`.
+- **Protected `main` & Automatic `feat/*` Verification:** Default `isolation_mode: "branch"` blocks direct `main`/`master` writes and config/hook tampering (`nomos.yaml`, `nomos.baseline.json`, `.git/hooks/*`). Plain `git commit` on `feat/*` runs `42` polyglot AST gates across **Go, TypeScript/Svelte, Python, Rust, Ruby, C/C++, Java, Kotlin, and C#** in `~460ms` (`~24ms` single-file radar, `0` LLM tokens). It catches skipped/deleted tests (`t.Skip`, `@pytest.mark.skip`, `#[ignore]`, `xit`, `@Disabled`, `[Fact(Skip=...)]`), hollow stubs (`todo!()`, `pass`, `NotImplementedError`), `>60 LOC` functions (`400 LOC` file ceiling), `architecture_boundaries`, and `strict_types`.
 - **`~4ms` Pre-Tool Security Airlock & Loop Breaker (`nomos hook`):** Denies agent reads of `~/.ssh`, `~/.aws`, `~/.kube`, `~/.gnupg`, `~/.config/gcloud`, `.netrc`, `.npmrc`, `.pypirc`, blocks cloud metadata SSRF (`169.254.169.254`), rejects unverified "tests pass" claims, and halts 3 consecutive non-progressing tool failures before burning context windows.
 - **Verified-Only Episodic Memory (`mneme.db` / `nomos mcp`):** `.git/hooks/post-commit` distills `trap -> fix` lessons into pure-Go SQLite (`mneme.db`, `<50ms` lexical/vector recall + read-only `stdio` MCP via `nomos mcp`) only after verification passes, so broken attempts never poison future agent sessions.
 
@@ -154,7 +154,7 @@ Enforce zero-trust PR mutation proofs in GitHub Actions ([GitHub Marketplace](ht
 
 | What Nomos Is *Not* | Why Existing Tools Leave `main` Exposed | What the Nomos Transaction Layer Adds |
 | :--- | :--- | :--- |
-| **Not Another Coding Agent** | Switching models or IDEs does not stop a stochastic optimizer from cutting corners at 70% context. | Keep your favorite agent; Nomos enforces sandbox isolation and merge rules underneath it. |
+| **Not Another Coding Agent** | Switching models or IDEs does not stop a probabilistic model from cutting corners at 70% context. | Keep your favourite agent; Nomos enforces sandbox isolation and merge rules underneath it. |
 | **Not a Linter or Post-Hoc CI** | Traditional linters assume honest humans *after* a branch is dirty; agents edit configs or add ignore comments. | Evaluates `feat/*` branch or isolated `git worktree` diffs against `main` while locking `nomos.yaml`, baselines, specs, and assertions outside agent write scope. |
 | **Not a `.cursorrules` Prompt Pack** | Markdown rules decay past 60% context, and unverified agent notes poison future sessions. | Enforces compiled Go exit codes (`exit 1`) outside context windows and records `mneme.db` lessons only after verified merges. |
 
@@ -223,8 +223,8 @@ Across `108` paired zero-hint brownfield episodes (`54` Stock vs. `54` Nomos `v4
 
 When your team scales beyond single-branch workflows (`nomos init --worktrees`):
 - **Hermetic Worktree Isolation:** Direct edits in the root checkout fail closed; `nomos task chore` / `nomos task start` mints `capbac.Lease` capabilities inside disposable `worktrees/<repo>-<task>` sandboxes (`PLAN -> EDIT -> REVIEW -> SYNC -> LEARN`).
-- **Two-Plane Spec-vs-Code Separation (`INT`/`SUB`) & `2PC` Sync:** Separates human specifications (`INT-*`) from substrate implementation (`SUB-*`), while `nomos task sync` runs `42` gates, verifies `MTPO` serializability, fast-forwards `main`, records a SHA-256 Git Notes receipt (`refs/notes/nomos/releases` + `SpecDigests`), and prunes the worktree.
-- **Multi-Worktree AST Collision Radar (`MTPO`), `HotScopeReflex` & `NCTE-100`:** `nomos physics` computes AST File Mass, viscosity, and live exported symbol hulls (`GREEN`/`YELLOW`/`RED`) across active sandboxes; `HotScopeReflex` dynamically tightens `PostToolUse` radar (`80% -> 65%`) in pitfall-dense directories; and `nomos directive --lint` enforces unambiguous controlled English in `intent/` specs.
+- **Two-Plane Spec-vs-Code Separation (`INT`/`SUB`) & `2PC` Sync:** Separates human specifications (`INT-*`) from substrate implementation (`SUB-*`). `nomos task sync` runs `42` gates, verifies `MTPO` serialisability, fast-forwards `main`, records a SHA-256 Git Notes receipt (`refs/notes/nomos/releases` + `SpecDigests`), and prunes the worktree.
+- **Multi-Worktree AST Collision Radar (`MTPO`), `HotScopeReflex` & `NCTE-100`:** `nomos physics` computes AST File Mass, viscosity, and live exported symbol hulls (`GREEN`/`YELLOW`/`RED`) across active sandboxes. `HotScopeReflex` tightens `PostToolUse` radar (`80% -> 65%`) in pitfall-dense directories, and `nomos directive --lint` enforces clear controlled English in `intent/` specs.
 
 | Capability | Canonical CLI & Declarative Surface | Architecture Specification |
 | :--- | :--- | :--- |
@@ -235,7 +235,7 @@ When your team scales beyond single-branch workflows (`nomos init --worktrees`):
 | **Mneme Memory, MCP & Sentinel PRM Sessions** | `nomos mem save \| recall \| list \| dismiss [--stale]`, `nomos session list \| show \| name \| visual \| export` (RLVR/DPO/SFT JSONL + `SentinelScorecard`), `nomos mcp` (`7` tools, `3` `nomos://` resources, `3` prompts), `nomos issue`, `nomos version`, `nomos completion` | [`mneme_memory_spec.md`](intent/architecture/specs/mneme_memory_spec.md) · [`software_physics_engine_spec.md`](intent/architecture/specs/software_physics_engine_spec.md) |
 
 - **MCP Directory & Inspection Score:** [![mgantlett/nomos MCP server](https://glama.ai/mcp/servers/mgantlett/nomos/badges/score.svg)](https://glama.ai/mcp/servers/mgantlett/nomos) · [Remote HTTP MCP Connector](https://glama.ai/mcp/connectors/io.github.mgantlett/nomos)
-- **Scope of Proof:** Nomos verifies `<5ms` compiled structural and traceability invariants (import boundaries, contract/membrane/infra field parity, anti-shim AST checks, `TC-*` test bindings, and SHA-256 spec digests) rather than LLM-as-a-Judge critics or formal theorem provers (`Coq`, `Lean`, `TLA+`); runtime semantics remain governed by your test suite.
+- **Scope of Proof:** Nomos verifies `<5ms` compiled structural and traceability invariants (import boundaries, contract/membrane/infra field parity, anti-shim AST checks, `TC-*` test bindings, and SHA-256 spec digests) rather than LLM-as-a-Judge critics or formal theorem provers (`Coq`, `Lean`, `TLA+`). Runtime semantics remain governed by your test suite.
 
 </details>
 
@@ -286,5 +286,5 @@ Nomos Community Edition is **100% open-source under Apache 2.0** with zero telem
 <div align="center">
   <img src="intent/assets/nomos_hero_emblem.jpg" alt="SophiaLabs // Nomos Unified Emblem" width="56" />
   <br />
-  <sub>Built with deterministic rigor by <a href="https://sophialabs.ca"><b>SophiaLabs</b></a> · Governed by Nomos</sub>
+  <sub>Built with deterministic rigour by <a href="https://sophialabs.ca"><b>SophiaLabs</b></a> · Governed by Nomos</sub>
 </div>
