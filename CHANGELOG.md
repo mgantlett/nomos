@@ -11,7 +11,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 > Add `nomos.yaml` threshold loading and CLI overrides (--max-file-loc, --max-func-loc, --max-complexity) to nomos xray; Add machine-actionable verify --fixes repair recipes and deterministic safe --fix auto-remediation; Add Linux deb, rpm, and apk nfpms packages to GoReleaser configuration; Refresh MTPO base commit after verified sync even when worktree was manually rebased (Apache 2.0)
 
 ### Agent Upgrade & New Surfaces
-- **Upgrade**: `npx -y @mgantlett/nomos@latest update --sync-workspace` (or `uvx --refresh nomos-cli xray . --json`).
+- **Upgrade**: `nomos update --sync-workspace` (package-manager installs: check `nomos update --check --json` for `upgrade_command`, then run `nomos update --sync-workspace`).
+- **Zero-Install Scan**: `npx -y @mgantlett/nomos@latest xray . --json` or `uvx --refresh nomos-cli xray . --json`.
 - **Active Surfaces**: `nomos cli`, `nomos verify`, `.goreleaser.yaml`.
 
 ### CLI, Distribution & Hooks (`nomos cli`)
@@ -35,7 +36,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 > Fix budget critical and final-deadline deliverable flush advisories (Apache 2.0)
 
 ### Agent Upgrade & New Surfaces
-- **Upgrade**: `npx -y @mgantlett/nomos@latest update --sync-workspace` (or `uvx --refresh nomos-cli xray . --json`).
+- **Upgrade**: `nomos update --sync-workspace` (package-manager installs: check `nomos update --check --json` for `upgrade_command`, then run `nomos update --sync-workspace`).
+- **Zero-Install Scan**: `npx -y @mgantlett/nomos@latest xray . --json` or `uvx --refresh nomos-cli xray . --json`.
 - **Active Surfaces**: `nomos cli`.
 
 ### CLI, Distribution & Hooks (`nomos cli`)
@@ -47,7 +49,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 > Suppression & Type-Escape Diff-Ratchet, Native Zod 4 Contract Parity, Held-Out Test Oracle Lock (`--lock-tests`), Hard `--scope` Write Fence, 15-Second Architectural Intent Brief (`--intent-brief`), Optional Runtime `benchmark_ratchet`, and Polyglot `SiblingDelta` Multi-Agent Isolation (Apache 2.0)
 
 ### Agent Upgrade & New Surfaces
-- **Upgrade**: `npx -y @mgantlett/nomos@latest update --sync-workspace` (or `uvx --refresh nomos-cli xray . --json`).
+- **Upgrade**: `nomos update --sync-workspace` (package-manager installs: check `nomos update --check --json` for `upgrade_command`, then run `nomos update --sync-workspace`).
+- **Zero-Install Scan**: `npx -y @mgantlett/nomos@latest xray . --json` or `uvx --refresh nomos-cli xray . --json`.
 - **Active Surfaces**: `nomos verify --intent-brief`, `nomos verify --update-bench-baseline`, `nomos task start --lock-tests`, `nomos task pair --lock-tests`, `nomos.yaml` (`forbid_suppressions`, `immutable_test_paths`, `benchmark_ratchet`).
 
 ### Static Escape & Polyglot Contract Hardening (`INT-2305`, `SUB-3875`, `SUB-3878`)
@@ -72,7 +75,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 > Ratchet-by-Default Compact Init, Repo-Scoped Shield Scorecard Telemetry, Smart Home Agent Detection, and Branch-Guard 4-Rung Graduation Ladder (Apache 2.0)
 
 ### Agent Upgrade & New Surfaces
-- **Upgrade**: `npx -y @mgantlett/nomos@latest update --sync-workspace` (or `uvx --refresh nomos-cli xray . --json`).
+- **Upgrade**: `nomos update --sync-workspace` (package-manager installs: check `nomos update --check --json` for `upgrade_command`, then run `nomos update --sync-workspace`).
+- **Zero-Install Scan**: `npx -y @mgantlett/nomos@latest xray . --json` or `uvx --refresh nomos-cli xray . --json`.
 - **Active Surfaces**: `nomos init`, `nomos status`, `nomos hook post-commit`, `mneme.db` (`shield_events`).
 
 ### Intent & Specifications (`intent/architecture/specs/`)
@@ -89,7 +93,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 > Wrap `@verifies` and #StructName in backticks in v4.32.0 changelog (Apache 2.0)
 
 ### Agent Upgrade & New Surfaces
-- **Upgrade**: `npx -y @mgantlett/nomos@latest update --sync-workspace` (or `uvx --refresh nomos-cli xray . --json`).
+- **Upgrade**: `nomos update --sync-workspace` (package-manager installs: check `nomos update --check --json` for `upgrade_command`, then run `nomos update --sync-workspace`).
+- **Zero-Install Scan**: `npx -y @mgantlett/nomos@latest xray . --json` or `uvx --refresh nomos-cli xray . --json`.
 
 ### Release & Packaging (`CHANGELOG.md`)
 - **Wrap `@verifies` and #StructName in backticks in v4.32.0 changelog (`SUB-3711`)**.
@@ -101,7 +106,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 > Add polyglot dependency spine, reachable branch, and unreached file topology to xray and verify; Add intent contract lookup, impact boundary hints, and Mneme lineage recall; Add Windows Scoop, Winget, Devcontainer, and mise distribution manifests; Specify GateResult sensor scopes and orphan fixture checks (Apache 2.0)
 
 ### Agent Upgrade & New Surfaces
-- **Upgrade**: `npx -y @mgantlett/nomos@latest update --sync-workspace` (or `uvx --refresh nomos-cli xray . --json`).
+- **Upgrade**: `nomos update --sync-workspace` (package-manager installs: check `nomos update --check --json` for `upgrade_command`, then run `nomos update --sync-workspace`).
+- **Zero-Install Scan**: `npx -y @mgantlett/nomos@latest xray . --json` or `uvx --refresh nomos-cli xray . --json`.
 - **Active Surfaces**: `intent/architecture/specs/`, `nomos cli`, `nomos verify`, `capbac`.
 
 ### Intent & Specifications (`intent/architecture/specs/`)
@@ -132,7 +138,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 > Catch silent JSON `snake_case` wire drift and untyped DTO escapes across Go, TypeScript, and Python; expose Page 0 capability discovery across stdio MCP, npm, PyPI, and `llms.txt` (Apache 2.0)
 
 ### Agent Upgrade & New Surfaces
-- **Upgrade**: `npx -y @mgantlett/nomos@latest update --sync-workspace` (or `uvx --refresh nomos-cli xray . --json`).
+- **Upgrade**: `nomos update --sync-workspace` (package-manager installs: check `nomos update --check --json` for `upgrade_command`, then run `nomos update --sync-workspace`).
+- **Zero-Install Scan**: `npx -y @mgantlett/nomos@latest xray . --json` or `uvx --refresh nomos-cli xray . --json`.
 - **Active Surfaces**: `nomos verify`, `nomos xray`, `nomos mcp` (`nomos://capabilities/catalog`), `CAPABILITIES.md`.
 
 ### CLI, Distribution & Hooks (`nomos cli`, `README.md`)
