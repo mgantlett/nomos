@@ -129,6 +129,32 @@ func ResetWorkspaceFlowState(workspaceDir string) error {
 	return nil
 }
 
+// SanitizeWorkspaceExternalTaints clears untrusted external and MCP ingress taints
+// after a verified Exit 0 pass while preserving credential_source taints.
+// @intent nomos_hermetic_worktree_spec.md #CapabilityFlowGraph
+func SanitizeWorkspaceExternalTaints(workspaceDir string) error {
+	graph := LoadWorkspaceFlowGraph(workspaceDir)
+	_, hasExt := graph.HasTaint(TaintUntrustedExternal)
+	_, hasMCP := graph.HasTaint(TaintMCPUntrustedIngress)
+	if !hasExt && !hasMCP {
+		return nil
+	}
+	graph.ClearTaint(TaintUntrustedExternal)
+	graph.ClearTaint(TaintMCPUntrustedIngress)
+	return SaveWorkspaceFlowGraph(workspaceDir, graph)
+}
+
+// CheckWorkspaceReleaseTaint evaluates whether workspaceDir carries an active untrusted taint
+// that blocks privileged release sinks such as git push.
+// @intent nomos_hermetic_worktree_spec.md #CapabilityFlowGraph
+func CheckWorkspaceReleaseTaint(workspaceDir string) FlowDecision {
+	graph := LoadWorkspaceFlowGraph(workspaceDir)
+	if dec, blocked := graph.evaluateReleaseTaintBlock(); blocked {
+		return dec
+	}
+	return FlowDecision{Allowed: true, Role: FlowRoleNeutral}
+}
+
 func resolveFlowStateFilePath(workspaceDir string) (string, error) {
 	sum := sha256.Sum256([]byte(filepath.Clean(workspaceDir)))
 	name := fmt.Sprintf("nomos-capflow-%s.json", hex.EncodeToString(sum[:8]))

@@ -14,6 +14,7 @@ import (
 
 	"github.com/mgantlett/nomos/substrate/cli/hookcmd"
 	"github.com/mgantlett/nomos/substrate/cli/tui"
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/capbac"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/constants"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
@@ -98,9 +99,25 @@ func finalizeVerificationReport(out io.Writer, ctx *vscope.VerifyContext, jsonOu
 		return handleFailedVerificationReport(ctx.RepoRoot, ctx.WorktreePath, ctx.TaskID, ctx.AllFiles, ctx.IsBaseline, report)
 	}
 	if prFlags.mutateDiff {
-		return executeStandaloneMutateDiff(out, ctx.WorktreePath, prFlags.baseRef)
+		if err := executeStandaloneMutateDiff(out, ctx.WorktreePath, prFlags.baseRef); err != nil {
+			return err
+		}
 	}
+	sanitizeVerifiedWorkspaceFlowTaints(ctx.RepoRoot, ctx.WorktreePath)
 	return nil
+}
+
+func sanitizeVerifiedWorkspaceFlowTaints(repoRoot, targetDir string) {
+	if repoRoot != "" {
+		if err := capbac.SanitizeWorkspaceExternalTaints(repoRoot); err != nil {
+			return
+		}
+	}
+	if targetDir != "" && filepath.Clean(targetDir) != filepath.Clean(repoRoot) {
+		if err := capbac.SanitizeWorkspaceExternalTaints(targetDir); err != nil {
+			return
+		}
+	}
 }
 
 func writeVerifySarifOutput(out io.Writer, report *verify.PipelineReport) error {

@@ -5,6 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/mgantlett/nomos/substrate/cli/hookcmd"
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/capbac"
 )
 
 func TestHookPreTool_CapabilityFlowTaintAndSessionReset(t *testing.T) {
@@ -44,13 +47,23 @@ func TestHookPreTool_CapabilityFlowTaintAndSessionReset(t *testing.T) {
 	if dec := parseDecision(t, verifyOut); dec.Decision != "allow" {
 		t.Fatalf("expected nomos verify sanitizer to be allowed, got %+v", dec)
 	}
+	pushStillDenied := executeHookCmd(t, []string{"pre-tool", "--hermetic-dir", sandboxDir}, map[string]any{
+		"tool_name":  "Bash",
+		"tool_input": map[string]any{"command": "git push origin main"},
+	})
+	if dec := parseDecision(t, pushStillDenied); dec.Decision != "deny" {
+		t.Fatalf("TC-FLOW-10: expected git push still denied before verify Exit 0, got %+v", dec)
+	}
+	if err := capbac.SanitizeWorkspaceExternalTaints(sandboxDir); err != nil {
+		t.Fatalf("SanitizeWorkspaceExternalTaints failed: %v", err)
+	}
 
 	pushAllowed := executeHookCmd(t, []string{"pre-tool", "--hermetic-dir", sandboxDir}, map[string]any{
 		"tool_name":  "Bash",
 		"tool_input": map[string]any{"command": "git push origin main"},
 	})
 	if dec := parseDecision(t, pushAllowed); dec.Decision != "allow" {
-		t.Fatalf("expected git push to be allowed after nomos verify sanitization, got %+v", dec)
+		t.Fatalf("expected git push to be allowed after verified Exit 0 sanitization, got %+v", dec)
 	}
 
 	// 3. Reading .env taints session -> outbound curl POST blocked -> session-start clears taint.
@@ -159,5 +172,16 @@ func TestHookPreTool_ZeroTrustMCPBoundaryAndIFC(t *testing.T) {
 	})
 	if dec := parseDecision(t, mergeMCP); dec.Decision != "deny" || !strings.Contains(dec.Reason, "Cross-server privileged escalation") {
 		t.Fatalf("TC-MCP-05: expected cross-server privileged MCP escalation denied, got %+v", dec)
+	}
+
+	// TC-FLOW-12: Git pre-push IFC hook rejects tainted repo until verified Exit 0 clears taint.
+	if err := hookcmd.EvaluatePrePushIFCGate(repoDir); err == nil {
+		t.Fatalf("TC-FLOW-12: expected EvaluatePrePushIFCGate error under active untrusted taint")
+	}
+	if err := capbac.SanitizeWorkspaceExternalTaints(repoDir); err != nil {
+		t.Fatalf("TC-FLOW-12: SanitizeWorkspaceExternalTaints failed: %v", err)
+	}
+	if err := hookcmd.EvaluatePrePushIFCGate(repoDir); err != nil {
+		t.Fatalf("TC-FLOW-12: expected EvaluatePrePushIFCGate allow after Exit 0 clear, got %v", err)
 	}
 }

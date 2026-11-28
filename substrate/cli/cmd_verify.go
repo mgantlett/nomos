@@ -120,6 +120,7 @@ func runVerificationWithPR(out io.Writer, spec verifyRunSpec, prFlags verifyPRFl
 		AllFiles: spec.allFiles, Strict: spec.strict, Phase: "REVIEW",
 	}
 	if !prFlags.hasCustomProbe() && tryRenderCachedVerifyReceipt(out, ctx, spec.jsonOutput) {
+		sanitizeVerifiedWorkspaceFlowTaints(ctx.RepoRoot, ctx.WorktreePath)
 		return nil
 	}
 	pipeline := verify.NewPipeline(verify.DefaultBaselineGates())

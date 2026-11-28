@@ -195,6 +195,9 @@ const PrePushHookScript = `#!/usr/bin/env bash
     fi
 
     remote_name="${1:-}"
+    if [[ -n "$NOMOS_BIN" && "${NOMOS_SKIP_NOTES_SYNC:-0}" != "1" ]]; then
+        "$NOMOS_BIN" hook pre-push || exit 1
+    fi
     saw_trunk_push=0
     saw_notes_ref=0
 

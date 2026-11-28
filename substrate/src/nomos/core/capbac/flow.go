@@ -42,9 +42,8 @@ var (
 	curlExfilFlagRe     = regexp.MustCompile(`(?i)\bcurl\b[^\n]*(?:\s-(?:d|F|T)\b|--(?:data|data-raw|data-binary|data-urlencode|form|json|upload-file)\b|-X\s*(?:POST|PUT|PATCH)\b)`)
 	wgetExfilFlagRe     = regexp.MustCompile(`(?i)\bwget\b[^\n]*--post-(?:data|file)\b`)
 	inlineNetPostExfilRe = regexp.MustCompile(`(?i)(?:requests\.(?:post|put|patch)\(|urlopen\([^\n]*\bdata\s*=|Request\([^\n]*method\s*=\s*['"](?:POST|PUT|PATCH)['"]|fetch\([^\n]*method\s*[:=]\s*['"](?:POST|PUT|PATCH)['"])`)
-	netExfilCmdRe       = regexp.MustCompile(`(?i)(?:^|[;&|]\s*)(?:scp|nc|ncat|netcat)\s+`)
-	releaseSinkCmdRe  = regexp.MustCompile(`(?i)(?:^|[;&|]\s*)(?:git\s+push|gh\s+(?:release|pr\s+merge)|npm\s+publish|cargo\s+publish|twine\s+upload|docker\s+push)\b`)
-	verifySanitizerRe = regexp.MustCompile(`^\s*(?:cd\s+\S+\s*&&\s*)?(?:\S+/)?nomos\s+(?:verify|task\s+review)(?:\s|$)`)
+	netExfilCmdRe        = regexp.MustCompile(`(?i)(?:^|[;&|]\s*)(?:scp|nc|ncat|netcat)\s+`)
+	verifySanitizerRe    = regexp.MustCompile(`^\s*(?:cd\s+\S+\s*&&\s*)?(?:\S+/)?nomos\s+(?:verify|task\s+review)(?:\s|$)`)
 
 	externalFetchTools = map[string]bool{
 		"webfetch": true, "web_search": true, "search_web": true,
@@ -156,8 +155,6 @@ func (g *CapabilityFlowGraph) EvaluateToolFlow(inv ToolFlowInvocation) FlowDecis
 		}
 	}
 	if cmd != "" && isStandaloneVerifySanitizer(cmd) {
-		g.ClearTaint(TaintUntrustedExternal)
-		g.ClearTaint(TaintMCPUntrustedIngress)
 		return FlowDecision{Allowed: true, Role: FlowRoleSanitizer}
 	}
 	labels, resource := classifyFlowSources(inv)
@@ -196,12 +193,21 @@ func (g *CapabilityFlowGraph) evaluateSinkViolation(cmd string) (FlowDecision, b
 			}, true
 		}
 	}
-	if releaseSinkCmdRe.MatchString(cmd) {
-		if edge, tainted := g.HasTaint(TaintUntrustedExternal); tainted {
+	if isPrivilegedReleaseCommand(cmd) {
+		if dec, blocked := g.evaluateReleaseTaintBlock(); blocked {
+			return dec, true
+		}
+	}
+	return FlowDecision{}, false
+}
+
+func (g *CapabilityFlowGraph) evaluateReleaseTaintBlock() (FlowDecision, bool) {
+	for _, lbl := range []TaintLabel{TaintUntrustedExternal, TaintMCPUntrustedIngress} {
+		if edge, tainted := g.HasTaint(lbl); tainted {
 			return FlowDecision{
 				Allowed:       false,
 				Role:          FlowRoleSinkPrivilegedRelease,
-				ViolatedLabel: TaintUntrustedExternal,
+				ViolatedLabel: lbl,
 				Reason: fmt.Sprintf(
 					"❌ [NOMOS CAPABILITY-FLOW INTERCEPT] Privileged release sink blocked (Law 2 & Law 7): session ingested untrusted external input via '%s' (%s). Run standalone 'nomos verify' first (not chained with '&&') to sanitize workspace state before pushing or publishing.",
 					edge.SourceTool, edge.Resource,

@@ -9,10 +9,13 @@ import (
 	"github.com/mgantlett/nomos/substrate/cli/selfupdate"
 	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/capbac"
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/handshake"
 	"github.com/spf13/cobra"
@@ -49,6 +52,7 @@ Reads JSON hook payloads from stdin with zero external jq/bash/python dependenci
 		newHookPostToolCmd(&hermeticDir, &containerSandbox, &budgetSec, &advFlags),
 		newHookStopCmd(&hermeticDir, &containerSandbox),
 		newHookPostCommitCmd(),
+		newHookPrePushCmd(),
 	)
 	if installSubCmd != nil {
 		cmd.AddCommand(installSubCmd)
@@ -319,4 +323,46 @@ func appendPlainUpdateAndDriftAdvisories(b *strings.Builder, hookRoot string, al
 			b.WriteString(fmt.Sprintf("  Contract Sync     : %s\n", driftNotice))
 		}
 	}
+}
+
+func newHookPrePushCmd() *cobra.Command {
+	var targetDir string
+	cmd := &cobra.Command{
+		Use:     "pre-push",
+		Short:   "Enforce CapBAC IFC release-sink taint check during Git pre-push hooks",
+		Long:    tui.HelpHookPrePushLong,
+		Example: tui.HelpHookPrePushExample,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			dir := strings.TrimSpace(targetDir)
+			if dir == "" {
+				cwd, err := os.Getwd()
+				if err != nil {
+					return nil
+				}
+				dir = cwd
+			}
+			return EvaluatePrePushIFCGate(dir)
+		},
+	}
+	cmd.Flags().StringVarP(&targetDir, "dir", "d", "", "Target repository directory (defaults to current working directory)")
+	return cmd
+}
+
+// EvaluatePrePushIFCGate enforces active CapBAC untrusted external and MCP taints for Git pre-push hooks.
+// @intent nomos_hermetic_worktree_spec.md #CapabilityFlowGraph
+func EvaluatePrePushIFCGate(targetDir string) error {
+	cleanDir := filepath.Clean(strings.TrimSpace(targetDir))
+	repoRoot := cleanDir
+	if discovered, err := workspace.FindRepoRoot(cleanDir); err == nil && discovered != "" {
+		repoRoot = discovered
+	}
+	for _, candidate := range []string{repoRoot, cleanDir} {
+		if candidate == "" {
+			continue
+		}
+		if dec := capbac.CheckWorkspaceReleaseTaint(candidate); !dec.Allowed {
+			return types.NewNomosError(types.ErrCodeBoundary, "%s", dec.Reason)
+		}
+	}
+	return nil
 }

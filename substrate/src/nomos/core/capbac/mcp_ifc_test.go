@@ -55,14 +55,20 @@ func TestMCPBoundaryInterceptor_ComplianceVectors(t *testing.T) {
 		t.Fatalf("TC-MCP-05: expected cross-server mcp__github__merge_pull_request blocked, got %+v", mergeBlocked)
 	}
 
-	// Sanitize via nomos verify -> privileged MCP call now permitted.
+	// PreToolUse allows nomos verify without clearing taint; Exit 0 SanitizeWorkspaceExternalTaints clears it.
 	san := capbac.EvaluateWorkspaceToolFlow(wsDir, capbac.ToolFlowInvocation{ToolName: "Bash", CommandLine: "nomos verify"})
 	if !san.Allowed {
 		t.Fatalf("expected nomos verify sanitizer allow, got %+v", san)
 	}
+	if stillBlocked := capbac.EvaluateMCPBoundary(wsDir, claudeInv, capbac.MCPBoundaryPolicy{}); stillBlocked.Allowed {
+		t.Fatalf("TC-FLOW-10: expected MCP mutation still blocked before verify Exit 0, got %+v", stillBlocked)
+	}
+	if err := capbac.SanitizeWorkspaceExternalTaints(wsDir); err != nil {
+		t.Fatalf("SanitizeWorkspaceExternalTaints failed: %v", err)
+	}
 	mergeAllowed := capbac.EvaluateMCPBoundary(wsDir, claudeInv, capbac.MCPBoundaryPolicy{})
 	if !mergeAllowed.Allowed {
-		t.Fatalf("TC-MCP-05: expected mcp__github__merge_pull_request allowed after nomos verify, got %+v", mergeAllowed)
+		t.Fatalf("TC-MCP-05: expected mcp__github__merge_pull_request allowed after verified Exit 0, got %+v", mergeAllowed)
 	}
 
 	// TC-MCP-04: Credential read taints session -> mutating MCP egress blocked.

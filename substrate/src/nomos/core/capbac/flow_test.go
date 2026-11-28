@@ -36,7 +36,8 @@ func TestCapabilityFlowGraph_ComplianceVectors(t *testing.T) {
 		t.Fatalf("TC-FLOW-02: expected git push blocked by untrusted_external taint, got %+v", pushBlocked)
 	}
 
-	// TC-FLOW-03: Deterministic 'nomos verify' sanitizes untrusted_external taint and unblocks git push.
+	// TC-FLOW-03 & TC-FLOW-10: PreToolUse allows 'nomos verify' without clearing taint optimistically;
+	// taint clears strictly after verified Exit 0 via SanitizeWorkspaceExternalTaints.
 	sanDec := capbac.EvaluateWorkspaceToolFlow(wsDir, capbac.ToolFlowInvocation{
 		ToolName:    "Bash",
 		CommandLine: "nomos verify",
@@ -44,13 +45,23 @@ func TestCapabilityFlowGraph_ComplianceVectors(t *testing.T) {
 	if !sanDec.Allowed || sanDec.Role != capbac.FlowRoleSanitizer {
 		t.Fatalf("TC-FLOW-03: expected nomos verify sanitizer allow, got %+v", sanDec)
 	}
+	pushStillBlocked := capbac.EvaluateWorkspaceToolFlow(wsDir, capbac.ToolFlowInvocation{
+		ToolName:    "Bash",
+		CommandLine: "git push origin main",
+	})
+	if pushStillBlocked.Allowed || pushStillBlocked.ViolatedLabel != capbac.TaintUntrustedExternal {
+		t.Fatalf("TC-FLOW-10: expected git push still blocked before verify Exit 0, got %+v", pushStillBlocked)
+	}
+	if err := capbac.SanitizeWorkspaceExternalTaints(wsDir); err != nil {
+		t.Fatalf("TC-FLOW-03: SanitizeWorkspaceExternalTaints failed: %v", err)
+	}
 
 	pushAllowed := capbac.EvaluateWorkspaceToolFlow(wsDir, capbac.ToolFlowInvocation{
 		ToolName:    "Bash",
 		CommandLine: "git push origin main",
 	})
 	if !pushAllowed.Allowed {
-		t.Fatalf("TC-FLOW-03: expected git push allowed after nomos verify sanitization, got %+v", pushAllowed)
+		t.Fatalf("TC-FLOW-03: expected git push allowed after verified Exit 0 sanitization, got %+v", pushAllowed)
 	}
 
 	// TC-FLOW-05: Reading .env.example template does NOT taint session.
@@ -147,6 +158,58 @@ func TestCapabilityFlowGraph_SameCommandCredentialExfilBlocked(t *testing.T) {
 	})
 	if !readOnlyGet.Allowed {
 		t.Fatalf("expected read-only HTTP GET to remain allowed, got %+v", readOnlyGet)
+	}
+}
+
+// @verifies TC-FLOW-10 TC-FLOW-11 TC-FLOW-12
+func TestCapabilityFlowGraph_ShellTokenReleaseSinksAndPrePushCheck(t *testing.T) {
+	t.Setenv("NOMOS_HOME", t.TempDir())
+	wsDir := t.TempDir()
+
+	_ = capbac.EvaluateWorkspaceToolFlow(wsDir, capbac.ToolFlowInvocation{ToolName: "WebFetch"})
+
+	for _, evasive := range []string{
+		"git -C /tmp/repo push origin main",
+		"git -c user.name=bot push origin main",
+		"/usr/bin/git push origin main",
+		"env FOO=1 git push origin main",
+		"command git -C . push",
+		"sudo -u root git push origin main",
+		"gh release create v1.0.0",
+		"gh pr merge 42",
+		"npm publish --access public",
+	} {
+		dec := capbac.EvaluateWorkspaceToolFlow(wsDir, capbac.ToolFlowInvocation{
+			ToolName:    "Bash",
+			CommandLine: evasive,
+		})
+		if dec.Allowed || dec.Role != capbac.FlowRoleSinkPrivilegedRelease {
+			t.Fatalf("TC-FLOW-11: expected evasive release sink %q blocked, got %+v", evasive, dec)
+		}
+	}
+
+	for _, benign := range []string{
+		"rg -n 'Privileged release sink blocked|git push' substrate/",
+		`echo "do not run git push yet"`,
+		"git status -s",
+	} {
+		dec := capbac.EvaluateWorkspaceToolFlow(wsDir, capbac.ToolFlowInvocation{
+			ToolName:    "Bash",
+			CommandLine: benign,
+		})
+		if !dec.Allowed {
+			t.Fatalf("TC-FLOW-11: expected benign quoted/read command %q allowed, got %+v", benign, dec)
+		}
+	}
+
+	if prePush := capbac.CheckWorkspaceReleaseTaint(wsDir); prePush.Allowed {
+		t.Fatalf("TC-FLOW-12: expected CheckWorkspaceReleaseTaint deny under active taint, got %+v", prePush)
+	}
+	if err := capbac.SanitizeWorkspaceExternalTaints(wsDir); err != nil {
+		t.Fatalf("TC-FLOW-10: SanitizeWorkspaceExternalTaints failed: %v", err)
+	}
+	if prePush := capbac.CheckWorkspaceReleaseTaint(wsDir); !prePush.Allowed {
+		t.Fatalf("TC-FLOW-12: expected CheckWorkspaceReleaseTaint allow after Exit 0 clear, got %+v", prePush)
 	}
 }
 

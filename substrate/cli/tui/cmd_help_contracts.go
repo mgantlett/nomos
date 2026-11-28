@@ -86,6 +86,11 @@ Extracts verified trap-to-fix lessons and structural commit patterns into local 
 	HelpHookPostCommitExample = `  nomos hook post-commit
   nomos hook post-commit --dir ./my-service`
 
+	HelpHookPrePushLong = `Enforce CapBAC Information Flow Control (IFC) taint state before Git pushes execute.
+Rejects pushes while untrusted external or MCP session taints remain active until nomos verify passes with exit code 0.`
+	HelpHookPrePushExample = `  nomos hook pre-push
+  nomos hook pre-push --dir ./my-service`
+
 	HelpHookInstallLong = `Additively install or merge Nomos lifecycle hooks (SessionStart, PreToolUse,
 PostToolUse, and Stop/AfterAgent) across Claude Code, Gemini CLI, OpenCode, Cursor,
 and Antigravity into project-scoped or user-scoped manifests without clobbering existing hooks.`
