@@ -23,7 +23,26 @@ type strictGoReleaserV2Config struct {
 	Scoops        []strictGoReleaserScoop        `yaml:"scoops"`
 	Winget        []strictGoReleaserWinget       `yaml:"winget"`
 	AURs          []strictGoReleaserAUR          `yaml:"aurs"`
+	NFPMs         []strictGoReleaserNFPM         `yaml:"nfpms"`
 	Changelog     strictGoReleaserChangelog      `yaml:"changelog"`
+}
+
+type strictGoReleaserNFPMContent struct {
+	Src string `yaml:"src"`
+	Dst string `yaml:"dst"`
+}
+
+type strictGoReleaserNFPM struct {
+	ID          string                        `yaml:"id"`
+	PackageName string                        `yaml:"package_name"`
+	IDs         []string                      `yaml:"ids"`
+	Homepage    string                        `yaml:"homepage"`
+	Maintainer  string                        `yaml:"maintainer"`
+	Description string                        `yaml:"description"`
+	License     string                        `yaml:"license"`
+	Formats     []string                      `yaml:"formats"`
+	Bindir      string                        `yaml:"bindir"`
+	Contents    []strictGoReleaserNFPMContent `yaml:"contents"`
 }
 
 type strictGoReleaserScoopRepo struct {
@@ -367,6 +386,9 @@ func TestPolyglotDistributionManifestContracts(t *testing.T) {
 	}
 	if len(cfg.Scoops) != 1 || cfg.Scoops[0].Repository.Name != "scoop-bucket" || len(cfg.Winget) != 1 || cfg.Winget[0].PackageIdentifier != "mgantlett.nomos" {
 		t.Fatalf("expected scoops (scoop-bucket) and winget (mgantlett.nomos) targets, got scoops=%+v winget=%+v", cfg.Scoops, cfg.Winget)
+	}
+	if len(cfg.NFPMs) != 1 || cfg.NFPMs[0].PackageName != "nomos" || len(cfg.NFPMs[0].Formats) != 3 {
+		t.Fatalf("expected nfpms Linux deb/rpm/apk package target, got %+v", cfg.NFPMs)
 	}
 	for _, rel := range []struct {
 		file  string
