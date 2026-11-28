@@ -178,7 +178,7 @@ jobs:
       ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     permissions:
-      contents: read
+      contents: write
       id-token: write
     steps:
       - name: Checkout repository
@@ -308,5 +308,32 @@ jobs:
             -H "Authorization: Bearer ${REG_TOKEN}" \
             -H "Content-Type: application/json" \
             --data-binary "@${PAYLOAD_FILE}"
+
+      - name: Package & Sync VS Code / Open VSX Extension (sophialabs.nomos)
+        if: steps.pkg_ver.outputs.release_ready == 'true'
+        env:
+          CLEAN_VER: ${{ steps.pkg_ver.outputs.clean_ver }}
+          GH_TOKEN: ${{ github.token }}
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          if [ ! -f packaging/vscode/package.json ]; then
+            echo "packaging/vscode/package.json not present; skipping."
+            exit 0
+          fi
+          (cd packaging/vscode && node --test test/extension.test.js)
+          VSIX_PATH="$RUNNER_TEMP/sophialabs.nomos-${CLEAN_VER}.vsix"
+          (cd packaging/vscode && npx --yes @vscode/vsce package --no-dependencies -o "${VSIX_PATH}")
+          gh release upload "v${CLEAN_VER}" "${VSIX_PATH}" --clobber --repo "${GITHUB_REPOSITORY}" || true
+          if [ -n "${VSCE_PAT}" ]; then
+            npx --yes @vscode/vsce publish --packagePath "${VSIX_PATH}" -p "${VSCE_PAT}"
+          else
+            echo "::notice::VSCE_PAT not configured; skipping Visual Studio Marketplace publish."
+          fi
+          if [ -n "${OVSX_PAT}" ]; then
+            npx --yes ovsx publish "${VSIX_PATH}" -p "${OVSX_PAT}"
+          else
+            echo "::notice::OVSX_PAT not configured; skipping Open VSX Registry publish."
+          fi
 
 

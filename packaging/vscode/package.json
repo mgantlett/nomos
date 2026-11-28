@@ -1,0 +1,86 @@
+{
+  "name": "nomos",
+  "displayName": "Nomos - AI Coding Guardrails & Codebase X-Ray",
+  "description": "Zero-token Go execution substrate between any coding agent and Git: 2-second read-only X-Ray, sub-15ms on-save AST radar, 42 polyglot quality gates, and stealth Branch Guard.",
+  "version": "4.34.1",
+  "publisher": "sophialabs",
+  "license": "Apache-2.0",
+  "icon": "media/icon.png",
+  "homepage": "https://sophialabs.ca/docs/introduction",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mgantlett/nomos.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mgantlett/nomos/issues"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Linters",
+    "Programming Languages",
+    "Testing",
+    "Other"
+  ],
+  "keywords": [
+    "ai-agents",
+    "ast",
+    "claude-code",
+    "code-quality",
+    "cursor",
+    "git-hooks",
+    "guardrails",
+    "mcp",
+    "sarif",
+    "static-analysis"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "nomos.xray",
+        "title": "Run Codebase X-Ray (Read-Only)",
+        "category": "Nomos"
+      },
+      {
+        "command": "nomos.verify",
+        "title": "Verify Workspace (42 AST Gates)",
+        "category": "Nomos"
+      },
+      {
+        "command": "nomos.initLocal",
+        "title": "Initialize Branch Guard (Stealth --local)",
+        "category": "Nomos"
+      },
+      {
+        "command": "nomos.initTeam",
+        "title": "Initialize Branch Guard (Team nomos.yaml)",
+        "category": "Nomos"
+      },
+      {
+        "command": "nomos.copyXrayMarkdown",
+        "title": "Copy X-Ray Markdown Receipt",
+        "category": "Nomos"
+      }
+    ],
+    "configuration": {
+      "title": "Nomos",
+      "properties": {
+        "nomos.binaryPath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional explicit path to the static nomos binary (recommended for air-gapped environments)."
+        },
+        "nomos.verifyOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run sub-15ms single-file AST and security radar on save when a local nomos binary is available."
+        }
+      }
+    }
+  }
+}
