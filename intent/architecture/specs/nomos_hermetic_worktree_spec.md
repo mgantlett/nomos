@@ -190,6 +190,12 @@ type FlowDecision struct {
 	Reason        string
 }
 
+// SanitizeWorkspaceExternalTaints clears untrusted external and MCP taints strictly after verified Exit 0 (#CapabilityFlowGraph).
+func SanitizeWorkspaceExternalTaints(workspaceDir string) error
+
+// CheckWorkspaceReleaseTaint blocks privileged release sinks when untrusted session taints remain active (#CapabilityFlowGraph).
+func CheckWorkspaceReleaseTaint(workspaceDir string) FlowDecision
+
 // CredentialReadPolicy defines declarative PreToolUse host and workspace credential read restrictions (#CredentialReadPolicy).
 type CredentialReadPolicy struct {
 	Mode             string
@@ -278,6 +284,8 @@ Session Sentinel (`CHARTER-4-BOUNDARY`) evaluates candidate workspace roots stru
 
 During `EDIT`, `nomos hook post-tool` invokes `PreviewWorktreeTwinSurfaceWarning` to emit a non-latching `[Nomos Contract Radar]` advisory naming `--twin-of SUB-<N>` before commit or verify latches engage. `EvaluateLoopCircuitBreaker` resolves leading `cd <dir>` worktree roots and hashes active `worktrees/` status so worktree mutations reset runner digests. `CapabilityFlowGraph` instructs operators to run standalone `nomos verify` without `&&` shell chaining before release sinks.
 
+`EvaluateToolFlow` never clears untrusted session taints optimistically during `PreToolUse`. Only a passing `nomos verify` run (exit code `0`) invokes `SanitizeWorkspaceExternalTaints` to clear `TaintUntrustedExternal` and `TaintMCPUntrustedIngress` while preserving `TaintCredentialSource`. Release sink detection tokenizes unquoted shell segments to detect flag-prefixed and wrapped commands (`git -C <dir> push`, `/usr/bin/git push`, `env git push`) without false positives inside quoted arguments. Git `pre-push` invokes `nomos hook pre-push` (`CheckWorkspaceReleaseTaint`) so subprocess wrappers cannot bypass active session taints.
+
 `HookSessionTrace` sets `DirtyBehavioralEdits` when source mutations occur inside a workspace lacking discovered unit suites. `nomos hook stop` blocks exit until unit suites pass under `nomos verify` or post-edit execution succeeds. `FormatPlainHandshakeBannerWithRoot` emits `.tmp/tests/` regression-suite guidance when executable sources lack committed suites or under `--container-sandbox`.
 
 When a container or hermetic workspace starts with zero tracked baseline unit suites, `EvaluatePostToolHook` monitors net-new verification file creation outside `.tmp/`. On creating `tests/` or root suite files outside `.tmp/`, `nomos hook post-tool` emits a non-blocking deliverable-hygiene advisory recommending `.tmp/tests/` instead.
@@ -303,6 +311,9 @@ When a container or hermetic workspace starts with zero tracked baseline unit su
 | `TC-FLOW-07` | Host credential store read block (`host_deny`) | `Read("~/.aws/credentials")` or `cat ~/.ssh/id_ed25519` | `"Denies host credential read on PreToolUse while permitting and tainting workspace .env."` | PASS |
 | `TC-FLOW-08` | Strict `.env` and `blocked_read_paths` deny | `credential_read_mode: strict` or `blocked_read_paths` glob | `"Denies non-template .env and blocked_read_paths reads while exempting .env.example."` | PASS |
 | `TC-FLOW-09` | Legacy `taint_only` compatibility mode | `credential_read_mode: taint_only` on `~/.aws/credentials` | `"Permits credential read and records TaintCredentialSource to block outbound egress."` | PASS |
+| `TC-FLOW-10` | Exit-0-only taint sanitization | Failed `nomos verify` vs `SanitizeWorkspaceExternalTaints` | `"Keeps taint armed on PreToolUse; clears only on Exit 0."` | PASS |
+| `TC-FLOW-11` | Shell-token release sink parser | `git -C /r push`, `env git push`, `rg 'git push'` | `"Blocks wrapped or flag-prefixed push; allows quoted search text."` | PASS |
+| `TC-FLOW-12` | Git `pre-push` IFC enforcement | `nomos hook pre-push` under active untrusted taint | `"Rejects tainted push until verified Exit 0 clears taint."` | PASS |
 | `TC-MCP-01` | Mutating MCP trunk write guard | `mcp__filesystem__write_file` on `main` | `"Denies mutating MCP write outside worktrees/."` | PASS |
 | `TC-MCP-02` | Secret token in MCP payload | `mcp__github__create_issue` with `ghp_*` token | `"Denies MCP invocation containing secret literal."` | PASS |
 | `TC-MCP-03` | Blocked MCP server policy | `MCPBoundaryPolicy{BlockedServers: ["rogue"]}` | `"Denies tool calls targeting blocked MCP server."` | PASS |
