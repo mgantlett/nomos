@@ -2,7 +2,7 @@
   "name": "nomos",
   "displayName": "Nomos - AI Coding Guardrails & Codebase X-Ray",
   "description": "Zero-token Go execution substrate between any coding agent and Git: 2-second read-only X-Ray, sub-15ms on-save AST radar, 42 polyglot quality gates, and stealth Branch Guard.",
-  "version": "4.34.1",
+  "version": "4.35.0",
   "publisher": "sophialabs",
   "license": "Apache-2.0",
   "icon": "media/icon.png",

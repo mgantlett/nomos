@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [v4.35.0] - 2026-11-28
+
+> Add `nomos.yaml` threshold loading and CLI overrides (--max-file-loc, --max-func-loc, --max-complexity) to nomos xray; Add machine-actionable verify --fixes repair recipes and deterministic safe --fix auto-remediation; Add Linux deb, rpm, and apk nfpms packages to GoReleaser configuration; Refresh MTPO base commit after verified sync even when worktree was manually rebased (Apache 2.0)
+
+### Agent Upgrade & New Surfaces
+- **Upgrade**: `npx -y @mgantlett/nomos@latest update --sync-workspace` (or `uvx --refresh nomos-cli xray . --json`).
+- **Active Surfaces**: `nomos cli`, `nomos verify`, `.goreleaser.yaml`.
+
+### CLI, Distribution & Hooks (`nomos cli`)
+- **Add machine-actionable verify --fixes repair recipes and deterministic safe --fix auto-remediation (`INT-2340`, `SUB-3942`)**: Support nomos verify --fixes (terminal and --json VerifyFixPlan) and --fix deterministic safe auto-remediation (gofmt on modified Go files and `nomos.schema.json` regeneration inside worktrees) with re-verification proof.
+- **Refresh MTPO base commit after verified sync even when worktree was manually rebased (`INT-2341`, `SUB-3943`)**: Refresh MTPO base commit after verified sync even when manually rebased.
+- **Add nfpms schema to GoReleaser v2 strict contract test (`INT-2337`, `SUB-3940`)**: Add strict nfpms schema to GoReleaser v2 contract test.
+
+### Verification & Quality Gates (`nomos verify`)
+- **Add `nomos.yaml` threshold loading and CLI overrides (--max-file-loc, --max-func-loc, --max-complexity) to nomos xray (`INT-2343`, `SUB-3945`)**: Respect `nomos.yaml` governance.quality_gates.thresholds in nomos xray and support --max-file-loc, --max-func-loc, and --max-complexity CLI overrides with dynamic rendered labels.
+- **Add PR-scoped xray --diff and shareable --badge/--badge-svg outputs (`INT-2339`, `SUB-3941`)**: Support nomos xray --diff <base-ref> PR delta scanning and --badge / --badge-svg shareable README outputs across terminal, markdown, json, and sarif.
+- **Allow zero-dependency packaging/*/package.json under boundary.lock_dependencies (`INT-2334`, `SUB-3937`)**: Allow new zero-dependency zero-script packaging/*/package.json manifests under `lock_dependencies`.
+
+### Release & Packaging (`.goreleaser.yaml`, `.github/workflows/ci.yaml`)
+- **Add Linux deb, rpm, and apk nfpms packages to GoReleaser configuration (`INT-2336`, `SUB-3939`)**: Add Linux deb, rpm, and apk nfpms packages to GoReleaser.
+- **Add Apache-2.0 VS Code and Open VSX extension (sophialabs.nomos) with release packaging (`INT-2332`, `SUB-3935`)**: Add Apache-2.0 VS Code and Open VSX extension (sophialabs.nomos) with SHA-256 binary provisioning and CI VSIX release sync.
+
+---
+
 ## [v4.34.1] - 2026-11-27
 
 > Fix budget critical and final-deadline deliverable flush advisories (Apache 2.0)

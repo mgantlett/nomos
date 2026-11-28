@@ -3,7 +3,7 @@
   "name": "io.github.mgantlett/nomos",
   "title": "Nomos - Deterministic Git & AST Governance for AI Coding Agents",
   "description": "Live GitHub repo AST X-Ray, 42 coding-agent DoD gates, Git worktree guards & brownfield baselines.",
-  "version": "4.34.1",
+  "version": "4.35.0",
   "websiteUrl": "https://sophialabs.ca",
   "repository": {
     "url": "https://github.com/mgantlett/nomos",
@@ -28,7 +28,7 @@
     {
       "registryType": "npm",
       "identifier": "@mgantlett/nomos",
-      "version": "4.34.1",
+      "version": "4.35.0",
       "runtimeHint": "npx",
       "packageArguments": [
         {
@@ -43,7 +43,7 @@
     {
       "registryType": "pypi",
       "identifier": "nomos-cli",
-      "version": "4.34.1",
+      "version": "4.35.0",
       "runtimeHint": "uvx",
       "packageArguments": [
         {
