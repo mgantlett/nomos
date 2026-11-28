@@ -13,7 +13,8 @@ const BaselineSchemaVersion = "1.0"
 
 // XrayScanOptions configures read-only brownfield structural scanning (#XrayScanOptions).
 type XrayScanOptions struct {
-	TopHotspots int `json:"top_hotspots"`
+	TopHotspots int    `json:"top_hotspots"`
+	DiffBaseRef string `json:"diff_base_ref,omitempty"`
 }
 
 // DefaultScanOptions returns canonical XrayScanOptions bounds.
@@ -77,6 +78,8 @@ type XrayBaselineEnvelope struct {
 // XrayReport summarizes zero-init polyglot structural debt and hangover indicators (#XrayReport).
 type XrayReport struct {
 	ProjectName          string               `json:"project_name"`
+	DiffBaseRef          string               `json:"diff_base_ref,omitempty"`
+	DiffFiles            int                  `json:"diff_files,omitempty"`
 	DurationMillis       int64                `json:"duration_ms"`
 	Initialized          bool                 `json:"initialized"`
 	FilesScanned         int                  `json:"files_scanned"`

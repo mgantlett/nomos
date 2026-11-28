@@ -16,6 +16,9 @@ func FormatTerminal(rep *XrayReport) string {
 	sb.WriteString(fmt.Sprintf("🔬 Nomos Brownfield X-Ray · %s (%dms)\n", rep.ProjectName, rep.DurationMillis))
 	sb.WriteString(strings.Repeat("─", 76) + "\n")
 	sb.WriteString(fmt.Sprintf("  AI Hangover Score : %d/100 (Grade %s)\n", rep.HangoverScore, rep.Grade))
+	if rep.DiffBaseRef != "" {
+		sb.WriteString(fmt.Sprintf("  Diff Scope        : vs %s (%d changed source file(s))\n", rep.DiffBaseRef, rep.DiffFiles))
+	}
 	sb.WriteString(fmt.Sprintf("  Corpus Footprint  : %d source files · %d LOC · %s\n",
 		rep.FilesScanned, rep.TotalLOC, FormatLanguageBreakdown(rep.Languages)))
 	sb.WriteString(fmt.Sprintf("  Debt Signals      : %d clone group(s) · %d monolith(s) (>400 LOC) · %d oversized func(s)\n",
@@ -56,8 +59,13 @@ func FormatMarkdown(rep *XrayReport) string {
 	}
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("## Nomos Brownfield X-Ray: `%s`\n\n", rep.ProjectName))
-	sb.WriteString(fmt.Sprintf("**Hangover Score:** `%d/100` (Grade **%s**) · **Scanned:** `%d` files (`%d` LOC) in `%dms`\n\n",
-		rep.HangoverScore, rep.Grade, rep.FilesScanned, rep.TotalLOC, rep.DurationMillis))
+	if rep.DiffBaseRef != "" {
+		sb.WriteString(fmt.Sprintf("**Diff Scope:** `%s...HEAD` (`%d` changed source files) · **Hangover Score:** `%d/100` (Grade **%s**) · **Scanned:** `%d` files (`%d` LOC) in `%dms`\n\n",
+			rep.DiffBaseRef, rep.DiffFiles, rep.HangoverScore, rep.Grade, rep.FilesScanned, rep.TotalLOC, rep.DurationMillis))
+	} else {
+		sb.WriteString(fmt.Sprintf("**Hangover Score:** `%d/100` (Grade **%s**) · **Scanned:** `%d` files (`%d` LOC) in `%dms`\n\n",
+			rep.HangoverScore, rep.Grade, rep.FilesScanned, rep.TotalLOC, rep.DurationMillis))
+	}
 	sb.WriteString("| Signal | Count |\n| :--- | ---: |\n")
 	for _, row := range []struct {
 		label string
@@ -85,7 +93,7 @@ func FormatMarkdown(rep *XrayReport) string {
 	}
 	sb.WriteString("\n")
 	appendMarkdownHotspots(&sb, rep.Hotspots)
-	sb.WriteString(fmt.Sprintf("Lock baseline debt with zero upfront cleanup:\n```sh\n%s\n```\n", rep.NextCommand))
+	sb.WriteString(fmt.Sprintf("Lock baseline debt with zero upfront cleanup:\n```sh\n%s\n```\n\n%s\n", rep.NextCommand, FormatBadgeMarkdown(rep)))
 	return sb.String()
 }
 

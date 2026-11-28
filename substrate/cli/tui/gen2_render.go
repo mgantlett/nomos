@@ -53,6 +53,11 @@ func appendXraySummaryLines(sb *strings.Builder, rep *xray.XrayReport) {
 		UiBoldValueStyle.Render(fmt.Sprintf("%d/100", rep.HangoverScore)),
 		RenderXrayGradeBadge(rep.Grade))
 	sb.WriteString(KvLine("AI Hangover Score", 18, scoreVal) + "\n")
+	if rep.DiffBaseRef != "" {
+		diffVal := fmt.Sprintf("vs %s (%d changed source file(s))",
+			UiBoldValueStyle.Render(rep.DiffBaseRef), rep.DiffFiles)
+		sb.WriteString(KvLine("Diff Scope", 18, diffVal) + "\n")
+	}
 
 	footprint := fmt.Sprintf("%s source files · %s LOC · %s",
 		UiBoldValueStyle.Render(fmt.Sprintf("%d", rep.FilesScanned)),

@@ -181,3 +181,59 @@ func TestXraySarifAndInitCIFlagIntegration(t *testing.T) {
 		t.Fatalf("unexpected verify --sarif output:\n%s", vOut.String())
 	}
 }
+
+func TestXrayCmd_DiffAndBadgeFlags(t *testing.T) {
+	dir := seedCLIXrayRepo(t)
+	runGitOrFail(t, dir, "init", "-b", "main")
+	runGitOrFail(t, dir, "config", "user.email", "dev@example.com")
+	runGitOrFail(t, dir, "config", "user.name", "Xray Verifier")
+	runGitOrFail(t, dir, "add", "app.go")
+	runGitOrFail(t, dir, "commit", "-m", "chore: seed legacy monolith")
+	runGitOrFail(t, dir, "checkout", "-b", "feat/diff-check")
+	if err := os.WriteFile(filepath.Join(dir, "clean.go"), []byte("package main\n\nfunc Ok(v int) int { return v + 1 }\n"), 0644); err != nil {
+		t.Fatalf("write clean.go: %v", err)
+	}
+
+	var diffBuf bytes.Buffer
+	diffCmd := NewRootCmd()
+	diffCmd.SetOut(&diffBuf)
+	diffCmd.SetArgs([]string{"xray", dir, "--diff", "main", "--json"})
+	if err := diffCmd.Execute(); err != nil {
+		t.Fatalf("nomos xray --diff main --json failed: %v", err)
+	}
+	var diffRep xray.XrayReport
+	if err := json.Unmarshal(diffBuf.Bytes(), &diffRep); err != nil {
+		t.Fatalf("unmarshal diff report: %v", err)
+	}
+	if diffRep.DiffBaseRef != "main" || diffRep.FilesScanned != 1 || diffRep.MonolithFiles != 0 {
+		t.Fatalf("expected clean diff scan of 1 file, got %+v", diffRep)
+	}
+
+	var badgeBuf bytes.Buffer
+	badgeCmd := NewRootCmd()
+	badgeCmd.SetOut(&badgeBuf)
+	badgeCmd.SetArgs([]string{"xray", dir, "--diff", "main", "--badge"})
+	if err := badgeCmd.Execute(); err != nil {
+		t.Fatalf("nomos xray --badge failed: %v", err)
+	}
+	if !strings.Contains(badgeBuf.String(), "https://img.shields.io/badge/Nomos_X--Ray-") || !strings.Contains(badgeBuf.String(), "https://sophialabs.ca/xray") {
+		t.Fatalf("unexpected --badge output:\n%s", badgeBuf.String())
+	}
+
+	var svgBuf bytes.Buffer
+	svgCmd := NewRootCmd()
+	svgCmd.SetOut(&svgBuf)
+	svgCmd.SetArgs([]string{"xray", dir, "--badge-svg"})
+	if err := svgCmd.Execute(); err != nil {
+		t.Fatalf("nomos xray --badge-svg failed: %v", err)
+	}
+	if !strings.Contains(svgBuf.String(), "<svg ") || !strings.Contains(svgBuf.String(), "Nomos X-Ray") {
+		t.Fatalf("unexpected --badge-svg output:\n%s", svgBuf.String())
+	}
+
+	conflictCmd := NewRootCmd()
+	conflictCmd.SetArgs([]string{"xray", dir, "--badge", "--badge-svg"})
+	if err := conflictCmd.Execute(); err == nil {
+		t.Fatal("expected combining --badge and --badge-svg to fail closed")
+	}
+}

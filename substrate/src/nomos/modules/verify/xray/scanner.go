@@ -83,9 +83,22 @@ func ScanRepository(targetDir string, opts XrayScanOptions) (*XrayReport, error)
 		topLimit = DefaultTopHotspots
 	}
 	acc := newScanAccumulator(absRoot)
-	candidates, cErr := collectRepositoryCandidates(absRoot)
-	if cErr != nil {
-		return nil, cErr
+	var candidates []scanCandidate
+	diffRef := strings.TrimSpace(opts.DiffBaseRef)
+	if diffRef != "" {
+		var diffCount int
+		candidates, diffCount, err = collectDiffCandidates(absRoot, diffRef)
+		if err != nil {
+			return nil, err
+		}
+		acc.report.DiffBaseRef = diffRef
+		acc.report.DiffFiles = diffCount
+	} else {
+		var cErr error
+		candidates, cErr = collectRepositoryCandidates(absRoot)
+		if cErr != nil {
+			return nil, cErr
+		}
 	}
 	outcomes := evaluateCandidatesParallel(candidates, acc.thresholds)
 	reduceScannedFiles(outcomes, acc)

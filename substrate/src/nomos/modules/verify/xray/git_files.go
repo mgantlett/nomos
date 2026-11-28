@@ -96,23 +96,7 @@ func tryCollectGitCandidates(absRoot string) ([]scanCandidate, bool) {
 		return nil, false
 	}
 	paths := parseUniqueGitPaths(out)
-	cands := make([]scanCandidate, 0, len(paths))
-	for _, relSlash := range paths {
-		base := filepath.Base(relSlash)
-		if hasSkippedDirSegment(relSlash) || isBundledArtifactFileName(base) || isBundledAssetRelPath(relSlash) {
-			continue
-		}
-		lang := treesitter.DetectLanguage(base)
-		if !codeLanguages[lang] {
-			continue
-		}
-		cands = append(cands, scanCandidate{
-			relSlash: relSlash,
-			lang:     lang,
-			absPath:  filepath.Join(absRoot, filepath.FromSlash(relSlash)),
-		})
-	}
-	return cands, true
+	return buildFilteredCandidates(absRoot, paths), true
 }
 
 func evaluateCandidatesParallel(candidates []scanCandidate, thresholds treesitter.EngineThresholds) []scannedFileOutcome {
