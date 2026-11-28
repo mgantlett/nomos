@@ -62,6 +62,8 @@ func extractEffectiveCwd(m map[string]any) string {
 		extractNestedString(m, hookFieldToolInput, "cwd"),
 		extractNestedString(m, hookFieldToolInput, "workdir"),
 		extractNestedString(m, hookFieldToolInput, "working_directory"),
+		extractNestedString(m, hookFieldToolArgs, "cwd"),
+		extractNestedString(m, hookFieldToolArgs, "workdir"),
 		extractNestedString(m, hookFieldArgs, "cwd"),
 		extractNestedString(m, hookFieldArgs, "workdir"),
 		extractStringField(m, "cwd"),
@@ -84,6 +86,7 @@ func extractAllTargetFiles(m map[string]any, primary string) []string {
 	}
 	patch := firstNonEmpty(
 		extractNestedString(m, hookFieldToolInput, hookFieldPatchText),
+		extractNestedString(m, hookFieldToolArgs, hookFieldPatchText),
 		extractNestedString(m, hookFieldArgs, hookFieldPatchText),
 		extractDeepString(m, hookFieldToolCall, hookFieldArgs, hookFieldPatchText),
 	)
@@ -105,7 +108,7 @@ func extractAllTargetFiles(m map[string]any, primary string) []string {
 func collectNestedPathSlices(m map[string]any) []string {
 	sliceKeys := []string{"paths", "Paths", "file_paths", "filePaths", "files", "TargetFiles"}
 	var all []string
-	for _, rootKey := range []string{hookFieldToolInput, hookFieldArgs} {
+	for _, rootKey := range []string{hookFieldToolInput, hookFieldToolArgs, hookFieldArgs} {
 		if sub, ok := m[rootKey].(map[string]any); ok {
 			for _, sk := range sliceKeys {
 				all = append(all, extractStringSlice(sub, sk)...)

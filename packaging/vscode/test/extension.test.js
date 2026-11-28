@@ -1,11 +1,14 @@
 'use strict';
 const assert = require('node:assert/strict');
+const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
+const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const {
 	computeFileSha256,
+	downloadVerifiedBinary,
 	parseExpectedSha256,
 	resolveLocalBinary,
 	resolveTargetPlatform
@@ -120,13 +123,87 @@ test('parseSarifDiagnostics and parseXrayReport normalize structured CLI payload
 	assert.equal(formatStatusBarText(null), '$(shield) Nomos: Run X-Ray');
 });
 
-test('activate registers all 5 Nomos commands, status bar, and save watcher cleanly', () => {
+test('package.json declares workspace extensionKind, mcpServerDefinitionProviders, and zero dependencies or scripts', () => {
+	const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+	assert.deepEqual(manifest.extensionKind, ['workspace', 'ui']);
+	assert.equal(manifest.dependencies, undefined);
+	assert.equal(manifest.devDependencies, undefined);
+	assert.equal(manifest.scripts, undefined);
+	assert.deepEqual(manifest.contributes.mcpServerDefinitionProviders, [
+		{ id: 'nomos.mcp', label: 'Nomos (Read-Only Substrate MCP)' }
+	]);
+});
+
+test('downloadVerifiedBinary verifies SHA-256 and rejects tampered archives offline', async () => {
+	if (process.platform === 'win32') return;
+	const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomos-vscode-dl-'));
+	const payloadDir = path.join(workDir, 'payload');
+	fs.mkdirSync(payloadDir, { recursive: true });
+	fs.writeFileSync(path.join(payloadDir, 'nomos'), '#!/bin/sh\necho nomos-offline\n', { mode: 0o755 });
+	const target = resolveTargetPlatform('99.0.0', process.platform, process.arch);
+	const tarPath = path.join(workDir, target.archive);
+	execFileSync('tar', ['-czf', tarPath, '-C', payloadDir, 'nomos']);
+	const goodSha = computeFileSha256(tarPath);
+	const badSha = '0'.repeat(64);
+
+	const srv = http.createServer((req, res) => {
+		if (req.url === '/bad/v99.0.0/checksums.txt') {
+			res.end(`${badSha}  ${target.archive}\n`);
+			return;
+		}
+		if (req.url === '/good/v99.0.0/checksums.txt') {
+			res.end(`${goodSha}  ${target.archive}\n`);
+			return;
+		}
+		if (req.url && req.url.endsWith(`/${target.archive}`)) {
+			res.end(fs.readFileSync(tarPath));
+			return;
+		}
+		res.statusCode = 404;
+		res.end();
+	});
+	await new Promise((resolve) => srv.listen(0, '127.0.0.1', resolve));
+	const base = `http://127.0.0.1:${srv.address().port}`;
+	try {
+		await assert.rejects(
+			() => downloadVerifiedBinary('99.0.0', path.join(workDir, 'store-bad'), { releaseBaseUrl: `${base}/bad` }),
+			/SHA-256 mismatch/
+		);
+		const bin = await downloadVerifiedBinary('99.0.0', path.join(workDir, 'store-good'), { releaseBaseUrl: `${base}/good` });
+		assert.equal(fs.existsSync(bin), true);
+	} finally {
+		srv.close();
+		fs.rmSync(workDir, { recursive: true, force: true });
+	}
+});
+
+test('activate registers all 6 Nomos commands, MCP provider, status bar, and save watcher cleanly', () => {
 	const Module = require('node:module');
 	const registered = [];
+	let mcpProvider = null;
 	let cleared = false;
+	const fakeBinDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomos-vscode-act-'));
+	const fakeBin = path.join(fakeBinDir, 'nomos');
+	fs.writeFileSync(fakeBin, '#!/bin/sh\n', { mode: 0o755 });
+	class MockMcpStdioServerDefinition {
+		constructor(label, command, args, version) {
+			this.label = label;
+			this.command = command;
+			this.args = args;
+			this.version = version;
+		}
+	}
 	const mockVscode = {
 		StatusBarAlignment: { Left: 1 },
 		DiagnosticSeverity: { Error: 0, Warning: 1, Information: 2 },
+		Uri: { file: (fsPath) => ({ fsPath }) },
+		McpStdioServerDefinition: MockMcpStdioServerDefinition,
+		lm: {
+			registerMcpServerDefinitionProvider: (id, provider) => {
+				mcpProvider = { id, provider };
+				return { dispose: () => {} };
+			}
+		},
 		window: {
 			createOutputChannel: () => ({ appendLine: () => {}, clear: () => {}, show: () => {}, dispose: () => {} }),
 			createStatusBarItem: () => ({ show: () => {}, dispose: () => {} })
@@ -135,8 +212,8 @@ test('activate registers all 5 Nomos commands, status bar, and save watcher clea
 			createDiagnosticCollection: () => ({ clear: () => { cleared = true; }, delete: () => {}, set: () => {}, dispose: () => {} })
 		},
 		workspace: {
-			workspaceFolders: [],
-			getConfiguration: () => ({ get: () => '' }),
+			workspaceFolders: [{ uri: { fsPath: fakeBinDir } }],
+			getConfiguration: () => ({ get: (key) => (key === 'binaryPath' ? fakeBin : '') }),
 			onDidSaveTextDocument: () => ({ dispose: () => {} })
 		},
 		commands: {
@@ -152,6 +229,7 @@ test('activate registers all 5 Nomos commands, status bar, and save watcher clea
 		return origLoad.call(this, request, parent, isMain);
 	};
 	try {
+		delete require.cache[require.resolve('../extension')];
 		const ext = require('../extension');
 		const ctx = { subscriptions: [], globalStorageUri: { fsPath: os.tmpdir() } };
 		ext.activate(ctx);
@@ -160,12 +238,20 @@ test('activate registers all 5 Nomos commands, status bar, and save watcher clea
 			'nomos.verify',
 			'nomos.initLocal',
 			'nomos.initTeam',
+			'nomos.initVSCode',
 			'nomos.copyXrayMarkdown'
 		]);
-		assert.equal(ctx.subscriptions.length, 9);
+		assert.equal(ctx.subscriptions.length, 11);
+		assert.equal(mcpProvider.id, 'nomos.mcp');
+		const defs = mcpProvider.provider.provideMcpServerDefinitions();
+		assert.equal(defs.length, 1);
+		assert.equal(defs[0].command, fakeBin);
+		assert.deepEqual(defs[0].args, ['mcp']);
+		assert.equal(defs[0].cwd.fsPath, fakeBinDir);
 		ext.deactivate();
 		assert.equal(cleared, true);
 	} finally {
 		Module._load = origLoad;
+		fs.rmSync(fakeBinDir, { recursive: true, force: true });
 	}
 });

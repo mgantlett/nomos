@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/mgantlett/nomos/substrate/cli/hookcmd"
+	"github.com/mgantlett/nomos/substrate/cli/tui"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/constants"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/types"
@@ -32,6 +33,7 @@ func localStealthPatterns(includeWorktrees bool) []string {
 		"/" + hookcmd.CursorDirToken + "/",
 		"/" + geminiDirToken + "/",
 		"/" + openCodeDirToken + "/",
+		"/" + filepath.ToSlash(filepath.Join(tui.VSCodeHooksDirToken, tui.VSCodeHooksSubdirToken, tui.VSCodeHooksFileName)),
 		"/go.work",
 		"/go.work.sum",
 		"*.tmp",
@@ -213,6 +215,7 @@ func collectGovernanceStagePaths(absDir string) []string {
 		filepath.Join(geminiDirToken, settingsFileName),
 		filepath.Join(hookcmd.CursorDirToken, hookcmd.HooksFileName),
 		filepath.Join(openCodeDirToken, "plugins", "nomos.ts"),
+		filepath.Join(tui.VSCodeHooksDirToken, tui.VSCodeHooksSubdirToken, tui.VSCodeHooksFileName),
 	}
 	existing := make([]string, 0, len(candidates))
 	for _, rel := range candidates {

@@ -72,6 +72,7 @@ func detectStatusWiredAgents(repoRoot string) []string {
 		{"opencode", filepath.Join(".opencode", "plugins", "nomos.ts")},
 		{"gemini", filepath.Join(".gemini", "settings.json")},
 		{"agy", filepath.Join(".agents", "hooks.json")},
+		{"vscode", filepath.Join(tui.VSCodeHooksDirToken, tui.VSCodeHooksSubdirToken, tui.VSCodeHooksFileName)},
 	}
 	var wired []string
 	for _, c := range checks {

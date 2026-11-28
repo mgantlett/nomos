@@ -37,14 +37,15 @@ func TestHookInstall_FiveProviderDefaultParity(t *testing.T) {
 	if err := json.Unmarshal([]byte(rawAll), &allReceipt); err != nil {
 		t.Fatalf("unmarshal all-provider receipt: %v", err)
 	}
-	if allReceipt.Scope != "project" || len(allReceipt.Targets) != 5 {
-		t.Fatalf("expected 5 project targets, got %+v", allReceipt)
+	if allReceipt.Scope != "project" || len(allReceipt.Targets) != 6 {
+		t.Fatalf("expected 6 project targets, got %+v", allReceipt)
 	}
 	expectedSuffixes := []string{
 		filepath.Join(".claude", "settings.json"),
 		filepath.Join(".gemini", "settings.json"),
 		filepath.Join(".opencode", "plugins", "nomos.ts"),
 		filepath.Join(".cursor", "hooks.json"),
+		filepath.Join(".github", "hooks", "nomos.json"),
 		filepath.Join(".agents", "hooks.json"),
 	}
 	for _, suffix := range expectedSuffixes {

@@ -17,6 +17,10 @@
   "engines": {
     "vscode": "^1.85.0"
   },
+  "extensionKind": [
+    "workspace",
+    "ui"
+  ],
   "categories": [
     "Linters",
     "Programming Languages",
@@ -62,9 +66,20 @@
         "category": "Nomos"
       },
       {
+        "command": "nomos.initVSCode",
+        "title": "Initialize VS Code Agent Hooks (.github/hooks/nomos.json)",
+        "category": "Nomos"
+      },
+      {
         "command": "nomos.copyXrayMarkdown",
         "title": "Copy X-Ray Markdown Receipt",
         "category": "Nomos"
+      }
+    ],
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "nomos.mcp",
+        "label": "Nomos (Read-Only Substrate MCP)"
       }
     ],
     "configuration": {

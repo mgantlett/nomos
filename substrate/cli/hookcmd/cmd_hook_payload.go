@@ -43,7 +43,10 @@ func parseHookPayload(raw []byte) *shellguard.HookPayload {
 	if err := json.Unmarshal(trimmed, &m); err != nil {
 		return p
 	}
-	_, p.HasToolInput = m["tool_input"]
+	normalizeToolArgsMap(m)
+	_, hasToolInput := m["tool_input"]
+	_, hasToolArgs := m[hookFieldToolArgs]
+	p.HasToolInput = hasToolInput || hasToolArgs
 	_, hasSessionID := m["session_id"]
 	p.SessionID = firstNonEmpty(
 		extractStringField(m, "session_id"),
@@ -104,6 +107,7 @@ func classifyHookEventFamily(eventName, toolName string, hasToolInput, hasSessio
 const (
 	hookFieldToolCall      = "toolCall"
 	hookFieldToolInput     = "tool_input"
+	hookFieldToolArgs      = "toolArgs"
 	hookFieldArgs          = "args"
 	hookFieldCommand       = "command"
 	hookFieldFilePath      = "file_path"
@@ -113,8 +117,19 @@ const (
 	hookFieldPatchText     = "patchText"
 )
 
+func normalizeToolArgsMap(m map[string]any) {
+	raw, ok := m[hookFieldToolArgs].(string)
+	if !ok || strings.TrimSpace(raw) == "" {
+		return
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal([]byte(raw), &decoded); err == nil && decoded != nil {
+		m[hookFieldToolArgs] = decoded
+	}
+}
+
 func extractArgsDigestField(m map[string]any) string {
-	for _, key := range []string{hookFieldToolInput, hookFieldArgs} {
+	for _, key := range []string{hookFieldToolInput, hookFieldToolArgs, hookFieldArgs} {
 		if sub, ok := m[key]; ok {
 			if raw, err := json.Marshal(sub); err == nil {
 				return string(raw)
@@ -143,6 +158,10 @@ func extractTargetFileField(m map[string]any) string {
 		extractNestedString(m, hookFieldToolInput, hookFieldDirPath),
 		extractNestedString(m, hookFieldToolInput, hookFieldPath),
 		extractNestedString(m, hookFieldToolInput, "notebook_path"),
+		extractNestedString(m, hookFieldToolArgs, hookFieldFilePath),
+		extractNestedString(m, hookFieldToolArgs, hookFieldFilePathCamel),
+		extractNestedString(m, hookFieldToolArgs, hookFieldDirPath),
+		extractNestedString(m, hookFieldToolArgs, hookFieldPath),
 		extractNestedString(m, hookFieldArgs, hookFieldFilePath),
 		extractNestedString(m, hookFieldArgs, hookFieldFilePathCamel),
 		extractNestedString(m, hookFieldArgs, hookFieldDirPath),
@@ -156,6 +175,7 @@ func extractTargetFileField(m map[string]any) string {
 func extractPatchTargetFile(m map[string]any) string {
 	patch := firstNonEmpty(
 		extractNestedString(m, hookFieldToolInput, hookFieldPatchText),
+		extractNestedString(m, hookFieldToolArgs, hookFieldPatchText),
 		extractNestedString(m, hookFieldArgs, hookFieldPatchText),
 		extractDeepString(m, hookFieldToolCall, hookFieldArgs, hookFieldPatchText),
 	)
@@ -181,6 +201,8 @@ func extractCommandField(m map[string]any) string {
 		extractDeepString(m, hookFieldToolCall, hookFieldArgs, "CommandLine"),
 		extractDeepString(m, hookFieldToolCall, hookFieldArgs, hookFieldCommand),
 		extractNestedString(m, hookFieldToolInput, hookFieldCommand),
+		extractNestedString(m, hookFieldToolArgs, hookFieldCommand),
+		extractNestedString(m, hookFieldToolArgs, "CommandLine"),
 		extractNestedString(m, hookFieldArgs, hookFieldCommand),
 		extractStringField(m, hookFieldCommand),
 	)
@@ -193,6 +215,8 @@ func extractTargetURLField(m map[string]any) string {
 		extractDeepString(m, hookFieldToolCall, hookFieldArgs, "uri"),
 		extractNestedString(m, hookFieldToolInput, "url"),
 		extractNestedString(m, hookFieldToolInput, "uri"),
+		extractNestedString(m, hookFieldToolArgs, "url"),
+		extractNestedString(m, hookFieldToolArgs, "uri"),
 		extractNestedString(m, hookFieldArgs, "url"),
 		extractNestedString(m, hookFieldArgs, "uri"),
 	)
@@ -207,6 +231,9 @@ func extractWrittenContentField(m map[string]any) string {
 		extractNestedString(m, hookFieldToolInput, "content"),
 		extractNestedString(m, hookFieldToolInput, "new_string"),
 		extractNestedString(m, hookFieldToolInput, hookFieldPatchText),
+		extractNestedString(m, hookFieldToolArgs, "content"),
+		extractNestedString(m, hookFieldToolArgs, "new_string"),
+		extractNestedString(m, hookFieldToolArgs, hookFieldPatchText),
 		extractNestedString(m, hookFieldArgs, "content"),
 		extractNestedString(m, hookFieldArgs, "new_string"),
 		extractCursorEditsContent(m),

@@ -24,15 +24,10 @@ const (
 	agentOpenCode = "opencode"
 	agentGemini   = "gemini"
 	agentAgy      = "agy"
+	agentVSCode   = "vscode"
 )
 
-var canonicalInitAgents = []string{
-	agentClaude,
-	agentCursor,
-	agentOpenCode,
-	agentGemini,
-	agentAgy,
-}
+var canonicalInitAgents = []string{agentClaude, agentCursor, agentOpenCode, agentGemini, agentAgy, agentVSCode}
 
 func resolveInitAgents(absDir, rawFlag string) ([]string, error) {
 	if strings.TrimSpace(rawFlag) != "" {
@@ -54,7 +49,7 @@ func parseSelectedAgents(raw string) ([]string, error) {
 		}
 		if !slices.Contains(canonicalInitAgents, tok) {
 			return nil, types.NewNomosError(types.ErrCodeValidationFailed, "unknown agent target %q", tok).
-				WithRemedy("valid --agents targets: claude, cursor, opencode, gemini, agy, all")
+				WithRemedy("valid --agents targets: claude, cursor, opencode, gemini, agy, vscode, all")
 		}
 		if !seen[tok] {
 			seen[tok] = true
@@ -63,7 +58,7 @@ func parseSelectedAgents(raw string) ([]string, error) {
 	}
 	if len(selected) == 0 {
 		return nil, types.NewNomosError(types.ErrCodeValidationFailed, "empty --agents filter").
-			WithRemedy("pass comma-separated values from: claude, cursor, opencode, gemini, agy, all")
+			WithRemedy("pass comma-separated values from: claude, cursor, opencode, gemini, agy, vscode, all")
 	}
 	return selected, nil
 }
@@ -97,6 +92,8 @@ func hasAgentHomeSignal(homeDir, agent string) bool {
 		return pathExists(filepath.Join(homeDir, geminiDirToken))
 	case agentAgy:
 		return pathExists(filepath.Join(homeDir, hookcmd.AgentsDirToken)) || pathExists(filepath.Join(homeDir, geminiDirToken, "antigravity"))
+	case agentVSCode:
+		return pathExists(filepath.Join(homeDir, tui.CopilotDirToken))
 	default:
 		return false
 	}
@@ -119,6 +116,9 @@ func detectExistingHookAgents(absDir string) []string {
 	if fileExists(filepath.Join(absDir, hookcmd.AgentsDirToken, hookcmd.HooksFileName)) {
 		existing = append(existing, agentAgy)
 	}
+	if fileExists(tui.ResolveVSCodeManifestPath(false, absDir)) {
+		existing = append(existing, agentVSCode)
+	}
 	return existing
 }
 
@@ -134,6 +134,8 @@ func hasAgentDirSignal(absDir, agent string) bool {
 		return pathExists(filepath.Join(absDir, geminiDirToken))
 	case agentAgy:
 		return pathExists(filepath.Join(absDir, hookcmd.AgentsDirToken))
+	case agentVSCode:
+		return pathExists(filepath.Join(absDir, ".vscode")) || pathExists(filepath.Join(absDir, tui.VSCodeHooksDirToken, tui.VSCodeHooksSubdirToken))
 	default:
 		return false
 	}
@@ -203,6 +205,8 @@ func scaffoldSingleAgentHooks(dir, agent string) error {
 		return writeMergedJSONManifest(filepath.Join(dir, hookcmd.CursorDirToken, hookcmd.HooksFileName), hookcmd.DefaultCursorHooksJSON())
 	case agentOpenCode:
 		return selfupdate.ScaffoldOpenCodePlugin(dir)
+	case agentVSCode:
+		return writeMergedJSONManifest(tui.ResolveVSCodeManifestPath(false, dir), tui.DefaultVSCodeHooksJSON())
 	default:
 		return nil
 	}
@@ -309,7 +313,7 @@ func printInitAgentHooksLine(out io.Writer, check string, agents []string) {
 		return
 	}
 	writeSummaryLine(out, "  %s Agent hooks: %s\n", check,
-		tui.UiMutedStyle.Render("none auto-detected (wire anytime: nomos init --agents claude|cursor|opencode|gemini|agy)"))
+		tui.UiMutedStyle.Render("none auto-detected (wire anytime: nomos init --agents claude|cursor|opencode|gemini|agy|vscode)"))
 }
 
 func printInitRatchetAndBoundaryLines(out io.Writer, check string, info initSummaryData) {

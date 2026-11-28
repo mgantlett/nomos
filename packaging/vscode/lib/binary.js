@@ -8,6 +8,7 @@
 const { execFileSync } = require('node:child_process');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 
 const RELEASE_BASE_URL = 'https://github.com/mgantlett/nomos/releases/download';
@@ -79,8 +80,15 @@ function resolveLocalBinary(opts) {
 	if (explicit) {
 		return isExecutableFile(explicit, platform) ? explicit : '';
 	}
-	const onPath = findSystemBinary(cfg.envPath !== undefined ? cfg.envPath : process.env.PATH || '', platform);
+	const hasExplicitEnvPath = cfg.envPath !== undefined;
+	const onPath = findSystemBinary(hasExplicitEnvPath ? cfg.envPath : process.env.PATH || '', platform);
 	if (onPath) return onPath;
+	if (!hasExplicitEnvPath && platform !== 'win32') {
+		const home = os.homedir();
+		const fallbackDirs = [path.join(home, 'go', 'bin'), path.join(home, '.local', 'bin'), path.join(path.sep, 'usr', 'local', 'bin')];
+		const fallbackHit = findSystemBinary(fallbackDirs.join(':'), platform);
+		if (fallbackHit) return fallbackHit;
+	}
 	if (cfg.storageDir && cfg.version) {
 		const binName = platform === 'win32' ? 'nomos.exe' : 'nomos';
 		const cached = path.join(cfg.storageDir, 'bin', `v${String(cfg.version).replace(/^v/, '')}`, binName);
@@ -119,7 +127,7 @@ async function downloadVerifiedBinary(version, storageDir, opts = {}) {
 	const fetchFn = opts.fetchFn || globalThis.fetch;
 	const target = resolveTargetPlatform(version, opts.platform, opts.arch);
 	const tag = `v${target.version}`;
-	const base = opts.releaseBaseUrl || RELEASE_BASE_URL;
+	const base = opts.releaseBaseUrl || process.env.NOMOS_RELEASE_BASE_URL || RELEASE_BASE_URL;
 	const destDir = path.join(storageDir, 'bin', tag);
 	const binPath = path.join(destDir, target.binName);
 	if (isExecutableFile(binPath, opts.platform)) return binPath;

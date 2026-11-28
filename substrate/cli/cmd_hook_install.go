@@ -44,6 +44,7 @@ type hookInstallFlags struct {
 	opencode    bool
 	cursor      bool
 	antigravity bool
+	vscode      bool
 	userScope   bool
 	targetDir   string
 	jsonOutput  bool
@@ -55,13 +56,14 @@ type selectedHookProviders struct {
 	opencode    bool
 	cursor      bool
 	antigravity bool
+	vscode      bool
 }
 
 func newHookInstallCmd() *cobra.Command {
 	var f hookInstallFlags
 	cmd := &cobra.Command{
 		Use:     "install",
-		Short:   "Install or additively merge Nomos lifecycle hooks across Claude Code, Gemini CLI, OpenCode, Cursor, and Antigravity",
+		Short:   "Install or additively merge Nomos lifecycle hooks across Claude Code, Gemini CLI, OpenCode, Cursor, Antigravity, and VS Code",
 		Long:    tui.HelpHookInstallLong,
 		Example: tui.HelpHookInstallExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -90,6 +92,7 @@ func newHookInstallCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.opencode, "opencode", false, "Install or merge OpenCode governance plugin (nomos.ts)")
 	cmd.Flags().BoolVar(&f.cursor, "cursor", false, "Install or merge Cursor hooks (sessionStart, preToolUse, beforeShellExecution, postToolUse, afterFileEdit, stop)")
 	cmd.Flags().BoolVar(&f.antigravity, "antigravity", false, "Install or merge Antigravity 2.0 hooks (hooks.json and scripts)")
+	cmd.Flags().BoolVar(&f.vscode, "vscode", false, "Install or merge VS Code / Copilot agent hooks (.github/hooks/nomos.json)")
 	cmd.Flags().BoolVar(&f.userScope, "user", false, "Install into user-global agent configuration directories instead of project scope")
 	cmd.Flags().StringVarP(&f.targetDir, "dir", "d", "", "Project directory when --user is false (defaults to current directory)")
 	cmd.Flags().BoolVar(&f.jsonOutput, tui.FlagNameJSON, false, "Emit structured JSON installation receipt")
@@ -97,13 +100,14 @@ func newHookInstallCmd() *cobra.Command {
 }
 
 func resolveSelectedHookProviders(f hookInstallFlags) selectedHookProviders {
-	allProviders := !f.claude && !f.gemini && !f.opencode && !f.cursor && !f.antigravity
+	allProviders := !f.claude && !f.gemini && !f.opencode && !f.cursor && !f.antigravity && !f.vscode
 	return selectedHookProviders{
 		claude:      f.claude || allProviders,
 		gemini:      f.gemini || allProviders,
 		opencode:    f.opencode || allProviders,
 		cursor:      f.cursor || allProviders,
 		antigravity: f.antigravity || allProviders,
+		vscode:      f.vscode || allProviders,
 	}
 }
 
@@ -154,6 +158,13 @@ func installCoreHookProviders(userScope bool, baseDir string, sel selectedHookPr
 	if sel.cursor {
 		p := hookcmd.ResolveCursorManifestPath(userScope, baseDir)
 		if err := writeMergedJSONManifest(p, hookcmd.DefaultCursorHooksJSON()); err != nil {
+			return nil, err
+		}
+		installed = append(installed, p)
+	}
+	if sel.vscode {
+		p := tui.ResolveVSCodeManifestPath(userScope, baseDir)
+		if err := writeMergedJSONManifest(p, tui.DefaultVSCodeHooksJSON()); err != nil {
 			return nil, err
 		}
 		installed = append(installed, p)

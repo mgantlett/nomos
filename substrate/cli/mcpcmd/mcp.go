@@ -55,6 +55,7 @@ type MCPToolDescriptor struct {
 	InputSchema  map[string]any `json:"inputSchema"`
 	OutputSchema map[string]any `json:"outputSchema,omitempty"`
 	Annotations  map[string]any `json:"annotations,omitempty"`
+	Meta         map[string]any `json:"_meta,omitempty"`
 }
 
 // MCPToolCallParams decodes parameters passed to tools/call.

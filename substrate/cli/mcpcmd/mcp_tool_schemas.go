@@ -144,6 +144,11 @@ func buildAnalysisToolDescriptors(ro, dirProp map[string]any) []MCPToolDescripto
 				"grade":          map[string]any{propTypeKey: schemaTypeString, propDescKey: "Structural health letter grade."},
 			}, nil),
 			Annotations: ro,
+			Meta: map[string]any{
+				"ui": map[string]any{
+					"resourceUri": mcpAppXrayURI,
+				},
+			},
 		},
 	}
 }

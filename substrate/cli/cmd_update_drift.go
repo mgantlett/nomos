@@ -43,6 +43,7 @@ func detectJSONProviderManifestDrift(repoRoot string) []string {
 		{claudeDirToken, settingsFileName, tui.DefaultClaudeSettingsHooksJSON()},
 		{hookcmd.CursorDirToken, hookcmd.HooksFileName, hookcmd.DefaultCursorHooksJSON()},
 		{geminiDirToken, settingsFileName, DefaultGeminiSettingsHooksJSON()},
+		{filepath.Join(tui.VSCodeHooksDirToken, tui.VSCodeHooksSubdirToken), tui.VSCodeHooksFileName, tui.DefaultVSCodeHooksJSON()},
 	}
 	var drifted []string
 	for _, sp := range specs {

@@ -176,6 +176,40 @@ async function executeInitCommand(context, ui, localStealth) {
 	}
 }
 
+async function executeInitVSCodeHooksCommand(context, ui) {
+	const root = getWorkspaceRoot();
+	if (!root) return vscode.window.showWarningMessage('Nomos: Open a workspace folder first.');
+	const bin = await ensureBinaryForCommand(context, ui.output);
+	if (!bin) return;
+	const res = await execNomos(bin, ['init', '--agents', 'vscode'], root);
+	ui.output.clear();
+	ui.output.appendLine(res.stdout || res.stderr);
+	ui.output.show(true);
+	if (res.code === 0) {
+		vscode.window.showInformationMessage('Nomos VS Code agent hooks wired (.github/hooks/nomos.json).');
+	}
+}
+
+function registerMcpProvider(context) {
+	const lm = vscode.lm;
+	if (!lm || typeof lm.registerMcpServerDefinitionProvider !== 'function' || typeof vscode.McpStdioServerDefinition !== 'function') {
+		return null;
+	}
+	return lm.registerMcpServerDefinitionProvider('nomos.mcp', {
+		provideMcpServerDefinitions() {
+			const { binaryPath } = getConfig();
+			const bin = resolveLocalBinary({ binaryPath, storageDir: context.globalStorageUri.fsPath, version: pkg.version });
+			if (!bin) return [];
+			const def = new vscode.McpStdioServerDefinition('Nomos', bin, ['mcp'], pkg.version);
+			const root = getWorkspaceRoot();
+			if (root && vscode.Uri && typeof vscode.Uri.file === 'function') {
+				def.cwd = vscode.Uri.file(root);
+			}
+			return [def];
+		}
+	});
+}
+
 async function executeCopyMarkdownCommand(context, ui) {
 	const root = getWorkspaceRoot();
 	if (!root) return vscode.window.showWarningMessage('Nomos: Open a workspace folder first.');
@@ -217,6 +251,7 @@ function activate(context) {
 	const ui = { output, diagnostics, statusBar };
 	activeUi = ui;
 
+	const mcpDisposable = registerMcpProvider(context);
 	context.subscriptions.push(
 		output,
 		diagnostics,
@@ -226,8 +261,10 @@ function activate(context) {
 		vscode.commands.registerCommand('nomos.verify', () => executeVerifyCommand(context, ui)),
 		vscode.commands.registerCommand('nomos.initLocal', () => executeInitCommand(context, ui, true)),
 		vscode.commands.registerCommand('nomos.initTeam', () => executeInitCommand(context, ui, false)),
+		vscode.commands.registerCommand('nomos.initVSCode', () => executeInitVSCodeHooksCommand(context, ui)),
 		vscode.commands.registerCommand('nomos.copyXrayMarkdown', () => executeCopyMarkdownCommand(context, ui))
 	);
+	if (mcpDisposable) context.subscriptions.push(mcpDisposable);
 }
 
 /** Deactivates the Nomos extension and clears active diagnostic handles. */

@@ -6,6 +6,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 // MergeHookManifest additively merges Nomos hook definitions into an existing
@@ -100,6 +103,14 @@ const (
 	AgentsDirToken = ".agents"
 	// HooksFileName names the canonical JSON hooks manifest filename (@intent task_lifecycle_cli_spec.md).
 	HooksFileName = "hooks.json"
+	// VSCodeHooksDirToken names the repository GitHub/VS Code metadata directory (@intent task_lifecycle_cli_spec.md).
+	VSCodeHooksDirToken = ".github"
+	// VSCodeHooksSubdirToken names the VS Code / Copilot hooks subdirectory (@intent task_lifecycle_cli_spec.md).
+	VSCodeHooksSubdirToken = "hooks"
+	// VSCodeHooksFileName names the canonical Nomos VS Code agent hooks manifest (@intent task_lifecycle_cli_spec.md).
+	VSCodeHooksFileName = "nomos.json"
+	// CopilotDirToken names the user-global VS Code / Copilot config directory (@intent task_lifecycle_cli_spec.md).
+	CopilotDirToken = ".copilot"
 )
 
 type AgentHookEventSpec struct {
@@ -147,4 +158,44 @@ func DefaultClaudeSettingsHooksJSON() []byte {
 		{Event: "PostToolUse", Matcher: "Bash|Read|Write|Edit|MultiEdit|NotebookEdit|Glob|Grep", Subcmd: "post-tool", Timeout: 5},
 		{Event: "Stop", Subcmd: "stop", Timeout: 10},
 	})
+}
+
+// DefaultVSCodeHooksJSON returns the canonical VS Code / Copilot .github/hooks/nomos.json (version 1) manifest.
+// @intent task_lifecycle_cli_spec.md
+func DefaultVSCodeHooksJSON() []byte {
+	specs := []AgentHookEventSpec{
+		{Event: "SessionStart", Subcmd: "session-start", Timeout: 10},
+		{Event: "PreToolUse", Subcmd: "pre-tool", Timeout: 10},
+		{Event: "PostToolUse", Subcmd: "post-tool", Timeout: 5},
+		{Event: "Stop", Subcmd: "stop", Timeout: 10},
+	}
+	hooksMap := make(map[string]any, len(specs))
+	for _, sp := range specs {
+		cmdStr := PosixHookShellCommand(sp.Subcmd)
+		hooksMap[sp.Event] = []any{
+			map[string]any{
+				"type":               HookEntryTypeCommand,
+				HookEntryTypeCommand: cmdStr,
+				"bash":               cmdStr,
+				"timeoutSec":         sp.Timeout,
+			},
+		}
+	}
+	out, err := MarshalManifestNoHTML(map[string]any{"version": 1, "hooks": hooksMap})
+	if err != nil {
+		return nil
+	}
+	return out
+}
+
+// ResolveVSCodeManifestPath resolves project (.github/hooks/nomos.json) or user (~/.copilot/hooks/nomos.json) paths.
+// @intent task_lifecycle_cli_spec.md
+func ResolveVSCodeManifestPath(userScope bool, baseDir string) string {
+	if userScope {
+		if envDir := strings.TrimSpace(os.Getenv("COPILOT_CONFIG_DIR")); envDir != "" {
+			return filepath.Join(envDir, VSCodeHooksSubdirToken, VSCodeHooksFileName)
+		}
+		return filepath.Join(baseDir, CopilotDirToken, VSCodeHooksSubdirToken, VSCodeHooksFileName)
+	}
+	return filepath.Join(baseDir, VSCodeHooksDirToken, VSCodeHooksSubdirToken, VSCodeHooksFileName)
 }

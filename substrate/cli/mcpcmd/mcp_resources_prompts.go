@@ -21,7 +21,7 @@ const (
 	mcpMetaVersionKey           = "io.modelcontextprotocol/protocolVersion"
 	rpcErrInvalidParams         = -32602
 	rpcErrUnsupportedVersion    = -32022
-	mcpServerInstructions       = "Read-only local Nomos MCP server. Use nomos_capabilities (or resource nomos://capabilities / nomos://capabilities/catalog, canonical map: https://sophialabs.ca/docs/specs/capabilities.md), nomos_handshake, nomos_xray, nomos_verify_impact, and nomos_mem_recall to inspect repository governance without mutating files."
+	mcpServerInstructions       = "Read-only local Nomos MCP server. Use nomos_capabilities (or resources nomos://capabilities, nomos://skill, ui://nomos/xray), nomos_handshake, nomos_xray, nomos_verify_impact, and nomos_mem_recall to inspect repository governance without mutating files."
 )
 
 func supportedMCPVersions() []string {
@@ -138,6 +138,11 @@ func mcpCapabilitiesMap() map[string]any {
 		"tools":     map[string]any{"listChanged": false},
 		"resources": map[string]any{"subscribe": false, "listChanged": false},
 		"prompts":   map[string]any{"listChanged": false},
+		"extensions": map[string]any{
+			"io.modelcontextprotocol/ui": map[string]any{
+				"mimeTypes": []string{mcpAppMimeType},
+			},
+		},
 	}
 }
 
@@ -186,6 +191,20 @@ func listReadOnlyResources() []map[string]any {
 			propDescKey: "List of embedded and workspace Just-In-Time (JIT) phase steering playbooks.",
 			"mimeType":  "application/json",
 		},
+		{
+			"uri":       mcpSkillURI,
+			"name":      "nomos-agent-skill",
+			"title":     "Nomos Agent Skill (Thin Binary Bootstrapper)",
+			propDescKey: "Canonical Nomos Agent Skill Markdown instructions exposed via MCP for VS Code Agent Host Protocol 1.1.",
+			"mimeType":  "text/markdown",
+		},
+		{
+			"uri":       mcpAppXrayURI,
+			"name":      "nomos-xray-app",
+			"title":     "Nomos Codebase X-Ray (Interactive MCP App)",
+			propDescKey: "Read-only interactive HTML X-Ray scorecard and hotspot filter rendered inline or fullscreen via MCP Apps.",
+			"mimeType":  mcpAppMimeType,
+		},
 	}
 }
 
@@ -226,6 +245,7 @@ func handleResourceRead(req MCPRequest) MCPResponse {
 		}
 	}
 	uri := strings.TrimSpace(p.URI)
+	mimeType := "application/json"
 	var text string
 	switch uri {
 	case "nomos://status":
@@ -250,12 +270,22 @@ func handleResourceRead(req MCPRequest) MCPResponse {
 			return errorResponse(req.ID, rpcErrInvalidParams, raw)
 		}
 		text = raw
+	case mcpSkillURI:
+		mimeType = "text/markdown"
+		text = readAgentSkillMarkdown("")
+	case mcpAppXrayURI:
+		htmlDoc, err := renderXrayMCPAppHTML("")
+		if err != nil {
+			return errorResponse(req.ID, rpcErrInvalidParams, err.Error())
+		}
+		mimeType = mcpAppMimeType
+		text = htmlDoc
 	default:
 		return errorResponse(req.ID, rpcErrInvalidParams, fmt.Sprintf("unknown MCP resource URI: %s", uri))
 	}
 	return okResponse(req.ID, map[string]any{
 		"contents": []map[string]any{
-			{"uri": uri, "mimeType": "application/json", "text": text},
+			{"uri": uri, "mimeType": mimeType, "text": text},
 		},
 	})
 }
