@@ -382,7 +382,7 @@ type UpdateCheckCache struct {
 * **Polyglot Ecosystem Manifests (`.pre-commit-hooks.yaml`, `flake.nix`, `Dockerfile`, `scoops`, `winget`)**: Root `.pre-commit-hooks.yaml` exposes `nomos-verify` and `nomos-xray` hooks (`pass_filenames: false`). Root `flake.nix` builds the static Go substrate binary cleanly under Nix flakes (`nix run github:mgantlett/nomos`). Root `Dockerfile` and `.goreleaser.yaml` (`dockers_v2`) publish scratch multi-arch `ghcr.io/mgantlett/nomos` OCI images (`linux/amd64`, `linux/arm64`). `.goreleaser.yaml` (`scoops`, `winget`) also generates Windows Scoop and Winget manifests, and `action.yml` declares GitHub Marketplace `branding`.
 
 ### 4.16 Zero-Init Brownfield X-Ray & Baseline Lock (`nomos xray` & `nomos init --baseline`)
-* **`nomos xray [dir] [--json] [--markdown] [--top <N>]`**: Scans any directory across 11 languages without writing files or mutating SQLite stores. Emits `HangoverScore` (`0-100`), `Grade`, clones, monoliths, stubs, skipped tests, and `XrayHotspot` outputs.
+* **`nomos xray [dir] [--diff <ref>] [--json] [--markdown] [--sarif] [--badge] [--badge-svg] [--top <N>]`**: Scans a directory across 11 languages without writing files or mutating SQLite stores. Passing `--diff <ref>` restricts scanning to files added or modified since `<ref>` plus untracked files. Passing `--badge` emits a shareable Shields.io Markdown badge, and `--badge-svg` renders a deterministic standalone SVG badge.
 * **`nomos init --baseline [--dir <PATH>]`**: Captures Day-0 `XrayReport` bounds before scaffolding and sets `strict_mode: false` on indebted repositories. Writes `nomos.baseline.json` (`XrayBaselineManifest`) on disk alongside governance contracts.
 
 ### 4.17 Branch Guard Post-Commit Hook (`nomos hook post-commit`)
