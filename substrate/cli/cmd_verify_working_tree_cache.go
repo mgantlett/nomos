@@ -20,6 +20,7 @@ import (
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/workspace"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/mem"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify"
+	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/autofix"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/prproof"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/ratchet"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/sarif"
@@ -33,12 +34,16 @@ type verifyPRFlags struct {
 	updateBenchBaseline bool
 	mutateDiff          bool
 	sarifMode           bool
+	fixesMode           bool
+	fixMode             bool
 	prOutput            string
 	baseRef             string
 }
 
 func bindVerifyPRFlags(cmd *cobra.Command, prFlags *verifyPRFlags) {
 	cmd.Flags().BoolVar(&prFlags.sarifMode, "sarif", false, "Emit OASIS SARIF 2.1.0 JSON report for GitHub Code Scanning")
+	cmd.Flags().BoolVar(&prFlags.fixesMode, "fixes", false, "Emit deterministic machine-actionable repair recipes for failed gates (terminal or --json)")
+	cmd.Flags().BoolVar(&prFlags.fixMode, "fix", false, "Apply lossless mechanical auto-fixes (gofmt, nomos.schema.json sync) inside worktrees and re-verify")
 	cmd.Flags().BoolVar(&prFlags.prMode, "pr", false, "Emit tamper-evident Pull Request proof receipt (Markdown or --json)")
 	cmd.Flags().BoolVar(&prFlags.intentBrief, "intent-brief", false, "Emit compact 15-second Architectural Intent Brief decision card (Markdown or --json)")
 	cmd.Flags().BoolVar(&prFlags.updateBenchBaseline, "update-bench-baseline", false, "Execute benchmark_ratchet command and refresh baseline metric file")
@@ -50,7 +55,7 @@ func bindVerifyPRFlags(cmd *cobra.Command, prFlags *verifyPRFlags) {
 }
 
 func (f verifyPRFlags) hasCustomProbe() bool {
-	return f.prMode || f.intentBrief || f.mutateDiff || f.sarifMode || strings.TrimSpace(f.prOutput) != ""
+	return f.prMode || f.intentBrief || f.mutateDiff || f.sarifMode || f.fixesMode || f.fixMode || strings.TrimSpace(f.prOutput) != ""
 }
 
 func runUpdateBenchBaseline(out io.Writer, targetDir string, jsonOutput bool) error {
@@ -78,6 +83,9 @@ func finalizeVerificationReport(out io.Writer, ctx *vscope.VerifyContext, jsonOu
 	}
 	if prFlags.intentBrief {
 		return executeIntentBriefMode(out, ctx.WorktreePath, report, prFlags.baseRef, jsonOutput)
+	}
+	if prFlags.fixesMode || prFlags.fixMode {
+		return executeVerifyFixesMode(out, ctx, report, prFlags, jsonOutput)
 	}
 	if prFlags.sarifMode {
 		if err := writeVerifySarifOutput(out, report); err != nil {
@@ -171,6 +179,43 @@ func executeStandaloneMutateDiff(out io.Writer, targetDir, baseRef string) error
 	fmt.Fprint(out, tui.RenderDiffMutationTerminal(mutRep))
 	if !mutRep.Passed {
 		return types.NewNomosError(types.ErrCodeInvariant, "diff micro-mutation oracle detected %d surviving mutant(s)", mutRep.MutantsSurvived)
+	}
+	return nil
+}
+
+func executeVerifyFixesMode(out io.Writer, ctx *vscope.VerifyContext, report *verify.PipelineReport, prFlags verifyPRFlags, jsonOutput bool) error {
+	plan := autofix.BuildVerifyFixPlan(report.Passed, report.GatesPassed, report.GatesTotal, report.GateResults)
+	if prFlags.fixMode {
+		applied, fixErr := autofix.ApplySafeAutoFixes(ctx.WorktreePath, ctx.IsBaseline, plan)
+		if fixErr != nil {
+			return fixErr
+		}
+		if len(applied) > 0 {
+			pipeline := verify.NewPipeline(verify.DefaultBaselineGates())
+			recheck, rErr := pipeline.Execute(ctx)
+			if rErr != nil {
+				return rErr
+			}
+			report = recheck
+			plan = autofix.BuildVerifyFixPlan(report.Passed, report.GatesPassed, report.GatesTotal, report.GateResults)
+			plan.AppliedFixes = applied
+		}
+	}
+	if jsonOutput {
+		encoded, mErr := json.MarshalIndent(plan, "", "  ")
+		if mErr != nil {
+			return types.NewNomosError(types.ErrCodeCore, "failed marshaling fix plan: %v", mErr)
+		}
+		if _, wErr := fmt.Fprintln(out, string(encoded)); wErr != nil {
+			return types.NewNomosError(types.ErrCodeCore, "failed writing fix plan: %v", wErr)
+		}
+	} else {
+		if _, wErr := fmt.Fprint(out, autofix.FormatFixPlanTerminal(plan)); wErr != nil {
+			return types.NewNomosError(types.ErrCodeCore, "failed writing repair checklist: %v", wErr)
+		}
+	}
+	if !report.Passed {
+		return handleFailedVerificationReport(ctx.RepoRoot, ctx.WorktreePath, ctx.TaskID, ctx.AllFiles, ctx.IsBaseline, report)
 	}
 	return nil
 }
