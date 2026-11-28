@@ -127,8 +127,9 @@ func ValidateWorktreeBoundary(repoRoot, currentBranch, targetFile string) error
 
 ## 6. Cross-Plane Traceability & DoD Verification
 
-1. **Bilateral Task Lineage**: `INT-1941`, `SUB-2134`, `INT-1943`, `SUB-2147`, `INT-1951`, `INT-1952`, `INT-2023`, `SUB-2408`, `INT-2332`, and `SUB-3935`.
+1. **Bilateral Task Lineage**: `INT-1941`, `SUB-2134`, `INT-1943`, `SUB-2147`, `INT-1951`, `INT-1952`, `INT-2023`, `SUB-2408`, `INT-2332`, `SUB-3935`, `INT-2362`, and `SUB-3974`.
 2. **IDE Extension Packaging (`packaging/vscode`)**: Publisher `sophialabs` (`sophialabs.nomos`) ships a zero-dependency Apache-2.0 VS Code and Open VSX extension. It enforces read-only Day-0 X-Ray defaults, user-consented SHA-256 binary downloads, on-save fast-file diagnostics, and CI `.vsix` packaging.
+3. **Context7 Documentation Indexing (`context7.json`)**: Root `context7.json` defines curated documentation exclusions and Day-0 agent onboarding rules for Context7 retrieval. It preserves Apache-2.0 open-core boundaries and points zero-install lookups to `https://sophialabs.ca/mcp`.
 2. **Enforcing 7x3 Matrix Coordinates**: `Cell 4.1 (intent_steelman)`, `Cell 4.1 (intent_traceability)`, `Cell 6.1 (zero_filesystem_alias)`, and `Cell 7.1 (plane_separation)`.
 3. **Executable Obligation Suite**: `substrate/cli/intent_manifesto_obligations_test.go` binds `TC-INT-01` through `TC-INT-06` and all 8 canonical domain specifications.
 4. **Verification Command**: Execute `nomos verify` across all 42 Definition of Done quality gates and assert exit code `0`.
