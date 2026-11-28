@@ -300,8 +300,11 @@ package xray
 
 // XrayScanOptions configures read-only brownfield structural scanning (#XrayScanOptions).
 type XrayScanOptions struct {
-	TopHotspots int    `json:"top_hotspots"`
-	DiffBaseRef string `json:"diff_base_ref,omitempty"`
+	TopHotspots   int    `json:"top_hotspots"`
+	DiffBaseRef   string `json:"diff_base_ref,omitempty"`
+	MaxFileLOC    int    `json:"max_file_loc,omitempty"`
+	MaxFuncLOC    int    `json:"max_func_loc,omitempty"`
+	MaxComplexity int    `json:"max_complexity,omitempty"`
 }
 
 // XrayHotspot ranks a single source file by aggregated structural debt (#XrayHotspot).
@@ -367,9 +370,12 @@ type XrayReport struct {
 	FilesScanned         int                  `json:"files_scanned"`
 	TotalLOC             int                  `json:"total_loc"`
 	Languages            map[string]int       `json:"languages"`
-	HangoverScore        int                  `json:"hangover_score"`
-	Grade                string               `json:"grade"`
-	CloneGroups          int                  `json:"clone_groups"`
+	HangoverScore          int                  `json:"hangover_score"`
+	Grade                  string               `json:"grade"`
+	MaxFileLOCThreshold    int                  `json:"max_file_loc_threshold,omitempty"`
+	MaxFuncLOCThreshold    int                  `json:"max_func_loc_threshold,omitempty"`
+	MaxComplexityThreshold int                  `json:"max_complexity_threshold,omitempty"`
+	CloneGroups            int                  `json:"clone_groups"`
 	MonolithFiles        int                  `json:"monolith_files"`
 	OversizedFuncs       int                  `json:"oversized_funcs"`
 	HighArityFuncs       int                  `json:"high_arity_funcs"`
