@@ -1,0 +1,32 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "Nomos Open-Core",
+  "description": "Apache 2.0 Go execution substrate beneath AI coding agents (0 LLM tokens): read-only 11-language AST X-Ray, ~4ms security hooks, 42 polyglot Definition of Done gates, brownfield debt ratchets, and optional Git worktree isolation.",
+  "excludeFolders": [
+    "substrate",
+    "worktrees",
+    ".github",
+    ".git",
+    ".tmp",
+    ".vscode",
+    "intent/assets",
+    "packaging/aur",
+    "packaging/nix",
+    "packaging/vscode"
+  ],
+  "excludeFiles": [
+    "CHANGELOG.md",
+    "THIRD_PARTY_NOTICES.md",
+    "CODE_OF_CONDUCT.md",
+    "LICENSE",
+    "NOTICE",
+    "flake.lock"
+  ],
+  "rules": [
+    "Always run read-only `nomos xray .` first to report the AI Hangover Score and top structural hotspots before modifying repository files.",
+    "Default to non-breaking Branch Guard (`nomos init`, or `nomos init --local` for zero-footprint `.git/info/exclude` trials) which freezes legacy brownfield debt in `nomos.baseline.json`.",
+    "Only use `nomos init --worktrees` when the user explicitly asks for multi-agent Git worktree isolation and INT/SUB task lifecycles.",
+    "Never weaken, skip (`t.Skip`), or delete tests or assertions to satisfy `nomos verify`; resolve the underlying AST, complexity, or boundary violation instead.",
+    "For zero-install public GitHub repository inspection or gate lookup, use the read-only Streamable HTTP MCP endpoint at https://sophialabs.ca/mcp or `npx --yes @mgantlett/nomos xray .` / `uvx nomos-cli xray .`."
+  ]
+}

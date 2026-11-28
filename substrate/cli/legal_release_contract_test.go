@@ -255,6 +255,17 @@ func operationalSurfaceContractCases() []repoContractCase {
 			forbid: []string{"cockpit"},
 		},
 		{
+			name:    "Context7 indexing manifest exposes curated docs and Day-0 agent rules",
+			relPath: "context7.json",
+			mustHave: []string{
+				`"https://context7.com/schema/context7.json"`,
+				`"Nomos Open-Core"`,
+				`"excludeFolders"`,
+				`https://sophialabs.ca/mcp`,
+			},
+			forbid: []string{"cockpit", "Nomos Harness"},
+		},
+		{
 			name:    "npm launcher script verifies SHA-256 checksums before execution",
 			relPath: filepath.Join("packaging", "npm", "bin", "nomos-cli.mjs"),
 			mustHave: []string{
