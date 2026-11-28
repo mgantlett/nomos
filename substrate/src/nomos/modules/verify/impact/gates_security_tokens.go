@@ -128,7 +128,7 @@ func ScanLockedDependencyMutations(ctx *vscope.VerifyContext, root string, lockD
 		if !lockedDependencyManifests[base] {
 			continue
 		}
-		if base == "package.json" && isPackageJSONMetadataOnlyChange(root, rel) {
+		if base == "package.json" && (isPackageJSONMetadataOnlyChange(root, rel) || isZeroDepPackagingPackageJSON(root, rel)) {
 			continue
 		}
 		if base == "pyproject.toml" && IsZeroDepPackagingPyproject(root, rel) {
@@ -160,6 +160,19 @@ func IsZeroDepPackagingPyproject(root, rel string) bool {
 		}
 	}
 	return false
+}
+
+func isZeroDepPackagingPackageJSON(root, rel string) bool {
+	slashRel := filepath.ToSlash(rel)
+	if !strings.HasPrefix(slashRel, "packaging/") {
+		return false
+	}
+	wtBytes, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(slashRel)))
+	if err != nil {
+		return false
+	}
+	wtGraph, ok := extractPackageJSONLockedGraph(wtBytes)
+	return ok && string(wtGraph) == "{}"
 }
 
 func isPackageJSONMetadataOnlyChange(root, rel string) bool {
