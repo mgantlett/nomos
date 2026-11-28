@@ -401,6 +401,10 @@ type UpdateCheckCache struct {
 * **`governance.quality_gates.immutable_test_paths`**: Declares workspace-relative verification globs that remain write-protected across every `SUB-*` task in both pre-tool hooks and `nomos verify`.
 * **Hard `--scope` Write Fence**: Whenever a task declares non-empty `scope_paths`, pre-tool hooks and `nomos verify` reject mutations outside those globs. Paired unit verification suites for scoped targets remain permitted, and unscoped tasks remain unrestricted.
 
+### 4.21 Machine-Actionable Repair Recipes & Safe Auto-Fix (`nomos verify --fixes` & `--fix`)
+* **`nomos verify --fixes [--json]`**: Extracts deterministic `#VerifyFixPlan` repair recipes from failed DoD gates (`gate_name`, `probe_id`, `file`, `line`, `action_kind`, `safe_auto_fix`, `command`, `patch_hint`).
+* **`nomos verify --fix`**: Applies lossless mechanical repairs inside active worktrees (`gofmt` on modified Go files and canonical `nomos.schema.json` sync). It then re-runs `nomos verify` and rejects `--baseline` (`ERR_BOUNDARY`).
+
 ---
 
 ## 5. Table-Driven Verification Vectors
