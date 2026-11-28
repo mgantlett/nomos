@@ -148,6 +148,28 @@ aurs:
       install -Dm644 "./README.md" "${pkgdir}/usr/share/doc/nomos-bin/README.md"
       install -Dm644 "./CHANGELOG.md" "${pkgdir}/usr/share/doc/nomos-bin/CHANGELOG.md"
 
+nfpms:
+  - id: nomos-linux-pkgs
+    package_name: nomos
+    ids:
+      - nomos
+    homepage: "https://sophialabs.ca"
+    maintainer: "Mark Gantlett <mark@sophialabs.ca>"
+    description: "Deterministic engineering substrate and 42-gate AST verification layer between coding agents and Git"
+    license: "Apache-2.0"
+    formats:
+      - deb
+      - rpm
+      - apk
+    bindir: /usr/bin
+    contents:
+      - src: LICENSE
+        dst: /usr/share/licenses/nomos/LICENSE
+      - src: NOTICE
+        dst: /usr/share/licenses/nomos/NOTICE
+      - src: THIRD_PARTY_NOTICES.md
+        dst: /usr/share/licenses/nomos/THIRD_PARTY_NOTICES.md
+
 changelog:
   sort: asc
   filters:
