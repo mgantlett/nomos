@@ -173,10 +173,8 @@ func rebaseAndVerifySyncedTask(repoRoot, wtPath, branch, key string) (*verify.Pi
 	if gErr != nil {
 		return nil, gErr
 	}
-	if rebased {
-		if uErr := mtpo.UpdateBaseCommit("", repoRoot, key, readGitHeadSHA(repoRoot)); uErr != nil {
-			// best-effort ledger refresh
-		}
+	if uErr := mtpo.UpdateBaseCommit("", repoRoot, key, readGitHeadSHA(repoRoot)); uErr != nil {
+		// best-effort ledger refresh after verified fast-forward ancestry on trunk
 	}
 	return report, nil
 }
