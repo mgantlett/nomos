@@ -93,3 +93,53 @@ func TestFormatBadgeMarkdownAndSVG(t *testing.T) {
 		t.Fatal("expected nil report badge formatters to return empty strings")
 	}
 }
+
+func TestScanRepository_ConfigurableThresholdsFromNomosYAMLAndOptions(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "custom-bounds")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	var src strings.Builder
+	src.WriteString("package main\n\nfunc MediumFunc(x int) int {\n")
+	for i := 0; i < 420; i++ {
+		src.WriteString("\tx++\n")
+	}
+	src.WriteString("\treturn x\n}\n")
+	if err := os.WriteFile(filepath.Join(dir, "medium.go"), []byte(src.String()), 0644); err != nil {
+		t.Fatalf("write medium.go: %v", err)
+	}
+
+	// Default 400/60 flags both monolith and oversized func.
+	defRep, err := ScanRepository(dir, DefaultScanOptions())
+	if err != nil {
+		t.Fatalf("default scan failed: %v", err)
+	}
+	if defRep.MonolithFiles != 1 || defRep.OversizedFuncs != 1 || defRep.MaxFileLOCThreshold != 400 {
+		t.Fatalf("expected default 400/60 bounds to flag medium.go, got %+v", defRep)
+	}
+
+	// nomos.yaml thresholds raise limits to 500/500 cleanly.
+	nomosYAML := "project_name: custom-bounds\ngovernance:\n  quality_gates:\n    thresholds:\n      max_file_loc: 500\n      max_func_loc: 500\n      max_cyclomatic_complexity: 20\n"
+	if err := os.WriteFile(filepath.Join(dir, "nomos.yaml"), []byte(nomosYAML), 0644); err != nil {
+		t.Fatalf("write nomos.yaml: %v", err)
+	}
+	cfgRep, err := ScanRepository(dir, DefaultScanOptions())
+	if err != nil {
+		t.Fatalf("nomos.yaml scan failed: %v", err)
+	}
+	if cfgRep.MonolithFiles != 0 || cfgRep.OversizedFuncs != 0 || cfgRep.MaxFileLOCThreshold != 500 || cfgRep.MaxFuncLOCThreshold != 500 || cfgRep.MaxComplexityThreshold != 20 {
+		t.Fatalf("expected nomos.yaml 500/500/20 bounds applied, got %+v", cfgRep)
+	}
+	if !strings.Contains(FormatMarkdown(cfgRep), "`>500` LOC") || !strings.Contains(FormatTerminal(cfgRep), ">500 LOC") {
+		t.Fatalf("expected dynamic >500 LOC labels in rendered reports")
+	}
+
+	// Explicit option overrides nomos.yaml (tighten back to 300/50).
+	ovRep, err := ScanRepository(dir, XrayScanOptions{TopHotspots: 10, MaxFileLOC: 300, MaxFuncLOC: 50, MaxComplexity: 10})
+	if err != nil {
+		t.Fatalf("override scan failed: %v", err)
+	}
+	if ovRep.MonolithFiles != 1 || ovRep.OversizedFuncs != 1 || ovRep.MaxFileLOCThreshold != 300 || ovRep.MaxFuncLOCThreshold != 50 || ovRep.MaxComplexityThreshold != 10 {
+		t.Fatalf("expected explicit options to override nomos.yaml, got %+v", ovRep)
+	}
+}

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mgantlett/nomos/substrate/src/nomos/core/config"
 	"github.com/mgantlett/nomos/substrate/src/nomos/core/constants"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify"
 	"github.com/mgantlett/nomos/substrate/src/nomos/modules/verify/astdebt"
@@ -82,7 +83,7 @@ func ScanRepository(targetDir string, opts XrayScanOptions) (*XrayReport, error)
 	if topLimit <= 0 {
 		topLimit = DefaultTopHotspots
 	}
-	acc := newScanAccumulator(absRoot)
+	acc := newScanAccumulator(absRoot, opts)
 	var candidates []scanCandidate
 	diffRef := strings.TrimSpace(opts.DiffBaseRef)
 	if diffRef != "" {
@@ -122,26 +123,56 @@ func resolveValidScanDir(targetDir string) (string, error) {
 	return absRoot, nil
 }
 
-func newScanAccumulator(absRoot string) *scanAccumulator {
+func newScanAccumulator(absRoot string, opts XrayScanOptions) *scanAccumulator {
 	_, statErr := os.Stat(filepath.Join(absRoot, constants.FileNomosYAML))
 	initialized := statErr == nil
 	nextCmd := "nomos init --baseline"
 	if initialized {
 		nextCmd = "nomos verify --all"
 	}
+	thresholds := resolveScanThresholds(absRoot, opts)
 	return &scanAccumulator{
-		thresholds:     treesitter.DefaultEngineThresholds(),
+		thresholds:     thresholds,
 		nonTestSources: make(map[string][]byte),
 		testSources:    make(map[string][]byte),
 		dirFileCounts:  make(map[string]int),
 		hotspotsByFile: make(map[string]*XrayHotspot),
 		report: &XrayReport{
-			ProjectName: sanitizeProjectName(absRoot),
-			Initialized: initialized,
-			Languages:   make(map[string]int),
-			NextCommand: nextCmd,
+			ProjectName:            sanitizeProjectName(absRoot),
+			Initialized:            initialized,
+			Languages:              make(map[string]int),
+			MaxFileLOCThreshold:    thresholds.MaxFileLOC,
+			MaxFuncLOCThreshold:    thresholds.MaxFuncLOC,
+			MaxComplexityThreshold: thresholds.MaxComplexity,
+			NextCommand:            nextCmd,
 		},
 	}
+}
+
+func resolveScanThresholds(absRoot string, opts XrayScanOptions) treesitter.EngineThresholds {
+	th := treesitter.DefaultEngineThresholds()
+	if cfg, err := config.LoadConfig(filepath.Join(absRoot, constants.FileNomosYAML)); err == nil && cfg != nil {
+		ct := cfg.Governance.QualityGates.Thresholds
+		if ct.MaxFileLOC > 0 {
+			th.MaxFileLOC = ct.MaxFileLOC
+		}
+		if ct.MaxFuncLOC > 0 {
+			th.MaxFuncLOC = ct.MaxFuncLOC
+		}
+		if ct.MaxCyclomaticComplexity > 0 {
+			th.MaxComplexity = ct.MaxCyclomaticComplexity
+		}
+	}
+	if opts.MaxFileLOC > 0 {
+		th.MaxFileLOC = opts.MaxFileLOC
+	}
+	if opts.MaxFuncLOC > 0 {
+		th.MaxFuncLOC = opts.MaxFuncLOC
+	}
+	if opts.MaxComplexity > 0 {
+		th.MaxComplexity = opts.MaxComplexity
+	}
+	return th
 }
 
 func sanitizeProjectName(absRoot string) string {

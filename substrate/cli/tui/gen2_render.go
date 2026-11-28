@@ -65,10 +65,12 @@ func appendXraySummaryLines(sb *strings.Builder, rep *xray.XrayReport) {
 		UiMutedStyle.Render(xray.FormatLanguageBreakdown(rep.Languages)))
 	sb.WriteString(KvLine("Corpus Footprint", 18, footprint) + "\n")
 
-	debt := fmt.Sprintf("%s clone group(s) · %s monolith(s) (>400 LOC) · %s oversized func(s)",
+	debt := fmt.Sprintf("%s clone group(s) · %s monolith(s) (>%d LOC) · %s oversized func(s) (>%d LOC)",
 		styleNonZeroCount(rep.CloneGroups, UiWarnStyle),
 		styleNonZeroCount(rep.MonolithFiles, UiWarnStyle),
-		styleNonZeroCount(rep.OversizedFuncs, UiWarnStyle))
+		positiveOrDefault(rep.MaxFileLOCThreshold, 400),
+		styleNonZeroCount(rep.OversizedFuncs, UiWarnStyle),
+		positiveOrDefault(rep.MaxFuncLOCThreshold, 60))
 	sb.WriteString(KvLine("Debt Signals", 18, debt) + "\n")
 
 	sigReuse := fmt.Sprintf("%s high-arity · %s deep-nesting · %s magic-string cluster(s)",
@@ -94,6 +96,13 @@ func appendXraySummaryLines(sb *strings.Builder, rep *xray.XrayReport) {
 		UiBoldValueStyle.Render(fmt.Sprintf("%d", rep.ReachableFiles)),
 		styleNonZeroCount(rep.UnreachedFiles, UiWarnStyle))
 	sb.WriteString(KvLine("Topology Spine", 18, spineLine) + "\n")
+}
+
+func positiveOrDefault(val, fallback int) int {
+	if val > 0 {
+		return val
+	}
+	return fallback
 }
 
 func appendLipglossHotspots(sb *strings.Builder, hotspots []xray.XrayHotspot) {

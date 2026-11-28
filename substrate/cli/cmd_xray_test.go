@@ -236,4 +236,25 @@ func TestXrayCmd_DiffAndBadgeFlags(t *testing.T) {
 	if err := conflictCmd.Execute(); err == nil {
 		t.Fatal("expected combining --badge and --badge-svg to fail closed")
 	}
+
+	var threshBuf bytes.Buffer
+	threshCmd := NewRootCmd()
+	threshCmd.SetOut(&threshBuf)
+	threshCmd.SetArgs([]string{"xray", dir, "--max-file-loc", "500", "--max-func-loc", "500", "--max-complexity", "25", "--json"})
+	if err := threshCmd.Execute(); err != nil {
+		t.Fatalf("nomos xray with threshold overrides failed: %v", err)
+	}
+	var threshRep xray.XrayReport
+	if err := json.Unmarshal(threshBuf.Bytes(), &threshRep); err != nil {
+		t.Fatalf("unmarshal threshold report: %v", err)
+	}
+	if threshRep.MonolithFiles != 0 || threshRep.MaxFileLOCThreshold != 500 || threshRep.MaxFuncLOCThreshold != 500 || threshRep.MaxComplexityThreshold != 25 {
+		t.Fatalf("expected CLI threshold overrides applied, got %+v", threshRep)
+	}
+
+	negCmd := NewRootCmd()
+	negCmd.SetArgs([]string{"xray", dir, "--max-file-loc", "-1"})
+	if err := negCmd.Execute(); err == nil {
+		t.Fatal("expected negative --max-file-loc to fail closed")
+	}
 }

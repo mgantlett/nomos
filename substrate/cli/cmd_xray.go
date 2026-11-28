@@ -19,6 +19,9 @@ import (
 type xrayCLIOptions struct {
 	diffBaseRef    string
 	topHotspots    int
+	maxFileLOC     int
+	maxFuncLOC     int
+	maxComplexity  int
 	jsonOutput     bool
 	markdownOutput bool
 	sarifOutput    bool
@@ -55,10 +58,17 @@ func NewXrayCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.badgeOutput, "badge", false, "Emit a shareable Shields.io Markdown score badge snippet")
 	cmd.Flags().BoolVar(&opts.badgeSVGOutput, "badge-svg", false, "Emit a standalone deterministic SVG score badge")
 	cmd.Flags().IntVar(&opts.topHotspots, "top", xray.DefaultTopHotspots, "Maximum number of ranked structural hotspots to display")
+	cmd.Flags().IntVar(&opts.maxFileLOC, "max-file-loc", 0, "Override monolith file LOC threshold (defaults to nomos.yaml or 400)")
+	cmd.Flags().IntVar(&opts.maxFuncLOC, "max-func-loc", 0, "Override oversized function LOC threshold (defaults to nomos.yaml or 60)")
+	cmd.Flags().IntVar(&opts.maxComplexity, "max-complexity", 0, "Override function cyclomatic complexity threshold (defaults to nomos.yaml or 15)")
 	return cmd
 }
 
 func validateXrayOutputFlags(opts xrayCLIOptions) error {
+	if opts.maxFileLOC < 0 || opts.maxFuncLOC < 0 || opts.maxComplexity < 0 {
+		return types.NewNomosError(types.ErrCodeValidationFailed, "threshold overrides (--max-file-loc, --max-func-loc, --max-complexity) must be non-negative").
+			WithRemedy("pass positive integers (or omit to use nomos.yaml / canonical defaults)")
+	}
 	count := 0
 	for _, set := range []bool{opts.jsonOutput, opts.markdownOutput, opts.sarifOutput, opts.badgeOutput, opts.badgeSVGOutput} {
 		if set {
@@ -88,8 +98,11 @@ func resolveXrayTargetDir(args []string) (string, error) {
 
 func executeXray(out io.Writer, targetDir string, opts xrayCLIOptions) error {
 	rep, err := xray.ScanRepository(targetDir, xray.XrayScanOptions{
-		TopHotspots: opts.topHotspots,
-		DiffBaseRef: opts.diffBaseRef,
+		TopHotspots:   opts.topHotspots,
+		DiffBaseRef:   opts.diffBaseRef,
+		MaxFileLOC:    opts.maxFileLOC,
+		MaxFuncLOC:    opts.maxFuncLOC,
+		MaxComplexity: opts.maxComplexity,
 	})
 	if err != nil {
 		return types.NewNomosError(types.ErrCodeValidationFailed, "xray scan failed: %v", err).

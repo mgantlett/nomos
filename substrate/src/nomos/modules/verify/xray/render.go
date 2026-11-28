@@ -21,8 +21,8 @@ func FormatTerminal(rep *XrayReport) string {
 	}
 	sb.WriteString(fmt.Sprintf("  Corpus Footprint  : %d source files · %d LOC · %s\n",
 		rep.FilesScanned, rep.TotalLOC, FormatLanguageBreakdown(rep.Languages)))
-	sb.WriteString(fmt.Sprintf("  Debt Signals      : %d clone group(s) · %d monolith(s) (>400 LOC) · %d oversized func(s)\n",
-		rep.CloneGroups, rep.MonolithFiles, rep.OversizedFuncs))
+	sb.WriteString(fmt.Sprintf("  Debt Signals      : %d clone group(s) · %d monolith(s) (>%d LOC) · %d oversized func(s) (>%d LOC / V(G)>%d)\n",
+		rep.CloneGroups, rep.MonolithFiles, effectiveMaxFileLOC(rep), rep.OversizedFuncs, effectiveMaxFuncLOC(rep), effectiveMaxComplexity(rep)))
 	sb.WriteString(fmt.Sprintf("  Signature & Reuse : %d high-arity func(s) · %d deep-nesting func(s) · %d magic-string cluster(s)\n",
 		rep.HighArityFuncs, rep.DeepNestingFuncs, rep.MagicStringGroups))
 	sb.WriteString(fmt.Sprintf("  Anti-Cheat Signals: %d empty/TODO stub(s) · %d skipped test(s) · %d swallowed error(s) · %d secret/path leak(s) · %d CWE sink(s)\n",
@@ -72,8 +72,8 @@ func FormatMarkdown(rep *XrayReport) string {
 		val   int
 	}{
 		{"Structural Clone Groups", rep.CloneGroups},
-		{"Monolith Files (`>400` LOC)", rep.MonolithFiles},
-		{"Oversized / Complex Functions", rep.OversizedFuncs},
+		{fmt.Sprintf("Monolith Files (`>%d` LOC)", effectiveMaxFileLOC(rep)), rep.MonolithFiles},
+		{fmt.Sprintf("Oversized / Complex Functions (`>%d` LOC / `V(G)>%d`)", effectiveMaxFuncLOC(rep), effectiveMaxComplexity(rep)), rep.OversizedFuncs},
 		{"High-Arity Functions (`>8` params)", rep.HighArityFuncs},
 		{"Deep-Nesting Functions (`>5` levels)", rep.DeepNestingFuncs},
 		{"Magic-String Clusters (`>10` repeats)", rep.MagicStringGroups},
@@ -131,4 +131,25 @@ func FormatLanguageBreakdown(langs map[string]int) string {
 		parts = append(parts, fmt.Sprintf("%s:%d", k, langs[k]))
 	}
 	return strings.Join(parts, ", ")
+}
+
+func effectiveMaxFileLOC(rep *XrayReport) int {
+	if rep != nil && rep.MaxFileLOCThreshold > 0 {
+		return rep.MaxFileLOCThreshold
+	}
+	return 400
+}
+
+func effectiveMaxFuncLOC(rep *XrayReport) int {
+	if rep != nil && rep.MaxFuncLOCThreshold > 0 {
+		return rep.MaxFuncLOCThreshold
+	}
+	return 60
+}
+
+func effectiveMaxComplexity(rep *XrayReport) int {
+	if rep != nil && rep.MaxComplexityThreshold > 0 {
+		return rep.MaxComplexityThreshold
+	}
+	return 15
 }
